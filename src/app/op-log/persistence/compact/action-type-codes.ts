@@ -164,6 +164,13 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   [ActionType.SECTION_ADD_TASK]: 'S5',
   [ActionType.SECTION_REMOVE_TASK]: 'S6',
 
+  // WorkSession actions (V)
+  [ActionType.WORK_SESSION_ADD]: 'VA',
+  [ActionType.WORK_SESSION_UPDATE]: 'VU',
+  [ActionType.WORK_SESSION_REMOVE]: 'VD',
+  [ActionType.WORK_SESSION_COMPLETE]: 'VC',
+  [ActionType.WORK_SESSION_UNCOMPLETE]: 'VR',
+
   // SimpleCounter actions (S)
   [ActionType.COUNTER_ADD]: 'SA',
   [ActionType.COUNTER_UPDATE]: 'SU',

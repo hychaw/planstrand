@@ -40,6 +40,7 @@ import { reportBulkReplayReducerFailure } from '../apply/bulk-replay-failure-col
 import { reportLoadAllDataReducerFailure } from '../apply/load-all-data-failure-guard.meta-reducer';
 import { Action } from '@ngrx/store';
 import { T } from '../../t.const';
+import { withDefaultModelSlices } from '../model/model-config';
 
 describe('OperationLogHydratorService', () => {
   let service: OperationLogHydratorService;
@@ -61,11 +62,11 @@ describe('OperationLogHydratorService', () => {
   let mockSyncHydrationService: jasmine.SpyObj<SyncHydrationService>;
   let mockClientIdProvider: jasmine.SpyObj<ClientIdProvider>;
 
-  const mockState = {
+  const mockState = withDefaultModelSlices({
     task: { entities: {}, ids: [] },
     project: { entities: {}, ids: [] },
     globalConfig: {},
-  } as any;
+  }) as any;
 
   const createMockSnapshot = (
     overrides: Partial<MigratableStateCache> = {},
@@ -289,6 +290,23 @@ describe('OperationLogHydratorService', () => {
 
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           loadAllData({ appDataComplete: mockState }),
+        );
+      });
+
+      it('should default WorkSession when hydrating an older snapshot', async () => {
+        const legacyState = { ...mockState };
+        delete legacyState.workSession;
+        const snapshot = createMockSnapshot({ state: legacyState });
+        mockOpLogStore.loadStateCache.and.resolveTo(snapshot);
+
+        await service.hydrateStore();
+
+        expect(mockStore.dispatch).toHaveBeenCalledWith(
+          loadAllData({
+            appDataComplete: jasmine.objectContaining({
+              workSession: { ids: [], entities: {} },
+            }) as any,
+          }),
         );
       });
 
@@ -1453,7 +1471,9 @@ describe('OperationLogHydratorService', () => {
 
       it('should dispatch loadAllData with migrated snapshot state', async () => {
         const oldSnapshot = createMockSnapshot({ schemaVersion: 0 });
-        const migratedState = { task: { entities: {}, ids: ['migrated'] } } as any;
+        const migratedState = withDefaultModelSlices({
+          task: { entities: {}, ids: ['migrated'] },
+        });
         const migratedSnapshot = createMockSnapshot({
           schemaVersion: CURRENT_SCHEMA_VERSION,
           state: migratedState,

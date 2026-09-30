@@ -19,6 +19,7 @@ import { plannerSharedMetaReducer } from './task-shared-meta-reducers/planner-sh
 import { shortSyntaxSharedMetaReducer } from './task-shared-meta-reducers/short-syntax-shared.reducer';
 import { lwwUpdateMetaReducer } from './task-shared-meta-reducers/lww-update.meta-reducer';
 import { actionLoggerReducer } from './action-logger.reducer';
+import { workSessionIntegrityMetaReducer } from './work-session-integrity.meta-reducer';
 
 /**
  * Meta-Reducer Registry
@@ -136,6 +137,7 @@ export const META_REDUCERS: MetaReducer[] = [
   // bulk action — once Phase 4 strips the parent, the subtask references are
   // gone and section.taskIds entries pointing at removed subtasks would leak.
   sectionSharedMetaReducer, // Task deletion → prune section.taskIds (incl. subtasks)
+  workSessionIntegrityMetaReducer, // Reject dangling session refs and destructive Task removal
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PHASE 4: CORE CRUD OPERATIONS (Ordered by dependency)

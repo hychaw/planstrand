@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { isLegacyBackupData, migrateLegacyBackup } from './migrate-legacy-backup';
 import { INBOX_PROJECT } from '../../features/project/project.const';
-import { createValidAppData } from '../validation/state-validity-test-utils';
+import {
+  createValidAppData,
+  createValidTask,
+} from '../validation/state-validity-test-utils';
 import { validateFull } from '../validation/validation-fn';
 import { AppDataComplete, MODEL_CONFIGS } from '../model/model-config';
 import { WorkContextType } from '../../features/work-context/work-context.model';
@@ -246,6 +249,43 @@ describe('migrate-legacy-backup', () => {
       const result = migrateLegacyBackup(data);
 
       expect(result.section).toEqual(MODEL_CONFIGS.section.defaultData!);
+      expectValidWithoutRepair(result);
+    });
+
+    it('should add an empty WorkSession slice to legacy data', () => {
+      const data = createLegacyDetectedValidAppData();
+      delete data.workSession;
+
+      const result = migrateLegacyBackup(data);
+
+      expect(result.workSession).toEqual(MODEL_CONFIGS.workSession.defaultData!);
+      expectValidWithoutRepair(result);
+    });
+
+    it('should preserve existing WorkSessions', () => {
+      const data = createLegacyDetectedValidAppData();
+      data.task.ids = ['task-1'];
+      data.task.entities['task-1'] = createValidTask('task-1', {
+        projectId: 'project-1',
+      });
+      data.project.entities['project-1'].taskIds = ['task-1'];
+      data.workSession = {
+        ids: ['session-1'],
+        entities: {
+          'session-1': {
+            id: 'session-1',
+            taskId: 'task-1',
+            start: 100,
+            end: 200,
+            created: 10,
+            modified: 10,
+          },
+        },
+      };
+
+      const result = migrateLegacyBackup(data);
+
+      expect(result.workSession).toEqual(data.workSession);
       expectValidWithoutRepair(result);
     });
 

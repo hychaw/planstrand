@@ -9,6 +9,7 @@ import {
 } from '../../features/time-tracking/time-tracking.model';
 import { ProjectState } from '../../features/project/project.model';
 import { SectionState } from '../../features/section/section.model';
+import { WorkSessionState } from '../../features/work-session/work-session.model';
 import { MenuTreeState } from '../../features/menu-tree/store/menu-tree.model';
 import { TaskState } from '../../features/tasks/task.model';
 import { createValidate, IValidation } from 'typia';
@@ -55,6 +56,7 @@ const _validateTimeTracking = createValidate<TimeTrackingState>();
 const _validatePluginUserData = createValidate<PluginUserDataState>();
 const _validatePluginMetadata = createValidate<PluginMetaDataState>();
 const _validateSection = createValidate<SectionState>();
+const _validateWorkSession = createValidate<WorkSessionState>();
 
 /**
  * `Task.issueType` and `IssueProvider.issueProviderKey` are validated against the
@@ -193,6 +195,8 @@ export const appDataValidators: {
     _wrapValidate(_validatePluginMetadata(d), d, false, 'pluginMetadata'),
   section: <R>(d: R | SectionState) =>
     _wrapValidate(_validateSection(d), d, true, 'section'),
+  workSession: <R>(d: R | WorkSessionState) =>
+    _wrapValidate(_validateWorkSession(d), d, true, 'workSession'),
 } as const;
 
 const logValidationFailure = <R>(

@@ -14,6 +14,7 @@ import { IssueProviderState } from '../../features/issue/issue.model';
 import { BoardsState } from '../../features/boards/store/boards.reducer';
 import { MenuTreeState } from '../../features/menu-tree/store/menu-tree.model';
 import { SectionState } from '../../features/section/section.model';
+import { WorkSessionState } from '../../features/work-session/work-session.model';
 
 export interface AppBaseWithoutLastSyncModelChange {
   project: ProjectState;
@@ -73,6 +74,7 @@ export type AppBaseDataEntityLikeStates =
   | TaskState
   | TaskRepeatCfgState
   | TaskArchive
+  | WorkSessionState
   | SimpleCounterState;
 
 export interface AppDataCompleteLegacy extends AppBaseData {

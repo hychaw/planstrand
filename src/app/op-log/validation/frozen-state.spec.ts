@@ -1,6 +1,6 @@
 import { migrateState } from '@sp/shared-schema';
 import { validateFull, validateAppDataProperty } from './validation-fn';
-import { AppDataComplete } from '../model/model-config';
+import { AppDataComplete, withDefaultModelSlices } from '../model/model-config';
 import frozen from './test-fixtures/frozen-state-v18.15.json';
 
 /**
@@ -68,7 +68,9 @@ describe('frozen prior-release state survives migrate -> validateFull', () => {
     if (!migrated.success) {
       throw new Error(`migration of frozen fixture failed: ${migrated.error}`);
     }
-    return migrated.data as AppDataComplete;
+    // Hydration/import fill additive entity slices before strict validation.
+    // Preserve the frozen fixture and exercise that same boundary here.
+    return withDefaultModelSlices(migrated.data as object);
   };
 
   const findCredentialPaths = (state: typeof frozen.state): string[] => {
@@ -121,7 +123,7 @@ describe('frozen prior-release state survives migrate -> validateFull', () => {
     if (!migrated.success) {
       throw new Error(`v18.14 migration failed: ${migrated.error}`);
     }
-    const data = migrated.data as AppDataComplete;
+    const data = withDefaultModelSlices(migrated.data as object);
 
     expect(data.globalConfig.idle.isSuppressIdleDuringFocusMode)
       .withContext('v2->v3 must backfill the field #8965 added (#9124)')

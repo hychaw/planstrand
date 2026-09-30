@@ -21,6 +21,8 @@ import { selectTimeTrackingState } from '../time-tracking/store/time-tracking.se
 import { isValidEntityId } from '../../op-log/validation/is-valid-entity-id';
 import { LockService } from '../../op-log/sync/lock.service';
 import { LOCK_NAMES } from '../../op-log/core/operation-log.const';
+import { selectWorkSessionFeatureState } from '../work-session/store/work-session.selectors';
+import { assertNoWorkSessionsForTasks } from '../work-session/store/work-session.reducer';
 
 /**
  * Maps tasks to archive format by:
@@ -200,6 +202,12 @@ export class ArchiveService {
     const now = Date.now();
     const sanitizedTasks = sanitizeTasksForArchiving(tasks, 'moveToArchive');
     const flatTasks = flattenTasks(sanitizedTasks);
+    // Local archive storage is written before the Task-removal action. Enforce
+    // the same domain guard before that first write, not only in the reducer.
+    const sessions = await firstValueFrom(
+      this._store.select(selectWorkSessionFeatureState).pipe(first()),
+    );
+    assertNoWorkSessionsForTasks(sessions, new Set(flatTasks.map((task) => task.id)));
 
     Log.log('[ArchiveService] moveTasksToArchiveAndFlushArchiveIfDue:', {
       inputTasksCount: tasks.length,

@@ -32,7 +32,7 @@ import { ValidateStateService } from '../validation/validate-state.service';
 import { OperationApplierService } from '../apply/operation-applier.service';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { bulkApplyOperations } from '../apply/bulk-hydration.action';
-import { AppDataComplete } from '../model/model-config';
+import { AppDataComplete, withDefaultModelSlices } from '../model/model-config';
 import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
 import { IS_ELECTRON } from '../../app.constants';
 import { detectChannel, getAppVersionStr } from '../../util/get-app-version-str';
@@ -236,7 +236,9 @@ export class OperationLogHydratorService {
         // synchronously if a migration ran (schema changed).
         // TODO: Consider removing this validation after ops-log testing phase.
         // Checkpoint C validates the final state anyway, making this redundant.
-        const stateToLoad = snapshot.state as AppStateSnapshot;
+        const stateToLoad = withDefaultModelSlices(
+          snapshot.state as unknown as object,
+        ) as AppStateSnapshot;
         const snapshotSchemaVersion = (snapshot as { schemaVersion?: number })
           .schemaVersion;
         const needsSyncValidation =

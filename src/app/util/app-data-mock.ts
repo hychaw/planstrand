@@ -26,6 +26,7 @@ export const createAppDataCompleteMock = (): AppDataComplete => ({
   },
   tag: createEmptyEntity(),
   section: createEmptyEntity(),
+  workSession: createEmptyEntity(),
   simpleCounter: {
     ...createEmptyEntity(),
     ids: [],

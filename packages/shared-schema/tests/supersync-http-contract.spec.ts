@@ -249,6 +249,9 @@ describe('SuperSync HTTP contract schemas', () => {
 
     expect(parsed.capabilities?.operationSync).toEqual(SUPER_SYNC_OPERATION_CAPABILITIES);
     expect(parsed.capabilities?.operationSync?.supportedEntityTypes).toContain('TASK');
+    expect(parsed.capabilities?.operationSync?.supportedEntityTypes).toContain(
+      'WORK_SESSION',
+    );
   });
 
   it('accepts a legacy authenticated status response without capabilities', () => {

@@ -43,6 +43,8 @@ import {
 } from '../../plugins/plugin-persistence.model';
 import { menuTreeInitialState } from '../../features/menu-tree/store/menu-tree.reducer';
 import { Log } from '../../core/log';
+import { WorkSessionState } from '../../features/work-session/work-session.model';
+import { initialWorkSessionState } from '../../features/work-session/store/work-session.reducer';
 
 export const CROSS_MODEL_VERSION = 4.5 as const;
 
@@ -59,6 +61,7 @@ export type AllModelConfig = {
   tag: ModelCfg<TagState>;
   simpleCounter: ModelCfg<SimpleCounterState>;
   section: ModelCfg<SectionState>;
+  workSession: ModelCfg<WorkSessionState>;
   taskRepeatCfg: ModelCfg<TaskRepeatCfgState>;
   reminders: ModelCfg<Reminder[]>;
   timeTracking: ModelCfg<TimeTrackingState>;
@@ -97,6 +100,11 @@ export const MODEL_CONFIGS: AllModelConfig = {
   },
   section: {
     defaultData: initialSectionState,
+    isMainFileModel: true,
+    repair: fixEntityStateConsistency,
+  },
+  workSession: {
+    defaultData: initialWorkSessionState,
     isMainFileModel: true,
     repair: fixEntityStateConsistency,
   },
@@ -199,7 +207,13 @@ export const withDefaultModelSlices = (data: object): AppDataComplete => {
   const result: Record<string, unknown> = { ...data };
   const defaulted: string[] = [];
   for (const [key, config] of Object.entries(MODEL_CONFIGS)) {
-    if (result[key] === undefined || result[key] === null) {
+    // WorkSession defaults only when absent. A present null/undefined slice is
+    // invalid input and must reach validation rather than become empty data.
+    const needsDefault =
+      key === 'workSession'
+        ? !Object.hasOwn(result, key)
+        : result[key] === undefined || result[key] === null;
+    if (needsDefault) {
       // Clone: the defaults are shared module-level constants and this data is
       // dispatched into (and mutated by) the store.
       result[key] = structuredClone(config.defaultData);

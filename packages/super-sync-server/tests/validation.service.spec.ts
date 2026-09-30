@@ -28,6 +28,16 @@ describe('ValidationService', () => {
   });
 
   describe('validateOp', () => {
+    it('accepts a valid encrypted WorkSession operation through authoritative validation', () => {
+      const op = createValidOp({
+        actionType: '[WorkSession] Add WorkSession',
+        entityType: 'WORK_SESSION',
+        entityId: 'session-1',
+        isPayloadEncrypted: true,
+        payload: 'encrypted-session-payload',
+      });
+      expect(validationService.validateOp(op, clientId).valid).toBe(true);
+    });
     it('should accept a valid operation', () => {
       const op = createValidOp();
       const result = validationService.validateOp(op, clientId);
@@ -620,6 +630,7 @@ describe('ValidationService', () => {
         'METRIC',
         'BOARD',
         'SECTION',
+        'WORK_SESSION',
         'REMINDER',
         'MIGRATION',
         'RECOVERY',
@@ -634,7 +645,7 @@ describe('ValidationService', () => {
     });
 
     it('should have exactly the expected number of entity types', () => {
-      expect(ALLOWED_ENTITY_TYPES.size).toBe(21);
+      expect(ALLOWED_ENTITY_TYPES.size).toBe(22);
     });
   });
 });

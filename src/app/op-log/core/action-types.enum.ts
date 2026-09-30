@@ -147,6 +147,13 @@ export enum ActionType {
   SECTION_ADD_TASK = '[Section] Add Task to Section',
   SECTION_REMOVE_TASK = '[Section] Remove Task from Section',
 
+  // WorkSession actions (V)
+  WORK_SESSION_ADD = '[WorkSession] Add WorkSession',
+  WORK_SESSION_UPDATE = '[WorkSession] Update WorkSession',
+  WORK_SESSION_REMOVE = '[WorkSession] Remove WorkSession',
+  WORK_SESSION_COMPLETE = '[WorkSession] Complete WorkSession',
+  WORK_SESSION_UNCOMPLETE = '[WorkSession] Uncomplete WorkSession',
+
   // SimpleCounter actions (S)
   COUNTER_ADD = '[SimpleCounter] Add SimpleCounter',
   COUNTER_UPDATE = '[SimpleCounter] Update SimpleCounter',

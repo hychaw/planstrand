@@ -104,9 +104,14 @@ const _restoreKnownFullStateOmissionsForValidation = (fullState: unknown): unkno
   }
 
   // Pre-section backups are still supported by the loadAllData reducers.
-  const stateForValidation = Object.hasOwn(fullState, 'section')
+  const sectionRestored = Object.hasOwn(fullState, 'section')
     ? fullState
     : { ...fullState, section: { ids: [], entities: {} } };
+  // WorkSession did not exist in legacy snapshots. Default only an absent
+  // slice; a present malformed slice must still pass strict validation.
+  const stateForValidation = Object.hasOwn(sectionRestored, 'workSession')
+    ? sectionRestored
+    : { ...sectionRestored, workSession: MODEL_CONFIGS.workSession.defaultData };
   const globalConfig = stateForValidation['globalConfig'];
   if (!_isRecord(globalConfig)) {
     return stateForValidation;

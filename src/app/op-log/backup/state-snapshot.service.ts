@@ -19,6 +19,7 @@ import { selectTaskFeatureState } from '../../features/tasks/store/task.selector
 import { selectTaskRepeatCfgFeatureState } from '../../features/task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { selectSectionFeatureState } from '../../features/section/store/section.selectors';
 import { selectTimeTrackingState } from '../../features/time-tracking/store/time-tracking.selectors';
+import { selectWorkSessionFeatureState } from '../../features/work-session/store/work-session.selectors';
 import { environment } from '../../../environments/environment';
 import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
 import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';
@@ -70,6 +71,7 @@ const SNAPSHOT_SELECTORS: readonly {
   { key: 'pluginMetadata', selector: selectPluginMetadataFeatureState },
   { key: 'reminders', selector: selectReminderFeatureState },
   { key: 'section', selector: selectSectionFeatureState },
+  { key: 'workSession', selector: selectWorkSessionFeatureState },
 ] as const;
 
 /**

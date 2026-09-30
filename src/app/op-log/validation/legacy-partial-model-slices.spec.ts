@@ -39,6 +39,7 @@ describe('legacy pf data missing newer model slices (#9770)', () => {
     expect(filled.timeTracking).toBeDefined();
     expect(filled.menuTree).toBeDefined();
     expect(filled.boards).toBeDefined();
+    expect(filled.workSession).toEqual({ ids: [], entities: {} });
   });
 
   it('validates after filling defaults and repairing, as the migration path does', () => {

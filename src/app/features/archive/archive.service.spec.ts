@@ -72,6 +72,31 @@ describe('ArchiveService', () => {
   });
 
   describe('moveTasksToArchiveAndFlushArchiveIfDue', () => {
+    it('rejects Tasks with WorkSessions before writing archive storage', async () => {
+      mockStore.select.and.returnValue(
+        of({
+          ids: ['session-1'],
+          entities: {
+            ['session-1']: {
+              id: 'session-1',
+              taskId: 'task-1',
+              start: 100,
+              end: 200,
+              created: 50,
+              modified: 50,
+            },
+          },
+        }),
+      );
+      await expectAsync(
+        service.moveTasksToArchiveAndFlushArchiveIfDue([createMockTask('task-1')]),
+      ).toBeRejectedWithError(
+        'Remove WorkSessions before deleting or archiving their Task',
+      );
+      expect(mockArchiveDbAdapter.saveArchiveYoung).not.toHaveBeenCalled();
+      expect(mockArchiveDbAdapter.saveArchiveOld).not.toHaveBeenCalled();
+      expect(mockStore.dispatch).not.toHaveBeenCalled();
+    });
     it('should save tasks to archiveYoung', async () => {
       const tasks = [createMockTask('task-1')];
 

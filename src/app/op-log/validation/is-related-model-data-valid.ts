@@ -9,6 +9,7 @@ import {
 } from '../../features/menu-tree/store/menu-tree.model';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 import { TaskArchive } from '../../features/tasks/task.model';
+import { isValidWorkSession } from '../../features/work-session/store/work-session.reducer';
 
 // WARNING: Module-level mutable state. This is not ideal because:
 // 1. Can cause test pollution if tests don't properly isolate
@@ -148,6 +149,12 @@ export const isRelatedModelDataValid = (d: AppDataComplete): boolean => {
 
   // Validate reminders
   if (!validateReminders(d)) {
+    return false;
+  }
+
+  // Legacy partial states may precede the additive slice default boundary.
+  // Full validation still requires its normalized shape through Typia.
+  if (d.workSession && !validateWorkSessions(d, taskIds)) {
     return false;
   }
 
@@ -553,6 +560,41 @@ const validateIssueProviders = (d: AppDataComplete, projectIds: Set<string>): bo
 // NOTE: reminderId is deprecated - reminders now use remindAt directly on tasks
 // This validation is kept as a no-op for backward compatibility
 const validateReminders = (_d: AppDataComplete): boolean => {
+  return true;
+};
+
+const validateWorkSessions = (d: AppDataComplete, taskIds: Set<string>): boolean => {
+  const ids = new Set(d.workSession.ids);
+  const entityIds = Object.keys(d.workSession.entities);
+  if (
+    ids.size !== d.workSession.ids.length ||
+    entityIds.length !== ids.size ||
+    entityIds.some((id) => !ids.has(id))
+  ) {
+    _validityError('Inconsistent WorkSession entity state');
+    return false;
+  }
+  for (const id of d.workSession.ids as string[]) {
+    const session = d.workSession.entities[id];
+    if (!session) {
+      _validityError('Orphaned WorkSession ID (no matching entity)', { id });
+      return false;
+    }
+    if (!isValidWorkSession(session) || session.id !== id) {
+      _validityError('Invalid WorkSession fields', { id });
+      return false;
+    }
+    if (
+      !taskIds.has(session.taskId) ||
+      d.task.entities[session.taskId]?.id !== session.taskId
+    ) {
+      _validityError('WorkSession taskId does not reference a live Task', {
+        id,
+        taskId: session.taskId,
+      });
+      return false;
+    }
+  }
   return true;
 };
 

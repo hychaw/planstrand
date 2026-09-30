@@ -18,6 +18,11 @@ import { BackupRepairFailedError } from '../core/errors/sync-errors';
 import legacyV10Backup from './test-fixtures/legacy-v10-backup.json';
 import legacyPfV13Partial from '../validation/test-fixtures/legacy-pf-v13-partial-models.json';
 import frozenV18State from '../validation/test-fixtures/frozen-state-v18.15.json';
+import {
+  addTaskToAppData,
+  createValidAppData,
+  createValidTask,
+} from '../validation/state-validity-test-utils';
 
 describe('BackupService', () => {
   let service: BackupService;
@@ -576,6 +581,61 @@ describe('BackupService', () => {
   });
 
   describe('importCompleteBackup', () => {
+    it('refuses a future-shaped WorkSession backup without downgrading its payload', async () => {
+      const data = addTaskToAppData(createValidAppData(), createValidTask('task-1'));
+      const future = {
+        id: 'future-session',
+        taskId: 'task-1',
+        start: 100,
+        end: 200,
+        created: 50,
+        modified: 50,
+        timeZone: 'UTC',
+      };
+      data.workSession = { ids: [future.id], entities: { [future.id]: future } };
+      await expectAsync(
+        service.importCompleteBackup(data, true, true),
+      ).toBeRejectedWithError(BackupRepairFailedError);
+      expect(mockOpLogStore.runDestructiveStateReplacement).not.toHaveBeenCalled();
+      expect(mockStore.dispatch).not.toHaveBeenCalled();
+      expect(data.workSession.entities[future.id]).toEqual(future);
+    });
+    it('exports and imports multiple WorkSessions through the complete backup and durable full-state path', async () => {
+      const data = addTaskToAppData(createValidAppData(), createValidTask('task-1'));
+      const first = {
+        id: 'session-1',
+        taskId: 'task-1',
+        start: 100,
+        end: 200,
+        created: 50,
+        modified: 150,
+        completedAt: 150,
+      };
+      const second = {
+        ...first,
+        id: 'session-2',
+        start: 300,
+        end: 400,
+        completedAt: null,
+      };
+      data.workSession = {
+        ids: [first.id, second.id],
+        entities: { [first.id]: first, [second.id]: second },
+      };
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
+      const exported = await service.loadCompleteBackup(true);
+      expect(exported.data.workSession).toEqual(data.workSession);
+      await service.importCompleteBackup(exported, true, true);
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect(
+        'workSession' in action.appDataComplete && action.appDataComplete.workSession,
+      ).toEqual(data.workSession);
+      const replacement =
+        mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0];
+      expect(JSON.stringify(replacement)).toContain('session-2');
+      expect(JSON.stringify(replacement)).toContain('WORK_SESSION');
+    });
     it('should reject inconsistent skip-backup provenance arguments', async () => {
       const backup = createMinimalValidBackup() as any;
 
@@ -603,6 +663,10 @@ describe('BackupService', () => {
       expect((dispatchedAction.appDataComplete as any).task).toEqual(
         jasmine.objectContaining(backupData.task),
       );
+      expect((dispatchedAction.appDataComplete as any).workSession).toEqual({
+        ids: [],
+        entities: {},
+      });
     });
 
     it('should persist import to operation log', async () => {

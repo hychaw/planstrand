@@ -1,7 +1,4 @@
-import {
-  AppBaseDataEntityLikeStates,
-  AppDataCompleteLegacy,
-} from '../../imex/sync/sync.model';
+import { AppBaseDataEntityLikeStates } from '../../imex/sync/sync.model';
 import { TagCopy } from '../../features/tag/tag.model';
 import { ProjectCopy } from '../../features/project/project.model';
 import { isDataRepairPossible } from './is-data-repair-possible.util';
@@ -21,6 +18,7 @@ import { repairMenuTree } from './repair-menu-tree';
 import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';
 import { RepairSummary } from '../core/operation.types';
 import { isValidEntityId } from './is-valid-entity-id';
+import { fixEntityStateConsistency } from '../../util/check-fix-entity-state-consistency';
 
 export interface DataRepairResult {
   data: AppDataComplete;
@@ -31,7 +29,7 @@ export interface DataRepairResult {
  * Entity state keys that have ids/entities structure.
  * Used for fixing entity state consistency during repair.
  */
-const ENTITY_STATE_KEYS: (keyof AppDataCompleteLegacy)[] = [
+const ENTITY_STATE_KEYS: (keyof AppDataComplete)[] = [
   'project',
   'issueProvider',
   'tag',
@@ -103,6 +101,10 @@ export const dataRepair = (
     dataOut.section = { ids: [], entities: {} };
   }
 
+  if (!Object.hasOwn(dataOut, 'workSession')) {
+    dataOut.workSession = { ids: [], entities: {} };
+  }
+
   // NOTE: We no longer merge archiveOld into archiveYoung during repair.
   // The dual-archive architecture keeps them separate for proper age-based archiving.
 
@@ -137,6 +139,7 @@ export const dataRepair = (
   dataOut = _addOrphanedTasksToProjectLists(dataOut, summary);
   dataOut = _repairMenuTree(dataOut, summary);
   dataOut = _repairSections(dataOut, summary);
+  dataOut = _repairWorkSessions(dataOut, summary);
   dataOut = autoFixTypiaErrors(dataOut, errors);
   summary.typeErrorsFixed = errors.length;
 
@@ -315,10 +318,7 @@ const _stripLegacyMonthlyMode = (
   return data;
 };
 
-const _getEntityIdCount = (
-  data: AppDataComplete,
-  key: keyof AppDataCompleteLegacy,
-): number => {
+const _getEntityIdCount = (data: AppDataComplete, key: keyof AppDataComplete): number => {
   const currentState = data[key as keyof AppDataComplete];
   if (currentState && typeof currentState === 'object' && 'ids' in currentState) {
     return (currentState as AppBaseDataEntityLikeStates).ids?.length ?? 0;
@@ -332,7 +332,7 @@ const _getEntityIdCount = (
  */
 const _resetEntityStateForKey = (
   data: AppDataComplete,
-  key: keyof AppDataCompleteLegacy,
+  key: keyof AppDataComplete,
 ): void => {
   const currentState = data[key as keyof AppDataComplete];
   if (currentState && typeof currentState === 'object' && 'entities' in currentState) {
@@ -1596,6 +1596,32 @@ const _repairSections = (
       `[data-repair] Removed ${droppedTaskRefs} stale task reference(s) from sections`,
     );
     summary.invalidReferencesRemoved += droppedTaskRefs;
+  }
+  return data;
+};
+
+const _repairWorkSessions = (
+  data: AppDataComplete,
+  summary: RepairSummary,
+): AppDataComplete => {
+  const state = data.workSession;
+  // Unlike the older entity reset helper, this generic repair only rebuilds
+  // ids. Never rename, coerce or drop an unknown/malformed session payload.
+  if (
+    state &&
+    typeof state === 'object' &&
+    !Array.isArray(state) &&
+    state.entities &&
+    typeof state.entities === 'object' &&
+    !Array.isArray(state.entities)
+  ) {
+    const repaired = fixEntityStateConsistency({
+      ...state,
+      ids: Array.isArray(state.ids) ? state.ids : [],
+    });
+    if (JSON.stringify(state.ids) !== JSON.stringify(repaired.ids))
+      summary.entityStateFixed++;
+    data.workSession = repaired;
   }
   return data;
 };

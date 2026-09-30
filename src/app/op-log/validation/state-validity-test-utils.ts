@@ -42,6 +42,10 @@ import { TIME_TRACKING_FEATURE_KEY } from '../../features/time-tracking/store/ti
 import { appStateFeatureKey } from '../../root-store/app-state/app-state.reducer';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { initialSectionState } from '../../features/section/store/section.reducer';
+import {
+  initialWorkSessionState,
+  WORK_SESSION_FEATURE_NAME,
+} from '../../features/work-session/store/work-session.reducer';
 
 /**
  * Creates a minimal valid AppDataComplete state.
@@ -116,6 +120,7 @@ export const createValidAppData = (
       lastTimeTrackingFlush: 0,
     },
     ...overrides,
+    workSession: overrides.workSession ?? initialWorkSessionState,
   };
 };
 
@@ -335,6 +340,7 @@ export const rootStateToAppData = (
     pluginUserData?: AppDataComplete['pluginUserData'];
     pluginMetadata?: AppDataComplete['pluginMetadata'];
     section?: AppDataComplete['section'];
+    workSession?: AppDataComplete['workSession'];
   } = {},
 ): AppDataComplete => {
   return {
@@ -348,6 +354,10 @@ export const rootStateToAppData = (
     boards: state[BOARDS_FEATURE_NAME],
     timeTracking: state[TIME_TRACKING_FEATURE_KEY],
     section: additionalData.section || initialSectionState,
+    workSession:
+      additionalData.workSession ??
+      state[WORK_SESSION_FEATURE_NAME] ??
+      initialWorkSessionState,
     // These are either from additional data or defaults
     simpleCounter: additionalData.simpleCounter || initialSimpleCounterState,
     taskRepeatCfg: additionalData.taskRepeatCfg || initialTaskRepeatCfgState,
@@ -376,6 +386,7 @@ export const rootStateToAppData = (
 export const appDataToRootState = (data: AppDataComplete): RootState => {
   return {
     [TASK_FEATURE_NAME]: data.task,
+    [WORK_SESSION_FEATURE_NAME]: data.workSession,
     [PROJECT_FEATURE_NAME]: data.project,
     [TAG_FEATURE_NAME]: data.tag,
     [NOTE_FEATURE_NAME]: data.note,

@@ -109,6 +109,10 @@ import {
 } from '../features/reminder/store/reminder.reducer';
 import { PluginOAuthLifecycleEffects } from '../plugins/oauth/plugin-oauth-lifecycle.effects';
 import { ReducerFailureSnackEffects } from './meta/reducer-failure-snack.effects';
+import {
+  WORK_SESSION_FEATURE_NAME,
+  workSessionReducer,
+} from '../features/work-session/store/work-session.reducer';
 @NgModule({
   declarations: [],
   imports: [
@@ -146,6 +150,8 @@ import { ReducerFailureSnackEffects } from './meta/reducer-failure-snack.effects
     EffectsModule.forFeature([SimpleCounterEffects]),
 
     StoreModule.forFeature(SECTION_FEATURE_NAME, sectionReducer),
+
+    StoreModule.forFeature(WORK_SESSION_FEATURE_NAME, workSessionReducer),
 
     StoreModule.forFeature(TAG_FEATURE_NAME, tagReducer),
     EffectsModule.forFeature([TagEffects]),

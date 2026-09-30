@@ -50,9 +50,11 @@ Phase 0 uses a conservative cycle-atomic policy. The client checks the exact upl
 
 Capability results are cached in memory for five minutes. The cache is cleared when provider credentials/configuration are replaced or their in-memory cache is invalidated. It does not survive application restart. A manual sync bypasses the cache, and expiry lets an open client observe a server upgrade. Known incompatibility is therefore never cached permanently. Transient fetch failures are not cached.
 
-## Adding a future entity
+## Adding a new entity
 
-When a future phase introduces an entity such as `WORK_SESSION`:
+Phase 1 adds `WORK_SESSION` as the first production consumer of this contract. Its shared entity definition drives both server validation and capability advertisement; the upload gate needs no entity-specific branch. Local creation works while an older server remains incompatible, and manual refresh permits the durable pending operation to upload after the server is upgraded.
+
+When introducing another entity:
 
 1. Add it to the shared production `ENTITY_TYPES` only as part of that entity's implementation phase.
 2. Ensure capture/replay and schema-version behavior are defined.

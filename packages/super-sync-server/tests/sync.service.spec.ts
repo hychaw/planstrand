@@ -1134,6 +1134,23 @@ describe('SyncService', () => {
       expect(latestSeq).toBe(1);
     });
 
+    it('stores encrypted WORK_SESSION using the normal operation path', async () => {
+      const service = getSyncService();
+      const op = makeOp({
+        actionType: '[WorkSession] Add WorkSession',
+        entityType: 'WORK_SESSION',
+        entityId: 'session-1',
+        payload: 'encrypted-session-payload',
+        isPayloadEncrypted: true,
+      });
+      const results = await service.uploadOps(userId, clientId, [op]);
+      expect(results[0].accepted).toBe(true);
+      const stored = testState.operations.get(op.id);
+      expect(stored?.entityType).toBe('WORK_SESSION');
+      expect(stored?.isPayloadEncrypted).toBe(true);
+      expect(stored?.payload).toBe('encrypted-session-payload');
+    });
+
     it('preserves existing data when a clean-slate replacement fails validation', async () => {
       const service = new SyncService({ maxPayloadSizeBytes: 500 });
       const existingOp = makeOp({

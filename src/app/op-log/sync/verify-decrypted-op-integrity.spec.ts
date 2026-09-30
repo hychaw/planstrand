@@ -404,6 +404,23 @@ describe('assertDecryptedFullStateOpIntegrity', () => {
     ).toBeResolved();
   });
 
+  it('defaults an absent legacy WorkSession slice without mutating the snapshot', async () => {
+    const snapshot = validSnapshot();
+    expect(Object.hasOwn(snapshot, 'workSession')).toBeFalse();
+    await expectAsync(
+      assertDecryptedFullStateOpIntegrity(createFullStateOp(), snapshot),
+    ).toBeResolved();
+    expect(Object.hasOwn(snapshot, 'workSession')).toBeFalse();
+  });
+
+  it('does not default a present malformed WorkSession slice', async () => {
+    const snapshot = validSnapshot();
+    snapshot.workSession = null;
+    await expectAsync(
+      assertDecryptedFullStateOpIntegrity(createFullStateOp(), snapshot),
+    ).toBeRejectedWithError(OperationIntegrityError);
+  });
+
   it('accepts a legitimate snapshot missing fields a later version made required (rule 11: JiraCfg.allowFetchFallback/altPublicLinkHost #7628) — regression for #9256', async () => {
     const snapshot = validSnapshot();
     const jira = jiraCfgOf(snapshot);

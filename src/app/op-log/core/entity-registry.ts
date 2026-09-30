@@ -149,6 +149,14 @@ import {
   selectSectionFeatureState,
   selectSectionById,
 } from '../../features/section/store/section.selectors';
+import {
+  WORK_SESSION_FEATURE_NAME,
+  workSessionAdapter,
+} from '../../features/work-session/store/work-session.reducer';
+import {
+  selectWorkSessionById,
+  selectWorkSessionEntities,
+} from '../../features/work-session/store/work-session.selectors';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENTITY CONFIGS
@@ -265,6 +273,15 @@ export const buildEntityRegistry = (): EntityRegistry<EntityType> =>
         selectSectionEntitiesFromAdapter,
       ),
       selectById: selectSectionById,
+    },
+
+    WORK_SESSION: {
+      storagePattern: 'adapter',
+      featureName: WORK_SESSION_FEATURE_NAME,
+      payloadKey: 'workSession',
+      adapter: workSessionAdapter,
+      selectEntities: selectWorkSessionEntities,
+      selectById: selectWorkSessionById,
     },
 
     // ── SINGLETON ENTITIES ─────────────────────────────────────────────────────

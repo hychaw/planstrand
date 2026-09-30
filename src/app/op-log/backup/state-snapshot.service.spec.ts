@@ -26,6 +26,7 @@ import { initialTaskState } from '../../features/tasks/store/task.reducer';
 import { OperationCaptureService } from '../capture/operation-capture.service';
 import { OpType } from '../core/operation.types';
 import { PersistentAction } from '../core/persistent-action.interface';
+import { selectWorkSessionFeatureState } from '../../features/work-session/store/work-session.selectors';
 
 describe('StateSnapshotService', () => {
   let service: StateSnapshotService;
@@ -54,6 +55,28 @@ describe('StateSnapshotService', () => {
   const mockPluginUserDataState = {};
   const mockPluginMetadataState = {};
   const mockReminderState = { ids: [], entities: {} };
+  const mockWorkSessionState = {
+    ids: ['session1', 'session2'],
+    entities: {
+      session1: {
+        id: 'session1',
+        taskId: 'task1',
+        start: 100,
+        end: 200,
+        created: 50,
+        modified: 50,
+      },
+      session2: {
+        id: 'session2',
+        taskId: 'task1',
+        start: 300,
+        end: 400,
+        completedAt: 450,
+        created: 60,
+        modified: 450,
+      },
+    },
+  };
 
   const DEFAULT_ARCHIVE: ArchiveModel = {
     task: { ids: [], entities: {} },
@@ -131,6 +154,7 @@ describe('StateSnapshotService', () => {
       mockPluginMetadataState as any,
     );
     store.overrideSelector(selectReminderFeatureState, mockReminderState as any);
+    store.overrideSelector(selectWorkSessionFeatureState, mockWorkSessionState as any);
   });
 
   afterEach(() => {
@@ -156,6 +180,7 @@ describe('StateSnapshotService', () => {
       expect(snapshot.pluginUserData).toEqual(mockPluginUserDataState);
       expect(snapshot.pluginMetadata).toEqual(mockPluginMetadataState);
       expect(snapshot.reminders).toEqual(mockReminderState);
+      expect(snapshot.workSession).toEqual(mockWorkSessionState);
     });
 
     it('should return default empty archives', () => {

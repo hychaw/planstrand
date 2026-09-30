@@ -26,6 +26,7 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { T } from '../../t.const';
 import { SnackParams } from '../../core/snack/snack.model';
 import { updateGlobalConfigSection } from '../../features/config/store/global-config.actions';
+import { addWorkSession } from '../../features/work-session/store/work-session.actions';
 
 describe('OperationLogEffects', () => {
   let effects: OperationLogEffects;
@@ -979,6 +980,30 @@ describe('OperationLogEffects', () => {
   });
 
   describe('processDeferredActions', () => {
+    it('captures WorkSession through the existing durable-operation writer', async () => {
+      const workSession = {
+        id: 'session-1',
+        taskId: 'task-1',
+        start: 100,
+        end: 200,
+        created: 50,
+        modified: 50,
+      };
+      bufferDeferredAction(addWorkSession({ workSession }));
+
+      await effects.processDeferredActions();
+
+      expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: addWorkSession.type,
+          entityType: 'WORK_SESSION',
+          entityId: workSession.id,
+          opType: OpType.Create,
+          payload: { actionPayload: { workSession }, entityChanges: [] },
+        }),
+        'local',
+      );
+    });
     /**
      * Tests for processing deferred actions that were buffered during sync.
      * When users interact with the app during sync replay, those actions

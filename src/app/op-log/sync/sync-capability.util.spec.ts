@@ -75,6 +75,30 @@ describe('sync capability requirements', () => {
     ).toBeTrue();
   });
 
+  it('gates WorkSession uploads from the authoritative entity requirement', () => {
+    const workSession = op('WORK_SESSION', 4, {
+      ciphertext: 'opaque',
+      iv: 'opaque',
+      salt: 'opaque',
+    });
+
+    expect(
+      evaluateOperationCompatibility(
+        [workSession],
+        capabilities(['TASK', 'WORK_SESSION']),
+      ).compatible,
+    ).toBeTrue();
+
+    expect(evaluateOperationCompatibility([workSession], capabilities(['TASK']))).toEqual(
+      {
+        compatible: false,
+        unsupportedEntityTypes: ['WORK_SESSION'],
+        unsupportedSchemaVersions: [],
+        contractVersionSupported: true,
+      },
+    );
+  });
+
   it('rejects a synthetic future entity without registering a production entity', () => {
     const result = evaluateOperationCompatibility(
       [op('FUTURE_ENTITY')],
