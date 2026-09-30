@@ -20,6 +20,7 @@ import { getUnknownOpVocabulary } from './remote-op-block.util';
 import {
   DownloadOutcome,
   SuccessfulDownloadResult,
+  UploadResult,
   UploadOutcome,
 } from '../core/types/sync-results.types';
 import { OperationLogDownloadService } from './operation-log-download.service';
@@ -29,6 +30,7 @@ import {
   CaptureRacedRebuildError,
   IncompleteRemoteOperationsError,
   LocalDataConflictError,
+  SyncServerIncompatibleError,
 } from '../core/errors/sync-errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 import {
@@ -264,6 +266,7 @@ export class OperationLogSyncService {
       isNeverSynced?: boolean;
       /** Sync epoch captured at cycle start (#9074); fences local writes. */
       fenceEpoch?: number;
+      forceCapabilityRefresh?: boolean;
     },
   ): Promise<UploadOutcome> {
     // CRITICAL: Ensure all pending write operations have completed before uploading.
@@ -291,21 +294,26 @@ export class OperationLogSyncService {
       return { kind: 'blocked_fresh_client' };
     }
 
-    // SERVER MIGRATION CHECK: Run inside upload serialization before pending ops
-    // are captured. ServerMigrationService deduplicates the final append inside
-    // the cross-tab operation-log barrier.
-    // Skip migration check for force uploads (e.g., after password change) to avoid
-    // DecryptError when downloading ops encrypted with a different key.
-    const result = await this.uploadService.uploadPendingOps(syncProvider, {
-      preUploadCallback: options?.skipServerMigrationCheck
-        ? undefined
-        : () => this.serverMigrationService.checkAndHandleMigration(syncProvider),
-      skipPiggybackProcessing: options?.skipPiggybackProcessing,
-      // Keep accepted operations pending until piggyback processing commits. This
-      // preserves the conflict gate across cancellation and crash/retry boundaries.
-      deferAcknowledgement: true,
-      ...(options?.fenceEpoch !== undefined ? { fenceEpoch: options.fenceEpoch } : {}),
-    });
+    // Migration preparation runs under upload serialization. Force uploads skip it
+    // to avoid decrypting operations that use the prior password.
+    let result: UploadResult;
+    try {
+      result = await this.uploadService.uploadPendingOps(syncProvider, {
+        preUploadCallback: options?.skipServerMigrationCheck
+          ? undefined
+          : () => this.serverMigrationService.checkAndHandleMigration(syncProvider),
+        skipPiggybackProcessing: options?.skipPiggybackProcessing,
+        // Accepted operations remain pending until piggyback processing commits.
+        deferAcknowledgement: true,
+        ...(options?.forceCapabilityRefresh ? { forceCapabilityRefresh: true } : {}),
+        ...(options?.fenceEpoch !== undefined ? { fenceEpoch: options.fenceEpoch } : {}),
+      });
+    } catch (error) {
+      if (error instanceof SyncServerIncompatibleError) {
+        return { kind: 'blocked_server_incompatible' };
+      }
+      throw error;
+    }
 
     // STEP 1: Process piggybacked ops FIRST
     // This is critical: piggybacked ops may contain the "winning" remote versions

@@ -1,5 +1,8 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { SuperSyncDownloadOpsQuerySchema } from '@sp/shared-schema';
+import {
+  SUPER_SYNC_OPERATION_CAPABILITIES,
+  SuperSyncDownloadOpsQuerySchema,
+} from '@sp/shared-schema';
 import { authenticate, getAuthUser } from '../middleware';
 import { getSyncService } from './sync.service';
 import { parseAppVersion } from './checkpoint-gate';
@@ -219,7 +222,7 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
     uploadSnapshotHandler,
   );
 
-  // GET /api/sync/status - Get sync status (diagnostic — not used by the production client)
+  // GET /api/sync/status - Get sync status and the operation compatibility contract
   fastify.get(
     '/status',
     {
@@ -255,6 +258,9 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
           snapshotAge,
           storageUsedBytes: storageInfo.storageUsedBytes,
           storageQuotaBytes: storageInfo.storageQuotaBytes,
+          capabilities: {
+            operationSync: SUPER_SYNC_OPERATION_CAPABILITIES,
+          },
         };
 
         return reply.send(response);

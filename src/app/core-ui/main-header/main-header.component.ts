@@ -200,6 +200,9 @@ export class MainHeaderComponent implements OnDestroy {
     if (!this.isOnline()) {
       return T.MH.SYNC_STATE.OFFLINE;
     }
+    if (this.syncState() === 'INCOMPATIBLE') {
+      return T.MH.SYNC_STATE.INCOMPATIBLE;
+    }
     if (this.syncState() === 'ERROR') {
       return T.MH.SYNC_STATE.ERROR;
     }

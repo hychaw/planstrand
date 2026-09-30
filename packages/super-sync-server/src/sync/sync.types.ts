@@ -428,6 +428,14 @@ export interface SyncStatusResponse {
   snapshotAge?: number;
   storageUsedBytes: number;
   storageQuotaBytes: number;
+  capabilities: {
+    operationSync: {
+      contractVersion: number;
+      supportedEntityTypes: readonly string[];
+      minSchemaVersion: number;
+      maxSchemaVersion: number;
+    };
+  };
 }
 
 // Snapshot generation result (shared by SnapshotService + SnapshotGenerationService)

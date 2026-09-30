@@ -203,6 +203,9 @@ export interface UploadResult {
  * Options for uploadPendingOps.
  */
 export interface UploadOptions {
+  /** Recheck API server capabilities even when a fresh in-memory result exists. */
+  forceCapabilityRefresh?: boolean;
+
   /**
    * Optional preparation callback executed inside upload serialization and
    * before capturing pending operations. The callback owns any narrower
@@ -356,6 +359,10 @@ export type DownloadOutcome =
  * Each variant represents a distinct terminal state.
  */
 export type UploadOutcome =
+  | {
+      /** Pending operations require a server capability that is not advertised. */
+      kind: 'blocked_server_incompatible';
+    }
   | {
       /** Upload was blocked because this is a fresh client with no history. */
       kind: 'blocked_fresh_client';

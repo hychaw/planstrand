@@ -1,4 +1,26 @@
 import { z } from 'zod';
+import { ENTITY_TYPES } from './entity-types';
+import { CURRENT_SCHEMA_VERSION, MIN_SUPPORTED_SCHEMA_VERSION } from './schema-version';
+
+/**
+ * Version of the machine-readable operation-sync capability contract.
+ *
+ * This version describes the shape and meaning of the capability advertisement,
+ * not the application data schema. Clients must check both independently.
+ */
+export const SUPER_SYNC_CAPABILITY_CONTRACT_VERSION = 1;
+
+/**
+ * Authoritative capabilities advertised by this shared-schema build.
+ * The server validation allow-list and this advertisement both derive from
+ * ENTITY_TYPES so they cannot silently drift apart.
+ */
+export const SUPER_SYNC_OPERATION_CAPABILITIES = {
+  contractVersion: SUPER_SYNC_CAPABILITY_CONTRACT_VERSION,
+  supportedEntityTypes: ENTITY_TYPES,
+  minSchemaVersion: MIN_SUPPORTED_SCHEMA_VERSION,
+  maxSchemaVersion: CURRENT_SCHEMA_VERSION,
+} as const;
 
 export const SUPER_SYNC_CLIENT_ID_REGEX = /^[a-zA-Z0-9_-]+$/;
 export const SUPER_SYNC_MAX_CLIENT_ID_LENGTH = 255;
@@ -288,6 +310,21 @@ export const SuperSyncStatusResponseSchema = z
     snapshotAge: z.number().optional(),
     storageUsedBytes: z.number(),
     storageQuotaBytes: z.number(),
+    // Optional at the transport boundary so current clients can classify an
+    // authenticated pre-capability server as incompatible instead of turning
+    // the whole status response into an opaque parse error.
+    capabilities: z
+      .object({
+        operationSync: z
+          .object({
+            contractVersion: z.number().int().min(1),
+            supportedEntityTypes: z.array(z.string().min(1).max(255)),
+            minSchemaVersion: z.number().int().min(1),
+            maxSchemaVersion: z.number().int().min(1),
+          })
+          .optional(),
+      })
+      .optional(),
   })
   .passthrough();
 

@@ -8,6 +8,8 @@ import {
   type OpDownloadResponseBase as GenericOpDownloadResponseBase,
   type OpDownloadResponseForMode as GenericOpDownloadResponseForMode,
   type OperationSyncCapable as GenericOperationSyncCapable,
+  type OperationSyncCapabilityResult as GenericOperationSyncCapabilityResult,
+  type OperationSyncServerCapabilities as GenericOperationSyncServerCapabilities,
   type OperationSyncProviderMode as GenericOperationSyncProviderMode,
   type OpUploadResponse as GenericOpUploadResponse,
   type OpUploadResult as GenericOpUploadResult,
@@ -46,6 +48,8 @@ export const isFileSyncProvider = (
 export type FileRevResponse = GenericFileRevResponse;
 export type FileDownloadResponse = GenericFileDownloadResponse;
 export type OperationSyncProviderMode = GenericOperationSyncProviderMode;
+export type OperationSyncCapabilityResult = GenericOperationSyncCapabilityResult;
+export type OperationSyncServerCapabilities = GenericOperationSyncServerCapabilities;
 export type SyncOperation = GenericSyncOperation;
 export type ServerSyncOperation = GenericServerSyncOperation;
 export type OpUploadResult = GenericOpUploadResult;

@@ -92,6 +92,18 @@ export const isFileSyncProvider = <
 
 export type OperationSyncProviderMode = 'superSyncOps' | 'fileSnapshotOps';
 
+export interface OperationSyncServerCapabilities {
+  contractVersion: number;
+  supportedEntityTypes: string[];
+  minSchemaVersion: number;
+  maxSchemaVersion: number;
+}
+
+export type OperationSyncCapabilityResult =
+  | { kind: 'available'; capabilities: OperationSyncServerCapabilities }
+  | { kind: 'missing' }
+  | { kind: 'malformed' };
+
 export interface SyncOperation {
   id: string;
   clientId: string;
@@ -182,6 +194,14 @@ export interface OperationSyncCapable<
 > {
   supportsOperationSync: boolean;
   providerMode: M;
+  /**
+   * API providers set this when server-advertised entity/schema capabilities
+   * are mandatory before upload. File-backed adapters deliberately omit it.
+   */
+  readonly requiresServerCapabilities?: boolean;
+  getServerSyncCapabilities?(options?: {
+    forceRefresh?: boolean;
+  }): Promise<OperationSyncCapabilityResult>;
 
   uploadOps(
     ops: SyncOperation[],

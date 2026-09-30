@@ -253,6 +253,11 @@ export class ImmediateUploadService implements OnDestroy {
           return;
         }
 
+        if (result.kind === 'blocked_server_incompatible') {
+          this._providerManager.setSyncStatus('INCOMPATIBLE');
+          return;
+        }
+
         if (result.kind === 'cancelled') {
           OpLog.verbose(
             'ImmediateUploadService: Upload cancelled (piggybacked SYNC_IMPORT conflict)',
@@ -285,6 +290,10 @@ export class ImmediateUploadService implements OnDestroy {
             syncCapableProvider,
             { fenceEpoch },
           );
+          if (followUpResult.kind === 'blocked_server_incompatible') {
+            this._providerManager.setSyncStatus('INCOMPATIBLE');
+            return;
+          }
           if (followUpResult.kind === 'blocked_incompatible') {
             OpLog.warn(
               'ImmediateUploadService: Local-win follow-up blocked by an incompatible operation',

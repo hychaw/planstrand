@@ -135,6 +135,28 @@ export class UnknownSyncStateError extends Error {
   override name = 'UnknownSyncStateError';
 }
 
+export type SyncServerIncompatibilityReason = 'missing' | 'malformed' | 'unsupported';
+
+/**
+ * A successful authenticated server response established that the server does
+ * not advertise the entity/schema contract required by pending local ops.
+ * This is durable compatibility state, not a transient network error.
+ */
+export class SyncServerIncompatibleError extends Error {
+  override name = 'SyncServerIncompatibleError';
+
+  constructor(
+    public readonly reason: SyncServerIncompatibilityReason,
+    public readonly details?: {
+      unsupportedEntityTypes: string[];
+      unsupportedSchemaVersions: number[];
+      contractVersionSupported: boolean;
+    },
+  ) {
+    super('The sync server does not support the required operation data model.');
+  }
+}
+
 export class ForceUploadFailedError extends Error {
   override name = 'ForceUploadFailedError';
 }

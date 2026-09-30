@@ -259,6 +259,10 @@ export class WsTriggeredDownloadService implements OnDestroy {
             syncCapableProvider,
             { fenceEpoch },
           );
+          if (uploadResult.kind === 'blocked_server_incompatible') {
+            this._providerManager.setSyncStatus('INCOMPATIBLE');
+            return false;
+          }
           if (uploadResult.kind === 'blocked_incompatible') {
             SyncLog.warn(
               'WsTriggeredDownloadService: Local-win re-upload blocked by an incompatible operation',

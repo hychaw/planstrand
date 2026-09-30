@@ -19,6 +19,7 @@ import type { ProviderPlatformInfo } from '../platform/provider-platform-info';
 import type { WebFetchFactory } from '../platform/web-fetch-factory';
 import type {
   OpUploadResponse,
+  OperationSyncCapabilityResult,
   OperationSyncCapable,
   RestoreCapable,
   RestorePoint,
@@ -45,6 +46,9 @@ const SUPERSYNC_REQUEST_TIMEOUT_MS = 75000;
 
 /** Browser/Electron transient fetch failures get the same retry budget as native. */
 const SUPERSYNC_WEB_MAX_RETRIES = 2;
+
+/** Capability results are in-memory only and rechecked after five minutes. */
+export const SUPERSYNC_CAPABILITY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /** Max chars of server `error` field threaded into thrown `Error.message`. */
 const SERVER_ERROR_REASON_MAX_CHARS = 80;
@@ -140,6 +144,7 @@ export class SuperSyncProvider
   readonly maxConcurrentRequests = 10;
   readonly supportsOperationSync = true;
   readonly providerMode = 'superSyncOps' as const;
+  readonly requiresServerCapabilities = true;
   // SuperSync is E2EE-mandatory: the upload path must never push plaintext ops.
   // See `isEncryptionMandatory` on OperationSyncCapable (GHSA-9v8x-68pf-p5x7).
   readonly isEncryptionMandatory = true;
@@ -151,6 +156,9 @@ export class SuperSyncProvider
 
   private _cachedServerSeqKey: string | null = null;
   private _causalRepairSnapshotsSupported = false;
+  private _capabilityCache:
+    | { checkedAt: number; result: OperationSyncCapabilityResult }
+    | undefined;
 
   constructor(private readonly _deps: SuperSyncDeps) {
     this.privateCfg = _deps.credentialStore;
@@ -207,6 +215,7 @@ export class SuperSyncProvider
   async setPrivateCfg(cfg: SuperSyncPrivateCfg): Promise<void> {
     this._cachedServerSeqKey = null;
     this._causalRepairSnapshotsSupported = false;
+    this._capabilityCache = undefined;
     await this.privateCfg.setComplete(cfg);
   }
 
@@ -220,6 +229,7 @@ export class SuperSyncProvider
    */
   invalidateCredentialCache(): void {
     this._cachedServerSeqKey = null;
+    this._capabilityCache = undefined;
     this.privateCfg.invalidateInMemoryCache?.();
   }
 
@@ -236,6 +246,39 @@ export class SuperSyncProvider
   }
 
   // === Operation Sync Implementation ===
+
+  async getServerSyncCapabilities(options?: {
+    forceRefresh?: boolean;
+  }): Promise<OperationSyncCapabilityResult> {
+    const now = Date.now();
+    if (
+      !options?.forceRefresh &&
+      this._capabilityCache &&
+      now - this._capabilityCache.checkedAt < SUPERSYNC_CAPABILITY_CACHE_TTL_MS
+    ) {
+      return this._capabilityCache.result;
+    }
+
+    const cfg = await this._cfgOrError();
+    const response = await this._fetchApi<unknown>(cfg, '/api/sync/status', {
+      method: 'GET',
+    });
+
+    let result: OperationSyncCapabilityResult;
+    try {
+      const validated = this._deps.responseValidators.validateStatus(response);
+      const capabilities = validated.capabilities?.operationSync;
+      result = capabilities ? { kind: 'available', capabilities } : { kind: 'missing' };
+    } catch {
+      // The request succeeded, so this is a known protocol-contract problem,
+      // not a transient connectivity failure. Cache it briefly to avoid
+      // repeatedly hitting a server whose response cannot be understood.
+      result = { kind: 'malformed' };
+    }
+
+    this._capabilityCache = { checkedAt: now, result };
+    return result;
+  }
 
   async uploadOps(
     ops: SyncOperation[],

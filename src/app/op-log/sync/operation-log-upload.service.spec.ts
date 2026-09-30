@@ -8,7 +8,10 @@ import {
 } from '../sync-providers/provider.interface';
 import { SyncProviderId } from '../sync-providers/provider.const';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
-import { EncryptNoPasswordError } from '../core/errors/sync-errors';
+import {
+  EncryptNoPasswordError,
+  SyncServerIncompatibleError,
+} from '../core/errors/sync-errors';
 import { ActionType, OpType, OperationLogEntry } from '../core/operation.types';
 import { SnackService } from '../../core/snack/snack.service';
 import { provideMockStore } from '@ngrx/store/testing';
@@ -156,6 +159,107 @@ describe('OperationLogUploadService', () => {
         expect(mockApiProvider.uploadOps).toHaveBeenCalled();
       });
 
+      describe('server capability upload gate', () => {
+        let getCapabilities: jasmine.Spy;
+
+        beforeEach(() => {
+          (mockApiProvider as any).requiresServerCapabilities = true;
+          getCapabilities = jasmine.createSpy('getServerSyncCapabilities');
+          (mockApiProvider as OperationSyncCapable).getServerSyncCapabilities =
+            getCapabilities;
+        });
+
+        it('uploads supported legacy operations normally', async () => {
+          const entry = createMockEntry(1, 'op-1', 'client-1');
+          mockOpLogStore.getUnsynced.and.resolveTo([entry]);
+          getCapabilities.and.resolveTo({
+            kind: 'available',
+            capabilities: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          });
+
+          await service.uploadPendingOps(mockApiProvider);
+
+          expect(mockApiProvider.uploadOps).toHaveBeenCalled();
+        });
+
+        it('never uploads an unsupported future operation and leaves it pending', async () => {
+          const entry = createMockEntry(1, 'op-1', 'client-1');
+          entry.op.entityType = 'FUTURE_ENTITY' as never;
+          entry.op.payload = { futureField: 'unchanged' };
+          mockOpLogStore.getUnsynced.and.resolveTo([entry]);
+          getCapabilities.and.resolveTo({
+            kind: 'available',
+            capabilities: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          });
+
+          await expectAsync(
+            service.uploadPendingOps(mockApiProvider),
+          ).toBeRejectedWithError(SyncServerIncompatibleError);
+
+          expect(mockApiProvider.uploadOps).not.toHaveBeenCalled();
+          expect(mockOpLogStore.markSynced).not.toHaveBeenCalled();
+          expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
+          expect(entry.op.payload).toEqual({ futureField: 'unchanged' });
+        });
+
+        it('blocks the whole mixed cycle rather than partially uploading it', async () => {
+          const supported = createMockEntry(1, 'op-1', 'client-1');
+          const unsupported = createMockEntry(2, 'op-2', 'client-1');
+          unsupported.op.entityType = 'FUTURE_ENTITY' as never;
+          mockOpLogStore.getUnsynced.and.resolveTo([supported, unsupported]);
+          getCapabilities.and.resolveTo({
+            kind: 'available',
+            capabilities: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          });
+
+          await expectAsync(service.uploadPendingOps(mockApiProvider)).toBeRejected();
+
+          expect(mockApiProvider.uploadOps).not.toHaveBeenCalled();
+          expect(mockOpLogStore.markSynced).not.toHaveBeenCalled();
+        });
+
+        it('retries successfully after the server advertises the future entity', async () => {
+          const entry = createMockEntry(1, 'op-1', 'client-1');
+          entry.op.entityType = 'FUTURE_ENTITY' as never;
+          mockOpLogStore.getUnsynced.and.resolveTo([entry]);
+          getCapabilities.and.returnValues(
+            Promise.resolve({ kind: 'missing' }),
+            Promise.resolve({
+              kind: 'available',
+              capabilities: {
+                contractVersion: 1,
+                supportedEntityTypes: ['TASK', 'FUTURE_ENTITY'],
+                minSchemaVersion: 1,
+                maxSchemaVersion: 4,
+              },
+            }),
+          );
+
+          await expectAsync(service.uploadPendingOps(mockApiProvider)).toBeRejected();
+          await service.uploadPendingOps(mockApiProvider, {
+            forceCapabilityRefresh: true,
+          });
+
+          expect(getCapabilities).toHaveBeenCalledWith({ forceRefresh: true });
+          expect(mockApiProvider.uploadOps).toHaveBeenCalledTimes(1);
+        });
+      });
+
       // Regression guard for GHSA-9v8x-68pf-p5x7: a provider that mandates E2E
       // encryption (SuperSync) must never upload plaintext ops. During first-time
       // setup the config has no encryption key yet, so the initial sync used to
@@ -205,6 +309,20 @@ describe('OperationLogUploadService', () => {
           (mockApiProvider as any).getEncryptKey.and.returnValue(
             Promise.resolve('the-key'),
           );
+          (mockApiProvider as any).requiresServerCapabilities = true;
+          const getCapabilities = jasmine
+            .createSpy('getServerSyncCapabilities')
+            .and.resolveTo({
+              kind: 'available',
+              capabilities: {
+                contractVersion: 1,
+                supportedEntityTypes: ['TASK'],
+                minSchemaVersion: 1,
+                maxSchemaVersion: 4,
+              },
+            });
+          (mockApiProvider as OperationSyncCapable).getServerSyncCapabilities =
+            getCapabilities;
           mockApiProvider.uploadOps.and.returnValue(
             Promise.resolve({
               results: [
@@ -220,6 +338,7 @@ describe('OperationLogUploadService', () => {
 
           // Guard no longer blocks once a usable key exists; the ops are uploaded
           // (encrypted by the encryption service, covered by its own specs).
+          expect(getCapabilities).toHaveBeenCalled();
           expect(mockApiProvider.uploadOps).toHaveBeenCalled();
         });
       });

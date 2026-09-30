@@ -6,11 +6,13 @@ import {
   SuperSyncRestorePointsResponseSchema,
   SuperSyncRestoreSnapshotResponseSchema,
   SuperSyncSnapshotUploadResponseSchema,
+  SuperSyncStatusResponseSchema,
   SuperSyncUploadOpsResponseSchema,
 } from '@sp/shared-schema';
 import type {
   SuperSyncDeviceListResponse,
   SuperSyncReplaceTokenResult,
+  SuperSyncServerStatus,
 } from '@sp/sync-providers/super-sync';
 import {
   OpUploadResponse,
@@ -163,3 +165,10 @@ export const validateReplaceTokenResponse = (
     data,
     'ReplaceTokenResponse',
   ) as SuperSyncReplaceTokenResult;
+
+export const validateStatusResponse = (data: unknown): SuperSyncServerStatus =>
+  parseResponse(
+    SuperSyncStatusResponseSchema,
+    data,
+    'StatusResponse',
+  ) as SuperSyncServerStatus;

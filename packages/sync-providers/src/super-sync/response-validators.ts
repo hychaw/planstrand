@@ -8,6 +8,7 @@ import type {
 import type {
   SuperSyncDeviceListResponse,
   SuperSyncReplaceTokenResult,
+  SuperSyncServerStatus,
 } from './super-sync.model';
 
 /**
@@ -30,4 +31,5 @@ export interface SuperSyncResponseValidators {
   validateDeleteAllData(data: unknown): { success: boolean };
   validateDevices(data: unknown): SuperSyncDeviceListResponse;
   validateReplaceToken(data: unknown): SuperSyncReplaceTokenResult;
+  validateStatus(data: unknown): SuperSyncServerStatus;
 }

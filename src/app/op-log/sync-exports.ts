@@ -46,6 +46,7 @@ export {
   NoSyncProviderSetError,
   SyncAlreadyInProgressError,
   LockAcquisitionTimeoutError,
+  SyncServerIncompatibleError,
   CanNotMigrateMajorDownError,
   PotentialCorsError,
 } from './core/errors/sync-errors';

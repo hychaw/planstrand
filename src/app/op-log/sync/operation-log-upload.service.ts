@@ -46,6 +46,7 @@ import {
 } from '../../features/config/local-only-sync-settings.util';
 import { isLwwUpdateActionType } from '../core/lww-update-action-types';
 import { StateSnapshotService } from '../backup/state-snapshot.service';
+import { SyncCapabilityGateService } from './sync-capability-gate.service';
 
 // Re-export for consumers that import from this service
 export type {
@@ -71,6 +72,7 @@ export class OperationLogUploadService {
   private encryptionService = inject(OperationEncryptionService);
   private stateSnapshotService = inject(StateSnapshotService);
   private providerManager = inject(SyncProviderManager);
+  private capabilityGate = inject(SyncCapabilityGateService);
 
   async uploadPendingOps(
     syncProvider: OperationSyncCapable,
@@ -260,6 +262,25 @@ export class OperationLogUploadService {
         syncProvider.providerMode !== 'fileSnapshotOps' &&
         isGenesisEntityType(entry.op.entityType);
       const uploadableOps = pendingOps.filter((entry) => !isGenesisToSkip(entry));
+
+      // API capability preflight. This runs against the exact durable pending
+      // set selected for this upload and before either the snapshot or regular
+      // operation endpoint can be called. The policy is cycle-atomic: if any
+      // operation is unsupported, none of this cycle is uploaded, because the
+      // op log does not encode enough cross-operation intent boundaries to
+      // prove that a supported subset would be a complete representation.
+      const capabilityOps = uploadableOps
+        .filter(
+          (entry) =>
+            FULL_STATE_OP_TYPES.has(entry.op.opType as OpType) ||
+            this._sanitizeRegularOpPayloadForUpload(entry.op) !== null,
+        )
+        .map((entry) => entry.op);
+      await this.capabilityGate.assertUploadCompatible(
+        syncProvider,
+        capabilityOps,
+        options?.forceCapabilityRefresh ? { forceRefresh: true } : undefined,
+      );
 
       // Separate full-state operations (backup imports, repairs) from regular ops
       // Full-state ops are uploaded via snapshot endpoint for better efficiency

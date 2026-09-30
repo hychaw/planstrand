@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SUPER_SYNC_OPERATION_CAPABILITIES,
   SUPER_SYNC_MAX_ENTITY_IDS_PER_OP,
   SUPER_SYNC_MAX_OPS_PER_UPLOAD,
   SuperSyncDownloadOpsQuerySchema,
@@ -7,6 +8,7 @@ import {
   SuperSyncOperationSchema,
   SuperSyncRestorePointsResponseSchema,
   SuperSyncSnapshotUploadResponseSchema,
+  SuperSyncStatusResponseSchema,
   SuperSyncUploadOpsRequestSchema,
   SuperSyncUploadOpsResponseSchema,
   SuperSyncUploadSnapshotRequestSchema,
@@ -232,6 +234,51 @@ describe('SuperSync HTTP contract schemas', () => {
     });
 
     expect(parsed.capabilities?.causalRepairSnapshots).toBe(true);
+  });
+
+  it('validates the authoritative operation-sync capability advertisement', () => {
+    const parsed = SuperSyncStatusResponseSchema.parse({
+      latestSeq: 0,
+      devicesOnline: 1,
+      storageUsedBytes: 0,
+      storageQuotaBytes: 1,
+      capabilities: {
+        operationSync: SUPER_SYNC_OPERATION_CAPABILITIES,
+      },
+    });
+
+    expect(parsed.capabilities?.operationSync).toEqual(SUPER_SYNC_OPERATION_CAPABILITIES);
+    expect(parsed.capabilities?.operationSync?.supportedEntityTypes).toContain('TASK');
+  });
+
+  it('accepts a legacy authenticated status response without capabilities', () => {
+    expect(
+      SuperSyncStatusResponseSchema.parse({
+        latestSeq: 0,
+        devicesOnline: 1,
+        storageUsedBytes: 0,
+        storageQuotaBytes: 1,
+      }).capabilities,
+    ).toBeUndefined();
+  });
+
+  it('rejects malformed operation-sync capability metadata', () => {
+    expect(() =>
+      SuperSyncStatusResponseSchema.parse({
+        latestSeq: 0,
+        devicesOnline: 1,
+        storageUsedBytes: 0,
+        storageQuotaBytes: 1,
+        capabilities: {
+          operationSync: {
+            contractVersion: 1,
+            supportedEntityTypes: 'TASK',
+            minSchemaVersion: 1,
+            maxSchemaVersion: 4,
+          },
+        },
+      }),
+    ).toThrow();
   });
 
   it('keeps download-side vocabulary fields loose so an unknown value cannot reject a page (#8764)', () => {

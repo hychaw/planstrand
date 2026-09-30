@@ -655,14 +655,20 @@ export class SyncWrapperService {
         return 'HANDLED_ERROR';
       }
 
-      // Track the successfully synced provider for switch detection on next sync
       this._providerManager.setLastSyncedProviderId(providerId);
 
-      // 2. Upload pending local ops
       const uploadResult = await this._opLogSyncService.uploadPendingOps(
         syncCapableProvider,
-        { isNeverSynced: isNeverSyncedAtSyncStart, fenceEpoch },
+        {
+          isNeverSynced: isNeverSyncedAtSyncStart,
+          fenceEpoch,
+          ...(isUserTriggered ? { forceCapabilityRefresh: true } : {}),
+        },
       );
+      if (uploadResult.kind === 'blocked_server_incompatible') {
+        this._providerManager.setSyncStatus('INCOMPATIBLE');
+        return 'HANDLED_ERROR';
+      }
       if (uploadResult.kind === 'blocked_incompatible') {
         SyncLog.warn(
           'SyncWrapperService: Upload piggyback blocked by an incompatible operation.',
@@ -678,7 +684,7 @@ export class SyncWrapperService {
         );
       }
 
-      // If upload was cancelled (piggybacked SYNC_IMPORT conflict dialog), skip LWW re-upload
+      // A cancelled piggybacked SYNC_IMPORT skips the LWW re-upload.
       if (uploadResult.kind === 'cancelled') {
         SyncLog.log(
           'SyncWrapperService: Upload cancelled by user (piggybacked SYNC_IMPORT). Skipping LWW re-upload.',
@@ -687,12 +693,8 @@ export class SyncWrapperService {
         return 'HANDLED_ERROR';
       }
 
-      // If the provider mandates encryption but no key is configured yet, the upload was
-      // skipped with pending ops still unsynced (GHSA-9v8x guard). Downloads still ran
-      // (merge-first), but nothing local can be uploaded until encryption is set up — so
-      // this is NOT in sync. Report it honestly instead of falling through to IN_SYNC.
-      // Also short-circuit the LWW loop below: its local-win ops are blocked by the same
-      // missing key and would just spin to the retry cap.
+      // A missing mandatory key leaves local ops pending; do not report IN_SYNC or
+      // enter the LWW retry loop while uploads are paused (GHSA-9v8x guard).
       if (
         uploadResult.kind === 'completed' &&
         uploadResult.encryptionRequiredKeyMissing
@@ -746,11 +748,8 @@ export class SyncWrapperService {
         downloadResult.kind === 'ops_processed' ? downloadResult.localWinOpsCreated : 0;
       const uploadLwwOps =
         uploadResult.kind === 'completed' ? uploadResult.localWinOpsCreated : 0;
-      // A transient server rejection (INTERNAL_ERROR, e.g. a Postgres
-      // serialization conflict) leaves the op pending with nothing scheduled to
-      // re-send it until the next sync trigger — a whole auto-sync interval, and
-      // the header keeps showing unsynced changes meanwhile. The server asked for
-      // a retry, so fold those ops into the same bounded re-upload loop.
+      // Retry transient server rejections in this bounded loop rather than waiting
+      // a full auto-sync interval with pending changes.
       const uploadTransientOps =
         uploadResult.kind === 'completed' ? countTransientRejections(uploadResult) : 0;
       let lwwRetries = 0;
@@ -761,23 +760,21 @@ export class SyncWrapperService {
           `SyncWrapperService: Re-uploading ${pendingLwwOps} pending op(s) (LWW local-win or transiently rejected) ` +
             `(attempt ${lwwRetries}/${MAX_LWW_REUPLOAD_RETRIES})...`,
         );
-        // Re-thread isNeverSyncedAtSyncStart (the snapshot captured BEFORE the
-        // initial upload ran) instead of letting uploadPendingOps re-read live
-        // state — the initial batch has already flipped hasSyncedOps() to true
-        // and a live read here would mis-classify a still-fresh client. Mirrors
-        // the orchestrator-snapshot rationale at the top of uploadPendingOps.
+        // Reuse the pre-upload snapshot; the initial batch changes hasSyncedOps().
         const reuploadResult = await this._opLogSyncService.uploadPendingOps(
           syncCapableProvider,
           { isNeverSynced: isNeverSyncedAtSyncStart, fenceEpoch },
         );
         if (reuploadResult.kind === 'cancelled') {
-          // Mirror the initial-upload cancel path: a cancelled LWW re-upload
-          // means downloaded localWinOpsCreated stay pending in the op-log.
-          // UNKNOWN_OR_CHANGED forces a retry on the next sync tick.
+          // Local-win ops stay pending; UNKNOWN_OR_CHANGED triggers a later retry.
           SyncLog.log(
             'SyncWrapperService: LWW re-upload cancelled by user. Skipping remaining sync work.',
           );
           this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+          return 'HANDLED_ERROR';
+        }
+        if (reuploadResult.kind === 'blocked_server_incompatible') {
+          this._providerManager.setSyncStatus('INCOMPATIBLE');
           return 'HANDLED_ERROR';
         }
         if (reuploadResult.kind === 'blocked_incompatible') {

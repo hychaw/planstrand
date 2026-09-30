@@ -123,7 +123,10 @@
         @if (isSyncIconEnabled()) {
           <button
             class="sync-btn secondary-header-action"
-            [class.is-error]="syncIsEnabledAndReady() && syncState() === 'ERROR'"
+            [class.is-error]="
+              syncIsEnabledAndReady() &&
+              (syncState() === 'ERROR' || syncState() === 'INCOMPATIBLE')
+            "
             [class.is-offline]="syncIsEnabledAndReady() && !isOnline()"
             [class.is-in-progress]="syncIsEnabledAndReady() && isSyncInProgress()"
             [attr.aria-label]="syncTooltip() | translate"
@@ -135,7 +138,7 @@
           >
             @if (syncIsEnabledAndReady()) {
               @if (isOnline()) {
-                @if (syncState() === 'ERROR') {
+                @if (syncState() === 'ERROR' || syncState() === 'INCOMPATIBLE') {
                   <mat-icon>sync_problem</mat-icon>
                 } @else {
                   <mat-icon [class.spin]="isSyncInProgress()">sync</mat-icon>

@@ -1,0 +1,36 @@
+import { Injectable } from '@angular/core';
+import type { Operation } from '../core/operation.types';
+import { SyncServerIncompatibleError } from '../core/errors/sync-errors';
+import type { OperationSyncCapable } from '../sync-providers/provider.interface';
+import { evaluateOperationCompatibility } from './sync-capability.util';
+
+@Injectable({ providedIn: 'root' })
+export class SyncCapabilityGateService {
+  async assertUploadCompatible(
+    provider: OperationSyncCapable,
+    operations: readonly Operation[],
+    options?: { forceRefresh?: boolean },
+  ): Promise<void> {
+    if (
+      operations.length === 0 ||
+      provider.providerMode !== 'superSyncOps' ||
+      provider.requiresServerCapabilities !== true
+    ) {
+      return;
+    }
+
+    if (!provider.getServerSyncCapabilities) {
+      throw new SyncServerIncompatibleError('missing');
+    }
+
+    const result = await provider.getServerSyncCapabilities(options);
+    if (result.kind !== 'available') {
+      throw new SyncServerIncompatibleError(result.kind);
+    }
+
+    const compatibility = evaluateOperationCompatibility(operations, result.capabilities);
+    if (!compatibility.compatible) {
+      throw new SyncServerIncompatibleError('unsupported', compatibility);
+    }
+  }
+}

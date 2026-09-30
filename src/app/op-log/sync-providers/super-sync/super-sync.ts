@@ -23,6 +23,7 @@ import {
   validateRestorePointsResponse,
   validateRestoreSnapshotResponse,
   validateSnapshotUploadResponse,
+  validateStatusResponse,
 } from './response-validators';
 
 // Type-level bridge — fails to compile if the enum's runtime value drifts
@@ -82,6 +83,7 @@ export const createSuperSyncProvider = (): PackageSuperSyncProvider => {
     validateDeleteAllData: validateDeleteAllDataResponse,
     validateDevices: validateDevicesResponse,
     validateReplaceToken: validateReplaceTokenResponse,
+    validateStatus: validateStatusResponse,
   };
 
   const deps: SuperSyncDeps = {

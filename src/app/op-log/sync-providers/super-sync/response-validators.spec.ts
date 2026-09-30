@@ -7,6 +7,7 @@ import {
   validateDeleteAllDataResponse,
   validateDevicesResponse,
   validateReplaceTokenResponse,
+  validateStatusResponse,
 } from './response-validators';
 
 describe('response-validators', () => {
@@ -406,6 +407,54 @@ describe('response-validators', () => {
 
     it('should throw if success is not a boolean', () => {
       expect(() => validateDeleteAllDataResponse({ success: 1 })).toThrow();
+    });
+  });
+
+  describe('validateStatusResponse', () => {
+    const base = {
+      latestSeq: 0,
+      devicesOnline: 1,
+      storageUsedBytes: 0,
+      storageQuotaBytes: 100,
+    };
+
+    it('accepts capability metadata and preserves future entity names', () => {
+      const result = validateStatusResponse({
+        ...base,
+        capabilities: {
+          operationSync: {
+            contractVersion: 1,
+            supportedEntityTypes: ['TASK', 'FUTURE_ENTITY'],
+            minSchemaVersion: 1,
+            maxSchemaVersion: 4,
+          },
+        },
+      });
+
+      expect(result.capabilities?.operationSync?.supportedEntityTypes).toEqual([
+        'TASK',
+        'FUTURE_ENTITY',
+      ]);
+    });
+
+    it('accepts a legacy status response with no capabilities', () => {
+      expect(validateStatusResponse(base).capabilities).toBeUndefined();
+    });
+
+    it('rejects malformed capability metadata', () => {
+      expect(() =>
+        validateStatusResponse({
+          ...base,
+          capabilities: {
+            operationSync: {
+              contractVersion: '1',
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          },
+        }),
+      ).toThrow();
     });
   });
 });

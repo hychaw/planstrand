@@ -35,6 +35,7 @@ import {
   type SuperSyncDeps,
   type SuperSyncDeviceListResponse,
   type SuperSyncReplaceTokenResult,
+  type SuperSyncServerStatus,
   type SuperSyncPrivateCfg,
   type SuperSyncResponseValidators,
   type SuperSyncStorage,
@@ -130,6 +131,7 @@ const createValidatorsPassthrough = (): SuperSyncResponseValidators => ({
   validateDeleteAllData: (data) => data as { success: boolean },
   validateDevices: (data) => data as SuperSyncDeviceListResponse,
   validateReplaceToken: (data) => data as SuperSyncReplaceTokenResult,
+  validateStatus: (data) => data as SuperSyncServerStatus,
 });
 
 const createLoggerSpy = (): {
@@ -248,6 +250,7 @@ const errorResponse = (
   }) as unknown as Response;
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -268,9 +271,169 @@ describe('SuperSyncProvider', () => {
       expect(provider.supportsOperationSync).toBe(true);
     });
 
+    it('requires server capabilities before API upload', () => {
+      const { provider } = buildProvider();
+      expect(provider.requiresServerCapabilities).toBe(true);
+    });
+
     it('has max concurrent requests set to 10', () => {
       const { provider } = buildProvider();
       expect(provider.maxConcurrentRequests).toBe(10);
+    });
+  });
+
+  describe('getServerSyncCapabilities', () => {
+    const status = (
+      operationSync?: SuperSyncServerStatus['capabilities'],
+    ): SuperSyncServerStatus => ({
+      latestSeq: 0,
+      devicesOnline: 1,
+      storageUsedBytes: 0,
+      storageQuotaBytes: 100,
+      ...(operationSync ? { capabilities: operationSync } : {}),
+    });
+
+    it('returns and caches a compatible machine-readable response', async () => {
+      const { provider, cfgStore, fetchMock } = buildProvider();
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockResolvedValue(
+        okResponse(
+          status({
+            operationSync: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          }),
+        ),
+      );
+
+      await expect(provider.getServerSyncCapabilities()).resolves.toEqual({
+        kind: 'available',
+        capabilities: {
+          contractVersion: 1,
+          supportedEntityTypes: ['TASK'],
+          minSchemaVersion: 1,
+          maxSchemaVersion: 4,
+        },
+      });
+      await provider.getServerSyncCapabilities();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('classifies an authenticated server without capability metadata as missing', async () => {
+      const { provider, cfgStore, fetchMock } = buildProvider();
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockResolvedValue(okResponse(status()));
+
+      await expect(provider.getServerSyncCapabilities()).resolves.toEqual({
+        kind: 'missing',
+      });
+      await provider.getServerSyncCapabilities();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('classifies a successful malformed response as malformed', async () => {
+      const validators = createValidatorsPassthrough();
+      validators.validateStatus = () => {
+        throw new Error('malformed');
+      };
+      const { provider, cfgStore, fetchMock } = buildProvider({ validators });
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockResolvedValue(okResponse({ capabilities: 'invalid' }));
+
+      await expect(provider.getServerSyncCapabilities()).resolves.toEqual({
+        kind: 'malformed',
+      });
+    });
+
+    it('keeps a transient network failure distinct and does not cache it', async () => {
+      const { provider, cfgStore, fetchMock } = buildProvider();
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      await expect(provider.getServerSyncCapabilities()).rejects.toBeInstanceOf(
+        NetworkUnavailableSPError,
+      );
+      await expect(provider.getServerSyncCapabilities()).rejects.toBeInstanceOf(
+        NetworkUnavailableSPError,
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+    });
+
+    it('refreshes a stale cached result and can observe a server upgrade', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(1_000);
+      const { provider, cfgStore, fetchMock } = buildProvider();
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockResolvedValueOnce(okResponse(status())).mockResolvedValueOnce(
+        okResponse(
+          status({
+            operationSync: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          }),
+        ),
+      );
+
+      await expect(provider.getServerSyncCapabilities()).resolves.toEqual({
+        kind: 'missing',
+      });
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      await expect(provider.getServerSyncCapabilities()).resolves.toMatchObject({
+        kind: 'available',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('force-refreshes a cached incompatible result for manual retry', async () => {
+      const { provider, cfgStore, fetchMock } = buildProvider();
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockResolvedValueOnce(okResponse(status())).mockResolvedValueOnce(
+        okResponse(
+          status({
+            operationSync: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          }),
+        ),
+      );
+
+      await provider.getServerSyncCapabilities();
+      await expect(
+        provider.getServerSyncCapabilities({ forceRefresh: true }),
+      ).resolves.toMatchObject({ kind: 'available' });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidates the capability cache when provider configuration changes', async () => {
+      const { provider, cfgStore, fetchMock } = buildProvider();
+      cfgStore.load.mockResolvedValue(testConfig);
+      cfgStore.setComplete.mockResolvedValue(undefined);
+      fetchMock.mockResolvedValue(okResponse(status()));
+
+      await provider.getServerSyncCapabilities();
+      await provider.setPrivateCfg({
+        ...testConfig,
+        baseUrl: 'https://upgraded.example.com',
+      });
+      cfgStore.load.mockResolvedValue({
+        ...testConfig,
+        baseUrl: 'https://upgraded.example.com',
+      });
+      await provider.getServerSyncCapabilities();
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });
 

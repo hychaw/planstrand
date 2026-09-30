@@ -1442,6 +1442,17 @@ describe('SyncWrapperService', () => {
   });
 
   describe('Error handling', () => {
+    it('reports server capability incompatibility without marking local data lost', async () => {
+      mockSyncService.uploadPendingOps.and.resolveTo({
+        kind: 'blocked_server_incompatible',
+      });
+
+      const result = await service.sync(true);
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('INCOMPATIBLE');
+    });
+
     it('should surface incomplete remote application as a sticky translated error', async () => {
       mockSyncService.downloadRemoteOps.and.rejectWith(
         new IncompleteRemoteOperationsError(),

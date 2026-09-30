@@ -50,6 +50,7 @@ import {
   ForceUploadPendingOpsError,
   IncompleteRemoteOperationsError,
   LocalDataConflictError,
+  SyncServerIncompatibleError,
   SyncEpochChangedError,
 } from '../core/errors/sync-errors';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
@@ -471,6 +472,16 @@ describe('OperationLogSyncService', () => {
         await service.uploadPendingOps({} as OperationSyncCapable);
 
         expect(callOrder).toEqual(['flush', 'deferred', 'flush', 'upload']);
+      });
+
+      it('returns a distinct outcome when the server capability gate blocks upload', async () => {
+        uploadServiceSpy.uploadPendingOps.and.rejectWith(
+          new SyncServerIncompatibleError('unsupported'),
+        );
+
+        const result = await service.uploadPendingOps({} as OperationSyncCapable);
+
+        expect(result).toEqual({ kind: 'blocked_server_incompatible' });
       });
 
       it('should block upload while a remote operation is incompletely applied', async () => {

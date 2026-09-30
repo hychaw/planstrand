@@ -72,6 +72,22 @@ export interface SuperSyncDeviceListResponse {
   devices: SuperSyncDeviceInfo[];
 }
 
+export interface SuperSyncServerStatus {
+  latestSeq: number;
+  devicesOnline: number;
+  snapshotAge?: number;
+  storageUsedBytes: number;
+  storageQuotaBytes: number;
+  capabilities?: {
+    operationSync?: {
+      contractVersion: number;
+      supportedEntityTypes: string[];
+      minSchemaVersion: number;
+      maxSchemaVersion: number;
+    };
+  };
+}
+
 /**
  * Validated result of `POST /api/replace-token`: a fresh JWT for the calling
  * client. Issuing it bumps the account-wide `tokenVersion`, which signs out

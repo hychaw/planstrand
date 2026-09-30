@@ -31,6 +31,7 @@ import { SyncEpochChangedError } from '../core/errors/sync-errors';
 export type SyncStatusChangePayload =
   | 'UNKNOWN_OR_CHANGED'
   | 'ERROR'
+  | 'INCOMPATIBLE'
   | 'IN_SYNC'
   | 'SYNCING';
 

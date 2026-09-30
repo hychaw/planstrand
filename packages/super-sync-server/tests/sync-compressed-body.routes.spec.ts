@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => {
     getOpsSinceWithSeq: vi.fn(),
     getStorageInfo: vi.fn(),
     getCachedSnapshotBytes: vi.fn(),
+    getCachedSnapshotGeneratedAt: vi.fn(),
+    getOnlineDeviceCount: vi.fn(),
     markStorageNeedsReconcile: vi.fn(),
     getMaxClockDriftMs: vi.fn(),
     filterValidOpsForQuota: vi.fn(),
@@ -74,7 +76,11 @@ import {
   SYNC_ERROR_CODES,
 } from '../src/sync/sync.types';
 import { computeOpStorageBytes } from '../src/sync/sync.const';
-import { CURRENT_SCHEMA_VERSION, SUPER_SYNC_MAX_OPS_PER_UPLOAD } from '@sp/shared-schema';
+import {
+  CURRENT_SCHEMA_VERSION,
+  SUPER_SYNC_MAX_OPS_PER_UPLOAD,
+  SUPER_SYNC_OPERATION_CAPABILITIES,
+} from '@sp/shared-schema';
 
 const gzipAsync = promisify(zlib.gzip);
 
@@ -161,6 +167,8 @@ describe('Sync compressed body routes', () => {
       };
     });
     mocks.syncService.getCachedSnapshotBytes.mockResolvedValue(0);
+    mocks.syncService.getCachedSnapshotGeneratedAt.mockResolvedValue(null);
+    mocks.syncService.getOnlineDeviceCount.mockResolvedValue(1);
     mocks.syncService.updateStorageUsage.mockResolvedValue(undefined);
     mocks.syncService.incrementStorageUsage.mockResolvedValue(undefined);
     mocks.syncService.decrementStorageUsage.mockResolvedValue(undefined);
@@ -194,6 +202,19 @@ describe('Sync compressed body routes', () => {
 
   afterEach(async () => {
     await app.close();
+  });
+
+  it('advertises authoritative operation capabilities on authenticated status', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/sync/status',
+      headers: { authorization: `Bearer ${authToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().capabilities).toEqual({
+      operationSync: SUPER_SYNC_OPERATION_CAPABILITIES,
+    });
   });
 
   it('should accept plain JSON ops upload', async () => {

@@ -3006,6 +3006,7 @@
     "SIDE_PANEL_MENU": "Side Panel Menu",
     "SYNC_STATE": {
       "ERROR": "Sync problem — click to retry",
+      "INCOMPATIBLE": "Some local changes cannot sync because this server does not support the required Planstrand data model. Your local data is safe and remains available. Upgrade or change to a compatible sync server, then click to retry.",
       "IN_SYNC": "In sync — click to sync now",
       "OFFLINE": "You're offline — sync resumes when you reconnect",
       "SYNCING": "Syncing…"
