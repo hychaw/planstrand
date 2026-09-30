@@ -1,0 +1,548 @@
+import {
+  hasOpaqueChanges,
+  isAdditiveTimeOp,
+  isDisjointMergeEligible,
+  mergeChangedFields,
+  MergeSideMeta,
+  noiseTiebreakSide,
+  touchesCrossEntityTaskFields,
+} from './conflict-disjoint-merge.util';
+import { ActionType, EntityType, OpType, Operation } from '../core/operation.types';
+
+const op = (over: Partial<Operation> = {}): Operation => ({
+  id: 'op-1',
+  actionType: '[Task] Update' as ActionType,
+  opType: OpType.Update,
+  entityType: 'TASK' as EntityType,
+  entityId: 'task-1',
+  payload: { task: { id: 'task-1' } },
+  clientId: 'A',
+  vectorClock: { A: 1 },
+  timestamp: 1000,
+  schemaVersion: 1,
+  ...over,
+});
+
+/** Production-shaped convertToSubTask op: non-adapter payload, empty entityChanges. */
+const convertToSubTaskOp = (over: Partial<Operation> = {}): Operation =>
+  op({
+    actionType: '[Task] Convert to sub task' as ActionType,
+    payload: {
+      actionPayload: {
+        taskId: 'task-1',
+        targetParentId: 'parent-1',
+        afterTaskId: null,
+      },
+      entityChanges: [],
+    },
+    ...over,
+  });
+
+const DAY = '2026-09-12';
+
+/**
+ * Production-shaped syncTimeSpent op as a DIRECT write captures it: the
+ * entityChanges carry the delta's arguments, none of which is a task field.
+ */
+const syncTimeSpentOp = (over: Partial<Operation> = {}): Operation =>
+  op({
+    actionType: ActionType.TIME_TRACKING_SYNC_TIME_SPENT,
+    payload: {
+      actionPayload: { taskId: 'task-1', date: DAY, duration: 60000 },
+      entityChanges: [
+        {
+          entityType: 'TASK' as EntityType,
+          entityId: 'task-1',
+          opType: OpType.Update,
+          changes: { taskId: 'task-1', date: DAY, duration: 60000 },
+        },
+      ],
+    },
+    ...over,
+  });
+
+/** The same op as a DEFERRED write captures it: `entityChanges: []`. */
+const deferredSyncTimeSpentOp = (over: Partial<Operation> = {}): Operation =>
+  syncTimeSpentOp({
+    payload: {
+      actionPayload: { taskId: 'task-1', date: DAY, duration: 60000 },
+      entityChanges: [],
+    },
+    ...over,
+  });
+
+/** Production-shaped removeTimeSpent op: no entityChanges are captured for it. */
+const removeTimeSpentOp = (over: Partial<Operation> = {}): Operation =>
+  op({
+    actionType: ActionType.TASK_REMOVE_TIME_SPENT,
+    payload: {
+      actionPayload: { id: 'task-1', date: DAY, duration: 60000 },
+      entityChanges: [],
+    },
+    ...over,
+  });
+
+describe('conflict-disjoint-merge.util', () => {
+  describe('mergeChangedFields (non-adapter payloads)', () => {
+    it('falls back to capture-time entityChanges when the action payload is not adapter-shaped', () => {
+      const timeSyncOp = op({
+        actionType: '[TimeTracking] Sync time spent' as ActionType,
+        payload: {
+          actionPayload: { taskId: 'task-1', date: '2026-07-10', duration: 100 },
+          entityChanges: [
+            {
+              entityType: 'TASK' as EntityType,
+              entityId: 'task-1',
+              opType: OpType.Update,
+              changes: { taskId: 'task-1', date: '2026-07-10', duration: 100 },
+            },
+          ],
+        },
+      });
+      expect(mergeChangedFields([timeSyncOp], 'task', 'task-1')).toEqual({
+        taskId: 'task-1',
+        date: '2026-07-10',
+        duration: 100,
+      });
+    });
+
+    it('does not borrow a direct-format bulk payload from its primary entity', () => {
+      const bulkOp = op({
+        entityId: 'task-1',
+        entityIds: ['task-1', 'task-2'],
+        payload: { task: { id: 'task-1', changes: { notes: 'Task 1 notes' } } },
+      });
+
+      expect(mergeChangedFields([bulkOp], 'task', 'task-2')).toEqual({});
+      expect(hasOpaqueChanges([bulkOp], 'task', 'task-2')).toBe(true);
+    });
+
+    it('requires an adapter payload to positively identify its target entity', () => {
+      const missingIdOp = op({
+        payload: { task: { changes: { notes: 'Unscoped notes' } } },
+      });
+
+      expect(mergeChangedFields([missingIdOp], 'task', 'task-1')).toEqual({});
+      expect(hasOpaqueChanges([missingIdOp], 'task', 'task-1')).toBe(true);
+    });
+
+    it('treats non-update target entityChanges as opaque', () => {
+      const bulkOp = op({
+        payload: {
+          actionPayload: { taskId: 'task-1' },
+          entityChanges: [
+            {
+              entityType: 'TASK' as EntityType,
+              entityId: 'task-1',
+              opType: OpType.Delete,
+              changes: { title: 'Must not become an update' },
+            },
+          ],
+        },
+      });
+
+      expect(mergeChangedFields([bulkOp], 'task', 'task-1')).toEqual({});
+      expect(hasOpaqueChanges([bulkOp], 'task', 'task-1')).toBe(true);
+    });
+
+    it('treats array and identity-bearing target entityChanges as opaque', () => {
+      const invalidChanges = [
+        ['not', 'a', 'field-map'],
+        { id: 'task-2', title: 'Must not retarget the update' },
+      ];
+
+      for (const changes of invalidChanges) {
+        const bulkOp = op({
+          payload: {
+            actionPayload: { taskId: 'task-1' },
+            entityChanges: [
+              {
+                entityType: 'TASK' as EntityType,
+                entityId: 'task-1',
+                opType: OpType.Update,
+                changes,
+              },
+            ],
+          },
+        });
+
+        expect(mergeChangedFields([bulkOp], 'task', 'task-1')).toEqual({});
+        expect(hasOpaqueChanges([bulkOp], 'task', 'task-1')).toBe(true);
+      }
+    });
+
+    it('treats a bulk op without a target-specific delta as opaque', () => {
+      const bulkOp = op({
+        entityId: 'task-1',
+        entityIds: ['task-1', 'task-2'],
+        payload: {
+          actionPayload: { taskId: 'task-1' },
+          entityChanges: [
+            {
+              entityType: 'TASK' as EntityType,
+              entityId: 'task-1',
+              opType: OpType.Update,
+              changes: { title: 'Task 1' },
+            },
+          ],
+        },
+      });
+
+      expect(hasOpaqueChanges([bulkOp], 'task', 'task-2')).toBe(true);
+    });
+  });
+
+  describe('hasOpaqueChanges', () => {
+    it('is true for a non-adapter payload with no entityChanges (convertToSubTask)', () => {
+      expect(hasOpaqueChanges([convertToSubTaskOp()], 'task', 'task-1')).toBe(true);
+    });
+
+    it('is false for adapter-shaped updates and for DELETE ops', () => {
+      expect(
+        hasOpaqueChanges(
+          [op({ payload: { task: { id: 'task-1', title: 'T' } } })],
+          'task',
+          'task-1',
+        ),
+      ).toBe(false);
+      expect(
+        hasOpaqueChanges(
+          [op({ opType: OpType.Delete, payload: { task: { id: 'task-1' } } })],
+          'task',
+          'task-1',
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('isDisjointMergeEligible (opaque ops)', () => {
+    it('refuses the merge when one side also has an opaque op, even if extracted fields are disjoint', () => {
+      // local: adapter title edit + opaque structural move; remote: notes edit.
+      // Extracted fields (title vs notes) are disjoint, but merging would
+      // silently drop the structural move and the two clients would diverge.
+      const eligible = isDisjointMergeEligible({
+        localOps: [
+          op({ payload: { task: { id: 'task-1', title: 'Local' } } }),
+          convertToSubTaskOp(),
+        ],
+        remoteOps: [
+          op({ payload: { task: { id: 'task-1', notes: 'Remote' } }, clientId: 'B' }),
+        ],
+        payloadKey: 'task',
+        entityId: 'task-1',
+      });
+      expect(eligible).toBe(false);
+    });
+
+    it('refuses inconsistent scalar-plus-array entity metadata', () => {
+      const mixedMetadataOp = op({
+        entityId: 'task-1',
+        entityIds: ['task-2'],
+        clientId: 'B',
+        payload: {
+          actionPayload: {
+            task: { id: 'task-1', changes: { notes: 'Task 1 notes' } },
+          },
+          entityChanges: [
+            {
+              entityType: 'TASK' as EntityType,
+              entityId: 'task-2',
+              opType: OpType.Update,
+              changes: { notes: 'Task 2 notes' },
+            },
+          ],
+        },
+      });
+
+      expect(
+        isDisjointMergeEligible({
+          localOps: [
+            op({
+              entityId: 'task-2',
+              payload: { task: { id: 'task-2', changes: { title: 'Local' } } },
+            }),
+          ],
+          remoteOps: [mixedMetadataOp],
+          payloadKey: 'task',
+          entityId: 'task-2',
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe('isDisjointMergeEligible (additive time ops)', () => {
+    const titleEdit = op({
+      payload: { task: { id: 'task-1', title: 'Remote' } },
+      clientId: 'B',
+    });
+
+    it('treats a syncTimeSpent delta as disjoint from an edit of other fields', () => {
+      // The delta is counted as touching timeSpent/timeSpentOnDay (from its
+      // action type), not its { taskId, date, duration } arguments; a title
+      // edit commutes with it.
+      expect(
+        isDisjointMergeEligible({
+          localOps: [syncTimeSpentOp()],
+          remoteOps: [titleEdit],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        }),
+      ).toBe(true);
+    });
+
+    it('classifies the empty deferred-write form of the delta the same way', () => {
+      // Deferred writes carry entityChanges: []. Read as-is that is opaque; the
+      // action-type mapping makes both wire forms of the same intent commute
+      // with a non-time edit alike.
+      expect(
+        isDisjointMergeEligible({
+          localOps: [deferredSyncTimeSpentOp()],
+          remoteOps: [titleEdit],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        }),
+      ).toBe(true);
+    });
+
+    it('treats a syncTimeSpent delta as overlapping an absolute timeSpentOnDay write', () => {
+      expect(
+        isDisjointMergeEligible({
+          localOps: [
+            op({ payload: { task: { id: 'task-1', timeSpentOnDay: { [DAY]: 1 } } } }),
+          ],
+          remoteOps: [syncTimeSpentOp({ clientId: 'B' })],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        }),
+      ).toBe(false);
+    });
+
+    it('treats a syncTimeSpent delta as overlapping an absolute timeSpent write', () => {
+      expect(
+        isDisjointMergeEligible({
+          localOps: [deferredSyncTimeSpentOp()],
+          remoteOps: [
+            op({ payload: { task: { id: 'task-1', timeSpent: 5 } }, clientId: 'B' }),
+          ],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        }),
+      ).toBe(false);
+    });
+
+    it('treats two syncTimeSpent deltas as commuting even when one side also renamed (#10214)', () => {
+      expect(
+        isDisjointMergeEligible({
+          localOps: [syncTimeSpentOp(), titleEdit],
+          remoteOps: [deferredSyncTimeSpentOp({ clientId: 'B' })],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        }),
+      ).toBe(true);
+    });
+
+    it('still treats a delta as overlapping an absolute write on a side that also has a delta (#10214)', () => {
+      expect(
+        isDisjointMergeEligible({
+          localOps: [
+            syncTimeSpentOp(),
+            op({ payload: { task: { id: 'task-1', timeSpentOnDay: { [DAY]: 1 } } } }),
+          ],
+          remoteOps: [syncTimeSpentOp({ clientId: 'B' })],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        }),
+      ).toBe(false);
+    });
+
+    it('keeps a removeTimeSpent delta ineligible (opaque, whole-entity LWW)', () => {
+      expect(
+        isDisjointMergeEligible({
+          localOps: [removeTimeSpentOp()],
+          remoteOps: [titleEdit],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        }),
+      ).toBe(false);
+    });
+
+    it('does not surface the mapped time fields through mergeChangedFields', () => {
+      // The mapping is for the disjointness test only. A merge or a
+      // reconciliation op built from mergeChangedFields must never see the
+      // delta's values under task-field names.
+      expect(mergeChangedFields([syncTimeSpentOp()], 'task', 'task-1')).toEqual({
+        taskId: 'task-1',
+        date: DAY,
+        duration: 60000,
+      });
+      expect(mergeChangedFields([deferredSyncTimeSpentOp()], 'task', 'task-1')).toEqual(
+        {},
+      );
+    });
+  });
+
+  describe('isAdditiveTimeOp', () => {
+    it('is true for both persistent time deltas and false for a plain update', () => {
+      expect(isAdditiveTimeOp(syncTimeSpentOp())).toBe(true);
+      expect(isAdditiveTimeOp(deferredSyncTimeSpentOp())).toBe(true);
+      expect(isAdditiveTimeOp(removeTimeSpentOp())).toBe(true);
+      expect(isAdditiveTimeOp(op())).toBe(false);
+    });
+  });
+
+  describe('touchesCrossEntityTaskFields', () => {
+    const edit = (task: Record<string, unknown>): Operation =>
+      op({ payload: { task: { id: 'task-1', ...task } } });
+    const touches = (ops: Operation[]): boolean =>
+      touchesCrossEntityTaskFields(ops, 'task', 'task-1');
+
+    it('is false for time deltas and edits of fields only task ops write', () => {
+      expect(touches([syncTimeSpentOp(), deferredSyncTimeSpentOp()])).toBe(false);
+      expect(touches([syncTimeSpentOp(), edit({ title: 'T', notes: 'N' })])).toBe(false);
+    });
+
+    it('is true for a field that ops of other entity types also write', () => {
+      for (const field of ['tagIds', 'projectId', 'parentId', 'dueDay', 'dueWithTime']) {
+        expect(touches([syncTimeSpentOp(), edit({ [field]: 'x' })]))
+          .withContext(field)
+          .toBe(true);
+      }
+    });
+
+    it('is true when an op cannot be read as task fields', () => {
+      expect(touches([convertToSubTaskOp()])).toBe(true);
+      const plannerMove = op({
+        entityType: 'PLANNER' as EntityType,
+        payload: { actionPayload: {}, entityChanges: [] },
+      });
+      expect(touches([syncTimeSpentOp(), plannerMove])).toBe(true);
+    });
+  });
+
+  describe('noiseTiebreakSide', () => {
+    it('picks the greater-timestamp side (local newer)', () => {
+      expect(
+        noiseTiebreakSide(
+          { timestamp: 2000, clientId: 'A' },
+          { timestamp: 1000, clientId: 'Z' },
+        ),
+      ).toBe('local');
+    });
+
+    it('picks the greater-timestamp side (remote newer)', () => {
+      expect(
+        noiseTiebreakSide(
+          { timestamp: 1000, clientId: 'Z' },
+          { timestamp: 2000, clientId: 'A' },
+        ),
+      ).toBe('remote');
+    });
+
+    // The equal-timestamp branch: falls back to the greater clientId. This is the
+    // cross-client determinism guarantee — without it two clients could pick
+    // different noise values and diverge.
+    it('breaks an equal-timestamp tie by the greater clientId (local wins)', () => {
+      expect(
+        noiseTiebreakSide(
+          { timestamp: 1000, clientId: 'B' },
+          { timestamp: 1000, clientId: 'A' },
+        ),
+      ).toBe('local');
+    });
+
+    it('breaks an equal-timestamp tie by the greater clientId (remote wins)', () => {
+      expect(
+        noiseTiebreakSide(
+          { timestamp: 1000, clientId: 'A' },
+          { timestamp: 1000, clientId: 'B' },
+        ),
+      ).toBe('remote');
+    });
+
+    it('is fully symmetric on equal timestamps: both clients pick the SAME physical side', () => {
+      // X and Y differ only by clientId. Whichever side X is passed as, the result
+      // must always point at the SAME side (the greater clientId, Y here).
+      const x: MergeSideMeta = { timestamp: 1000, clientId: 'A' };
+      const y: MergeSideMeta = { timestamp: 1000, clientId: 'B' };
+      // Client 1 sees X local / Y remote → picks remote (= Y).
+      expect(noiseTiebreakSide(x, y)).toBe('remote');
+      // Client 2 sees Y local / X remote → picks local (= Y).
+      expect(noiseTiebreakSide(y, x)).toBe('local');
+    });
+
+    it('defaults to local when both identity components are equal', () => {
+      expect(
+        noiseTiebreakSide(
+          { timestamp: 1000, clientId: 'A' },
+          { timestamp: 1000, clientId: 'A' },
+        ),
+      ).toBe('local');
+    });
+  });
+
+  // ── cleared fields (#9776): `changes: { field: undefined }` + out-of-band
+  // `clearedFields`. The author's op keeps the undefined key (structured clone);
+  // the same op after a JSON wire round-trip loses it. Both shapes must extract
+  // the IDENTICAL field set, or the author merges while the receiver falls back
+  // to whole-entity LWW — silent divergence on the same conflict. ──────────────
+  describe('cleared fields', () => {
+    /** Author-side shape: undefined key survives IndexedDB structured clone. */
+    const authorClearOp = (): Operation =>
+      op({
+        payload: {
+          actionPayload: {
+            task: { id: 'task-1', changes: { _hideSubTasksMode: undefined } },
+            clearedFields: ['_hideSubTasksMode'],
+          },
+          entityChanges: [],
+        },
+      });
+
+    /** The identical op after a JSON wire round-trip (undefined key dropped). */
+    const wireClearOp = (): Operation => JSON.parse(JSON.stringify(authorClearOp()));
+
+    it('restores a wire-dropped clear into the extracted changes', () => {
+      const changes = mergeChangedFields([wireClearOp()], 'task', 'task-1');
+      expect(Object.keys(changes)).toEqual(['_hideSubTasksMode']);
+      expect(changes['_hideSubTasksMode']).toBeUndefined();
+      expect(hasOpaqueChanges([wireClearOp()], 'task', 'task-1')).toBe(false);
+    });
+
+    it('extracts the identical field set for author-side and wire-side shapes', () => {
+      expect(mergeChangedFields([authorClearOp()], 'task', 'task-1')).toEqual(
+        mergeChangedFields([wireClearOp()], 'task', 'task-1'),
+      );
+    });
+
+    it('judges merge eligibility identically on both clients (clear vs disjoint edit)', () => {
+      const otherSideOp = op({
+        clientId: 'B',
+        vectorClock: { B: 1 },
+        payload: { task: { id: 'task-1', changes: { title: 'New title' } } },
+      });
+      const eligibleFor = (clearOp: Operation): boolean =>
+        isDisjointMergeEligible({
+          localOps: [clearOp],
+          remoteOps: [otherSideOp],
+          payloadKey: 'task',
+          entityId: 'task-1',
+        });
+      expect(eligibleFor(authorClearOp())).toBe(true);
+      expect(eligibleFor(wireClearOp())).toBe(true);
+    });
+
+    it('ignores junk clearedFields from the wire', () => {
+      const junkOp = op({
+        payload: {
+          actionPayload: {
+            task: { id: 'task-1', changes: {} },
+            clearedFields: 'not-an-array',
+          },
+          entityChanges: [],
+        },
+      });
+      expect(mergeChangedFields([junkOp], 'task', 'task-1')).toEqual({});
+      expect(hasOpaqueChanges([junkOp], 'task', 'task-1')).toBe(true);
+    });
+  });
+});
