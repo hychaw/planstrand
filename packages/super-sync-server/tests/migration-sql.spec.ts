@@ -360,7 +360,10 @@ describe('performance migrations', () => {
       'utf8',
     );
     const dockerWorkflow = readFileSync(
-      join(currentDir, '../../../.github/workflows/supersync-docker.yml'),
+      join(
+        currentDir,
+        '../../../.github/workflows-disabled/upstream/supersync-docker.yml',
+      ),
       'utf8',
     );
     const migrationCommand = 'sh scripts/migrate-deploy.sh';
