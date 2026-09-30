@@ -95,6 +95,7 @@ export type OperationSyncProviderMode = 'superSyncOps' | 'fileSnapshotOps';
 export interface OperationSyncServerCapabilities {
   contractVersion: number;
   supportedEntityTypes: string[];
+  supportedOpTypes?: string[];
   minSchemaVersion: number;
   maxSchemaVersion: number;
 }

@@ -1,3 +1,5 @@
+import { OpType } from '../../core/operation.types';
+import { ActionType } from '../../core/action-types.enum';
 import { TestBed } from '@angular/core/testing';
 import { FileBasedSyncAdapterService } from './file-based-sync-adapter.service';
 import { SyncProviderId } from '../provider.const';
@@ -122,8 +124,8 @@ describe('FileBasedSyncAdapterService', () => {
   ): SyncOperation => ({
     id: 'op-123',
     clientId: 'client1',
-    actionType: '[Task] Add Task',
-    opType: 'ADD' as const,
+    actionType: ActionType.TASK_SHARED_ADD,
+    opType: OpType.Create,
     entityType: 'TASK' as const,
     entityId: 'task-1',
     vectorClock: { client1: 2 },
@@ -344,7 +346,13 @@ describe('FileBasedSyncAdapterService', () => {
     });
 
     it('does not overwrite v2 that appears after empty-folder discovery', async () => {
-      const remoteOp = { id: 'remote-op', c: 'remote', a: 'HA', o: 'ADD', e: 'TASK' };
+      const remoteOp = {
+        id: 'remote-op',
+        c: 'remote',
+        a: 'HA',
+        o: OpType.Create,
+        e: 'TASK',
+      };
       const legacy = addPrefix(
         createMockSyncData({
           recentOps: [{ ...remoteOp, d: 't1', v: { remote: 1 }, t: 1, s: 1 } as never],
@@ -724,8 +732,8 @@ describe('FileBasedSyncAdapterService', () => {
           {
             id: 'other-op',
             c: 'other-client',
-            a: '[Task] Add',
-            o: 'CREATE',
+            a: ActionType.TASK_SHARED_ADD,
+            o: OpType.Create,
             e: 'Task',
             d: 'entity1',
             p: { title: 'Test Task' },
@@ -776,7 +784,7 @@ describe('FileBasedSyncAdapterService', () => {
                 {
                   id: 'remote-op',
                   c: 'remote',
-                  a: '[Task] Add',
+                  a: ActionType.TASK_SHARED_ADD,
                   o: 'CRT',
                   e: 'TASK',
                   d: 'remote-task',
@@ -1101,7 +1109,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-1',
             c: 'client1',
             a: 'HA', // short code for [Task Shared] addTask
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-1',
             v: { client1: 1 },
@@ -1113,7 +1121,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-2',
             c: 'client2',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-2',
             v: { client2: 1 },
@@ -1141,7 +1149,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-1',
             c: 'client1',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-1',
             v: { client1: 1 },
@@ -1153,7 +1161,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-2',
             c: 'client2',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-2',
             v: { client2: 1 },
@@ -1184,7 +1192,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-1',
             c: 'client1',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-1',
             v: { client1: 1 },
@@ -1196,7 +1204,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-2',
             c: 'client1',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-2',
             v: { client1: 2 },
@@ -1208,7 +1216,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-3',
             c: 'client1',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-3',
             v: { client1: 3 },
@@ -1243,7 +1251,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'client1',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { client1: i + 1 },
@@ -1276,7 +1284,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i + 1}`,
         c: 'client1',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i + 1}`,
         v: { client1: i + 1 },
@@ -1305,7 +1313,7 @@ describe('FileBasedSyncAdapterService', () => {
         id,
         c: 'client1',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${id}`,
         v: { client1: 1 },
@@ -1566,7 +1574,7 @@ describe('FileBasedSyncAdapterService', () => {
           id,
           c: 'client1',
           a: 'HA',
-          o: 'ADD',
+          o: OpType.Create,
           e: 'TASK',
           d: id,
           v: { client1: v },
@@ -1616,7 +1624,7 @@ describe('FileBasedSyncAdapterService', () => {
           id,
           c: 'remote-client',
           a: 'HA',
-          o: 'ADD',
+          o: OpType.Create,
           e: 'TASK',
           d: id,
           v: clock,
@@ -1682,7 +1690,7 @@ describe('FileBasedSyncAdapterService', () => {
           id,
           c: 'client-b',
           a: 'HA',
-          o: 'ADD',
+          o: OpType.Create,
           e: 'TASK',
           d: id,
           v: clock,
@@ -1767,7 +1775,7 @@ describe('FileBasedSyncAdapterService', () => {
           id: `op-b${sv}`,
           c: 'client-b',
           a: 'HA',
-          o: 'ADD',
+          o: OpType.Create,
           e: 'TASK',
           d: `task-b${sv}`,
           v: { clientA: 3, clientB: sv - 2 },
@@ -2097,7 +2105,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'fresh-op-1',
             c: 'client1',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-1',
             v: { client1: 1 },
@@ -2199,7 +2207,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-1',
             c: 'client1',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-1',
             v: { client1: 1 },
@@ -2211,7 +2219,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-2',
             c: 'client1',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-2',
             v: { client1: 2 },
@@ -2758,7 +2766,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'other-client',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { otherClient: i + 1 },
@@ -2787,7 +2795,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'other-client',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { otherClient: i + 1 },
@@ -2820,7 +2828,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'other-client',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { otherClient: i + 1 },
@@ -2849,7 +2857,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'other-client',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { otherClient: i + 1 },
@@ -2886,7 +2894,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-1',
             c: 'other-client',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-1',
             v: { otherClient: 1 },
@@ -2913,7 +2921,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'other-client',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { otherClient: i + 1 },
@@ -2943,7 +2951,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'other-client',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { otherClient: i + 1 },
@@ -2976,7 +2984,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: `op-${i}`,
         c: 'other-client',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: `task-${i}`,
         v: { otherClient: i + 1 },
@@ -3030,7 +3038,7 @@ describe('FileBasedSyncAdapterService', () => {
       id: `op-${sv}`,
       c: 'client1',
       a: 'HA',
-      o: 'ADD',
+      o: OpType.Create,
       e: 'TASK',
       d: `task-${sv}`,
       v: { client1: sv },
@@ -3177,7 +3185,7 @@ describe('FileBasedSyncAdapterService', () => {
       id,
       c: client,
       a: 'HA',
-      o: 'ADD',
+      o: OpType.Create,
       e: 'TASK',
       d: `task-${id}`,
       v: { [client]: 1 },
@@ -3718,7 +3726,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-tail',
             c: 'client2',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-1',
             v: { client2: 6 },
@@ -3768,7 +3776,7 @@ describe('FileBasedSyncAdapterService', () => {
             id: 'op-new',
             c: 'client2',
             a: 'HA',
-            o: 'ADD',
+            o: OpType.Create,
             e: 'TASK',
             d: 'task-new',
             v: { client2: 1 },
@@ -4043,7 +4051,7 @@ describe('FileBasedSyncAdapterService', () => {
         id: 'op-1',
         c: 'client1',
         a: 'HA',
-        o: 'ADD',
+        o: OpType.Create,
         e: 'TASK',
         d: 'task-1',
         v: { client1: 1 },
@@ -4413,7 +4421,9 @@ describe('FileBasedSyncAdapterService', () => {
     // (b) compaction triggers when the buffer exceeds MAX_RECENT_OPS, writing
     // state THEN ops.
     it('(b) compaction past MAX_RECENT_OPS writes sync-state.json BEFORE sync-ops.json', async () => {
-      const many = Array.from({ length: C.MAX_RECENT_OPS }, () => ({ sv: 1 }) as never);
+      const many = Array.from({ length: C.MAX_RECENT_OPS }, () =>
+        makeCompactOp({ sv: 1 }),
+      );
       const opsFile = makeOpsFile({ syncVersion: 5, recentOps: many });
       routeDownloads({
         [C.OPS_FILE]: addPrefix(opsFile, 3),
@@ -4434,7 +4444,9 @@ describe('FileBasedSyncAdapterService', () => {
     });
 
     it('(b) encrypted compaction rejects a plaintext state file without writing', async () => {
-      const many = Array.from({ length: C.MAX_RECENT_OPS }, () => ({ sv: 1 }) as never);
+      const many = Array.from({ length: C.MAX_RECENT_OPS }, () =>
+        makeCompactOp({ sv: 1 }),
+      );
       const opsFile = makeOpsFile({ syncVersion: 5, recentOps: many });
       routeDownloads({
         [C.OPS_FILE]: await encryptSplitFile(opsFile),
@@ -4464,7 +4476,7 @@ describe('FileBasedSyncAdapterService', () => {
         dataStr: addPrefix(
           makeOpsFile({
             syncVersion: 5,
-            recentOps: Array.from({ length: between }, () => ({ sv: 1 }) as never),
+            recentOps: Array.from({ length: between }, () => makeCompactOp({ sv: 1 })),
           }),
           3,
         ),

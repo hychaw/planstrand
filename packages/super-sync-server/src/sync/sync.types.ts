@@ -432,6 +432,7 @@ export interface SyncStatusResponse {
     operationSync: {
       contractVersion: number;
       supportedEntityTypes: readonly string[];
+      supportedOpTypes: readonly string[];
       minSchemaVersion: number;
       maxSchemaVersion: number;
     };

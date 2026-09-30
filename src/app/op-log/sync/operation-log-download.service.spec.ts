@@ -136,7 +136,7 @@ describe('OperationLogDownloadService', () => {
         const op = (id: string, opType: string): SyncOperation => ({
           id,
           clientId: 'other-client',
-          actionType: '[Task] Add' as ActionType,
+          actionType: ActionType.TASK_SHARED_ADD,
           opType: opType as OpType,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -177,7 +177,7 @@ describe('OperationLogDownloadService', () => {
             op: {
               id: `op-${sinceSeq + i + 1}`,
               clientId: 'other-client',
-              actionType: '[Task] Update' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               entityId: 'task-1',
@@ -330,7 +330,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-encrypted',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: 'encrypted-payload-string',
@@ -425,7 +425,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-corrupt',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: 'private-earlier-encrypted-payload',
@@ -441,7 +441,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-corrupt',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: 'private-encrypted-payload',
@@ -496,7 +496,7 @@ describe('OperationLogDownloadService', () => {
           op: {
             id,
             clientId: 'c1',
-            actionType: '[Task] Add' as ActionType,
+            actionType: ActionType.TASK_SHARED_ADD,
             opType: OpType.Create,
             entityType: 'TASK',
             payload: `ciphertext-${id}`,
@@ -578,7 +578,7 @@ describe('OperationLogDownloadService', () => {
           op: {
             id,
             clientId: 'c1',
-            actionType: '[Task] Add' as ActionType,
+            actionType: ActionType.TASK_SHARED_ADD,
             opType: OpType.Create,
             entityType: 'TASK',
             payload: `ciphertext-${id}`,
@@ -663,7 +663,7 @@ describe('OperationLogDownloadService', () => {
           op: {
             id,
             clientId: 'c1',
-            actionType: '[Task] Add' as ActionType,
+            actionType: ActionType.TASK_SHARED_ADD,
             opType: OpType.Create,
             entityType: 'TASK',
             payload: `ciphertext-${id}`,
@@ -840,7 +840,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-forged',
                   clientId: 'attacker',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: { title: 'forged' },
@@ -920,7 +920,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -988,7 +988,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1026,7 +1026,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1065,7 +1065,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1113,7 +1113,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1158,7 +1158,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1203,7 +1203,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1225,7 +1225,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-2',
                   clientId: 'c1',
-                  actionType: '[Task] Update' as ActionType,
+                  actionType: ActionType.TASK_SHARED_UPDATE,
                   opType: OpType.Update,
                   entityType: 'TASK',
                   payload: {},
@@ -1267,7 +1267,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1289,7 +1289,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-2',
                   clientId: 'c1',
-                  actionType: '[Task] Update' as ActionType,
+                  actionType: ActionType.TASK_SHARED_UPDATE,
                   opType: OpType.Update,
                   entityType: 'TASK',
                   payload: {},
@@ -1338,7 +1338,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1383,7 +1383,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1404,7 +1404,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-2',
                   clientId: 'c1',
-                  actionType: '[Task] Update' as ActionType,
+                  actionType: ActionType.TASK_SHARED_UPDATE,
                   opType: OpType.Update,
                   entityType: 'TASK',
                   payload: {},
@@ -1449,7 +1449,7 @@ describe('OperationLogDownloadService', () => {
               op: {
                 id: 'op-stuck',
                 clientId: 'c1',
-                actionType: '[Task] Update' as ActionType,
+                actionType: ActionType.TASK_SHARED_UPDATE,
                 opType: OpType.Update,
                 entityType: 'TASK',
                 payload: {},
@@ -1483,7 +1483,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-1',
                   clientId: 'c1',
-                  actionType: '[Task] Add' as ActionType,
+                  actionType: ActionType.TASK_SHARED_ADD,
                   opType: OpType.Create,
                   entityType: 'TASK',
                   payload: {},
@@ -1498,7 +1498,7 @@ describe('OperationLogDownloadService', () => {
                 op: {
                   id: 'op-2',
                   clientId: 'c1',
-                  actionType: '[Task] Update' as ActionType,
+                  actionType: ActionType.TASK_SHARED_UPDATE,
                   opType: OpType.Update,
                   entityType: 'TASK',
                   payload: {},
@@ -1538,7 +1538,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -1575,7 +1575,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -1590,7 +1590,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-2',
                     clientId: 'c2',
-                    actionType: '[Task] Update' as ActionType,
+                    actionType: ActionType.TASK_SHARED_UPDATE,
                     opType: OpType.Update,
                     entityType: 'TASK',
                     payload: {},
@@ -1632,7 +1632,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1', // Already applied - will be filtered from newOps
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -1647,7 +1647,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-2', // New op
                     clientId: 'c2',
-                    actionType: '[Task] Update' as ActionType,
+                    actionType: ActionType.TASK_SHARED_UPDATE,
                     opType: OpType.Update,
                     entityType: 'TASK',
                     payload: {},
@@ -1686,7 +1686,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -1738,7 +1738,7 @@ describe('OperationLogDownloadService', () => {
             op: {
               id: `op-${serverSeq}`,
               clientId,
-              actionType: '[Task] Update' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               payload: {},
@@ -1946,7 +1946,7 @@ describe('OperationLogDownloadService', () => {
             op: {
               id,
               clientId,
-              actionType: '[Task] Update' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType,
               entityType: 'TASK',
               payload: {},
@@ -2152,7 +2152,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-317',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -2245,7 +2245,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-317',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -2268,7 +2268,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-318',
                     clientId: 'c2',
-                    actionType: '[Task] Update' as ActionType,
+                    actionType: ActionType.TASK_SHARED_UPDATE,
                     opType: OpType.Update,
                     entityType: 'TASK',
                     payload: {},
@@ -2300,7 +2300,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -2344,7 +2344,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -2378,7 +2378,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-316',
                     clientId: 'c1',
-                    actionType: '[All] Sync Import' as ActionType,
+                    actionType: ActionType.LOAD_ALL_DATA,
                     opType: 'SYNC_IMPORT' as OpType,
                     entityType: 'ALL',
                     payload: {},
@@ -2425,7 +2425,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -2490,7 +2490,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-superseded',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -2520,7 +2520,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-fresh',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},
@@ -2578,7 +2578,7 @@ describe('OperationLogDownloadService', () => {
             op: {
               id: 'op-encrypted',
               clientId: 'c1',
-              actionType: '[Task] Add' as ActionType,
+              actionType: ActionType.TASK_SHARED_ADD,
               opType: OpType.Create,
               entityType: 'TASK',
               payload: 'encrypted-payload-string',
@@ -2655,7 +2655,7 @@ describe('OperationLogDownloadService', () => {
             op: {
               id: 'op-1',
               clientId: 'c1',
-              actionType: '[Task] Add' as ActionType,
+              actionType: ActionType.TASK_SHARED_ADD,
               opType: OpType.Create,
               entityType: 'TASK',
               payload: 'encrypted-payload',
@@ -2713,7 +2713,7 @@ describe('OperationLogDownloadService', () => {
             op: {
               id: 'op-1',
               clientId: 'c1',
-              actionType: '[Task] Add' as ActionType,
+              actionType: ActionType.TASK_SHARED_ADD,
               opType: OpType.Create,
               entityType: 'TASK',
               payload: 'encrypted',
@@ -2759,7 +2759,7 @@ describe('OperationLogDownloadService', () => {
             op: {
               id: 'op-encrypted',
               clientId: 'c1',
-              actionType: '[Task] Add' as ActionType,
+              actionType: ActionType.TASK_SHARED_ADD,
               opType: OpType.Create,
               entityType: 'TASK',
               payload: 'encrypted-payload',
@@ -2876,7 +2876,7 @@ describe('OperationLogDownloadService', () => {
                   op: {
                     id: 'op-1',
                     clientId: 'c1',
-                    actionType: '[Task] Add' as ActionType,
+                    actionType: ActionType.TASK_SHARED_ADD,
                     opType: OpType.Create,
                     entityType: 'TASK',
                     payload: {},

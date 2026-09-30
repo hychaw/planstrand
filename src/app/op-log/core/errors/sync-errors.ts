@@ -148,6 +148,7 @@ export class SyncServerIncompatibleError extends Error {
   constructor(
     public readonly reason: SyncServerIncompatibilityReason,
     public readonly details?: {
+      unsupportedOpTypes?: string[];
       unsupportedEntityTypes: string[];
       unsupportedSchemaVersions: number[];
       contractVersionSupported: boolean;

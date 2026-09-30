@@ -218,6 +218,9 @@ describe('Sync compressed body routes', () => {
     expect(response.json().capabilities.operationSync.supportedEntityTypes).toContain(
       'WORK_SESSION',
     );
+    expect(response.json().capabilities.operationSync.supportedOpTypes).toEqual(
+      SUPER_SYNC_OPERATION_CAPABILITIES.supportedOpTypes,
+    );
   });
 
   it('should accept plain JSON ops upload', async () => {

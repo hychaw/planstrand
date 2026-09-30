@@ -55,7 +55,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       expect(provider.hasFile(FILE_BASED_SYNC_CONSTANTS.SYNC_FILE)).toBe(false);
 
       // Upload first op
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'First Task',
       });
       await clientA.uploadOps([op]);
@@ -72,7 +72,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
         'Task',
         'task-1',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         { title: 'Initial' },
       );
       await clientA.uploadOps([initialOp]);
@@ -110,7 +110,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       const testError = new Error('Disk full');
       provider.injectMethodError('uploadFile', testError);
 
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test',
       });
 
@@ -124,7 +124,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       const provider = harness.getProvider();
 
       // Create a file first
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test',
       });
       await clientA.uploadOps([op]);
@@ -154,7 +154,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       const ops: SyncOperation[] = [];
       for (let i = 0; i < numOps; i++) {
         ops.push(
-          clientA.createOp('Task', `task-${i}`, 'CRT', 'TaskActionTypes.ADD_TASK', {
+          clientA.createOp('Task', `task-${i}`, 'CRT', ActionType.TASK_SHARED_ADD, {
             title: `Task ${i}`,
           }),
         );
@@ -182,20 +182,20 @@ describe('File-Based Sync Integration - Edge Cases', () => {
 
       // Create ops with identifiable sequence
       const ops = [
-        clientA.createOp('Task', 'task-old-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-old-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Old 1',
         }),
-        clientA.createOp('Task', 'task-old-2', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-old-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Old 2',
         }),
       ];
       await clientA.uploadOps(ops);
 
       const moreOps = [
-        clientA.createOp('Task', 'task-new-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-new-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'New 1',
         }),
-        clientA.createOp('Task', 'task-new-2', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-new-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'New 2',
         }),
       ];
@@ -220,7 +220,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
         'Task',
         'task-1',
         'UPD',
-        'TaskActionTypes.UPDATE_TASK',
+        ActionType.TASK_SHARED_UPDATE,
         {
           title: 'Updated Title',
           completed: true,
@@ -237,7 +237,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       expect(downloadedOp.entityType).toBe('Task');
       expect(downloadedOp.entityId).toBe('task-1');
       expect(downloadedOp.opType).toBe('UPD');
-      expect(downloadedOp.actionType).toBe('TaskActionTypes.UPDATE_TASK');
+      expect(downloadedOp.actionType).toBe(ActionType.TASK_SHARED_UPDATE);
       expect(downloadedOp.payload).toEqual({
         title: 'Updated Title',
         completed: true,
@@ -253,7 +253,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
 
       // Create ops with different entity types
       const ops = [
-        clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task',
         }),
         clientA.createOp(
@@ -289,14 +289,14 @@ describe('File-Based Sync Integration - Edge Cases', () => {
         'Task',
         'task-1',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         { title: 'To Delete' },
       );
       const deleteOp = clientA.createOp(
         'Task',
         'task-1',
         'DEL',
-        'TaskActionTypes.DELETE_TASK',
+        ActionType.TASK_SHARED_DELETE,
         null,
       );
 
@@ -320,7 +320,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       const clientB = harness.createClient('client-b');
 
       const beforeCreate = Date.now();
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test',
       });
       const afterCreate = Date.now();
@@ -339,7 +339,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       const clientA = harness.createClient('client-a');
       const clientB = harness.createClient('client-b');
 
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test',
       });
       await clientA.uploadOps([op]);
@@ -369,7 +369,7 @@ describe('File-Based Sync Integration - Edge Cases', () => {
           'Task',
           'task-repeat-instance',
           'UPD',
-          'TaskActionTypes.UPDATE_TASK',
+          ActionType.TASK_SHARED_UPDATE,
           { id: 'task-repeat-instance', title: 'stale task update' },
         ),
         staleClientB.createOp(
@@ -460,7 +460,7 @@ describe('File-Based Sync Integration - Sync Cycle Cache', () => {
     const provider = harness.getProvider();
 
     // Client A creates initial file
-    const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+    const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
       title: 'A',
     });
     await clientA.uploadOps([opA]);
@@ -477,7 +477,7 @@ describe('File-Based Sync Integration - Sync Cycle Cache', () => {
     expect(downloadCallsAfterDownload).toBe(1);
 
     // Client B immediately uploads (should use cached data)
-    const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+    const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
       title: 'B',
     });
     await clientB.uploadOps([opB]);
@@ -493,7 +493,7 @@ describe('File-Based Sync Integration - Sync Cycle Cache', () => {
     const provider = harness.getProvider();
 
     // Client A creates initial file
-    const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+    const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
       title: 'A',
     });
     await clientA.uploadOps([opA]);
@@ -503,7 +503,7 @@ describe('File-Based Sync Integration - Sync Cycle Cache', () => {
     await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
 
     // Client B uploads (invalidates cache)
-    const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+    const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
       title: 'B',
     });
     await clientB.uploadOps([opB]);
@@ -554,10 +554,10 @@ describe('File-Based Sync Integration - Encryption Round-Trip', () => {
 
       // Client A uploads encrypted ops
       const ops = [
-        clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Encrypted Task 1',
         }),
-        clientA.createOp('Task', 'task-2', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Encrypted Task 2',
         }),
       ];
@@ -628,7 +628,7 @@ describe('File-Based Sync Integration - Encryption Round-Trip', () => {
         'Task',
         'task-init',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         { title: 'Initial' },
       );
       await clientA.uploadOps([initialOp]);
@@ -636,14 +636,14 @@ describe('File-Based Sync Integration - Encryption Round-Trip', () => {
       await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
 
       // Client A uploads
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'From A',
       });
       await clientA.uploadOps([opA]);
 
       // Client B's upload throws: genuine concurrent upload detected
       // (A changed the rev, so B's cached rev is now stale)
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'From B',
       });
       await expectAsync(clientB.uploadOps([opB])).toBeRejectedWithError(

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   SUPER_SYNC_OPERATION_CAPABILITIES,
+  SUPER_SYNC_OP_TYPES,
+  SUPER_SYNC_BASELINE_OP_TYPES,
   SUPER_SYNC_MAX_ENTITY_IDS_PER_OP,
   SUPER_SYNC_MAX_OPS_PER_UPLOAD,
   SuperSyncDownloadOpsQuerySchema,
@@ -252,6 +254,50 @@ describe('SuperSync HTTP contract schemas', () => {
     expect(parsed.capabilities?.operationSync?.supportedEntityTypes).toContain(
       'WORK_SESSION',
     );
+  });
+
+  it('pins the immutable baseline and accepts additive future advertisements', () => {
+    expect(SUPER_SYNC_BASELINE_OP_TYPES).toEqual([
+      'CRT',
+      'UPD',
+      'DEL',
+      'MOV',
+      'BATCH',
+      'SYNC_IMPORT',
+      'BACKUP_IMPORT',
+      'REPAIR',
+    ]);
+    expect(SUPER_SYNC_OPERATION_CAPABILITIES.supportedOpTypes).toEqual(
+      SUPER_SYNC_OP_TYPES,
+    );
+    const base = {
+      latestSeq: 0,
+      devicesOnline: 0,
+      storageUsedBytes: 0,
+      storageQuotaBytes: 100,
+    };
+    const legacy = { ...SUPER_SYNC_OPERATION_CAPABILITIES, supportedOpTypes: undefined };
+    expect(
+      SuperSyncStatusResponseSchema.parse({
+        ...base,
+        capabilities: { operationSync: legacy },
+      }).capabilities?.operationSync?.supportedOpTypes,
+    ).toBeUndefined();
+    const future = { ...legacy, supportedOpTypes: ['FUTURE_FENCED_V1'] };
+    expect(
+      SuperSyncStatusResponseSchema.parse({
+        ...base,
+        capabilities: { operationSync: future },
+      }).capabilities?.operationSync?.supportedOpTypes,
+    ).toEqual(['FUTURE_FENCED_V1']);
+    for (const invalid of [null, 'UPD', [123], [''], {}]) {
+      expect(
+        SuperSyncStatusResponseSchema.safeParse({
+          ...base,
+          capabilities: { operationSync: { ...legacy, supportedOpTypes: invalid } },
+        }).success,
+      ).toBe(false);
+    }
   });
 
   it('accepts a legacy authenticated status response without capabilities', () => {

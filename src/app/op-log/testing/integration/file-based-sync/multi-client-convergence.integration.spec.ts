@@ -1,3 +1,4 @@
+import { ActionType } from '../../../core/action-types.enum';
 import {
   FileBasedSyncTestHarness,
   HarnessClient,
@@ -23,7 +24,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       const clientC = harness.createClient('client-c');
 
       // Client A creates and uploads
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'From A',
       });
       await clientA.uploadOps([opA]);
@@ -31,7 +32,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       // Client B downloads and creates its own op
       const downloaded = await clientB.downloadOps(0);
       await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'From B',
       });
       await clientB.uploadOps([opB]);
@@ -55,7 +56,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
         'Task',
         'task-initial',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         { title: 'Initial' },
       );
       await clientA.uploadOps([initialOp]);
@@ -67,7 +68,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       await clientC.adapter.setLastServerSeq(downloadC.latestSeq);
 
       // C creates and uploads
-      const opC = clientC.createOp('Task', 'task-c', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opC = clientC.createOp('Task', 'task-c', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'From C',
       });
       await clientC.uploadOps([opC]);
@@ -75,7 +76,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       // B downloads and adds
       const nextDownloadB = await clientB.downloadOps(0);
       await clientB.adapter.setLastServerSeq(nextDownloadB.latestSeq);
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'From B',
       });
       await clientB.uploadOps([opB]);
@@ -94,13 +95,13 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       const observer = harness.createClient('observer');
 
       // Each client creates an op
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'A',
       });
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'B',
       });
-      const opC = clientC.createOp('Task', 'task-c', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opC = clientC.createOp('Task', 'task-c', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'C',
       });
 
@@ -141,10 +142,10 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
 
       // Client A creates some ops
       const ops = [
-        clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: '1',
         }),
-        clientA.createOp('Task', 'task-2', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: '2',
         }),
       ];
@@ -166,7 +167,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       const clientB = harness.createClient('client-b');
 
       // Client A syncs first
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'A',
       });
       await clientA.uploadOps([opA]);
@@ -182,7 +183,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       await clientB.adapter.setLastServerSeq(downloadB.latestSeq);
 
       // Client B should be able to upload
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'B',
       });
       const uploadResponse = await clientB.uploadOps([opB]);
@@ -198,7 +199,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       const clientC = harness.createClient('client-c');
 
       // A creates op
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'A',
       });
       await clientA.uploadOps([opA]);
@@ -209,7 +210,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
         clientB.mergeRemoteClock(serverOp.op.vectorClock);
       }
       await clientB.adapter.setLastServerSeq(downloadB.latestSeq);
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'B',
       });
       await clientB.uploadOps([opB]);
@@ -223,7 +224,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       for (const serverOp of downloadC.ops) {
         clientC.mergeRemoteClock(serverOp.op.vectorClock);
       }
-      const opC = clientC.createOp('Task', 'task-c', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opC = clientC.createOp('Task', 'task-c', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'C',
       });
 
@@ -242,7 +243,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
         'Task',
         'task-a1',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         {
           title: 'A1',
         },
@@ -256,7 +257,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       await clientB.adapter.setLastServerSeq(downloadB.latestSeq);
 
       // B creates op
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'B',
       });
       expect(opB.vectorClock['client-a']).toBe(1);
@@ -274,7 +275,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
         'Task',
         'task-a2',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         {
           title: 'A2',
         },
@@ -290,7 +291,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       const clientB = harness.createClient('client-b');
 
       // Establish sync state
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test',
       });
       await clientA.uploadOps([op]);
@@ -315,7 +316,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
       const clientB = harness.createClient('client-b');
 
       // Initial sync
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Before Reset',
       });
       await clientA.uploadOps([op]);
@@ -329,7 +330,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
         'Task',
         'task-new',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         {
           title: 'After Reset',
         },
@@ -396,13 +397,13 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
 
       // A and B both start synced on A's first op.
       await a.uploadOps([
-        a.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', { title: 'A' }),
+        a.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, { title: 'A' }),
       ]);
       await applyDownload(b, await b.downloadOps(0));
 
       // B uploads a concurrent op that A never downloads.
       await b.uploadOps([
-        b.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', { title: 'B' }),
+        b.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, { title: 'B' }),
       ]);
 
       // A tries to publish a REPAIR snapshot from its now-stale view of the remote.
@@ -433,7 +434,7 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
     it('publishes a REPAIR snapshot when the remote has not advanced (no false stale)', async () => {
       const a = harness.createClient('client-a');
       await a.uploadOps([
-        a.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', { title: 'A' }),
+        a.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, { title: 'A' }),
       ]);
 
       // No other client wrote since A's upload → the repair's base rev matches the
@@ -455,21 +456,21 @@ describe('File-Based Sync Integration - Multi-Client Convergence', () => {
         const downloadA = await clientA.downloadOps();
         await clientA.adapter.setLastServerSeq(downloadA.latestSeq);
         await clientA.uploadOps([
-          clientA.createOp('Task', `task-a-${i}`, 'CRT', 'TaskActionTypes.ADD_TASK', {
+          clientA.createOp('Task', `task-a-${i}`, 'CRT', ActionType.TASK_SHARED_ADD, {
             title: `A${i}`,
           }),
         ]);
         const downloadB = await clientB.downloadOps();
         await clientB.adapter.setLastServerSeq(downloadB.latestSeq);
         await clientB.uploadOps([
-          clientB.createOp('Task', `task-b-${i}`, 'CRT', 'TaskActionTypes.ADD_TASK', {
+          clientB.createOp('Task', `task-b-${i}`, 'CRT', ActionType.TASK_SHARED_ADD, {
             title: `B${i}`,
           }),
         ]);
         const downloadC = await clientC.downloadOps();
         await clientC.adapter.setLastServerSeq(downloadC.latestSeq);
         await clientC.uploadOps([
-          clientC.createOp('Task', `task-c-${i}`, 'CRT', 'TaskActionTypes.ADD_TASK', {
+          clientC.createOp('Task', `task-c-${i}`, 'CRT', ActionType.TASK_SHARED_ADD, {
             title: `C${i}`,
           }),
         ]);

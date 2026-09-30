@@ -10,18 +10,6 @@ import { CURRENT_SCHEMA_VERSION, MIN_SUPPORTED_SCHEMA_VERSION } from './schema-v
  */
 export const SUPER_SYNC_CAPABILITY_CONTRACT_VERSION = 1;
 
-/**
- * Authoritative capabilities advertised by this shared-schema build.
- * The server validation allow-list and this advertisement both derive from
- * ENTITY_TYPES so they cannot silently drift apart.
- */
-export const SUPER_SYNC_OPERATION_CAPABILITIES = {
-  contractVersion: SUPER_SYNC_CAPABILITY_CONTRACT_VERSION,
-  supportedEntityTypes: ENTITY_TYPES,
-  minSchemaVersion: MIN_SUPPORTED_SCHEMA_VERSION,
-  maxSchemaVersion: CURRENT_SCHEMA_VERSION,
-} as const;
-
 export const SUPER_SYNC_CLIENT_ID_REGEX = /^[a-zA-Z0-9_-]+$/;
 export const SUPER_SYNC_MAX_CLIENT_ID_LENGTH = 255;
 export const SUPER_SYNC_MAX_OPS_PER_UPLOAD = 100;
@@ -33,7 +21,8 @@ export const SUPER_SYNC_MAX_ENTITY_IDS_PER_OP = 1000;
 const SUPER_SYNC_MAX_INVALID_FIELD_TRANSPORT_LENGTH = 4096;
 const SUPER_SYNC_MAX_INVALID_ENTITY_IDS_TRANSPORT = SUPER_SYNC_MAX_ENTITY_IDS_PER_OP * 2;
 
-export const SUPER_SYNC_OP_TYPES = [
+/** Immutable deployed vocabulary. Never extend this baseline when adding a new family. */
+export const SUPER_SYNC_BASELINE_OP_TYPES = [
   'CRT',
   'UPD',
   'DEL',
@@ -43,6 +32,22 @@ export const SUPER_SYNC_OP_TYPES = [
   'BACKUP_IMPORT',
   'REPAIR',
 ] as const;
+
+/** Server validation and advertisement share this authoritative vocabulary. */
+export const SUPER_SYNC_OP_TYPES = [...SUPER_SYNC_BASELINE_OP_TYPES] as const;
+
+/**
+ * Authoritative capabilities advertised by this shared-schema build.
+ * The server validation allow-list and this advertisement both derive from
+ * ENTITY_TYPES so they cannot silently drift apart.
+ */
+export const SUPER_SYNC_OPERATION_CAPABILITIES = {
+  contractVersion: SUPER_SYNC_CAPABILITY_CONTRACT_VERSION,
+  supportedEntityTypes: ENTITY_TYPES,
+  supportedOpTypes: SUPER_SYNC_OP_TYPES,
+  minSchemaVersion: MIN_SUPPORTED_SCHEMA_VERSION,
+  maxSchemaVersion: CURRENT_SCHEMA_VERSION,
+} as const;
 
 export const SUPER_SYNC_IMPORT_REASONS = [
   'PASSWORD_CHANGED',
@@ -319,6 +324,8 @@ export const SuperSyncStatusResponseSchema = z
           .object({
             contractVersion: z.number().int().min(1),
             supportedEntityTypes: z.array(z.string().min(1).max(255)),
+            // Additive v1 extension: absent only on pre-extension servers.
+            supportedOpTypes: z.array(z.string().min(1).max(255)).optional(),
             minSchemaVersion: z.number().int().min(1),
             maxSchemaVersion: z.number().int().min(1),
           })

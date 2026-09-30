@@ -437,6 +437,28 @@ describe('response-validators', () => {
       ]);
     });
 
+    it('preserves supported operation types and rejects malformed vocabulary metadata', () => {
+      const operationSync = {
+        contractVersion: 1,
+        supportedEntityTypes: ['TASK'],
+        minSchemaVersion: 1,
+        maxSchemaVersion: 4,
+        supportedOpTypes: ['UPD', 'FUTURE_FENCED_V1'],
+      };
+      expect(
+        validateStatusResponse({ ...base, capabilities: { operationSync } }).capabilities
+          ?.operationSync?.supportedOpTypes,
+      ).toEqual(operationSync.supportedOpTypes);
+      for (const supportedOpTypes of [null, 'UPD', [1], ['']]) {
+        expect(() =>
+          validateStatusResponse({
+            ...base,
+            capabilities: { operationSync: { ...operationSync, supportedOpTypes } },
+          }),
+        ).toThrow();
+      }
+    });
+
     it('accepts a legacy status response with no capabilities', () => {
       expect(validateStatusResponse(base).capabilities).toBeUndefined();
     });

@@ -80,7 +80,9 @@ for (const isUseSplitSyncFiles of [false, true]) {
         client: HarnessClient,
         taskId: string,
       ): ReturnType<HarnessClient['createOp']> =>
-        client.createOp('TASK', taskId, 'CRT', '[Task] Add', { title: taskId });
+        client.createOp('TASK', taskId, 'CRT', ActionType.TASK_SHARED_ADD, {
+          title: taskId,
+        });
 
       /** A has uploaded twice, so it expects syncVersion 2. */
       const seedFromA = async (clientA: HarnessClient): Promise<void> => {

@@ -1,3 +1,4 @@
+import { ActionType } from '../../../core/action-types.enum';
 import { TestBed } from '@angular/core/testing';
 import { clearSessionKeyCache, setArgon2ParamsForTesting } from '@sp/sync-core';
 import { uuidv7 } from 'uuidv7';
@@ -168,7 +169,7 @@ for (const isUseSplitSyncFiles of [false, true]) {
         const op: SyncOperation = {
           id: uuidv7(),
           clientId: device.id,
-          actionType: '[Task] Add',
+          actionType: ActionType.TASK_SHARED_ADD,
           opType: 'CRT',
           entityType: 'TASK',
           entityId: taskId,

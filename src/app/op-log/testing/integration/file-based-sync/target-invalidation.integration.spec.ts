@@ -1,3 +1,4 @@
+import { ActionType } from '../../../core/action-types.enum';
 import {
   FileBasedSyncTestHarness,
   HarnessClient,
@@ -27,7 +28,13 @@ describe('File-Based Sync Integration - target invalidation cost (Task 2)', () =
   const uploadFromAAndPullToB = async (
     title: string,
   ): Promise<FileSnapshotOpDownloadResponse> => {
-    const op = clientA.createOp('Task', `task-${title}`, 'CRT', 'ADD_TASK', { title });
+    const op = clientA.createOp(
+      'Task',
+      `task-${title}`,
+      'CRT',
+      ActionType.TASK_SHARED_ADD,
+      { title },
+    );
     await clientA.uploadOps([op]);
 
     // Mirror production ordering: read the committed cursor, download from it,

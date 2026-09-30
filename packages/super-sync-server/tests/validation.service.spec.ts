@@ -1,3 +1,4 @@
+import { SUPER_SYNC_OPERATION_CAPABILITIES } from '@sp/shared-schema';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   ValidationService,
@@ -73,6 +74,21 @@ describe('ValidationService', () => {
       expect(result.valid).toBe(false);
       expect(result.errorCode).toBe(SYNC_ERROR_CODES.INVALID_OP_ID);
       expect(result.error).toContain('too long');
+    });
+
+    it('accepts exactly the advertised operation types without trusting client claims', () => {
+      for (const opType of SUPER_SYNC_OPERATION_CAPABILITIES.supportedOpTypes) {
+        expect(
+          validationService.validateOp(createValidOp({ opType }), clientId).valid,
+        ).toBe(true);
+      }
+      const future = createValidOp({
+        opType: 'FUTURE_FENCED_V1',
+        capabilities: { supportedOpTypes: ['FUTURE_FENCED_V1'] },
+      });
+      expect(validationService.validateOp(future, clientId).errorCode).toBe(
+        SYNC_ERROR_CODES.INVALID_OP_TYPE,
+      );
     });
 
     it('should reject invalid opType', () => {

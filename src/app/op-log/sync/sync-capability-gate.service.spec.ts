@@ -4,6 +4,7 @@ import type { OperationSyncCapable } from '../sync-providers/provider.interface'
 import { SyncCapabilityGateService } from './sync-capability-gate.service';
 
 const operation = {
+  opType: 'UPD',
   entityType: 'TASK',
   schemaVersion: 4,
   payload: {},

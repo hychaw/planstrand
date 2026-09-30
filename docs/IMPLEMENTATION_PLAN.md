@@ -483,12 +483,23 @@ Authentication, TLS, and E2EE negotiation do not prove entity compatibility. In 
 - Tests: CRUD, exact persisted shape, task foreign key, end-after-start, explicit manual completion/uncompletion, passage of end time causing no state transition, no Task-completion side effect, encrypted multi-client sync only after capability success, incompatible-server upload suppression, LWW/conflicts, compaction, backup restore, and missing-slice hydration.
 - Migration risk: low while slice stays empty. Sync risk: high if rollout order is wrong. UI impact: none.
 
+### Phase 2A — Operation-vocabulary compatibility prerequisite
+
+- Objective: close the mixed-client action-vocabulary risk before independent planning writes. Older clients preserve unfamiliar action strings under known `UPD`/`MOV` types and can mark a reducer no-op as processed; Phase 0 entity/schema negotiation does not prevent this.
+- Receiver: use the authoritative action vocabulary to stop before an unknown action, retaining the interpretable prefix and freezing the cursor. Unknown operation types and import reasons retain their existing update-required behavior.
+- Protocol fence: semantically incompatible new action families must use a stable, immutable operation type unknown to older clients. An action name or schema bump alone is insufficient. Phase 2 chooses the production family identifier; Phase 2A adds no planning actions or membership.
+- Server/upload: advertise `supportedOpTypes` from the server validation vocabulary; derive entity, schema, and operation-type requirements generically. Only the immutable deployed baseline may omit explicit operation-type advertisement. Unsupported future operations remain durable/pending and block the whole upload cycle until capability refresh observes server support.
+- File providers: no HTTP handshake. Screen retained operations before snapshot hydration or deduplication, leave the logical cursor/revision uncommitted, and refuse single-file writes against an unapplied baseline and both layouts' writes containing incompatible retained operations before merge, trim, append, or compaction (including cold reloads). Tests exercise both single-file and split-file paths.
+- Rollout limitation: already-released file clients can bypass the operation fence when hydrating snapshot-included operations. Before Phase 2 publishes new semantics to those clients, its file snapshot format must also use an envelope version rejected by those readers, or all file readers must have this prerequisite. Unknown-operation replay fencing alone cannot retroactively protect their snapshot path. Snapshot/compaction must preserve the format fence even after the originating operation leaves the retained tail.
+- Validation: synthetic future operation types only; normal/piggyback/paginated/encrypted receive, whole-cycle upload blocking and server refresh, validation/advertisement agreement, and file revision/write safety.
+- Status: Phase 2 remains blocked until this prerequisite is merged and the file snapshot rollout fence above is resolved. Phase 3 still requires completed Phase 2.
+
 ### Phase 2 — Independent planning membership
 
 - Objective: make week/day intent independent from due/schedule state while retaining current screens.
 - Affected code: Planner model/actions/reducer/selectors, Today selectors, shared planner/scheduling meta-reducers.
 - New code: week membership/order selectors and compatibility backfill.
-- Dependencies: Phase 0.
+- Dependencies: Phase 0 and merged Phase 2A, including its file snapshot rollout condition.
 - Tests: week-only, day-without-session, Today rollover, ordering, offline/conflicting moves, no Task duplication.
 - Migration risk: medium. Sync risk: medium. UI impact: minimal/behind compatibility selectors.
 

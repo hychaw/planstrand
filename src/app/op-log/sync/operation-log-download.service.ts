@@ -1,3 +1,5 @@
+import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
+import { getRemoteOpBlockReason } from './remote-op-block.util';
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import {
@@ -375,6 +377,25 @@ export class OperationLogDownloadService implements OnDestroy {
           clientId ?? undefined,
           DOWNLOAD_PAGE_SIZE,
         );
+        // File snapshots bypass replay for snapshot-included ops. Screen the raw
+        // retained vocabulary BEFORE dedup, snapshot hydration, or clock filtering.
+        // A snapshot is atomic, so no part of it can be accepted across this fence.
+        if (syncProvider.providerMode === 'fileSnapshotOps') {
+          const blocked = response.ops.find(
+            ({ op }) => getRemoteOpBlockReason(op, CURRENT_SCHEMA_VERSION) !== null,
+          );
+          if (blocked) {
+            allNewOps.length = 0;
+            // Carry untrusted metadata only to the processor's blocking check.
+            // Structural conversion would throw for a missing required opType.
+            allNewOps.push(blocked.op as Operation);
+            snapshotState = undefined;
+            snapshotVectorClock = undefined;
+            snapshotAppliedOpIds = undefined;
+            finalLatestSeq = response.latestSeq;
+            break; // The normal processor supplies update-app UX; no cursor commit.
+          }
+        }
         finalLatestSeq = response.latestSeq;
         OpLog.verbose(
           `OperationLogDownloadService: [DEBUG] Download response: ops=${response.ops.length}, ` +

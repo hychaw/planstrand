@@ -1,43 +1,57 @@
 import { CURRENT_SCHEMA_VERSION, SUPER_SYNC_IMPORT_REASONS } from '@sp/shared-schema';
-import { OpType, Operation } from '../core/operation.types';
+import { OpType } from '../core/operation.types';
+import { KNOWN_ACTION_TYPES } from '../core/action-types.enum';
 import {
   getOperationSchemaVersion,
   MIN_SUPPORTED_SCHEMA_VERSION,
 } from '../persistence/schema-migration.service';
 
-const KNOWN_OP_TYPES: ReadonlySet<string> = new Set<string>(Object.values(OpType));
+export const KNOWN_OP_TYPES: ReadonlySet<string> = new Set<string>(Object.values(OpType));
 const KNOWN_IMPORT_REASONS: ReadonlySet<string> = new Set<string>(
   SUPER_SYNC_IMPORT_REASONS,
 );
 
-export type UnknownOpVocabulary = 'opType' | 'syncImportReason';
+/** Wire metadata is untrusted, irrespective of the local TypeScript enums. */
+interface RemoteOpVocabularyInput {
+  opType?: unknown;
+  actionType?: unknown;
+  syncImportReason?: unknown;
+}
+
+export type UnknownOpVocabulary = 'opType' | 'actionType' | 'syncImportReason';
 
 /**
  * Names the vocabulary field of a remote op this client cannot interpret, or
  * `null` when every value is known.
  *
- * The wire contract deliberately parses `opType` / `syncImportReason` as loose
+ * The wire contract deliberately parses `opType` / `actionType` / `syncImportReason` as loose
  * strings (#8764) so a newer client's ops never wedge an older one at the
  * transport layer. The receiver must therefore make the call per op: an
  * unknown value means a newer client widened the vocabulary, and this client
  * can neither apply the op (unknown semantics) nor skip it (silent loss).
  */
 export const getUnknownOpVocabulary = (
-  op: Pick<Operation, 'opType' | 'syncImportReason'>,
+  op: RemoteOpVocabularyInput,
 ): UnknownOpVocabulary | null => {
-  // Only a PRESENT value can be unknown. Structural validity (opType is a
-  // required non-empty string) is the transport schema's job, not this one's.
-  if (isPresentUnknown(op.opType, KNOWN_OP_TYPES)) {
+  // File envelopes do not have the API transport's structural guarantees.
+  // Required vocabulary must be checked even when absent.
+  if (!isKnownRequiredVocabulary(op.opType, KNOWN_OP_TYPES)) {
     return 'opType';
   }
-  if (isPresentUnknown(op.syncImportReason, KNOWN_IMPORT_REASONS)) {
+  if (!isKnownRequiredVocabulary(op.actionType, KNOWN_ACTION_TYPES)) {
+    return 'actionType';
+  }
+  if (!isKnownOptionalVocabulary(op.syncImportReason, KNOWN_IMPORT_REASONS)) {
     return 'syncImportReason';
   }
   return null;
 };
 
-const isPresentUnknown = (value: unknown, known: ReadonlySet<string>): boolean =>
-  typeof value === 'string' && !known.has(value);
+const isKnownRequiredVocabulary = (value: unknown, known: ReadonlySet<string>): boolean =>
+  typeof value === 'string' && value.length > 0 && known.has(value);
+
+const isKnownOptionalVocabulary = (value: unknown, known: ReadonlySet<string>): boolean =>
+  value === undefined || isKnownRequiredVocabulary(value, known);
 
 /**
  * Why a remote batch stops at an op it cannot terminally process. Every reason
@@ -60,7 +74,7 @@ export type RemoteOpBlockReason =
  * schema-version checks first, vocabulary second.
  */
 export const getRemoteOpBlockReason = (
-  op: Pick<Operation, 'opType' | 'syncImportReason'> & { schemaVersion?: unknown },
+  op: RemoteOpVocabularyInput & { schemaVersion?: unknown },
   currentVersion: number,
 ): Exclude<RemoteOpBlockReason, 'MIGRATION_FAILED'> | null => {
   let opVersion: number;
@@ -78,7 +92,7 @@ export const getRemoteOpBlockReason = (
   if (opVersion > currentVersion) {
     return 'VERSION_TOO_NEW';
   }
-  // Unknown opType / syncImportReason: a newer client widened the wire
+  // Unknown opType / actionType / syncImportReason: a newer client widened the wire
   // vocabulary without a schema bump (the default per the bump policy).
   // Same treatment as VERSION_TOO_NEW — block, lossless, update-app UX —
   // never skip: advancing the cursor past an op this client never
@@ -96,7 +110,7 @@ export const getRemoteOpBlockReason = (
  * anything from it onwards.
  */
 export const takeInterpretableOpPrefix = <
-  T extends Pick<Operation, 'opType' | 'syncImportReason'> & { schemaVersion?: unknown },
+  T extends RemoteOpVocabularyInput & { schemaVersion?: unknown },
 >(
   ops: readonly T[],
   currentVersion: number = CURRENT_SCHEMA_VERSION,

@@ -557,7 +557,7 @@ describe('OperationLogSyncService', () => {
         const piggybackedOp: Operation = {
           id: 'piggybacked-1',
           clientId: 'client-B',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -622,7 +622,7 @@ describe('OperationLogSyncService', () => {
             op: {
               id: 'local-task-create',
               clientId: 'client-A',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Create,
               entityType: 'TASK',
               entityId: 'task-1',
@@ -668,7 +668,7 @@ describe('OperationLogSyncService', () => {
           const piggybackedOp: Operation = {
             id: 'piggybacked-1',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -728,7 +728,7 @@ describe('OperationLogSyncService', () => {
               op: {
                 id: 'local-task-create',
                 clientId: 'client-A',
-                actionType: 'test' as ActionType,
+                actionType: ActionType.TASK_SHARED_UPDATE,
                 opType: OpType.Create,
                 entityType: 'TASK',
                 entityId: 'task-1',
@@ -786,7 +786,7 @@ describe('OperationLogSyncService', () => {
           const piggybackedOp: Operation = {
             id: 'piggybacked-1',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -1004,7 +1004,7 @@ describe('OperationLogSyncService', () => {
           const piggybackedOp: Operation = {
             id: 'piggybacked-1',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -1058,7 +1058,7 @@ describe('OperationLogSyncService', () => {
           const piggybackedOp: Operation = {
             id: 'piggybacked-1',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -1094,7 +1094,7 @@ describe('OperationLogSyncService', () => {
           const piggybackedOp = {
             id: 'future-op',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK' as const,
             entityId: 'task-1',
@@ -1142,7 +1142,7 @@ describe('OperationLogSyncService', () => {
           const piggybackedRepair = {
             id: 'repair-pb-1',
             clientId: 'client-B',
-            actionType: '[SP_ALL] Repair' as ActionType,
+            actionType: ActionType.REPAIR_AUTO,
             opType: OpType.Repair,
             entityType: 'ALL' as const,
             entityId: 'ALL',
@@ -1195,7 +1195,7 @@ describe('OperationLogSyncService', () => {
           const repairOp = {
             id: 'repair-mc-1',
             clientId: 'client-B',
-            actionType: '[SP_ALL] Repair' as ActionType,
+            actionType: ActionType.REPAIR_AUTO,
             opType: OpType.Repair,
             entityType: 'ALL' as const,
             entityId: 'ALL',
@@ -1210,7 +1210,7 @@ describe('OperationLogSyncService', () => {
             op: {
               id: 'local-task-update',
               clientId: 'client-A',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               entityId: 'task-1',
@@ -1697,7 +1697,7 @@ describe('OperationLogSyncService', () => {
         const remoteOp: Operation = {
           id: 'remote-1',
           clientId: 'client-B',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -1745,7 +1745,7 @@ describe('OperationLogSyncService', () => {
         const remoteOp = {
           id: 'remote-for-repair',
           clientId: 'client-B',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK' as const,
           entityId: 'task-1',
@@ -1798,7 +1798,7 @@ describe('OperationLogSyncService', () => {
         const remoteOp = (): Operation => ({
           id: 'remote-before-bad-page',
           clientId: 'client-B',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -1957,7 +1957,7 @@ describe('OperationLogSyncService', () => {
         const remoteOp: Operation = {
           id: 'op-future',
           clientId: 'client-B',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -2006,7 +2006,7 @@ describe('OperationLogSyncService', () => {
         const repairOp: Operation = {
           id: 'repair-1',
           clientId: 'client-B',
-          actionType: '[SP_ALL] Repair' as ActionType,
+          actionType: ActionType.REPAIR_AUTO,
           opType: OpType.Repair,
           entityType: 'ALL',
           entityId: 'ALL',
@@ -2197,7 +2197,7 @@ describe('OperationLogSyncService', () => {
           const remoteOp: Operation = {
             id: 'remote-1',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -3424,7 +3424,7 @@ describe('OperationLogSyncService', () => {
             op: {
               id: 'local-op-1',
               clientId: 'client-A',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               entityId: 'task-1',
@@ -3442,7 +3442,7 @@ describe('OperationLogSyncService', () => {
           const remoteOp: Operation = {
             id: 'remote-op-1',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-2',
@@ -3488,7 +3488,7 @@ describe('OperationLogSyncService', () => {
             op: {
               id: 'local-op-1',
               clientId: 'client-A',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'GLOBAL_CONFIG', // Not a user entity type
               entityId: 'config-1',
@@ -3599,7 +3599,7 @@ describe('OperationLogSyncService', () => {
             op: {
               id: 'local-op-1',
               clientId: 'client-A',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Create, // CREATE or UPDATE for TASK triggers conflict
               entityType: 'TASK',
               entityId: 'task-1',
@@ -3704,7 +3704,7 @@ describe('OperationLogSyncService', () => {
           const snapshotIncludedOp: Operation = {
             id: 'snapshot-included-op',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-in-snapshot',
@@ -3716,7 +3716,7 @@ describe('OperationLogSyncService', () => {
           const postSnapshotOp: Operation = {
             id: 'post-snapshot-op',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Create,
             entityType: 'TASK',
             entityId: 'task-after-snapshot',
@@ -3778,7 +3778,7 @@ describe('OperationLogSyncService', () => {
           const op5: Operation = {
             id: 'post-snapshot-op-5',
             clientId: 'client-B',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Create,
             entityType: 'TASK',
             entityId: 'task-5',
@@ -3967,7 +3967,7 @@ describe('OperationLogSyncService', () => {
               op: {
                 id: 'local-op-1',
                 clientId: 'client-A',
-                actionType: 'test' as ActionType,
+                actionType: ActionType.TASK_SHARED_UPDATE,
                 opType: OpType.Update,
                 entityType: 'TASK',
                 entityId: 'task-1',
@@ -3984,7 +3984,7 @@ describe('OperationLogSyncService', () => {
               op: {
                 id: 'local-op-2',
                 clientId: 'client-A',
-                actionType: 'test' as ActionType,
+                actionType: ActionType.TASK_SHARED_UPDATE,
                 opType: OpType.Create,
                 entityType: 'TASK',
                 entityId: 'task-2',
@@ -4045,7 +4045,7 @@ describe('OperationLogSyncService', () => {
               op: {
                 id: 'local-op-1',
                 clientId: 'client-A',
-                actionType: 'test' as ActionType,
+                actionType: ActionType.TASK_SHARED_UPDATE,
                 opType: OpType.Update,
                 entityType: 'TASK',
                 entityId: 'task-1',
@@ -4103,7 +4103,7 @@ describe('OperationLogSyncService', () => {
               op: {
                 id: 'local-op-1',
                 clientId: 'client-A',
-                actionType: 'test' as ActionType,
+                actionType: ActionType.TASK_SHARED_UPDATE,
                 opType: OpType.Update,
                 entityType: 'TASK',
                 entityId: 'task-1',
@@ -4167,7 +4167,7 @@ describe('OperationLogSyncService', () => {
               op: {
                 id: 'local-op-1',
                 clientId: 'client-A',
-                actionType: 'test' as ActionType,
+                actionType: ActionType.TASK_SHARED_UPDATE,
                 opType: OpType.Update,
                 entityType: 'TASK',
                 entityId: 'task-1',
@@ -4329,7 +4329,7 @@ describe('OperationLogSyncService', () => {
           const suffixOp: Operation = {
             id: 'post-snapshot-op',
             clientId: 'windowsClient',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Create,
             entityType: 'TASK',
             entityId: 'remote-new-task',
@@ -4427,7 +4427,7 @@ describe('OperationLogSyncService', () => {
             {
               id: 'remote-op-2',
               clientId: 'windowsClient',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               entityId: 'task-w-2',
@@ -4439,7 +4439,7 @@ describe('OperationLogSyncService', () => {
             {
               id: 'remote-op-3',
               clientId: 'windowsClient',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               entityId: 'task-w-3',
@@ -4488,7 +4488,7 @@ describe('OperationLogSyncService', () => {
             op: {
               id: 'local-op-1',
               clientId: 'client-A',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               entityId: 'task-1',
@@ -4539,7 +4539,7 @@ describe('OperationLogSyncService', () => {
             op: {
               id: 'local-op-1',
               clientId: 'clientA',
-              actionType: 'test' as ActionType,
+              actionType: ActionType.TASK_SHARED_UPDATE,
               opType: OpType.Update,
               entityType: 'TASK',
               entityId: 'task-1',
@@ -4636,7 +4636,7 @@ describe('OperationLogSyncService', () => {
           const remoteOpWithClock = (clock: Record<string, number>): Operation => ({
             id: 'remote-op-1',
             clientId: 'clientB',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -5052,7 +5052,7 @@ describe('OperationLogSyncService', () => {
 
     const makeRemoteOp = (id: string = 'op1'): Operation => ({
       id,
-      actionType: 'ACTION' as ActionType,
+      actionType: ActionType.TASK_SHARED_UPDATE,
       opType: OpType.Update,
       entityType: 'TASK',
       entityId: 'task1',
@@ -5698,6 +5698,33 @@ describe('OperationLogSyncService', () => {
       expect(remoteOpsProcessingServiceSpy.processRemoteOps).not.toHaveBeenCalled();
       expect(mockProvider.setLastServerSeq).not.toHaveBeenCalled();
     });
+    it('should refuse to rebuild from ops with an unknown actionType under a known opType BEFORE destroying anything (#8764)', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [
+          {
+            ...makeRemoteOp('op-future-vocabulary'),
+            actionType: '[Future] Semantics' as ActionType,
+          },
+        ],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 1,
+      });
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as unknown as OperationSyncCapable;
+
+      await expectAsync(
+        service.forceDownloadRemoteState(mockProvider),
+      ).toBeRejectedWithError(/unknown op type/);
+      expect(opLogStoreSpy.runRemoteStateReplacement).not.toHaveBeenCalled();
+      expect(remoteOpsProcessingServiceSpy.processRemoteOps).not.toHaveBeenCalled();
+      expect(mockProvider.setLastServerSeq).not.toHaveBeenCalled();
+    });
 
     it('should run all operation migrations before backup or replacement', async () => {
       const remoteOp = { ...makeRemoteOp(), schemaVersion: 1 };
@@ -5871,7 +5898,7 @@ describe('OperationLogSyncService', () => {
       const mockOps: Operation[] = [
         {
           id: 'op1',
-          actionType: 'ACTION' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task1',
@@ -5913,7 +5940,7 @@ describe('OperationLogSyncService', () => {
     it('should update lastServerSeq after processing ops', async () => {
       const mockOp: Operation = {
         id: 'op1',
-        actionType: 'ACTION' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update,
         entityType: 'TASK',
         entityId: 'task1',
@@ -6054,7 +6081,7 @@ describe('OperationLogSyncService', () => {
       const mockOps: Operation[] = [
         {
           id: 'op1',
-          actionType: 'ACTION' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task1',
@@ -6432,7 +6459,7 @@ describe('OperationLogSyncService', () => {
           {
             id: 'remote-op-1',
             clientId: 'clientB',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -6715,7 +6742,7 @@ describe('OperationLogSyncService', () => {
     const remoteTaskOp: Operation = {
       id: 'remote-op-1',
       clientId: 'clientB',
-      actionType: 'test' as ActionType,
+      actionType: ActionType.TASK_SHARED_UPDATE,
       opType: OpType.Update,
       entityType: 'TASK',
       entityId: 'task-1',
@@ -7114,7 +7141,7 @@ describe('OperationLogSyncService', () => {
           op: {
             id: 'local-op-1',
             clientId: 'client-A',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -7172,7 +7199,7 @@ describe('OperationLogSyncService', () => {
           op: {
             id: 'example-task-create',
             clientId: 'client-A',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Create,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -7245,7 +7272,7 @@ describe('OperationLogSyncService', () => {
         op: {
           id: 'late-download-local-op',
           clientId: 'client-A',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -7464,7 +7491,7 @@ describe('OperationLogSyncService', () => {
         op: {
           id: 'local-op-1',
           clientId: 'client-A',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -7516,7 +7543,7 @@ describe('OperationLogSyncService', () => {
         op: {
           id: 'local-op-1',
           clientId: 'client-A',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -7764,7 +7791,7 @@ describe('OperationLogSyncService', () => {
         op: {
           id: 'late-local-op',
           clientId: 'client-A',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK',
           entityId: 'task-1',
@@ -7879,7 +7906,7 @@ describe('OperationLogSyncService', () => {
       const piggybackedOp: Operation = {
         id: 'op-1',
         clientId: 'client-B',
-        actionType: 'test' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update,
         entityType: 'TASK',
         entityId: 'task-1',
@@ -7960,7 +7987,7 @@ describe('OperationLogSyncService', () => {
           op: {
             id: 'local-op-1',
             clientId: 'client-A',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -8026,7 +8053,7 @@ describe('OperationLogSyncService', () => {
           op: {
             id: 'local-op-1',
             clientId: 'client-A',
-            actionType: 'test' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             opType: OpType.Update,
             entityType: 'TASK',
             entityId: 'task-1',
@@ -8167,7 +8194,7 @@ describe('OperationLogSyncService', () => {
         const remoteOp: Operation = {
           id: 'remote-1',
           clientId: 'client-B',
-          actionType: 'test' as ActionType,
+          actionType: ActionType.TASK_SHARED_UPDATE,
           opType: OpType.Update,
           entityType: 'TASK' as const,
           entityId: 'task-1',

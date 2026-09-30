@@ -1,3 +1,4 @@
+import { ActionType } from '../../../core/action-types.enum';
 import {
   FileBasedSyncTestHarness,
   HarnessClient,
@@ -43,7 +44,7 @@ describe('File-Based Sync Integration - Concurrent Split Compaction (#9040)', ()
   });
 
   const addTaskOp = (client: HarnessClient, id: string): SyncOperation =>
-    client.createOp('Task', id, 'CRT', 'TaskActionTypes.ADD_TASK', { title: id });
+    client.createOp('Task', id, 'CRT', ActionType.TASK_SHARED_ADD, { title: id });
 
   /**
    * Seeds a compacted folder whose ops buffer sits EXACTLY at the cap, so the next

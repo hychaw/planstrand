@@ -323,6 +323,67 @@ describe('SuperSyncProvider', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps op-type metadata in memory and refreshes future support after upgrade', async () => {
+      const validators = createValidatorsPassthrough();
+      const { provider, cfgStore, fetchMock } = buildProvider({ validators });
+      cfgStore.load.mockResolvedValue(testConfig);
+      const caps = {
+        contractVersion: 1,
+        supportedEntityTypes: ['TASK'],
+        minSchemaVersion: 1,
+        maxSchemaVersion: 4,
+        supportedOpTypes: ['UPD'],
+      };
+      fetchMock
+        .mockResolvedValueOnce(okResponse(status({ operationSync: caps })))
+        .mockResolvedValueOnce(
+          okResponse(
+            status({
+              operationSync: { ...caps, supportedOpTypes: ['UPD', 'FUTURE_FENCED_V1'] },
+            }),
+          ),
+        );
+      await expect(provider.getServerSyncCapabilities()).resolves.toMatchObject({
+        kind: 'available',
+        capabilities: { supportedOpTypes: ['UPD'] },
+      });
+      await provider.getServerSyncCapabilities();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await expect(
+        provider.getServerSyncCapabilities({ forceRefresh: true }),
+      ).resolves.toMatchObject({
+        kind: 'available',
+        capabilities: { supportedOpTypes: ['UPD', 'FUTURE_FENCED_V1'] },
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('classifies malformed op-type metadata rejected by the transport validator', async () => {
+      const validators = createValidatorsPassthrough();
+      validators.validateStatus = () => {
+        throw new Error('Malformed supportedOpTypes');
+      };
+      const { provider, cfgStore, fetchMock } = buildProvider({ validators });
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockResolvedValue(
+        okResponse({
+          ...status(),
+          capabilities: {
+            operationSync: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+              supportedOpTypes: 'UPD',
+            },
+          },
+        }),
+      );
+      await expect(provider.getServerSyncCapabilities()).resolves.toEqual({
+        kind: 'malformed',
+      });
+    });
+
     it('classifies an authenticated server without capability metadata as missing', async () => {
       const { provider, cfgStore, fetchMock } = buildProvider();
       cfgStore.load.mockResolvedValue(testConfig);

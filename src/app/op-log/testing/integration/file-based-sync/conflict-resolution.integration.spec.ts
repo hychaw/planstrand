@@ -1,3 +1,4 @@
+import { ActionType } from '../../../core/action-types.enum';
 import { FileBasedSyncTestHarness } from '../helpers/file-based-sync-test-harness';
 import { FILE_BASED_SYNC_CONSTANTS } from '../../../sync-providers/file-based/file-based-sync.types';
 import { UploadRevToMatchMismatchAPIError } from '../../../core/errors/sync-errors';
@@ -24,7 +25,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
         'Task',
         'task-a1',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         {
           title: 'Task A1',
         },
@@ -36,7 +37,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
 
       // Client B syncs while A has stale view
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Task B',
       });
       await clientB.uploadOps([opB]);
@@ -47,7 +48,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
         'Task',
         'task-a2',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         {
           title: 'Task A2',
         },
@@ -75,7 +76,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       const provider = harness.getProvider();
 
       // Set up initial sync file
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Initial Task',
       });
       await clientA.uploadOps([opA]);
@@ -90,7 +91,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       );
 
       // Client B uploads - should handle the retry internally
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Task B',
       });
 
@@ -110,10 +111,10 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
 
       // Client A syncs multiple times to build up syncVersion
       const ops = [
-        clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: '1',
         }),
-        clientA.createOp('Task', 'task-2', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: '2',
         }),
       ];
@@ -147,7 +148,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       const clientB = harness.createClient('client-b-test');
 
       // Client A syncs
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Initial',
       });
       await clientA.uploadOps([op]);
@@ -228,7 +229,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
         'Task',
         'task-initial',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         { title: 'Initial' },
       );
       await clientA.uploadOps([initialOp]);
@@ -247,7 +248,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
               'Task',
               `task-fill-${j}`,
               'CRT',
-              'TaskActionTypes.ADD_TASK',
+              ActionType.TASK_SHARED_ADD,
               { title: `Fill ${j}` },
             ),
           );
@@ -281,7 +282,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
               'Task',
               `task-keep-up-${j}`,
               'CRT',
-              'TaskActionTypes.ADD_TASK',
+              ActionType.TASK_SHARED_ADD,
               { title: `Keep Up ${j}` },
             ),
           );
@@ -309,7 +310,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
         'Task',
         'task-0',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         { title: 'Initial' },
       );
       await clientA.uploadOps([initialOp]);
@@ -317,10 +318,10 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
 
       // Both clients create operations concurrently (different entities)
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Task A',
       });
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Task B',
       });
 
@@ -353,13 +354,13 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       const clientB = harness.createClient('client-b-test');
 
       // Client A creates op
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'A',
       });
       await clientA.uploadOps([opA]);
 
       // Client B creates op without downloading A's changes
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'B',
       });
       const downloaded = await clientB.downloadOps(0);
@@ -380,7 +381,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       const clientB = harness.createClient('client-b-test');
 
       // Client A uploads
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Task 1',
       });
       await clientA.uploadOps([op]);
@@ -403,19 +404,19 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
 
       // Create many ops to potentially cause array trimming
       const ops = [
-        clientA.createOp('Task', 'task-0', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-0', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 0',
         }),
-        clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 1',
         }),
-        clientA.createOp('Task', 'task-2', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 2',
         }),
-        clientA.createOp('Task', 'task-3', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-3', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 3',
         }),
-        clientA.createOp('Task', 'task-4', 'CRT', 'TaskActionTypes.ADD_TASK', {
+        clientA.createOp('Task', 'task-4', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 4',
         }),
       ];
@@ -438,7 +439,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
         'Task',
         'task-0',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         { title: 'Initial' },
       );
       await clientA.uploadOps([initialOp]);
@@ -446,7 +447,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       // Client B downloads before uploading its independent local edit.
       const downloaded = await clientB.downloadOps(0);
       await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'B',
       });
       const uploadResponse = await clientB.uploadOps([opB]);
@@ -459,7 +460,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       const clientA = harness.createClient('client-a-test');
 
       // Client A uploads twice in a row
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'A',
       });
       await clientA.uploadOps([opA]);
@@ -468,7 +469,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
         'Task',
         'task-a2',
         'CRT',
-        'TaskActionTypes.ADD_TASK',
+        ActionType.TASK_SHARED_ADD,
         {
           title: 'A2',
         },
@@ -486,7 +487,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       const clientA = harness.createClient('client-a-test');
 
       // Upload to empty remote (no existing file)
-      const op = clientA.createOp('Task', 'task-1', 'CRT', 'TaskActionTypes.ADD_TASK', {
+      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'First Task',
       });
 

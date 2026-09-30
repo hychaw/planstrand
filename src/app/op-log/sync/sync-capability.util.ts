@@ -1,20 +1,27 @@
-import { ENTITY_TYPES, SUPER_SYNC_CAPABILITY_CONTRACT_VERSION } from '@sp/shared-schema';
+import {
+  ENTITY_TYPES,
+  SUPER_SYNC_CAPABILITY_CONTRACT_VERSION,
+  SUPER_SYNC_BASELINE_OP_TYPES,
+} from '@sp/shared-schema';
 import { isMultiEntityPayload } from '@sp/sync-core';
 import type { OperationSyncServerCapabilities } from '../sync-providers/provider.interface';
 
 export interface OperationCapabilityInput {
+  opType: string;
   entityType: string;
   schemaVersion: number;
   payload: unknown;
 }
 
 export interface OperationCapabilityRequirement {
+  opType: string;
   entityTypes: string[];
   schemaVersion: number;
 }
 
 export interface CapabilityCompatibilityResult {
   compatible: boolean;
+  unsupportedOpTypes: string[];
   unsupportedEntityTypes: string[];
   unsupportedSchemaVersions: number[];
   contractVersionSupported: boolean;
@@ -48,6 +55,7 @@ export const getOperationCapabilityRequirement = (
   }
 
   return {
+    opType: operation.opType,
     entityTypes: [...entityTypes],
     schemaVersion: operation.schemaVersion,
   };
@@ -57,12 +65,21 @@ export const evaluateOperationCompatibility = (
   operations: readonly OperationCapabilityInput[],
   capabilities: OperationSyncServerCapabilities,
 ): CapabilityCompatibilityResult => {
+  // Only the immutable deployed baseline is implicit on pre-extension servers.
+  // An explicit advertisement (including []) is authoritative for every type.
+  const supportedOpTypes = new Set<string>(
+    capabilities.supportedOpTypes ?? SUPER_SYNC_BASELINE_OP_TYPES,
+  );
+  const unsupportedOpTypes = new Set<string>();
   const supportedEntityTypes = new Set(capabilities.supportedEntityTypes);
   const unsupportedEntityTypes = new Set<string>();
   const unsupportedSchemaVersions = new Set<number>();
 
   for (const operation of operations) {
     const requirement = getOperationCapabilityRequirement(operation);
+    if (!supportedOpTypes.has(requirement.opType)) {
+      unsupportedOpTypes.add(requirement.opType);
+    }
     for (const entityType of requirement.entityTypes) {
       if (!supportedEntityTypes.has(entityType)) {
         unsupportedEntityTypes.add(entityType);
@@ -81,8 +98,10 @@ export const evaluateOperationCompatibility = (
   return {
     compatible:
       contractVersionSupported &&
+      unsupportedOpTypes.size === 0 &&
       unsupportedEntityTypes.size === 0 &&
       unsupportedSchemaVersions.size === 0,
+    unsupportedOpTypes: [...unsupportedOpTypes].sort(),
     unsupportedEntityTypes: [...unsupportedEntityTypes].sort(),
     unsupportedSchemaVersions: [...unsupportedSchemaVersions].sort((a, b) => a - b),
     contractVersionSupported,

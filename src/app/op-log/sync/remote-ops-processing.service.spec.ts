@@ -43,6 +43,11 @@ import { LOCK_NAMES } from '../core/operation-log.const';
 import { BackupService } from '../backup/backup.service';
 import { RecoveryPointBannerService } from '../../imex/local-backup/recovery-point-banner.service';
 
+const requiredVocabulary = {
+  opType: OpType.Update,
+  actionType: ActionType.TASK_SHARED_UPDATE,
+};
+
 describe('RemoteOpsProcessingService', () => {
   let service: RemoteOpsProcessingService;
   let storeSpy: jasmine.SpyObj<Store>;
@@ -334,8 +339,8 @@ describe('RemoteOpsProcessingService', () => {
   describe('processRemoteOps', () => {
     it('should call migrateOperation for each remote op', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1 } as Operation,
-        { id: 'op2', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op2', schemaVersion: 1 } as Operation,
       ];
       // Assume fresh client to keep test simple
       opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
@@ -357,7 +362,9 @@ describe('RemoteOpsProcessingService', () => {
     });
 
     it('should acquire lock before conflict detection to ensure write consistency', async () => {
-      const remoteOps: Operation[] = [{ id: 'op1', schemaVersion: 1 } as Operation];
+      const remoteOps: Operation[] = [
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+      ];
 
       // Setup for a normal (non-full-state) operation flow
       opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
@@ -406,12 +413,14 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should log conflict identities without logging operation payloads', async () => {
       const localOp = {
+        ...requiredVocabulary,
         id: 'local-op',
         entityType: 'TASK',
         entityId: 'task-1',
         payload: { title: 'private local title' },
       } as Operation;
       const remoteOp = {
+        ...requiredVocabulary,
         id: 'remote-op',
         entityType: 'TASK',
         entityId: 'task-1',
@@ -458,12 +467,14 @@ describe('RemoteOpsProcessingService', () => {
     // Disjoint-field merging must remain enabled (#9095).
     it('should keep disjoint merge enabled on the production resolve path', async () => {
       const localOp = {
+        ...requiredVocabulary,
         id: 'local-op',
         entityType: 'TASK',
         entityId: 'task-1',
         payload: { title: 'local title' },
       } as Operation;
       const remoteOp = {
+        ...requiredVocabulary,
         id: 'remote-op',
         entityType: 'TASK',
         entityId: 'task-1',
@@ -501,8 +512,8 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should drop operations if migrateOperation returns null', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1 } as Operation,
-        { id: 'dropped', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'dropped', schemaVersion: 1 } as Operation,
       ];
 
       schemaMigrationServiceSpy.migrateOperation.and.callFake((op) => {
@@ -531,9 +542,9 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should stop the batch at the first op that throws during migration and only process the prefix', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1 } as Operation,
-        { id: 'throws', schemaVersion: 1 } as Operation,
-        { id: 'op3', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'throws', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op3', schemaVersion: 1 } as Operation,
       ];
 
       schemaMigrationServiceSpy.migrateOperation.and.callFake((op) => {
@@ -569,8 +580,8 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should block without processing anything when the first op fails migration', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1 } as Operation,
-        { id: 'op2', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op2', schemaVersion: 1 } as Operation,
       ];
 
       schemaMigrationServiceSpy.migrateOperation.and.throwError('All migration failed');
@@ -590,8 +601,14 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should track dropped entity IDs from failed migrations for dependency warnings', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1, entityId: 'task-1' } as Operation,
         {
+          ...requiredVocabulary,
+          id: 'op1',
+          schemaVersion: 1,
+          entityId: 'task-1',
+        } as Operation,
+        {
+          ...requiredVocabulary,
           id: 'dropped',
           schemaVersion: 1,
           entityId: 'task-2',
@@ -630,7 +647,9 @@ describe('RemoteOpsProcessingService', () => {
       // Current version is 1 (set in beforeEach). Even version 2 — one ahead —
       // must block: real migrations rename/split fields, so a future op applied
       // verbatim corrupts state.
-      const remoteOps: Operation[] = [{ id: 'op1', schemaVersion: 2 } as Operation];
+      const remoteOps: Operation[] = [
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 2 } as Operation,
+      ];
 
       const result = await service.processRemoteOps(remoteOps);
 
@@ -649,6 +668,7 @@ describe('RemoteOpsProcessingService', () => {
     for (const invalidVersion of [null, '2', 1.5, {}, Number.NaN]) {
       it(`should block malformed schemaVersion ${String(invalidVersion)}`, async () => {
         const remoteOp = {
+          ...requiredVocabulary,
           id: 'malformed-version',
           schemaVersion: invalidVersion,
         } as unknown as Operation;
@@ -663,9 +683,9 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should process the prefix before a too-new op but flag the block', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1 } as Operation,
-        { id: 'future', schemaVersion: 2 } as Operation,
-        { id: 'op3', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+        { ...requiredVocabulary, id: 'future', schemaVersion: 2 } as Operation,
+        { ...requiredVocabulary, id: 'op3', schemaVersion: 1 } as Operation,
       ];
 
       opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
@@ -684,15 +704,102 @@ describe('RemoteOpsProcessingService', () => {
       expect(result.blockedByIncompatibleOp).toBe(true);
     });
 
+    for (const field of ['opType', 'actionType'] as const) {
+      it(`blocks a missing required ${field} before migration or apply`, async () => {
+        const malformed = {
+          ...requiredVocabulary,
+          id: 'missing-vocabulary',
+          schemaVersion: 1,
+        } as Operation;
+        delete (malformed as Partial<Operation>)[field];
+        const later = {
+          ...requiredVocabulary,
+          id: 'later',
+          schemaVersion: 1,
+        } as Operation;
+        const result = await service.processRemoteOps([malformed, later]);
+        expect(result.blockedByIncompatibleOp).toBeTrue();
+        expect(schemaMigrationServiceSpy.migrateOperation).not.toHaveBeenCalled();
+        expect(opLogStoreSpy.appendBatchSkipDuplicates).not.toHaveBeenCalled();
+        expect(operationApplierServiceSpy.applyOperations).not.toHaveBeenCalled();
+        expect(snackServiceSpy.open).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            type: 'ERROR',
+            msg: T.F.SYNC.S.VERSION_TOO_OLD,
+            actionStr: T.PS.UPDATE_APP,
+          }),
+        );
+      });
+    }
+
     it('should block at an op with an unknown opType, keep the prefix, and show the update-app snack (#8764)', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1, opType: OpType.Update } as Operation,
         {
+          ...requiredVocabulary,
+          id: 'op1',
+          schemaVersion: 1,
+          opType: OpType.Update,
+        } as Operation,
+        {
+          ...requiredVocabulary,
           id: 'future-vocabulary',
           schemaVersion: 1,
           opType: 'FUTURE_OP' as unknown as OpType,
         } as Operation,
-        { id: 'op3', schemaVersion: 1, opType: OpType.Update } as Operation,
+        {
+          ...requiredVocabulary,
+          id: 'op3',
+          schemaVersion: 1,
+          opType: OpType.Update,
+        } as Operation,
+      ];
+
+      opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
+      opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
+      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+
+      const result = await service.processRemoteOps(remoteOps);
+
+      expect(result.blockedByIncompatibleOp).toBeTrue();
+      expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
+        [remoteOps[0]],
+        'remote',
+        { pendingApply: true },
+      );
+      expect(schemaMigrationServiceSpy.migrateOperation).not.toHaveBeenCalledWith(
+        remoteOps[1],
+      );
+      expect(snackServiceSpy.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.VERSION_TOO_OLD,
+          actionStr: T.PS.UPDATE_APP,
+        }),
+      );
+    });
+
+    it('should block at an op with an unknown actionType under a known opType, keep the prefix, and show the update-app snack (#8764)', async () => {
+      const remoteOps: Operation[] = [
+        {
+          ...requiredVocabulary,
+          id: 'op1',
+          schemaVersion: 1,
+          opType: OpType.Update,
+        } as Operation,
+        {
+          id: 'future-vocabulary',
+          schemaVersion: 1,
+          opType: OpType.Update,
+          actionType: '[Future] Semantics' as ActionType,
+        } as Operation,
+        {
+          ...requiredVocabulary,
+          id: 'op3',
+          schemaVersion: 1,
+          opType: OpType.Update,
+        } as Operation,
       ];
 
       opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
@@ -724,8 +831,14 @@ describe('RemoteOpsProcessingService', () => {
     it('should withdraw the causal repair base for the rest of a blocked run', async () => {
       const repairSyncContext = TestBed.inject(RepairSyncContextService);
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1, opType: OpType.Update } as Operation,
         {
+          ...requiredVocabulary,
+          id: 'op1',
+          schemaVersion: 1,
+          opType: OpType.Update,
+        } as Operation,
+        {
+          ...requiredVocabulary,
           id: 'future',
           schemaVersion: 1,
           opType: 'FUTURE_OP' as unknown as OpType,
@@ -761,6 +874,7 @@ describe('RemoteOpsProcessingService', () => {
     it('should block at a full-state op with an unknown syncImportReason (#8764)', async () => {
       const remoteOps: Operation[] = [
         {
+          ...requiredVocabulary,
           id: 'future-reason',
           schemaVersion: 1,
           opType: OpType.SyncImport,
@@ -814,7 +928,11 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should show error snackbar and abort if version is below minimum supported', async () => {
       const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: MIN_SUPPORTED_SCHEMA_VERSION - 1 } as Operation,
+        {
+          ...requiredVocabulary,
+          id: 'op1',
+          schemaVersion: MIN_SUPPORTED_SCHEMA_VERSION - 1,
+        } as Operation,
       ];
 
       const result = await service.processRemoteOps(remoteOps);
@@ -840,21 +958,29 @@ describe('RemoteOpsProcessingService', () => {
     it('should not replace a visible persistent recovery action with the version-block snack', async () => {
       snackServiceSpy.hasPendingPersistentAction.and.returnValue(true);
 
-      await service.processRemoteOps([{ id: 'op1', schemaVersion: 2 } as Operation]);
+      await service.processRemoteOps([
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 2 } as Operation,
+      ]);
 
       expect(snackServiceSpy.open).not.toHaveBeenCalled();
 
       // The latch stayed unset, so a later retry (after the recovery action
       // resolves) still warns the user.
       snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
-      await service.processRemoteOps([{ id: 'op2', schemaVersion: 2 } as Operation]);
+      await service.processRemoteOps([
+        { ...requiredVocabulary, id: 'op2', schemaVersion: 2 } as Operation,
+      ]);
       expect(snackServiceSpy.open).toHaveBeenCalledTimes(1);
     });
 
     it('should show the version-block error only once per session', async () => {
       // Current version is 1 (set in beforeEach)
-      const remoteOps1: Operation[] = [{ id: 'op1', schemaVersion: 2 } as Operation];
-      const remoteOps2: Operation[] = [{ id: 'op2', schemaVersion: 2 } as Operation];
+      const remoteOps1: Operation[] = [
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 2 } as Operation,
+      ];
+      const remoteOps2: Operation[] = [
+        { ...requiredVocabulary, id: 'op2', schemaVersion: 2 } as Operation,
+      ];
 
       // First call
       await service.processRemoteOps(remoteOps1);
@@ -873,7 +999,9 @@ describe('RemoteOpsProcessingService', () => {
 
     it('should not show warning for ops at current version', async () => {
       // Current version is 1 (set in beforeEach)
-      const remoteOps: Operation[] = [{ id: 'op1', schemaVersion: 1 } as Operation];
+      const remoteOps: Operation[] = [
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+      ];
 
       // Setup for processing
       opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
@@ -890,7 +1018,11 @@ describe('RemoteOpsProcessingService', () => {
     });
 
     it('should use migrated ops for conflict detection', async () => {
-      const remoteOp: Operation = { id: 'op1', schemaVersion: 1 } as Operation;
+      const remoteOp: Operation = {
+        ...requiredVocabulary,
+        id: 'op1',
+        schemaVersion: 1,
+      } as Operation;
       const migratedOp: Operation = { ...remoteOp, schemaVersion: 2 };
 
       schemaMigrationServiceSpy.migrateOperation.and.returnValue(migratedOp);
@@ -917,7 +1049,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-1',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -942,7 +1074,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-exclusive',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1015,7 +1147,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-final-guard',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1063,7 +1195,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-recovery-point',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1093,7 +1225,7 @@ describe('RemoteOpsProcessingService', () => {
       const duplicateImport: Operation = {
         id: 'sync-import-duplicate',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1118,7 +1250,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-shrink',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: { task: { ids: ['t1'], entities: {} } },
         clientId: 'client-1',
@@ -1142,7 +1274,7 @@ describe('RemoteOpsProcessingService', () => {
       const repairOp: Operation = {
         id: 'repair-wrapped',
         opType: OpType.Repair,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {
           appDataComplete: { task: { ids: ['t1', 't2', 't3'], entities: {} } },
@@ -1169,7 +1301,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-rebuild',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: { task: { ids: ['t1'], entities: {} } },
         clientId: 'client-1',
@@ -1191,7 +1323,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-fresh-device',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1209,7 +1341,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-capture-failed',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1239,7 +1371,7 @@ describe('RemoteOpsProcessingService', () => {
           {
             id: 'plain-op',
             opType: OpType.Update,
-            actionType: '[Task] Update' as ActionType,
+            actionType: ActionType.TASK_SHARED_UPDATE,
             entityType: 'TASK',
             entityId: 't1',
             payload: {},
@@ -1259,7 +1391,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-under-lock',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1290,7 +1422,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-diag',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'B_h1Wp',
@@ -1345,7 +1477,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-localized',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {
           task: {},
@@ -1410,7 +1542,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-roundtrip',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {
           globalConfig: {
@@ -1454,7 +1586,7 @@ describe('RemoteOpsProcessingService', () => {
       const backupImportOp: Operation = {
         id: 'backup-import-1',
         opType: OpType.BackupImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1488,7 +1620,7 @@ describe('RemoteOpsProcessingService', () => {
       const syncImportOp: Operation = {
         id: 'sync-import-1',
         opType: OpType.SyncImport,
-        actionType: '[All] Load All Data' as ActionType,
+        actionType: ActionType.LOAD_ALL_DATA,
         entityType: 'ALL',
         payload: {},
         clientId: 'client-1',
@@ -1515,7 +1647,7 @@ describe('RemoteOpsProcessingService', () => {
       const regularOp: Operation = {
         id: 'regular-op-1',
         opType: OpType.Update,
-        actionType: '[Task] Update Task' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         entityType: 'TASK',
         entityId: 'task-1',
         payload: { title: 'Test' },
@@ -1542,7 +1674,7 @@ describe('RemoteOpsProcessingService', () => {
     describe('SYNC_IMPORT filter metadata return fields', () => {
       const createFullOp = (partial: Partial<Operation>): Operation => ({
         id: 'op-1',
-        actionType: '[Test] Action' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update,
         entityType: 'TASK',
         entityId: 'entity-1',
@@ -1818,7 +1950,7 @@ describe('RemoteOpsProcessingService', () => {
   describe('detectConflicts', () => {
     const createOp = (partial: Partial<Operation>): Operation => ({
       id: 'op-1',
-      actionType: '[Test] Action' as ActionType,
+      actionType: ActionType.TASK_SHARED_UPDATE,
       opType: OpType.Update,
       entityType: 'TASK',
       entityId: 'entity-1',
@@ -1979,7 +2111,7 @@ describe('RemoteOpsProcessingService', () => {
   describe('applyNonConflictingOps', () => {
     const createFullOp = (partial: Partial<Operation>): Operation => ({
       id: 'op-1',
-      actionType: '[Test] Action' as ActionType,
+      actionType: ActionType.TASK_SHARED_UPDATE,
       opType: OpType.Update,
       entityType: 'TASK',
       entityId: 'entity-1',
@@ -2415,7 +2547,9 @@ describe('RemoteOpsProcessingService', () => {
     });
 
     it('processRemoteOps flips the session-validation latch when validation fails on the no-conflict path', async () => {
-      const remoteOps: Operation[] = [{ id: 'op1', schemaVersion: 1 } as Operation];
+      const remoteOps: Operation[] = [
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+      ];
 
       opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
       opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
@@ -2444,7 +2578,9 @@ describe('RemoteOpsProcessingService', () => {
     });
 
     it('processRemoteOps leaves the latch reset when validation succeeds', async () => {
-      const remoteOps: Operation[] = [{ id: 'op1', schemaVersion: 1 } as Operation];
+      const remoteOps: Operation[] = [
+        { ...requiredVocabulary, id: 'op1', schemaVersion: 1 } as Operation,
+      ];
 
       opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
       opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));

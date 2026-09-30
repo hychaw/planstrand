@@ -187,7 +187,7 @@ describe('OperationLogUploadService', () => {
           expect(mockApiProvider.uploadOps).toHaveBeenCalled();
         });
 
-        it('never uploads an unsupported future operation and leaves it pending', async () => {
+        it('never uploads an unsupported future entity and leaves it pending', async () => {
           const entry = createMockEntry(1, 'op-1', 'client-1');
           entry.op.entityType = 'FUTURE_ENTITY' as never;
           entry.op.payload = { futureField: 'unchanged' };
@@ -212,7 +212,7 @@ describe('OperationLogUploadService', () => {
           expect(entry.op.payload).toEqual({ futureField: 'unchanged' });
         });
 
-        it('blocks the whole mixed cycle rather than partially uploading it', async () => {
+        it('blocks the whole mixed cycle containing a future entity', async () => {
           const supported = createMockEntry(1, 'op-1', 'client-1');
           const unsupported = createMockEntry(2, 'op-2', 'client-1');
           unsupported.op.entityType = 'FUTURE_ENTITY' as never;
@@ -244,6 +244,88 @@ describe('OperationLogUploadService', () => {
               capabilities: {
                 contractVersion: 1,
                 supportedEntityTypes: ['TASK', 'FUTURE_ENTITY'],
+                minSchemaVersion: 1,
+                maxSchemaVersion: 4,
+              },
+            }),
+          );
+
+          await expectAsync(service.uploadPendingOps(mockApiProvider)).toBeRejected();
+          await service.uploadPendingOps(mockApiProvider, {
+            forceCapabilityRefresh: true,
+          });
+
+          expect(getCapabilities).toHaveBeenCalledWith({ forceRefresh: true });
+          expect(mockApiProvider.uploadOps).toHaveBeenCalledTimes(1);
+        });
+
+        it('never uploads an unsupported future opType and leaves it pending', async () => {
+          const entry = createMockEntry(1, 'op-1', 'client-1');
+          entry.op.opType = 'FUTURE_FENCED_V1' as OpType;
+          entry.op.payload = { futureField: 'unchanged' };
+          mockOpLogStore.getUnsynced.and.resolveTo([entry]);
+          getCapabilities.and.resolveTo({
+            kind: 'available',
+            capabilities: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          });
+
+          await expectAsync(
+            service.uploadPendingOps(mockApiProvider),
+          ).toBeRejectedWithError(SyncServerIncompatibleError);
+
+          expect(mockApiProvider.uploadOps).not.toHaveBeenCalled();
+          expect(mockOpLogStore.markSynced).not.toHaveBeenCalled();
+          expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
+          expect(entry.op.payload).toEqual({ futureField: 'unchanged' });
+        });
+
+        it('blocks the whole mixed cycle containing a future opType', async () => {
+          const supported = createMockEntry(1, 'op-1', 'client-1');
+          const unsupported = createMockEntry(2, 'op-2', 'client-1');
+          unsupported.op.opType = 'FUTURE_FENCED_V1' as OpType;
+          mockOpLogStore.getUnsynced.and.resolveTo([supported, unsupported]);
+          getCapabilities.and.resolveTo({
+            kind: 'available',
+            capabilities: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: 4,
+            },
+          });
+
+          await expectAsync(service.uploadPendingOps(mockApiProvider)).toBeRejected();
+
+          expect(mockApiProvider.uploadOps).not.toHaveBeenCalled();
+          expect(mockOpLogStore.markSynced).not.toHaveBeenCalled();
+        });
+
+        it('retries successfully after the server advertises the future opType', async () => {
+          const entry = createMockEntry(1, 'op-1', 'client-1');
+          entry.op.opType = 'FUTURE_FENCED_V1' as OpType;
+          mockOpLogStore.getUnsynced.and.resolveTo([entry]);
+          getCapabilities.and.returnValues(
+            Promise.resolve({
+              kind: 'available',
+              capabilities: {
+                contractVersion: 1,
+                supportedEntityTypes: ['TASK'],
+                minSchemaVersion: 1,
+                maxSchemaVersion: 4,
+                supportedOpTypes: ['UPD'],
+              },
+            }),
+            Promise.resolve({
+              kind: 'available',
+              capabilities: {
+                contractVersion: 1,
+                supportedEntityTypes: ['TASK'],
+                supportedOpTypes: ['FUTURE_FENCED_V1'],
                 minSchemaVersion: 1,
                 maxSchemaVersion: 4,
               },

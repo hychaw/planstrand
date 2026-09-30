@@ -9,7 +9,7 @@ const op = (
   entityType: string,
   schemaVersion = 4,
   payload: unknown = {},
-): OperationCapabilityInput => ({ entityType, schemaVersion, payload });
+): OperationCapabilityInput => ({ opType: 'UPD', entityType, schemaVersion, payload });
 
 const capabilities = (
   supportedEntityTypes: string[],
@@ -28,6 +28,7 @@ const capabilities = (
 describe('sync capability requirements', () => {
   it('maps a legacy operation to its entity and schema requirement', () => {
     expect(getOperationCapabilityRequirement(op('TASK'))).toEqual({
+      opType: 'UPD',
       entityTypes: ['TASK'],
       schemaVersion: 4,
     });
@@ -92,6 +93,7 @@ describe('sync capability requirements', () => {
     expect(evaluateOperationCompatibility([workSession], capabilities(['TASK']))).toEqual(
       {
         compatible: false,
+        unsupportedOpTypes: [],
         unsupportedEntityTypes: ['WORK_SESSION'],
         unsupportedSchemaVersions: [],
         contractVersionSupported: true,
@@ -126,9 +128,45 @@ describe('sync capability requirements', () => {
       ),
     ).toEqual({
       compatible: false,
+      unsupportedOpTypes: [],
       unsupportedEntityTypes: [],
       unsupportedSchemaVersions: [5],
       contractVersionSupported: false,
     });
+  });
+});
+
+describe('operation type capability fence', () => {
+  const future = { ...op('TASK'), opType: 'FUTURE_FENCED_V1' };
+  it('accepts the immutable baseline when op metadata is absent', () => {
+    expect(
+      evaluateOperationCompatibility([op('TASK')], capabilities(['TASK'])).compatible,
+    ).toBeTrue();
+  });
+  it('requires explicit future support despite compatible entity and schema', () => {
+    const result = evaluateOperationCompatibility(
+      [op('TASK'), future],
+      capabilities(['TASK']),
+    );
+    expect(result.compatible).toBeFalse();
+    expect(result.unsupportedOpTypes).toEqual(['FUTURE_FENCED_V1']);
+    expect(result.unsupportedEntityTypes).toEqual([]);
+    expect(result.unsupportedSchemaVersions).toEqual([]);
+  });
+  it('honors an explicit empty advertisement even for baseline types', () => {
+    expect(
+      evaluateOperationCompatibility([op('TASK')], {
+        ...capabilities(['TASK']),
+        supportedOpTypes: [],
+      }).compatible,
+    ).toBeFalse();
+  });
+  it('allows the same operation after explicit server support', () => {
+    expect(
+      evaluateOperationCompatibility([future], {
+        ...capabilities(['TASK']),
+        supportedOpTypes: ['FUTURE_FENCED_V1'],
+      }).compatible,
+    ).toBeTrue();
   });
 });

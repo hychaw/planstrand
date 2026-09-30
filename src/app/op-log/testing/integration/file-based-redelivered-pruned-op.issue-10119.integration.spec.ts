@@ -1,3 +1,6 @@
+import { EncryptAndCompressHandlerService } from '../../encryption/encrypt-and-compress-handler.service';
+import { KNOWN_OP_TYPES } from '../../sync/remote-op-block.util';
+import { setArgon2ParamsForTesting, clearSessionKeyCache } from '@sp/sync-core';
 import { EnvironmentInjector, runInInjectionContext } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
@@ -328,6 +331,297 @@ for (const isUseSplitSyncFiles of [false, true]) {
         ),
       );
     };
+
+    for (const compactField of ['a', 'o'] as const) {
+      it(`blocks missing compact ${compactField} before snapshot hydration and preserves it against writes`, async () => {
+        const malformed = otherAddTask('missing-vocabulary', 'malformed-task', {
+          [OTHER]: 1,
+        });
+        const later = otherAddTask('after-malformed', 'later-task', { [OTHER]: 2 });
+        await androidUploads(malformed, later);
+        const file = isUseSplitSyncFiles ? 'sync-ops.json' : 'sync-data.json';
+        const handler = new EncryptAndCompressHandlerService();
+        const { data, modelVersion } = await handler.decompressAndDecrypt<{
+          recentOps: { id: string; a?: unknown; o?: unknown }[];
+        }>({
+          dataStr: (await remote.downloadFile(file)).dataStr,
+          isEncryptExpected: false,
+        });
+        const retained = data.recentOps.find((op) => op.id === malformed.id);
+        expect(retained).toBeDefined();
+        delete retained![compactField];
+        const malformedFile = await handler.compressAndEncryptData(
+          FILE_CFG,
+          undefined,
+          data,
+          modelVersion,
+        );
+        remote.setFileContent(file, malformedFile);
+        const rev = await remote.getFileRev(file, null);
+        const cursor = await linux.getLastServerSeq();
+        const persistedBefore = Object.keys(localStorage)
+          .filter((key) => key.startsWith('FILE_SYNC_VERSION_'))
+          .map((key) => [key, localStorage.getItem(key)]);
+        expect((await syncService.downloadRemoteOps(linux)).kind).toBe(
+          'blocked_incompatible',
+        );
+        expect(
+          TestBed.inject(SyncHydrationService).hydrateFromRemoteSync,
+        ).not.toHaveBeenCalled();
+        expect(await opLogStore.hasOp(malformed.id)).toBeFalse();
+        expect(await opLogStore.hasOp(later.id)).toBeFalse();
+        expect(appliedOpIdsPassedToApplier()).toEqual([]);
+        expect(await linux.getLastServerSeq()).toBe(cursor);
+        expect(
+          Object.keys(localStorage)
+            .filter((key) => key.startsWith('FILE_SYNC_VERSION_'))
+            .map((key) => [key, localStorage.getItem(key)]),
+        ).toEqual(persistedBefore);
+        const local = otherAddTask('local-after-malformed', 'local-task', {
+          [ownClientId]: 1,
+        });
+        for (const receiver of [linux, newAdapter()]) {
+          await expectAsync(
+            receiver.uploadOps([local], ownClientId),
+          ).toBeRejectedWithError(UploadRevToMatchMismatchAPIError);
+          expect(await remote.getFileRev(file, null)).toEqual(rev);
+          expect((await remote.downloadFile(file)).dataStr).toBe(malformedFile);
+        }
+      });
+    }
+
+    it('blocks future vocabulary even inside a snapshot and preserves the remote revision', async () => {
+      const future = {
+        ...otherAddTask('future', 'future-task', { [OTHER]: 1 }),
+        opType: 'FUTURE_FENCED_V1' as OpType,
+      };
+      const later = otherAddTask('later', 'later-task', { [OTHER]: 2 });
+      await androidUploads(future, later);
+      const cursor = await linux.getLastServerSeq();
+      const file = isUseSplitSyncFiles ? 'sync-ops.json' : 'sync-data.json';
+      const rev = await remote.getFileRev(file, null);
+      const outcome = await syncService.downloadRemoteOps(linux);
+      expect(outcome.kind).toBe('blocked_incompatible');
+      expect(await linux.getLastServerSeq()).toBe(cursor);
+      expect(await opLogStore.hasOp(future.id)).toBeFalse();
+      expect(await opLogStore.hasOp(later.id)).toBeFalse();
+      expect(appliedOpIdsPassedToApplier()).not.toContain(later.id);
+      const local = otherAddTask('pending-local', 'local-task', { [ownClientId]: 1 });
+      await expectAsync(linux.uploadOps([local], ownClientId)).toBeRejectedWithError(
+        UploadRevToMatchMismatchAPIError,
+      );
+      expect(await remote.getFileRev(file, null)).toEqual(rev);
+      // A restarted adapter has no pending revision cache; it must still refuse.
+      await expectAsync(
+        newAdapter().uploadOps([local], ownClientId),
+      ).toBeRejectedWithError(UploadRevToMatchMismatchAPIError);
+      expect(await remote.getFileRev(file, null)).toEqual(rev);
+      // Test-only upgraded vocabulary. The production enum gains no new family.
+      // Reducer application remains the harness boundary; the real receive/store/
+      // revision/write pipeline must continue with the SAME retained operation.
+      const upgradedVocabulary = KNOWN_OP_TYPES as Set<string>;
+      upgradedVocabulary.add('FUTURE_FENCED_V1');
+      try {
+        const upgraded = newAdapter();
+        expect((await syncService.downloadRemoteOps(upgraded)).kind).toBe(
+          'ops_processed',
+        );
+        expect(await opLogStore.hasOp(future.id)).toBeTrue();
+        expect(await opLogStore.hasOp(later.id)).toBeTrue();
+        expect(await upgraded.getLastServerSeq()).toBeGreaterThan(cursor);
+        await upgraded.uploadOps([local], ownClientId);
+        const retry = await upgraded.downloadOps(0);
+        expect(retry.ops.map(({ op }) => op.id)).toContain(future.id);
+        expect(retry.ops.find(({ op }) => op.id === future.id)?.op.opType).toBe(
+          future.opType,
+        );
+        expect(retry.ops.map(({ op }) => op.id)).toContain(later.id);
+      } finally {
+        upgradedVocabulary.delete('FUTURE_FENCED_V1');
+      }
+    });
+
+    if (!isUseSplitSyncFiles) {
+      it('keeps a future type durable until a forced server capability refresh', async () => {
+        const pending = {
+          ...otherAddTask('future-pending', 'future-task', { [ownClientId]: 1 }),
+          clientId: ownClientId,
+          opType: 'FUTURE_FENCED_V1' as OpType,
+        };
+        await opLogStore.append(pending, 'local');
+        const getCapabilities = jasmine
+          .createSpy('getServerSyncCapabilities')
+          .and.callFake(async (options?: { forceRefresh?: boolean }) => ({
+            kind: 'available',
+            capabilities: {
+              contractVersion: 1,
+              supportedEntityTypes: ['TASK'],
+              minSchemaVersion: 1,
+              maxSchemaVersion: CURRENT_SCHEMA_VERSION,
+              supportedOpTypes: options?.forceRefresh ? ['FUTURE_FENCED_V1'] : ['UPD'],
+            },
+          }));
+        const upload = jasmine.createSpy('uploadOps').and.resolveTo({
+          results: [{ opId: pending.id, accepted: true, serverSeq: 1 }],
+          latestSeq: 1,
+        });
+        let cursor = 0;
+        const api = {
+          providerMode: 'superSyncOps',
+          supportsOperationSync: true,
+          requiresServerCapabilities: true,
+          getServerSyncCapabilities: getCapabilities,
+          getLastServerSeq: async () => cursor,
+          setLastServerSeq: async (seq: number) => {
+            cursor = seq;
+          },
+          getEncryptKey: async () => undefined,
+          uploadOps: upload,
+        } as unknown as OperationSyncCapable;
+        expect((await syncService.uploadPendingOps(api)).kind).toBe(
+          'blocked_server_incompatible',
+        );
+        expect(upload).not.toHaveBeenCalled();
+        expect(cursor).toBe(0);
+        expect((await opLogStore.getUnsynced()).map(({ op }) => op.id)).toContain(
+          pending.id,
+        );
+        expect((await opLogStore.getOpById(pending.id))?.op).toEqual(pending);
+        await syncService.uploadPendingOps(api, { forceCapabilityRefresh: true });
+        expect(getCapabilities).toHaveBeenCalledWith({ forceRefresh: true });
+        expect(upload).toHaveBeenCalledTimes(1);
+        expect(upload.calls.mostRecent().args[0][0].id).toBe(pending.id);
+        expect((await opLogStore.getUnsynced()).map(({ op }) => op.id)).not.toContain(
+          pending.id,
+        );
+      });
+      for (const field of ['opType', 'actionType'] as const) {
+        for (const encrypted of [false, true]) {
+          it(`blocks ${field} on paginated API download (encrypted=${encrypted})`, async () => {
+            setArgon2ParamsForTesting({ memorySize: 256, iterations: 1, parallelism: 1 });
+            try {
+              const prefix = otherAddTask('api-prefix', 'api-prefix-task', {
+                [OTHER]: 1,
+              });
+              const blocked = {
+                ...otherAddTask('api-blocked', 'api-blocked-task', { [OTHER]: 2 }),
+                [field]: 'FUTURE_FENCED_V1',
+              } as Operation;
+              const later = otherAddTask('api-later', 'api-later-task', { [OTHER]: 3 });
+              let ops: SyncOperation[] = [prefix, blocked, later];
+              if (encrypted)
+                ops = await TestBed.inject(OperationEncryptionService).encryptOperations(
+                  ops,
+                  'test-password',
+                );
+              let cursor = 0;
+              const download = jasmine
+                .createSpy('downloadOps')
+                .and.callFake(async (since: number) => ({
+                  ops:
+                    since === 0
+                      ? [
+                          { op: ops[0], serverSeq: 1, receivedAt: Date.now() },
+                          { op: ops[1], serverSeq: 2, receivedAt: Date.now() },
+                        ]
+                      : [{ op: ops[2], serverSeq: 3, receivedAt: Date.now() }],
+                  latestSeq: 3,
+                  hasMore: since === 0,
+                }));
+              const api = {
+                providerMode: 'superSyncOps',
+                supportsOperationSync: true,
+                getLastServerSeq: async () => cursor,
+                setLastServerSeq: async (seq: number) => {
+                  cursor = seq;
+                },
+                getEncryptKey: async () => (encrypted ? 'test-password' : undefined),
+                downloadOps: download,
+              } as unknown as OperationSyncCapable;
+              expect((await syncService.downloadRemoteOps(api)).kind).toBe(
+                'blocked_incompatible',
+              );
+              expect(cursor).toBe(0);
+              expect(await opLogStore.hasOp(prefix.id)).toBeTrue();
+              expect(await opLogStore.hasOp(blocked.id)).toBeFalse();
+              expect(await opLogStore.hasOp(later.id)).toBeFalse();
+              expect(appliedOpIdsPassedToApplier()).toEqual([prefix.id]);
+              expect(download).toHaveBeenCalledTimes(2);
+            } finally {
+              clearSessionKeyCache();
+              setArgon2ParamsForTesting();
+            }
+          });
+
+          it(`blocks ${field} in API piggyback and leaves acknowledgements pending (encrypted=${encrypted})`, async () => {
+            setArgon2ParamsForTesting({ memorySize: 256, iterations: 1, parallelism: 1 });
+            try {
+              const local = taskOp(
+                'local-pending',
+                ownClientId,
+                ActionType.TASK_SHARED_ADD,
+                OpType.Create,
+                'local-task',
+                { actionPayload: {}, entityChanges: [] },
+                { [ownClientId]: 1 },
+              );
+              await opLogStore.append(local, 'local');
+              const prefix = otherAddTask('piggy-prefix', 'piggy-prefix-task', {
+                [OTHER]: 1,
+              });
+              const blocked = {
+                ...otherAddTask('piggy-blocked', 'piggy-blocked-task', { [OTHER]: 2 }),
+                [field]: 'FUTURE_FENCED_V1',
+              } as Operation;
+              const later = otherAddTask('piggy-later', 'piggy-later-task', {
+                [OTHER]: 3,
+              });
+              let ops: SyncOperation[] = [prefix, blocked, later];
+              if (encrypted)
+                ops = await TestBed.inject(OperationEncryptionService).encryptOperations(
+                  ops,
+                  'test-password',
+                );
+              let cursor = 0;
+              const upload = jasmine.createSpy('uploadOps').and.resolveTo({
+                results: [{ opId: local.id, accepted: true, serverSeq: 4 }],
+                latestSeq: 5,
+                hasMorePiggyback: true,
+                newOps: ops.map((op, index) => ({
+                  op,
+                  serverSeq: index + 1,
+                  receivedAt: Date.now(),
+                })),
+              });
+              const api = {
+                providerMode: 'superSyncOps',
+                supportsOperationSync: true,
+                getLastServerSeq: async () => cursor,
+                setLastServerSeq: async (seq: number) => {
+                  cursor = seq;
+                },
+                getEncryptKey: async () => (encrypted ? 'test-password' : undefined),
+                uploadOps: upload,
+              } as unknown as OperationSyncCapable;
+              expect((await syncService.uploadPendingOps(api)).kind).toBe(
+                'blocked_incompatible',
+              );
+              expect(cursor).toBe(0);
+              expect(await opLogStore.hasOp(prefix.id)).toBeTrue();
+              expect(await opLogStore.hasOp(blocked.id)).toBeFalse();
+              expect(await opLogStore.hasOp(later.id)).toBeFalse();
+              expect((await opLogStore.getUnsynced()).map(({ op }) => op.id)).toContain(
+                local.id,
+              );
+              expect(appliedOpIdsPassedToApplier()).toEqual([prefix.id]);
+            } finally {
+              clearSessionKeyCache();
+              setArgon2ParamsForTesting();
+            }
+          });
+        }
+      }
+    }
 
     const runArchivedTaskScenario = async (): Promise<void> => {
       const oneHourMs = 60 * 60 * 1000;
