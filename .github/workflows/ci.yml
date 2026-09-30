@@ -175,9 +175,9 @@ jobs:
         with:
           # Configure Lighthouse CI
           configPath: './tools/lighthouse/.lighthouserc.json'
-          # Upload results to temporary storage
+          # Keep reports as GitHub Actions artifacts; do not publish them publicly.
           uploadArtifacts: true
-          temporaryPublicStorage: true
+          temporaryPublicStorage: false
           # Run once to avoid long Chrome sessions on CI
           runs: 1
           # Configure budgets

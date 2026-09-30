@@ -1,10 +1,5 @@
-# Force text files to LF in repo and working tree
-* text=auto
-*.scss text eol=lf
-*.html text eol=lf
-*.js text eol=lf
-*.ts text eol=lf
-# Tools parse these line-exactly without a YAML parser (none is allowed as a
-# dependency), so keep them LF in the working tree on Windows checkouts too.
-*.yml text eol=lf
-*.yaml text eol=lf
+# Normalize text files to LF in Git and cross-platform working trees.
+* text=auto eol=lf
+
+# Keep the Gradle Windows launcher native to cmd.exe.
+*.bat text eol=crlf

@@ -876,15 +876,11 @@ Users should be able to restore from a compatible Planstrand backup.
 
 ## 25. Trash and Deletion
 
-Deleting tasks, folders, and events should normally move them to Trash.
+Deleting supported items such as tasks, folders, and events should normally soft-delete them by moving them to Trash.
 
-Suggested retention:
-- 30 days by default.
+Items remain in Trash until the user explicitly permanently deletes them or empties Trash. Users can restore supported items, and the UI may show how long ago an item was deleted.
 
-Users can:
-- restore,
-- permanently delete,
-- empty Trash manually.
+V1 does not automatically purge items based on deletion age. Automatic age-based retention or purge may be designed later, once its offline and causal deletion semantics are safe.
 
 Large destructive operations should support Undo where practical.
 
