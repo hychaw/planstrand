@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { WrappedProviderService } from './wrapped-provider.service';
 import { SyncProviderManager } from './provider-manager.service';
-import { FileBasedSyncAdapterService } from './file-based/file-based-sync-adapter.service';
+import { PlanstrandFileSyncAdapterService as FileBasedSyncAdapterService } from './file-based/planstrand-file-sync-adapter.service';
 import { SyncProviderId } from './provider.const';
 import {
   FileSyncProvider,

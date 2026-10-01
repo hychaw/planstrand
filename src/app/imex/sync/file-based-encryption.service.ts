@@ -10,7 +10,7 @@ import {
   CLIENT_ID_PROVIDER,
   ClientIdProvider,
 } from '../../op-log/util/client-id.provider';
-import { FileBasedSyncAdapterService } from '../../op-log/sync-providers/file-based/file-based-sync-adapter.service';
+import { PlanstrandFileSyncAdapterService as FileBasedSyncAdapterService } from '../../op-log/sync-providers/file-based/planstrand-file-sync-adapter.service';
 import { CURRENT_SCHEMA_VERSION } from '../../op-log/persistence/schema-migration.service';
 import { uuidv7 } from '../../util/uuid-v7';
 import { GlobalConfigService } from '../../features/config/global-config.service';
@@ -88,6 +88,13 @@ export class FileBasedEncryptionService {
       fileProvider,
       adapterCfg,
       isDisable ? undefined : encryptKey,
+      {
+        readCfg: {
+          ...baseCfg,
+          isEncrypt: existingCfg?.isEncryptionEnabled ?? !!existingCfg?.encryptKey,
+        },
+        readKey: existingCfg?.encryptKey,
+      },
     );
 
     const result = await adapter.uploadSnapshot(

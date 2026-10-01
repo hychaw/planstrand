@@ -6,7 +6,7 @@ import {
   FileSyncProvider,
   OperationSyncCapable,
 } from './provider.interface';
-import { FileBasedSyncAdapterService } from './file-based/file-based-sync-adapter.service';
+import { PlanstrandFileSyncAdapterService as FileBasedSyncAdapterService } from './file-based/planstrand-file-sync-adapter.service';
 import { SyncProviderManager } from './provider-manager.service';
 import { isOperationSyncCapable, isFileBasedProvider } from '../sync/operation-sync.util';
 import { OpLog } from '../../core/log';

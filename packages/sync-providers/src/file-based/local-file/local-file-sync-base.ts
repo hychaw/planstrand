@@ -83,7 +83,9 @@ export abstract class LocalFileSyncBase implements FileSyncProvider<
       const dataStr = await this.fileAdapter.readFile(filePath);
 
       if (!dataStr || dataStr === '') {
-        throw new RemoteFileNotFoundAPIError({ targetPath });
+        // The read succeeded: a zero-byte file exists. Treating it as absent
+        // would let namespace discovery fall back to another product's data.
+        throw new InvalidDataSPError('Empty remote file');
       }
       if (dataStr.length <= 3) {
         throw new InvalidDataSPError(`File content too short: ${dataStr.length} chars`);

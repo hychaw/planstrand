@@ -138,7 +138,7 @@ describe('LocalFileSyncBase', () => {
     expect(fileAdapter.getFile('/test/sync/sync-data.json')).toBe(testContent);
   });
 
-  it('throws RemoteFileNotFoundAPIError for missing or empty files', async () => {
+  it('distinguishes missing files from present but corrupt empty files', async () => {
     const fileAdapter = new MockFileAdapter();
     const provider = new TestableLocalFileSync(fileAdapter);
     fileAdapter.setFile('/test/sync/empty.json', '');
@@ -147,7 +147,7 @@ describe('LocalFileSyncBase', () => {
       RemoteFileNotFoundAPIError,
     );
     await expect(provider.downloadFile('empty.json')).rejects.toBeInstanceOf(
-      RemoteFileNotFoundAPIError,
+      InvalidDataSPError,
     );
   });
 

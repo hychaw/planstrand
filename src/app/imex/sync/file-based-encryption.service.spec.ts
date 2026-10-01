@@ -7,7 +7,7 @@ import {
   CLIENT_ID_PROVIDER,
   ClientIdProvider,
 } from '../../op-log/util/client-id.provider';
-import { FileBasedSyncAdapterService } from '../../op-log/sync-providers/file-based/file-based-sync-adapter.service';
+import { PlanstrandFileSyncAdapterService as FileBasedSyncAdapterService } from '../../op-log/sync-providers/file-based/planstrand-file-sync-adapter.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import {
@@ -228,6 +228,7 @@ describe('FileBasedEncryptionService', () => {
         mockProvider,
         jasmine.objectContaining({ isCompress: true, isEncrypt: true }),
         'my-password',
+        jasmine.objectContaining({ readKey: undefined }),
       );
     });
 
@@ -336,6 +337,7 @@ describe('FileBasedEncryptionService', () => {
         mockProvider,
         jasmine.objectContaining({ isEncrypt: true }),
         'new-password',
+        jasmine.objectContaining({ readKey: undefined }),
       );
     });
 
@@ -361,6 +363,7 @@ describe('FileBasedEncryptionService', () => {
         mockProvider,
         jasmine.objectContaining({ isEncrypt: false }),
         undefined,
+        jasmine.objectContaining({ readKey: undefined }),
       );
       expect(mockAdapter.uploadSnapshot).toHaveBeenCalled();
     });
