@@ -615,7 +615,7 @@ export class SyncPage extends BasePage {
     // point. A successful state/backup/meta upload must not hide a failed
     // primary snapshot or operation-log upload.
     const fileName = pathName.split('/').at(-1) ?? '';
-    return /^(?:sync-data|sync-ops)(?:__[^/]+)?\.json$/.test(fileName);
+    return /^(?:planstrand-)?(?:sync-data|sync-ops)(?:__[^/]+)?\.json$/.test(fileName);
   }
 
   private _isSyncProviderResponse(response: Response): boolean {
@@ -638,8 +638,11 @@ export class SyncPage extends BasePage {
 
     const fileName = url.pathname.split('/').at(-1) ?? '';
     return (
-      /^(?:sync-data|sync-ops|sync-state)(?:__[^/]+)?\.json(?:\.bak)?$/.test(fileName) ||
-      fileName === '__meta_'
+      /^(?:planstrand-)?(?:sync-data|sync-ops|sync-state)(?:__[^/]+)?\.json(?:\.bak)?$/.test(
+        fileName,
+      ) ||
+      fileName === '__meta_' ||
+      fileName === 'planstrand-__meta_'
     );
   }
 

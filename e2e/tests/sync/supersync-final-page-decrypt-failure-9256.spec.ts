@@ -16,6 +16,7 @@ import {
   createSimulatedClient,
   createTestUser,
   getSuperSyncConfig,
+  isSuperSyncCutoverProbe,
   routeSuperSyncOps,
   unrouteSuperSyncOps,
   type SimulatedE2EClient,
@@ -305,7 +306,10 @@ test.describe('@supersync @encryption #9256 final-page decrypt failure', () => {
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       const observedPages: ObservedDownloadPage[] = [];
       await routeSuperSyncOps(clientB.page, async (route) => {
-        if (route.request().method() !== 'GET') {
+        if (
+          route.request().method() !== 'GET' ||
+          isSuperSyncCutoverProbe(route.request())
+        ) {
           await route.continue();
           return;
         }

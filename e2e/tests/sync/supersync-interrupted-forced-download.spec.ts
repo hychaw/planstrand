@@ -3,6 +3,7 @@ import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
+  isSuperSyncCutoverProbe,
   createSimulatedClient,
   closeClient,
   waitForTask,
@@ -127,6 +128,10 @@ test.describe('@supersync Interrupted forced download', () => {
 
       await routeSuperSyncOps(clientB.page, async (route: Route) => {
         const request = route.request();
+        if (isSuperSyncCutoverProbe(request)) {
+          await route.continue();
+          return;
+        }
         if (request.method() === 'GET') {
           const url = new URL(request.url());
           const sinceSeq = Number(url.searchParams.get('sinceSeq') ?? 0);

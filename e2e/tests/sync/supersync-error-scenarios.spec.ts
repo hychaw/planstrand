@@ -26,7 +26,7 @@ interface OperationDownloadBody {
 }
 
 interface OperationUploadBody {
-  ops: Array<{ id: string }>;
+  ops: Array<{ id: string; entityType: string; entityId?: string; opType: string }>;
 }
 
 const getSuperSyncCursor = async (page: Page): Promise<string | null> =>
@@ -423,7 +423,14 @@ test.describe('@supersync Error Scenarios', () => {
       await routeSuperSyncOps(clientA.page, async (route) => {
         if (route.request().method() === 'POST') {
           const upload = parseSuperSyncRequestBody<OperationUploadBody>(route.request());
-          uploadedOpIds.push(...upload.ops.map((operation) => operation.id));
+          uploadedOpIds.push(
+            ...upload.ops
+              .filter(
+                (operation) =>
+                  operation.entityType === 'TASK' && operation.opType === 'CRT',
+              )
+              .map((operation) => operation.id),
+          );
         }
         await route.continue();
       });
@@ -524,7 +531,14 @@ test.describe('@supersync Error Scenarios', () => {
             const upload = parseSuperSyncRequestBody<OperationUploadBody>(
               route.request(),
             );
-            uploadedOpIds.push(...upload.ops.map((operation) => operation.id));
+            uploadedOpIds.push(
+              ...upload.ops
+                .filter(
+                  (operation) =>
+                    operation.entityType === 'TASK' && operation.opType === 'CRT',
+                )
+                .map((operation) => operation.id),
+            );
           }
           await route.continue();
         });
