@@ -14,7 +14,12 @@ import {
 } from '@angular/core';
 import { hasLinkHints, RenderLinksPipe } from '../../../ui/pipes/render-links.pipe';
 import { CdkDrag } from '@angular/cdk/drag-drop';
-import { ScheduleEvent, ScheduleFromCalendarEvent } from '../schedule.model';
+import {
+  editableWorkSession,
+  ScheduleEvent,
+  ScheduleFromCalendarEvent,
+} from '../schedule.model';
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -92,6 +97,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   private _taskService = inject(TaskService);
   private _calEventActions = inject(CalendarEventActionsService);
   private _ngZone = inject(NgZone);
+  private readonly _workSessionService = inject(WorkSessionService);
   readonly titleHasLinks = computed(() => {
     const t = this.title();
     return !!t && hasLinkHints(t);
@@ -561,6 +567,9 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     // and SplitTaskContinuedLast is not reliably the final segment — every day
     // slice of a multi-day scheduled task carries that type (see
     // create-view-entries-for-block.ts), so the middle ones cannot grow at all.
+    if (evt.type === SVEType.WorkSession) {
+      return !!editableWorkSession(evt, 'canResize');
+    }
     return (
       !!t &&
       (evt.type === SVEType.ScheduledTask ||
@@ -639,6 +648,15 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     // Convert height change to time change (based on grid row height)
     // Each row represents a time slice (FH rows per hour)
     const timeChangeInMs = this._calculateTimeFromHeightDelta(this._heightDelta);
+
+    const session = editableWorkSession(this.se(), 'canResize');
+    if (session && Math.abs(timeChangeInMs) > 30000) {
+      // The existing bottom-edge gesture changes only the end instant.
+      // Domain validation rejects invalid ranges; clearing preview restores persisted UI.
+      this._workSessionService.update(session.sourceId, {
+        end: session.end + timeChangeInMs,
+      });
+    }
 
     const t = this.task();
     if (t && Math.abs(timeChangeInMs) > 30000) {

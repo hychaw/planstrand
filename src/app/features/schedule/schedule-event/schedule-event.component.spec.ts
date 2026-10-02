@@ -17,6 +17,7 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { projectWorkSession } from '../calendar-display-item';
 import { CdkDrag } from '@angular/cdk/drag-drop';
 import { isDraggableSE } from '../map-schedule-data/is-schedule-types-type';
+import { WorkSessionService } from '../../work-session/work-session.service';
 
 const makeCalendarScheduleEvent = (isReferenceCalendar: boolean): ScheduleEvent => ({
   id: 'cal-1',
@@ -54,6 +55,10 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
       imports: [ScheduleEventComponent, DragDropModule, TranslateModule.forRoot()],
       providers: [
         provideMockStore(),
+        {
+          provide: WorkSessionService,
+          useValue: { update: jasmine.createSpy('update') },
+        },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         {
           provide: TaskService,
@@ -531,6 +536,10 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
         imports: [ScheduleEventComponent, DragDropModule, TranslateModule.forRoot()],
         providers: [
           provideMockStore(),
+          {
+            provide: WorkSessionService,
+            useValue: { update: jasmine.createSpy('update') },
+          },
           { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
           {
             provide: TaskService,
@@ -603,6 +612,10 @@ describe('ScheduleEventComponent – clickable affordance', () => {
       imports: [AffordanceHostComponent, DragDropModule, TranslateModule.forRoot()],
       providers: [
         provideMockStore(),
+        {
+          provide: WorkSessionService,
+          useValue: { update: jasmine.createSpy('update') },
+        },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         {
           provide: TaskService,

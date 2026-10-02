@@ -67,7 +67,7 @@ describe('ScheduleWeekComponent', () => {
     });
   });
 
-  it('passes distinct WorkSessions to timed blocks with dragging disabled', () => {
+  it('enables existing timezone-aware WorkSessions while retaining legacy Task dragging', () => {
     const item = projectWorkSession(
       {
         id: 'session',
@@ -76,6 +76,7 @@ describe('ScheduleWeekComponent', () => {
         end: 3601000,
         created: 1000,
         modified: 1000,
+        timeZone: 'America/Vancouver',
       },
       { title: 'Current Task title' },
     );
@@ -99,9 +100,15 @@ describe('ScheduleWeekComponent', () => {
       .queryAll(By.directive(ScheduleEventStubComponent))
       .map((element) => element.componentInstance as ScheduleEventStubComponent);
     expect(blocks.length).toBe(2);
-    expect(blocks.every((block) => block.cdkDragDisabled === true)).toBeTrue();
+    expect(blocks.every((block) => !block.cdkDragDisabled)).toBeTrue();
     expect(blocks[0].event).toEqual(event);
-    expect(fixture.componentInstance.canDragEvent(event)).toBeFalse();
+    expect(fixture.componentInstance.canDragEvent(event)).toBeTrue();
+    expect(
+      fixture.componentInstance.canDragEvent({
+        ...event,
+        data: { ...item, timeZone: undefined },
+      }),
+    ).toBeFalse();
     expect(
       fixture.componentInstance.canDragEvent(
         createTaskEvent('legacy', '2026-05-11', false),

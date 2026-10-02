@@ -17,6 +17,7 @@ import { calculateTimeFromYPosition } from '../schedule-utils';
 import { isTouchActive } from '../../../util/input-intent';
 import type { DragPreviewContext } from './schedule-week-drag.types';
 import {
+  editableWorkSession,
   isScheduleCalendarEvent,
   type ScheduleEvent,
   type ScheduleFromCalendarEvent,
@@ -26,6 +27,7 @@ import { first } from 'rxjs/operators';
 import { getTimeLeftForTask } from '../../../util/get-time-left-for-task';
 import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 import { DateService } from '../../../core/date/date.service';
+import { WorkSessionService } from '../../work-session/work-session.service';
 
 interface PointerPosition {
   x: number;
@@ -51,6 +53,7 @@ export class ScheduleWeekDragService {
   private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _calendarEventActions = inject(CalendarEventActionsService);
   private readonly _dateService = inject(DateService);
+  private readonly _workSessionService = inject(WorkSessionService);
 
   private readonly _isShiftMode = signal(false);
   readonly isShiftMode: Signal<boolean> = this._isShiftMode.asReadonly();
@@ -195,7 +198,11 @@ export class ScheduleWeekDragService {
     const draggedCalendarEvent = this._pluckMovableCalendarEvent(
       this._currentDragEvent(),
     );
-    if (this.isShiftMode() && !draggedCalendarEvent) {
+    if (
+      this.isShiftMode() &&
+      !draggedCalendarEvent &&
+      this._currentDragEvent()?.type !== SVEType.WorkSession
+    ) {
       this._handleShiftDragMove(targetEl, pointer, gridRect, targetDay, isWithinGrid);
     } else {
       this._handleTimeDragMove(pointer, gridRect, targetDay, isWithinGrid);
@@ -229,6 +236,32 @@ export class ScheduleWeekDragService {
     nativeEl.style.pointerEvents = '';
 
     const sourceEvent = ev.source.data;
+    // Source identity, never the timed-Task CSS class or referenced Task id.
+    if (sourceEvent.type === SVEType.WorkSession) {
+      const session = editableWorkSession(sourceEvent, 'canMove');
+      const targetDay = columnTarget?.getAttribute('data-day');
+      const start =
+        this._lastCalculatedTimestamp ??
+        (dropPoint && targetDay
+          ? this._calculateTimeFromDrop(dropPoint, targetDay)
+          : null);
+      if (
+        session &&
+        columnTarget &&
+        start !== null &&
+        (!dropPoint || !this._isOutsideGrid(dropPoint))
+      ) {
+        this._workSessionService.update(session.sourceId, {
+          start,
+          end: start + (session.end - session.start),
+        });
+      }
+      this._currentDragEvent.set(null);
+      this._resetDragRelatedVars();
+      nativeEl.style.transform = 'translate3d(0, 0, 0)';
+      ev.source.reset();
+      return;
+    }
     const task = this._pluckTaskFromEvent(sourceEvent);
     const calEv = this._pluckMovableCalendarEvent(sourceEvent);
     const sourceTaskId = nativeEl.id.replace(T_ID_PREFIX, '');
@@ -355,7 +388,11 @@ export class ScheduleWeekDragService {
     const draggedCalendarEvent = this._pluckMovableCalendarEvent(
       this._currentDragEvent(),
     );
-    if (this.isShiftMode() && !draggedCalendarEvent) {
+    if (
+      this.isShiftMode() &&
+      !draggedCalendarEvent &&
+      this._currentDragEvent()?.type !== SVEType.WorkSession
+    ) {
       if (targetEl) {
         this._handleShiftDragMove(targetEl, pointer, gridRect, targetDay, isWithinGrid);
       } else {
@@ -553,7 +590,10 @@ export class ScheduleWeekDragService {
         this._dragPreviewContext.set(null);
       }
     } else {
-      if (this._pluckMovableCalendarEvent(this._currentDragEvent())) {
+      if (
+        this._pluckMovableCalendarEvent(this._currentDragEvent()) ||
+        this._currentDragEvent()?.type === SVEType.WorkSession
+      ) {
         this._dragPreviewContext.set(null);
         this._lastCalculatedTimestamp = null;
         return;

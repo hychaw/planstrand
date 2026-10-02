@@ -4,6 +4,7 @@ import { TaskCopy, TaskWithDueTime } from '../tasks/task.model';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
 import { CalendarIntegrationEvent } from '../calendar-integration/calendar-integration.model';
 import { oneDayInMilliseconds } from '../../util/month-time-conversion';
+import { isValidIanaTimeZone } from '../../util/iana-time-zone';
 
 export interface ScheduleEvent {
   id: string;
@@ -140,6 +141,23 @@ export type SVE =
 export interface ScheduleCalendarMapEntry {
   items: ScheduleFromCalendarEvent[];
 }
+
+/** Existing timezone-less sessions remain readable, but cannot be edited here. */
+export const editableWorkSession = (
+  event: ScheduleEvent | null,
+  capability: 'canMove' | 'canResize',
+): CalendarDisplayItem | null => {
+  if (event?.type !== SVEType.WorkSession || !event.data) return null;
+  const item = event.data as CalendarDisplayItem;
+  return item.sourceType === 'workSession' &&
+    !!item.sourceId &&
+    item[capability] &&
+    !item.isReadOnly &&
+    typeof item.timeZone === 'string' &&
+    isValidIanaTimeZone(item.timeZone)
+    ? item
+    : null;
+};
 
 export const isScheduleCalendarEvent = (
   event: ScheduleEvent | null,

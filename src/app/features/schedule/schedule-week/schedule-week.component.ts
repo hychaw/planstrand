@@ -13,7 +13,11 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { isScheduleCalendarEvent, ScheduleEvent } from '../schedule.model';
+import {
+  editableWorkSession,
+  isScheduleCalendarEvent,
+  ScheduleEvent,
+} from '../schedule.model';
 import { CdkDragMove, CdkDragRelease, CdkDragStart } from '@angular/cdk/drag-drop';
 import { FH, SVEType } from '../schedule.const';
 import { isDraggableSE } from '../map-schedule-data/is-schedule-types-type';
@@ -101,7 +105,11 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Shift mode changes drag behavior: instead of scheduling at a time,
   // tasks are planned for the day or reordered relative to other tasks.
-  readonly isShiftNoScheduleMode = this._service.isShiftMode;
+  readonly isShiftNoScheduleMode = computed(
+    () =>
+      this._service.isShiftMode() &&
+      this._service.currentDragEvent()?.type !== SVEType.WorkSession,
+  );
 
   FH = FH;
   SVEType: typeof SVEType = SVEType;
@@ -214,6 +222,9 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   canDragEvent(ev: ScheduleEvent): boolean {
+    if (ev.type === SVEType.WorkSession) {
+      return !!editableWorkSession(ev, 'canMove');
+    }
     if (isScheduleCalendarEvent(ev)) {
       return this._calendarEventActions.canMoveEvent(ev.data);
     }
