@@ -1,5 +1,80 @@
 # Phase 3 final audit
 
+## Final-review replay blocker follow-up
+
+Reviewed base: `2fcad48ccbdc341d7de7809eaf2df3867c405c4a`, on
+`feature/phase-3-work-session-timezone`. The working tree was clean before this
+focused fix. This follow-up supersedes the historical merge-readiness statement
+below.
+
+Final review reproduced a replay gap: startup backfill persists deterministic
+migrated WorkSessions without Create operations. Update/Complete previously
+ignored an absent entity, so a receiving client could lose edits/completion and
+later backfill the original legacy range. Delete already persisted dismissal.
+
+Update, Complete and Uncomplete now optionally carry `legacySession`, the sender's
+persisted pre-mutation WorkSession, for canonical deterministic migrated IDs.
+Capture retains that base in the same operation payload. The normal reducer
+atomically materializes a missing, undismissed migrated entity from this exact
+validated base and applies the mutation. Its timezone, identity, creation and
+completion semantics come from the sender, never receiver configuration/system
+timezone. Root integrity still requires a live Task. Existing entities retain
+normal delta behavior and ignore the seed; arbitrary/malformed IDs and seedless
+missing mutations remain no-ops. Dismissed missing entities never resurrect.
+Subsequent startup backfill preserves the materialized entity unchanged.
+
+There is still one action/operation per move, resize or completion intent, no
+replay recapture, no startup Create fan-out, no persisted entity/state field
+change, and no schema bump. The action types and operation envelope are unchanged;
+`legacySession` is an optional payload addition. Old seedless operations remain
+readable, but cannot reconstruct an absent entity's authoritative base. Lost
+historical edits need a sender snapshot or a later seeded mutation. Pre-fix peers
+cannot use the new missing-entity behavior; compatible upgraded readers/writers
+are required. Independently materialized existing sessions retain existing delta
+semantics; this fix introduces no conflict-resolution policy.
+
+Permanent evidence:
+
+- `src/app/features/work-session/migrated-work-session-replay.integration.spec.ts`
+  ran before implementation: **8 failed, 4 passed**, reproducing the loss through
+  production hydration and live operation application. After the fix: **12 passed**.
+  It uses real IndexedDB, state-cache persistence, tail replay, snapshot save and
+  restart. It covers missing Update/Complete/Delete, update then complete,
+  complete then uncomplete, dismissal followed by late mutations, sender/receiver
+  timezone differences, backfill idempotency and absence of recapture.
+- Reducer, integrity, deterministic-ID and capture regressions cover existing
+  entities, old seedless operations, arbitrary/malformed IDs, exact seed validation,
+  live Task references, completion/creation preservation and one captured operation.
+  The persistence integration suite also covers the seed through encrypted
+  upload/download and production bulk replay. After adding that transport case,
+  both persistence integration suites ran together: **22 passed, no skips**
+  (`.tmp/phase3-replay-encryption-validation.log`).
+- Cold-cache Chrome Headless 154 / Windows validation: **1,378 passed, 2 skipped**
+  (only the existing opt-in bulk-replay stress tests). Executed suites cover
+  WorkSession service/reducer/backfill/dismissal/persistence, schedule edits and
+  timed entry points, capture, bulk apply, hydrator, snapshots, current/frozen
+  persisted-state validation, integrity and conflict resolution. Skips provide
+  no behavioral evidence. Log: `.tmp/phase3-replay-validation.log`.
+- A focused provider E2E lives in
+  `e2e/tests/sync/supersync-migrated-work-session-replay.spec.ts`; Playwright
+  discovered one test. It reproduces two clients with no migrated entity, sender
+  restart/edit/complete, receiver live sync/restart and deletion/dismissal. It was
+  **not executed**: frontend port 4242 and SuperSync port 1901 were unavailable,
+  and Docker was not installed. Existing provider UI fixtures cannot express
+  explicit WorkSession completion, so the test uses the existing development
+  store helper while retaining real encrypted capture/transport/application.
+  The executed IndexedDB regressions exercise the production hydration/live
+  paths without replacing the central persistence/replay behavior with mocks.
+- Repository `checkFile` passed for all **11 modified TypeScript files**, including
+  both new regression files; `git diff --check` passed. The Node entry points were
+  used directly because npm/npx wrappers were unavailable, as in Phase 3I.
+
+Revised status: **Phase 3 replay blocker fixed and ready for final review**.
+Provider E2E execution remains pending in a server-enabled environment; discovery
+is not a pass. No commit, push, merge or rebase was performed.
+
+## Historical Phase 3I audit
+
 Audit date: 2026-10-02. Branch: `feature/phase-3-work-session-timezone`.
 Starting HEAD: `9a6c26f30` (Phase 3H, Add WorkSession unschedule behavior).
 The nested repository was clean before editing. This increment changes tests and
@@ -133,8 +208,9 @@ supported `timeZone`; two hydrator integration stubs expose the Phase 3C backfil
 method; the Task shortcut suite expects WorkSession scheduling instead of the
 obsolete Task writer.
 
-Final result: **Phase 3 complete and ready for final review/merge** within the
-documented current-client contract. Runtime code needed no change. The final
+Historical Phase 3I result (superseded by the replay follow-up above): **Phase 3
+complete and ready for final review/merge** within the then-reviewed
+current-client contract. That increment needed no runtime change. Its final
 cold-cache Chrome Headless 154 / Windows run executed **3,371 tests successfully**
 out of 3,387, with **16 skips** and no failures. Frozen v18.15 state, current
 persisted-state validation, localization compatibility, WorkSession exact shapes,
@@ -212,9 +288,10 @@ Skip limitations:
   server. This increment introduces no sync behavior change requiring a new
   server reproduction.
 
-There are no remaining required Phase 3 gaps. Final Git state is the original
-branch/HEAD with the eleven intended uncommitted test/documentation files; test
-logs are local ignored artifacts under `.tmp/`.
+At the end of the historical Phase 3I increment, no remaining required gaps had
+been identified; its Git state contained eleven intended test/documentation
+changes. The subsequent review found the replay blocker described above. Test
+logs remain local ignored artifacts under `.tmp/`.
 
 ## Deferred beyond Phase 3
 
@@ -223,4 +300,5 @@ timezone picker, broad legacy fields/actions removal, canonical Event and
 WeeklyTemplate domains, deadline projection consolidation and explicit provider
 WorkSession export remain on their later-phase paths. Manual session completion
 is a domain capability; no new completion-management interface was added.
-No dependency, schema change, commit or push was performed. Stop after Phase 3I.
+Neither the historical Phase 3I increment nor this focused replay repair adds a
+dependency or schema change. This repair performed no commit or push.

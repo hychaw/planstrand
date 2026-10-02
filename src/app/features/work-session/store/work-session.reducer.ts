@@ -5,7 +5,10 @@ import { WorkSession, WorkSessionState } from '../work-session.model';
 import * as WorkSessionActions from './work-session.actions';
 import { isValidEntityId } from '../../../op-log/validation/is-valid-entity-id';
 import { isValidIanaTimeZone } from '../../../util/iana-time-zone';
-import { isLegacyTaskWorkSessionId } from '../legacy-task-work-session-backfill';
+import {
+  isDeterministicLegacyTaskWorkSessionId,
+  isLegacyTaskWorkSessionId,
+} from '../legacy-task-work-session-backfill';
 
 export const WORK_SESSION_FEATURE_NAME = 'workSession';
 
@@ -113,6 +116,28 @@ export const isValidWorkSessionState = (
   );
 };
 
+/** Existing entities receive deltas; only absent, undismissed migrations use a seed. */
+const mutationBase = (
+  state: WorkSessionState,
+  id: string,
+  legacySession?: WorkSession,
+): WorkSession | undefined => {
+  const current = state.entities[id];
+  if (current) return current;
+  if (
+    !legacySession ||
+    !isDeterministicLegacyTaskWorkSessionId(id) ||
+    state.dismissedLegacySessionIds?.includes(id)
+  )
+    return undefined;
+  if (legacySession.id !== id || !isValidWorkSession(legacySession)) {
+    throw new Error('Invalid migrated WorkSession seed');
+  }
+  // The cross-model integrity boundary validates the resulting live Task reference.
+  // Never derive timezone, duration or completion from receiver-specific state.
+  return legacySession;
+};
+
 export const workSessionReducer = createReducer(
   initialWorkSessionState,
 
@@ -151,29 +176,33 @@ export const workSessionReducer = createReducer(
     return workSessionAdapter.addOne(assertValid(workSession), state);
   }),
 
-  on(WorkSessionActions.updateWorkSession, (state, { id, changes, modified }) => {
-    const current = state.entities[id];
-    if (!current) return state;
-    assertValid(current);
-    if (
-      Object.keys(changes).some(
-        (key) => !['taskId', 'start', 'end', 'timeZone'].includes(key),
-      ) ||
-      (Object.hasOwn(changes, 'timeZone') &&
-        (typeof changes.timeZone !== 'string' || !isValidIanaTimeZone(changes.timeZone)))
-    ) {
-      throw new Error('Invalid WorkSession changes');
-    }
-    const next = assertValid({
-      ...current,
-      ...(changes.taskId !== undefined ? { taskId: changes.taskId } : {}),
-      ...(changes.start !== undefined ? { start: changes.start } : {}),
-      ...(changes.end !== undefined ? { end: changes.end } : {}),
-      ...(changes.timeZone !== undefined ? { timeZone: changes.timeZone } : {}),
-      modified,
-    });
-    return workSessionAdapter.setOne(next, state);
-  }),
+  on(
+    WorkSessionActions.updateWorkSession,
+    (state, { id, changes, modified, legacySession }) => {
+      const current = mutationBase(state, id, legacySession);
+      if (!current) return state;
+      assertValid(current);
+      if (
+        Object.keys(changes).some(
+          (key) => !['taskId', 'start', 'end', 'timeZone'].includes(key),
+        ) ||
+        (Object.hasOwn(changes, 'timeZone') &&
+          (typeof changes.timeZone !== 'string' ||
+            !isValidIanaTimeZone(changes.timeZone)))
+      ) {
+        throw new Error('Invalid WorkSession changes');
+      }
+      const next = assertValid({
+        ...current,
+        ...(changes.taskId !== undefined ? { taskId: changes.taskId } : {}),
+        ...(changes.start !== undefined ? { start: changes.start } : {}),
+        ...(changes.end !== undefined ? { end: changes.end } : {}),
+        ...(changes.timeZone !== undefined ? { timeZone: changes.timeZone } : {}),
+        modified,
+      });
+      return workSessionAdapter.setOne(next, state);
+    },
+  ),
 
   on(WorkSessionActions.removeWorkSession, (state, { id }) => {
     const removed = workSessionAdapter.removeOne(id, state);
@@ -187,23 +216,29 @@ export const workSessionReducer = createReducer(
     };
   }),
 
-  on(WorkSessionActions.completeWorkSession, (state, { id, completedAt, modified }) => {
-    const current = state.entities[id];
-    if (!current) return state;
-    assertValid(current);
-    return workSessionAdapter.setOne(
-      assertValid({ ...current, completedAt, modified }),
-      state,
-    );
-  }),
+  on(
+    WorkSessionActions.completeWorkSession,
+    (state, { id, completedAt, modified, legacySession }) => {
+      const current = mutationBase(state, id, legacySession);
+      if (!current) return state;
+      assertValid(current);
+      return workSessionAdapter.setOne(
+        assertValid({ ...current, completedAt, modified }),
+        state,
+      );
+    },
+  ),
 
-  on(WorkSessionActions.uncompleteWorkSession, (state, { id, modified }) => {
-    const current = state.entities[id];
-    if (!current) return state;
-    assertValid(current);
-    return workSessionAdapter.setOne(
-      assertValid({ ...current, completedAt: null, modified }),
-      state,
-    );
-  }),
+  on(
+    WorkSessionActions.uncompleteWorkSession,
+    (state, { id, modified, legacySession }) => {
+      const current = mutationBase(state, id, legacySession);
+      if (!current) return state;
+      assertValid(current);
+      return workSessionAdapter.setOne(
+        assertValid({ ...current, completedAt: null, modified }),
+        state,
+      );
+    },
+  ),
 );

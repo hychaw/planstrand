@@ -1059,6 +1059,44 @@ describe('OperationLogEffects', () => {
         'local',
       );
     });
+    it('captures one migrated update with its authoritative seed in the action payload', async () => {
+      const legacySession = {
+        id: 'legacy-task-schedule:6:task-1:100',
+        taskId: 'task-1',
+        start: 100,
+        end: 200,
+        timeZone: 'America/Vancouver',
+        created: 100,
+        modified: 100,
+      };
+      const action = updateWorkSession({
+        id: legacySession.id,
+        changes: { start: 300, end: 450 },
+        modified: 300,
+        legacySession,
+      });
+      bufferDeferredAction(action);
+      await effects.processDeferredActions();
+      expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+      expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: updateWorkSession.type,
+          entityType: 'WORK_SESSION',
+          entityId: action.id,
+          opType: OpType.Update,
+          payload: {
+            actionPayload: {
+              id: action.id,
+              changes: action.changes,
+              modified: action.modified,
+              legacySession,
+            },
+            entityChanges: [],
+          },
+        }),
+        'local',
+      );
+    });
     /**
      * Tests for processing deferred actions that were buffered during sync.
      * When users interact with the app during sync replay, those actions

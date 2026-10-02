@@ -24,7 +24,13 @@ export const addWorkSession = createAction(
 
 export const updateWorkSession = createAction(
   '[WorkSession] Update WorkSession',
-  (payload: { id: string; changes: WorkSessionUpdate; modified: number }) => ({
+  (payload: {
+    id: string;
+    changes: WorkSessionUpdate;
+    modified: number;
+    /** Authoritative pre-mutation base for a migrated entity absent on a peer. */
+    legacySession?: WorkSession;
+  }) => ({
     ...payload,
     meta: {
       isPersistent: true,
@@ -50,7 +56,12 @@ export const removeWorkSession = createAction(
 
 export const completeWorkSession = createAction(
   '[WorkSession] Complete WorkSession',
-  (payload: { id: string; completedAt: number; modified: number }) => ({
+  (payload: {
+    id: string;
+    completedAt: number;
+    modified: number;
+    legacySession?: WorkSession;
+  }) => ({
     ...payload,
     meta: {
       isPersistent: true,
@@ -63,7 +74,7 @@ export const completeWorkSession = createAction(
 
 export const uncompleteWorkSession = createAction(
   '[WorkSession] Uncomplete WorkSession',
-  (payload: { id: string; modified: number }) => ({
+  (payload: { id: string; modified: number; legacySession?: WorkSession }) => ({
     ...payload,
     meta: {
       isPersistent: true,

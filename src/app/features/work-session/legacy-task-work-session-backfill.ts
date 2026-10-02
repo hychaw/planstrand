@@ -10,6 +10,22 @@ export const isLegacyTaskWorkSessionId = (id: string): boolean => id.startsWith(
 export const legacyTaskWorkSessionId = (taskId: string, start: number): string =>
   `${PREFIX}${taskId.length}:${taskId}:${start}`;
 
+/** Replay materialization is restricted to the canonical deterministic identity. */
+export const isDeterministicLegacyTaskWorkSessionId = (id: string): boolean => {
+  const match = /^legacy-task-schedule:(\d+):/.exec(id);
+  if (!match) return false;
+  const length = Number(match[1]);
+  if (!Number.isSafeInteger(length) || length <= 0) return false;
+  const taskId = id.slice(match[0].length, match[0].length + length);
+  const start = Number(id.slice(match[0].length + length + 1));
+  return (
+    isValidEntityId(taskId) &&
+    Number.isFinite(start) &&
+    start >= 0 &&
+    legacyTaskWorkSessionId(taskId, start) === id
+  );
+};
+
 /** Startup-only compatibility transformation. Never call from scheduling writes. */
 export const backfillLegacyTaskWorkSessions = (
   tasks: TaskState,

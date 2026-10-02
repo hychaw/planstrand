@@ -189,6 +189,49 @@ describe('WorkSession persistence and API capability integration', () => {
     expect(await log.getUnsynced()).toEqual([]);
   });
 
+  it('retains an authoritative migrated seed through encrypted upload and replay', async () => {
+    const legacySession = {
+      ...session,
+      id: legacyTaskWorkSessionId(session.taskId, session.start),
+    };
+    const action = updateWorkSession({
+      id: legacySession.id,
+      changes: { start: 300, end: 450 },
+      modified: 500,
+      legacySession,
+    });
+    const { type, meta, ...actionPayload } = action;
+    const op = new TestClient('client-local').createOperation({
+      actionType: type,
+      entityType: meta.entityType,
+      entityId: legacySession.id,
+      opType: meta.opType,
+      payload: { actionPayload, entityChanges: [] },
+    });
+    await log.append(op, 'local');
+    await upload.uploadPendingOps(provider);
+    expect(received.length).toBe(1);
+    expect(received[0].isPayloadEncrypted).toBeTrue();
+    const downloaded = await provider.downloadOps(0);
+    const decoded = await encryption.decryptOperation(
+      downloaded.ops[0].op,
+      'phase-one-test-key',
+    );
+    const replayOp = syncOpToOperation(decoded);
+    expect(replayOp.payload).toEqual(op.payload);
+    const replayed = bulkOperationsMetaReducer(workSessionReducer)(
+      initialWorkSessionState,
+      bulkApplyOperations({ operations: [replayOp], localClientId: 'receiver' }),
+    );
+    expect(replayed.entities[legacySession.id]).toEqual({
+      ...legacySession,
+      start: 300,
+      end: 450,
+      modified: 500,
+    });
+    expect(await log.getUnsynced()).toEqual([]);
+  });
+
   it('keeps a reducer-rejected future remote operation durable without downgrading its payload', async () => {
     const future = { ...session, source: 'future-contract' };
     const action = addWorkSession({ workSession: future });

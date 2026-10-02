@@ -14,7 +14,10 @@ import {
 import { selectWorkSessionEntities } from './store/work-session.selectors';
 import { WorkSession, WorkSessionUpdate } from './work-session.model';
 import { Task } from '../tasks/task.model';
-import { legacyTaskWorkSessionId } from './legacy-task-work-session-backfill';
+import {
+  isDeterministicLegacyTaskWorkSessionId,
+  legacyTaskWorkSessionId,
+} from './legacy-task-work-session-backfill';
 
 // Generic Task commands own one stable block; other sessions are never selected by taskId.
 export const taskScheduledWorkSessionId = (
@@ -106,7 +109,14 @@ export class WorkSessionService {
     const end = changes.end ?? current.end;
     if (this._tasks()[taskId]?.id !== taskId || !this._isValidRange(start, end))
       return false;
-    this._store.dispatch(updateWorkSession({ id, changes, modified: Date.now() }));
+    this._store.dispatch(
+      updateWorkSession({
+        id,
+        changes,
+        modified: Date.now(),
+        ...this._legacySessionSeed(current),
+      }),
+    );
     return true;
   }
 
@@ -117,15 +127,36 @@ export class WorkSessionService {
   }
 
   complete(id: string, completedAt = Date.now()): boolean {
-    if (!this._sessions()[id] || !this._isTimestamp(completedAt)) return false;
-    this._store.dispatch(completeWorkSession({ id, completedAt, modified: Date.now() }));
+    const current = this._sessions()[id];
+    if (!current || !this._isTimestamp(completedAt)) return false;
+    this._store.dispatch(
+      completeWorkSession({
+        id,
+        completedAt,
+        modified: Date.now(),
+        ...this._legacySessionSeed(current),
+      }),
+    );
     return true;
   }
 
   uncomplete(id: string): boolean {
-    if (!this._sessions()[id]) return false;
-    this._store.dispatch(uncompleteWorkSession({ id, modified: Date.now() }));
+    const current = this._sessions()[id];
+    if (!current) return false;
+    this._store.dispatch(
+      uncompleteWorkSession({
+        id,
+        modified: Date.now(),
+        ...this._legacySessionSeed(current),
+      }),
+    );
     return true;
+  }
+
+  private _legacySessionSeed(current: WorkSession): { legacySession?: WorkSession } {
+    return isDeterministicLegacyTaskWorkSessionId(current.id)
+      ? { legacySession: current }
+      : {};
   }
 
   private _isValidRange(start: number, end: number): boolean {

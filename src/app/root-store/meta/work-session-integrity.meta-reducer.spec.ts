@@ -128,6 +128,31 @@ describe('workSessionIntegrityMetaReducer', () => {
     return appDataToRootState(data);
   };
 
+  it('rejects a seeded migrated mutation whose resulting Task reference is not live', () => {
+    const state = completeState();
+    const legacySession = {
+      id: 'legacy-task-schedule:7:missing:100',
+      taskId: 'missing',
+      start: 100,
+      end: 200,
+      timeZone: 'America/Vancouver',
+      created: 100,
+      modified: 100,
+    };
+    expect(() =>
+      integrated(
+        state,
+        updateWorkSession({
+          id: legacySession.id,
+          changes: { end: 300 },
+          modified: 200,
+          legacySession,
+        }),
+      ),
+    ).toThrowError('WorkSession taskId must reference a live Task');
+    expect(state.workSession.entities[legacySession.id]).toBeUndefined();
+  });
+
   it('permits deletion and archive only after all referencing sessions are explicitly removed', () => {
     const initial = completeState();
     const second = { ...initial.workSession.entities['session-1']!, id: 'second' };

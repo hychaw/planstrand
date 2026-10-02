@@ -1,6 +1,7 @@
 import {
   backfillLegacyTaskWorkSessions,
   legacyTaskWorkSessionId,
+  isDeterministicLegacyTaskWorkSessionId,
 } from './legacy-task-work-session-backfill';
 import { DEFAULT_TASK, TaskState } from '../tasks/task.model';
 import { WorkSession, WorkSessionState } from './work-session.model';
@@ -19,6 +20,26 @@ import { initialTaskState } from '../tasks/store/task.reducer';
 import { createValidAppData } from '../../op-log/validation/state-validity-test-utils';
 
 describe('legacy Task WorkSession backfill', () => {
+  it('recognizes only canonical deterministic IDs for mutation materialization', () => {
+    for (const taskId of ['task:1', 'task:1:2']) {
+      for (const start of [0, 100, 1.5, 1e21]) {
+        expect(
+          isDeterministicLegacyTaskWorkSessionId(legacyTaskWorkSessionId(taskId, start)),
+        ).toBeTrue();
+      }
+    }
+    for (const id of [
+      'other',
+      'legacy-task-schedule:',
+      'legacy-task-schedule:6:task-1:-1',
+      'legacy-task-schedule:6:task-1:NaN',
+      'legacy-task-schedule:06:task-1:100',
+      'legacy-task-schedule:5:task-1:100',
+      'legacy-task-schedule:6:task-1:0100',
+    ]) {
+      expect(isDeterministicLegacyTaskWorkSessionId(id)).toBeFalse();
+    }
+  });
   it('retains intentional dismissal through restart, hydration, retry and stale installation', () => {
     const source = tasks();
     const original = JSON.stringify(source);
