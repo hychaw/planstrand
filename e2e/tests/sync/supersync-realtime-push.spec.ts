@@ -6,6 +6,7 @@ import {
   createTestUser,
   getSuperSyncConfig,
   parseSuperSyncRequestBody,
+  routeSuperSyncOps,
   SUPERSYNC_BASE_URL,
   waitForTask,
   type SimulatedE2EClient,
@@ -89,6 +90,21 @@ test.describe('@supersync Realtime Push', () => {
 
       const requests = { A: { GET: 0, POST: 0 }, B: { GET: 0, POST: 0 } };
       const uploads: Response[] = [];
+      const uploadedOps: Array<{
+        id: string;
+        entityId?: string;
+        entityType: string;
+        opType: string;
+      }> = [];
+      await routeSuperSyncOps(clientA.page, async (route) => {
+        if (route.request().method() === 'POST') {
+          uploadedOps.push(
+            ...parseSuperSyncRequestBody<{ ops: typeof uploadedOps }>(route.request())
+              .ops,
+          );
+        }
+        await route.continue();
+      });
       for (const [client, counts] of [
         [clientA, requests.A],
         [clientB, requests.B],
@@ -124,9 +140,6 @@ test.describe('@supersync Realtime Push', () => {
       const upload = (await uploads[0].json()) as {
         results: { opId: string; accepted: boolean; serverSeq?: number }[];
       };
-      const uploadedOps = parseSuperSyncRequestBody<{
-        ops: Array<{ id: string; entityId?: string; entityType: string; opType: string }>;
-      }>(uploads[0].request()).ops;
       const taskCreates = uploadedOps.filter(
         (op) => op.entityType === 'TASK' && op.opType === 'CRT',
       );
