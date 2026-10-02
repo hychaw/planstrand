@@ -4,12 +4,19 @@ import {
   SUPER_SYNC_IMPORT_REASONS,
 } from '@sp/shared-schema';
 import { KNOWN_ACTION_TYPES } from '../core/action-types.enum';
+import { LWW_UPDATE_ACTION_TYPES } from '../core/lww-update-action-types';
 import {
   getOperationSchemaVersion,
   MIN_SUPPORTED_SCHEMA_VERSION,
 } from '../persistence/schema-migration.service';
 
 export const KNOWN_OP_TYPES: ReadonlySet<string> = new Set<string>(SUPER_SYNC_OP_TYPES);
+// Conflict resolution emits synthetic actions outside the immutable NgRx enum.
+// Accept only the exact LWW vocabulary generated from the shared ENTITY_TYPES.
+const KNOWN_REMOTE_ACTION_TYPES: ReadonlySet<string> = new Set([
+  ...KNOWN_ACTION_TYPES,
+  ...LWW_UPDATE_ACTION_TYPES,
+]);
 const KNOWN_IMPORT_REASONS: ReadonlySet<string> = new Set<string>(
   SUPER_SYNC_IMPORT_REASONS,
 );
@@ -41,7 +48,7 @@ export const getUnknownOpVocabulary = (
   if (!isKnownRequiredVocabulary(op.opType, KNOWN_OP_TYPES)) {
     return 'opType';
   }
-  if (!isKnownRequiredVocabulary(op.actionType, KNOWN_ACTION_TYPES)) {
+  if (!isKnownRequiredVocabulary(op.actionType, KNOWN_REMOTE_ACTION_TYPES)) {
     return 'actionType';
   }
   if (!isKnownOptionalVocabulary(op.syncImportReason, KNOWN_IMPORT_REASONS)) {

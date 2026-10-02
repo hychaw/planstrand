@@ -2,6 +2,12 @@ import { ActionType, KNOWN_ACTION_TYPES } from '../core/action-types.enum';
 import { SUPER_SYNC_IMPORT_REASONS, SUPER_SYNC_OP_TYPES } from '@sp/shared-schema';
 import { OpType } from '../core/operation.types';
 import {
+  LWW_UPDATE_ACTION_TYPES,
+  getLwwEntityType,
+  toLwwUpdateActionType,
+} from '../core/lww-update-action-types';
+import { CURRENT_SCHEMA_VERSION, ENTITY_TYPES } from '@sp/shared-schema';
+import {
   getRemoteOpBlockReason,
   getUnknownOpVocabulary,
   takeInterpretableOpPrefix,
@@ -181,6 +187,66 @@ describe('getRemoteOpBlockReason', () => {
 });
 
 describe('action vocabulary', () => {
+  it('accepts every exact generated LWW action for the registered entity vocabulary', () => {
+    for (const actionType of LWW_UPDATE_ACTION_TYPES) {
+      const entityType = getLwwEntityType(actionType);
+      expect(entityType).toBeDefined();
+      expect(ENTITY_TYPES).toContain(entityType!);
+      expect(KNOWN_ACTION_TYPES.has(actionType)).toBeFalse();
+      const op = {
+        opType: OpType.Update,
+        actionType,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+      };
+      expect(getUnknownOpVocabulary(op)).toBeNull();
+      expect(getRemoteOpBlockReason(op, CURRENT_SCHEMA_VERSION)).toBeNull();
+    }
+  });
+
+  it('keeps a legitimate synthesized Task LWW op in the interpretable prefix', () => {
+    const regular = { opType: OpType.Update, actionType: ActionType.TASK_SHARED_UPDATE };
+    const lww = { opType: OpType.Update, actionType: toLwwUpdateActionType('TASK') };
+    const future = { opType: OpType.Update, actionType: '[Future] Something' };
+    expect(takeInterpretableOpPrefix([regular, lww, regular, future, regular])).toEqual([
+      regular,
+      lww,
+      regular,
+    ]);
+  });
+
+  it('rejects fake, unregistered and future action strings exactly', () => {
+    for (const actionType of [
+      '[TASK] LWW Update Extra',
+      '[UNREGISTERED] LWW Update',
+      '[Future] Something',
+      '[Task Shared] futureAction',
+    ]) {
+      const op = { opType: OpType.Update, actionType };
+      expect(getUnknownOpVocabulary(op)).toBe('actionType');
+      expect(getRemoteOpBlockReason(op, CURRENT_SCHEMA_VERSION)).toBe(
+        'UNKNOWN_OP_VOCABULARY',
+      );
+    }
+  });
+
+  it('retains schema-version precedence for both generated and unknown actions', () => {
+    for (const actionType of [toLwwUpdateActionType('TASK'), '[Future] Something']) {
+      const op = { opType: OpType.Update, actionType };
+      expect(
+        getRemoteOpBlockReason({ ...op, schemaVersion: '5' }, CURRENT_SCHEMA_VERSION),
+      ).toBe('INVALID_SCHEMA_VERSION');
+      expect(
+        getRemoteOpBlockReason({ ...op, schemaVersion: 0 }, CURRENT_SCHEMA_VERSION),
+      ).toBe('VERSION_UNSUPPORTED');
+      expect(
+        getRemoteOpBlockReason(
+          { ...op, schemaVersion: CURRENT_SCHEMA_VERSION + 1 },
+          CURRENT_SCHEMA_VERSION,
+        ),
+      ).toBe('VERSION_TOO_NEW');
+    }
+  });
+
   it('accepts every authoritative action string', () => {
     for (const actionType of KNOWN_ACTION_TYPES) {
       expect(getUnknownOpVocabulary({ opType: OpType.Update, actionType })).toBeNull();

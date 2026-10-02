@@ -32,6 +32,33 @@ import {
 } from '../../utils/supersync-assertions';
 import { waitForAppReady } from '../../utils/waits';
 
+interface TaskLwwEntry {
+  op: { id: string; a: string; o: string; e: string; d: string; s: number };
+  source: string;
+  syncedAt?: number;
+  applicationStatus?: string;
+  appliedAt?: number;
+}
+
+const readTaskLwwEntries = async (client: SimulatedE2EClient): Promise<TaskLwwEntry[]> =>
+  client.page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('SUP_OPS');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const entries = await new Promise<TaskLwwEntry[]>((resolve, reject) => {
+        const request = db.transaction('ops', 'readonly').objectStore('ops').getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return entries.filter((entry) => entry.op.a === '[TASK] LWW Update');
+    } finally {
+      db.close();
+    }
+  });
+
 /**
  * SuperSync E2E Tests
  *
@@ -356,8 +383,24 @@ test.describe('@supersync SuperSync E2E', () => {
       // Client B syncs (may detect concurrent edit)
       await clientB.sync.syncAndWait();
 
+      // The real conflict resolver must synthesize and successfully upload an LWW op.
+      const generated = (await readTaskLwwEntries(clientB)).find(
+        (entry) => entry.source === 'local' && !!entry.syncedAt,
+      );
+      expect(generated).toBeDefined();
+      expect(generated!.op.o).toBe('UPD');
+      expect(generated!.op.e).toBe('TASK');
+      expect(generated!.op.d).toBeTruthy();
+
       // Client A syncs again to converge
       await clientA.sync.syncAndWait();
+
+      const received = (await readTaskLwwEntries(clientA)).find(
+        (entry) => entry.op.id === generated!.op.id,
+      );
+      expect(received?.source).toBe('remote');
+      expect(received?.applicationStatus).toBe('applied');
+      expect(received?.appliedAt).toBeGreaterThan(0);
 
       // Verify both independent fields survived conflict resolution on both clients.
       await expectEqualTaskCount([clientA, clientB]);
