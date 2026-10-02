@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
@@ -90,6 +91,12 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
   private _snackService = inject(SnackService);
   private _datePipe = inject(LocaleDatePipe);
   private _taskService = inject(TaskService);
+  private readonly _workSessionService = inject(WorkSessionService);
+  readonly scheduledSession = computed(() =>
+    this.data.task
+      ? this._workSessionService.scheduledTaskSession(this.data.task)
+      : undefined,
+  );
   private _reminderService = inject(ReminderService);
   private _translateService = inject(TranslateService);
   private _globalConfigService = inject(GlobalConfigService);
@@ -288,6 +295,16 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
       this.selectedTime = this.data.targetTime;
     }
 
+    const session = this.scheduledSession();
+    if (session) {
+      if (!this.data.targetDay) this.selectedDate = new Date(session.start);
+      if (!this.data.targetTime)
+        this.selectedTime = new Date(session.start).toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+    }
+
     this._cd.detectChanges();
   }
 
@@ -347,6 +364,8 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
   }
 
   remove(): void {
+    // Session removal (including legacy fallback restoration) is a separate increment.
+    if (this.scheduledSession()) return;
     // Only handle remove if task is provided
     if (!this.data.task) {
       this.close(false);
@@ -413,15 +432,14 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
     const newDayDate = new Date(this.selectedDate);
     const newDay = getDbDateStr(newDayDate);
 
-    this._handleReminderRemoval();
-
     // Treat genuinely malformed time the same as "no time": fall through to
     // day-only planning rather than crashing in _scheduleWithTime (#7802).
     const normalizedTime = this._normalizedTime();
     const hasValidTime = !!normalizedTime && isValidSplitTime(normalizedTime);
+    if (!hasValidTime) this._handleReminderRemoval();
 
     if (hasValidTime) {
-      this._scheduleWithTime();
+      if (!this._scheduleWithTime()) return;
     } else if (
       this.data.task &&
       this.data.task.dueDay === newDay &&
@@ -461,29 +479,19 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
     }
   }
 
-  private _scheduleWithTime(): void {
+  private _scheduleWithTime(): boolean {
     // Only schedule if task is provided and time is valid (submit() pre-validates;
     // belt-and-braces guard against direct callers / malformed paste — see #7802).
     const normalizedTime = this._normalizedTime();
     if (!this.data.task || !normalizedTime || !isValidSplitTime(normalizedTime)) {
-      return;
+      return false;
     }
 
     const task = this.data.task;
     const newDate = new Date(
       getDateTimeFromClockString(normalizedTime, this.selectedDate as Date),
     );
-    this._taskService.scheduleTask(
-      task,
-      newDate.getTime(),
-      this.selectedReminderCfgId,
-      false,
-    );
-    // TODO if we want this, we should add it as an effect
-    // const isTodayI = isToday(newDate);
-    // if (isTodayI) {
-    //   this.addToToday();
-    // }
+    return this._workSessionService.scheduleTask(task, newDate.getTime());
   }
 
   private async _planForDay(newDay: string): Promise<void> {

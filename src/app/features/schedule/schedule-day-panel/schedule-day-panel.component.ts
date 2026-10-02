@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
@@ -23,16 +24,12 @@ import { mapScheduleDaysToScheduleEvents } from '../map-schedule-data/map-schedu
 import { FH, SVEType } from '../schedule.const';
 import { calculateTimeFromYPosition } from '../schedule-utils';
 import { DragDropRegistry } from '@angular/cdk/drag-drop';
-import { TaskReminderOptionId, TaskWithSubTasks } from '../../tasks/task.model';
-import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
+import { TaskWithSubTasks } from '../../tasks/task.model';
 import { Log } from '../../../core/log';
 import { Subscription } from 'rxjs';
 import { ScheduleExternalDragService } from '../schedule-week/schedule-external-drag.service';
 import { ScheduleService } from '../schedule.service';
 import { ScheduleEvent } from '../schedule.model';
-import { GlobalConfigService } from '../../config/global-config.service';
-import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
-import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-milliseconds';
 import { TranslatePipe } from '@ngx-translate/core';
 import { T } from '../../../t.const';
 
@@ -79,7 +76,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   private _cdr = inject(ChangeDetectorRef);
   private _ngZone = inject(NgZone);
   private _scheduleService = inject(ScheduleService);
-  private _globalConfigService = inject(GlobalConfigService);
+  private readonly _workSessionService = inject(WorkSessionService);
   private _pointerUpSubscription: Subscription | null = null;
   private _activeExternalTask: TaskWithSubTasks | null = null;
   private readonly _globalPointerEvents = ['mousemove', 'touchmove'] as const;
@@ -282,35 +279,11 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
         targetTime: targetDate,
         formattedTime: this._formatTime(targetDate.getHours(), targetDate.getMinutes()),
       });
-      const hasExistingSchedule = !!task.dueWithTime;
-      const hasReminder = !!(task.remindAt ?? task.reminderId);
-      let remindAt: number | undefined;
-      if (!hasExistingSchedule && !hasReminder) {
-        remindAt = remindOptionToMilliseconds(dropTime, this._getDefaultReminderOption());
-      } else if (hasReminder) {
-        remindAt = dropTime;
-      }
-
-      const payload = {
+      wasDroppedSuccessfully = this._workSessionService.scheduleTask(
         task,
-        dueWithTime: dropTime,
-        ...(typeof remindAt === 'number' ? { remindAt } : {}),
-        isMoveToBacklog: false,
-      };
-
-      this._store.dispatch(
-        hasExistingSchedule
-          ? TaskSharedActions.reScheduleTaskWithTime(payload)
-          : TaskSharedActions.scheduleTaskWithTime(payload),
+        dropTime,
+        DEFAULT_MIN_DURATION,
       );
-      if (!task.timeEstimate || task.timeEstimate <= 0) {
-        this._store.dispatch(
-          TaskSharedActions.updateTask({
-            task: { id: task.id, changes: { timeEstimate: DEFAULT_MIN_DURATION } },
-          }),
-        );
-      }
-      wasDroppedSuccessfully = true;
     } else if (isInside) {
       planningCommands(this._store).planTaskForDay({
         task,
@@ -738,14 +711,6 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
     const timeEstimate = task.timeEstimate || DEFAULT_MIN_DURATION;
     const timeInHours = timeEstimate / (60 * 60 * 1000);
     return Math.max(Math.round(timeInHours * FH), 1);
-  }
-
-  private _getDefaultReminderOption(): TaskReminderOptionId {
-    return (
-      (this._globalConfigService.cfg()?.reminder
-        ?.defaultTaskRemindOption as TaskReminderOptionId) ??
-      DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!
-    );
   }
 
   private _disableSnapBackAnimation(): void {

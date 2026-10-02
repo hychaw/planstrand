@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -78,6 +79,13 @@ describe('DialogScheduleTaskComponent — malformed selectedTime', () => {
         TranslateModule.forRoot(),
       ],
       providers: [
+        {
+          provide: WorkSessionService,
+          useValue: {
+            scheduleTask: jasmine.createSpy('scheduleTask').and.returnValue(true),
+            scheduledTaskSession: () => undefined,
+          },
+        },
         provideMockStore({
           initialState: {},
           selectors: [
@@ -168,8 +176,10 @@ describe('DialogScheduleTaskComponent — malformed selectedTime', () => {
 
     await component.submit();
 
-    expect(taskServiceSpy.scheduleTask).toHaveBeenCalled();
-    const scheduledTs = taskServiceSpy.scheduleTask.calls.mostRecent().args[1] as number;
+    expect(TestBed.inject(WorkSessionService).scheduleTask).toHaveBeenCalled();
+    const scheduledTs = (
+      TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy
+    ).calls.mostRecent().args[1] as number;
     const d = new Date(scheduledTs);
     expect(d.getHours()).toBe(13);
     expect(d.getMinutes()).toBe(30);
@@ -212,7 +222,7 @@ describe('DialogScheduleTaskComponent — malformed selectedTime', () => {
       }
       expect(err).toBeUndefined();
       // Invalid time must not reach scheduleTask — it would crash there too.
-      expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
+      expect(TestBed.inject(WorkSessionService).scheduleTask).not.toHaveBeenCalled();
     });
   });
 });

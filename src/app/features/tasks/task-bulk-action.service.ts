@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../work-session/work-session.service';
 import { planningCommands } from '../planning/planning-commands';
 import { computed, inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
@@ -30,7 +31,6 @@ import { truncate } from '../../util/truncate';
 import { remindOptionToMilliseconds } from './util/remind-option-to-milliseconds';
 import { getDeadlineAutoPlanFields } from './util/get-deadline-auto-plan-fields';
 import { playDoneSound } from './util/play-done-sound';
-import { DEFAULT_GLOBAL_CONFIG } from '../config/default-global-config.const';
 import { TranslateService, TranslateStore } from '@ngx-translate/core';
 import { getPluralKey } from '../../util/get-plural-key';
 import {
@@ -69,6 +69,7 @@ interface DateTimePick {
 export class TaskBulkActionService {
   private readonly _store = inject(Store);
   private readonly _taskService = inject(TaskService);
+  private readonly _workSessionService = inject(WorkSessionService);
   private readonly _multiSelect = inject(TaskMultiSelectService);
   private readonly _moveToProjectService = inject(TaskMoveToProjectService);
   private readonly _projectService = inject(ProjectService);
@@ -344,9 +345,6 @@ export class TaskBulkActionService {
     const day = getDbDateStr(pick.date);
     const todayStr = this._dateService.todayStr();
     const hasTime = !!pick.time && isValidSplitTime(pick.time);
-    const defaultRemindOption =
-      this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
-      DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!;
     const focusTargetId = this._getFocusTargetAfterRemoval();
     const todayIds: string[] = [];
     let applied = 0;
@@ -354,13 +352,7 @@ export class TaskBulkActionService {
       tasks.forEach((task) => {
         if (hasTime) {
           const due = getDateTimeFromClockString(pick.time as string, pick.date as Date);
-          this._taskService.scheduleTask(
-            task,
-            due,
-            pick.remindOption ?? TaskReminderOptionId.DoNotRemind,
-            false,
-          );
-          applied++;
+          if (this._workSessionService.scheduleTask(task, due)) applied++;
         } else if (
           task.dueWithTime &&
           !(day === todayStr && this._dateService.isToday(task.dueWithTime))
@@ -368,8 +360,7 @@ export class TaskBulkActionService {
           // Day-only pick for a timed task: keep its time on the new day, as
           // the context menu's quick-access buttons do.
           const due = combineDateAndTime(pick.date as Date, new Date(task.dueWithTime));
-          this._taskService.scheduleTask(task, due.getTime(), defaultRemindOption, false);
-          applied++;
+          if (this._workSessionService.scheduleTask(task, due.getTime())) applied++;
         } else if (day === todayStr) {
           // Already due today with a time → plain "add to today" (clears the
           // reminder), matching the single-task flow.

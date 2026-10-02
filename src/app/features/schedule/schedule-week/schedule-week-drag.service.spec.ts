@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import {
   configurePlanningFixture,
   expectPlanningDay,
@@ -18,9 +19,7 @@ import { FH, SVEType, T_ID_PREFIX } from '../schedule.const';
 import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 import { DateService } from '../../../core/date/date.service';
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-const TEN_MINUTES_MS = 10 * 60 * 1000;
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
 describe('ScheduleWeekDragService', () => {
@@ -403,135 +402,21 @@ describe('ScheduleWeekDragService', () => {
     });
   });
 
-  describe('_scheduleTask reminder behavior (via scheduleTaskWithTime action)', () => {
-    const baseTask = {
-      id: 'task-1',
-      title: 'Test Task',
-      timeEstimate: THIRTY_MINUTES_MS,
-      dueWithTime: undefined as number | undefined,
-      reminderId: undefined as string | undefined,
-    };
-
-    it('should use default reminder option "AtStart" when scheduling new task', () => {
-      setupTestBed(TaskReminderOptionId.AtStart);
-
-      const task = { ...baseTask };
-      const scheduleTime = Date.now() + ONE_HOUR_MS;
-
-      // Access private method via any cast for testing
-      (service as any)._scheduleTask(task, scheduleTime);
-
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          type: TaskSharedActions.scheduleTaskWithTime.type,
-        }),
-      );
-
-      const dispatchedAction = dispatchSpy.calls.mostRecent().args[0];
-      // AtStart means remindAt equals scheduleTime
-      expect(dispatchedAction.remindAt).toBe(scheduleTime);
-    });
-
-    it('should use configured default reminder option "m10" (10 minutes before) when scheduling new task', () => {
-      setupTestBed(TaskReminderOptionId.m10);
-
-      const task = { ...baseTask };
-      const scheduleTime = Date.now() + ONE_HOUR_MS;
-
-      (service as any)._scheduleTask(task, scheduleTime);
-
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          type: TaskSharedActions.scheduleTaskWithTime.type,
-        }),
-      );
-
-      const dispatchedAction = dispatchSpy.calls.mostRecent().args[0];
-      // m10 means remindAt is 10 minutes before scheduleTime
-      expect(dispatchedAction.remindAt).toBe(scheduleTime - TEN_MINUTES_MS);
-    });
-
-    it('should use configured default reminder option "m30" (30 minutes before) when scheduling new task', () => {
-      setupTestBed(TaskReminderOptionId.m30);
-
-      const task = { ...baseTask };
-      const scheduleTime = Date.now() + ONE_HOUR_MS;
-
-      (service as any)._scheduleTask(task, scheduleTime);
-
-      const dispatchedAction = dispatchSpy.calls.mostRecent().args[0];
-      expect(dispatchedAction.remindAt).toBe(scheduleTime - THIRTY_MINUTES_MS);
-    });
-
-    it('should use configured default reminder option "h1" (1 hour before) when scheduling new task', () => {
-      setupTestBed(TaskReminderOptionId.h1);
-
-      const task = { ...baseTask };
-      const scheduleTime = Date.now() + TWO_HOURS_MS;
-
-      (service as any)._scheduleTask(task, scheduleTime);
-
-      const dispatchedAction = dispatchSpy.calls.mostRecent().args[0];
-      expect(dispatchedAction.remindAt).toBe(scheduleTime - ONE_HOUR_MS);
-    });
-
-    it('should not set reminder when configured default is "DoNotRemind"', () => {
-      setupTestBed(TaskReminderOptionId.DoNotRemind);
-
-      const task = { ...baseTask };
-      const scheduleTime = Date.now() + ONE_HOUR_MS;
-
-      (service as any)._scheduleTask(task, scheduleTime);
-
-      const dispatchedAction = dispatchSpy.calls.mostRecent().args[0];
-      // DoNotRemind returns undefined from remindOptionToMilliseconds
-      expect(dispatchedAction.remindAt).toBeUndefined();
-    });
-
-    it('should update existing reminder time when task already has a reminder', () => {
-      setupTestBed(TaskReminderOptionId.m30);
-
-      const task = {
-        ...baseTask,
-        dueWithTime: Date.now(),
-        reminderId: 'existing-reminder-id',
-      };
-      const newScheduleTime = Date.now() + ONE_HOUR_MS;
-
-      (service as any)._scheduleTask(task, newScheduleTime);
-
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          type: TaskSharedActions.reScheduleTaskWithTime.type,
-        }),
-      );
-
-      const dispatchedAction = dispatchSpy.calls.mostRecent().args[0];
-      // When task already has a reminder, it updates to the new schedule time directly
-      expect(dispatchedAction.remindAt).toBe(newScheduleTime);
-    });
-
-    it('should not add reminder when task already has schedule but no reminder', () => {
-      setupTestBed(TaskReminderOptionId.m30);
-
-      const task = {
-        ...baseTask,
-        dueWithTime: Date.now(),
-        reminderId: undefined,
-      };
-      const newScheduleTime = Date.now() + ONE_HOUR_MS;
-
-      (service as any)._scheduleTask(task, newScheduleTime);
-
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          type: TaskSharedActions.reScheduleTaskWithTime.type,
-        }),
-      );
-
-      const dispatchedAction = dispatchSpy.calls.mostRecent().args[0];
-      // Task had schedule but no reminder, so remindAt should be undefined
-      expect(dispatchedAction.remindAt).toBeUndefined();
+  describe('timed Task routing', () => {
+    it('uses WorkSession scheduling with the established 15-minute fallback', () => {
+      setupTestBed();
+      const task = createTaskEvent().data as TaskCopy;
+      const schedule = spyOn(
+        TestBed.inject(WorkSessionService),
+        'scheduleTask',
+      ).and.returnValue(true);
+      (
+        service as unknown as {
+          _scheduleTask: (task: TaskCopy, start: number) => boolean;
+        }
+      )._scheduleTask(task, 100);
+      expect(schedule).toHaveBeenCalledWith(task, 100, 15 * 60 * 1000);
+      expect(dispatchSpy).not.toHaveBeenCalled();
     });
   });
 });

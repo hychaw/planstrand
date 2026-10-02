@@ -21,7 +21,10 @@ import { WorkSession, WorkSessionState } from '../work-session/work-session.mode
 import { selectTaskEntities } from '../tasks/store/task.selectors';
 import { selectWorkSessionEntities } from '../work-session/store/work-session.selectors';
 import { workSessionReducer } from '../work-session/store/work-session.reducer';
-import { updateWorkSession } from '../work-session/store/work-session.actions';
+import {
+  addWorkSession,
+  updateWorkSession,
+} from '../work-session/store/work-session.actions';
 import { legacyTaskWorkSessionId } from '../work-session/legacy-task-work-session-backfill';
 import { ScheduleWeekDragService } from './schedule-week/schedule-week-drag.service';
 import { ScheduleEventComponent } from './schedule-event/schedule-event.component';
@@ -35,7 +38,6 @@ import { convertOpToAction } from '../../op-log/apply/operation-converter.util';
 import { TestClient } from '../../op-log/testing/integration/helpers/test-client.helper';
 import { isPersistentAction } from '../../op-log/core/persistent-action.interface';
 import { OperationCaptureService } from '../../op-log/capture/operation-capture.service';
-import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 
 describe('existing WorkSession schedule edits', () => {
   const hour = 3600000;
@@ -217,18 +219,20 @@ describe('existing WorkSession schedule edits', () => {
     expect(entities()[session.id]).toEqual(session);
   });
 
-  it('routes a legacy timed Task release through its existing reschedule action', () => {
+  it('routes a legacy timed Task release to its migrated WorkSession', () => {
     const update = spyOn(TestBed.inject(WorkSessionService), 'update').and.callThrough();
     release({ ...eventFor(), id: task.id, type: SVEType.ScheduledTask, data: task });
     expect(writes).toHaveBeenCalledTimes(1);
-    expect(writes.calls.mostRecent().args[0].type).toBe(
-      TaskSharedActions.reScheduleTaskWithTime.type,
+    expect(writes.calls.mostRecent().args[0].type).toBe(updateWorkSession.type);
+    expect(update).toHaveBeenCalled();
+    expect(entities()[second.id]).toEqual(second);
+    expect(store.selectSignal(selectTaskEntities)()[task.id]?.dueWithTime).toBe(
+      task.dueWithTime,
     );
-    expect(update).not.toHaveBeenCalled();
-    expect(entities()[session.id]).toEqual(session);
   });
 
-  it('keeps unscheduled Task drop creation on the legacy scheduling path', () => {
+  it('creates a WorkSession from a Task drop while retaining unrelated sessions', () => {
+    configZone.and.returnValue({ timeZone: 'Asia/Singapore' });
     const create = spyOn(TestBed.inject(WorkSessionService), 'create').and.callThrough();
     release({
       ...eventFor(),
@@ -236,11 +240,11 @@ describe('existing WorkSession schedule edits', () => {
       type: SVEType.Task,
       data: { ...task, dueWithTime: undefined },
     });
-    expect(writes.calls.mostRecent().args[0].type).toBe(
-      TaskSharedActions.scheduleTaskWithTime.type,
-    );
-    expect(create).not.toHaveBeenCalled();
+    expect(writes.calls.mostRecent().args[0].type).toBe(addWorkSession.type);
+    expect(create).toHaveBeenCalled();
     expect(entities()[session.id]).toEqual(session);
+    expect(entities()[second.id]).toEqual(second);
+    configZone.calls.reset();
   });
 
   it('rejects outside drops and restores the drag without deletion or a Task fallback', () => {

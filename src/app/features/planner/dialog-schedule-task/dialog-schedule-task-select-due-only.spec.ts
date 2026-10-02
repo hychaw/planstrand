@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { DialogScheduleTaskComponent } from './dialog-schedule-task.component';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -66,6 +67,13 @@ describe('DialogScheduleTaskComponent - Select Due Only Mode', () => {
         TranslateModule.forRoot(),
       ],
       providers: [
+        {
+          provide: WorkSessionService,
+          useValue: {
+            scheduleTask: jasmine.createSpy('scheduleTask').and.returnValue(true),
+            scheduledTaskSession: () => undefined,
+          },
+        },
         provideMockStore<Partial<RootState>>({
           initialState: {
             [CONFIG_FEATURE_NAME]: {
@@ -130,7 +138,7 @@ describe('DialogScheduleTaskComponent - Select Due Only Mode', () => {
         time: testTime,
         remindOption: TaskReminderOptionId.AtStart,
       });
-      expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
+      expect(TestBed.inject(WorkSessionService).scheduleTask).not.toHaveBeenCalled();
     });
 
     it('should return null time and null remindOption when no time selected', async () => {

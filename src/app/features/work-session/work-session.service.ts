@@ -12,7 +12,17 @@ import {
   updateWorkSession,
 } from './store/work-session.actions';
 import { selectWorkSessionEntities } from './store/work-session.selectors';
-import { WorkSessionUpdate } from './work-session.model';
+import { WorkSession, WorkSessionUpdate } from './work-session.model';
+import { Task } from '../tasks/task.model';
+import { legacyTaskWorkSessionId } from './legacy-task-work-session-backfill';
+
+// Generic Task commands own one stable block; other sessions are never selected by taskId.
+export const taskScheduledWorkSessionId = (
+  task: Pick<Task, 'id' | 'dueWithTime'>,
+): string =>
+  typeof task.dueWithTime === 'number'
+    ? legacyTaskWorkSessionId(task.id, task.dueWithTime)
+    : `task-schedule:${task.id.length}:${task.id}`;
 
 @Injectable({ providedIn: 'root' })
 export class WorkSessionService {
@@ -21,11 +31,43 @@ export class WorkSessionService {
   private readonly _tasks = this._store.selectSignal(selectTaskEntities);
   private readonly _sessions = this._store.selectSignal(selectWorkSessionEntities);
 
+  scheduledTaskSession(task: Pick<Task, 'id' | 'dueWithTime'>): WorkSession | undefined {
+    const session = this._sessions()[taskScheduledWorkSessionId(task)];
+    return session?.taskId === task.id ? session : undefined;
+  }
+
+  scheduleTask(
+    task: Pick<Task, 'id' | 'dueWithTime' | 'timeEstimate'>,
+    start: number,
+    fallbackDuration?: number,
+  ): boolean {
+    const current = this.scheduledTaskSession(task);
+    if (current) {
+      // Moving a block preserves its own duration, completion and stored zone.
+      if (!current.timeZone || !isValidIanaTimeZone(current.timeZone)) return false;
+      return this.update(current.id, { start, end: start + current.end - current.start });
+    }
+    const duration =
+      Number.isFinite(task.timeEstimate) && task.timeEstimate > 0
+        ? task.timeEstimate
+        : fallbackDuration;
+    if (duration === undefined || !Number.isFinite(duration) || duration <= 0)
+      return false;
+    return !!this.create(
+      task.id,
+      start,
+      start + duration,
+      undefined,
+      taskScheduledWorkSessionId(task),
+    );
+  }
+
   create(
     taskId: string,
     start: number,
     end: number,
     timeZone?: string | null,
+    id = nanoid(),
   ): string | null {
     if (this._tasks()[taskId]?.id !== taskId || !this._isValidRange(start, end))
       return null;
@@ -33,7 +75,7 @@ export class WorkSessionService {
       timeZone ?? this._config.localization()?.timeZone,
     );
     if (!resolvedTimeZone) return null;
-    const id = nanoid();
+    if (this._sessions()[id]) return null;
     const now = Date.now();
     this._store.dispatch(
       addWorkSession({

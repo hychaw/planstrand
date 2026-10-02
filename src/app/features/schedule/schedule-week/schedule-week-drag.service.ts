@@ -9,10 +9,7 @@ import {
   SVEType,
   T_ID_PREFIX,
 } from '../schedule.const';
-import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-milliseconds';
-import { TaskCopy, TaskReminderOptionId } from '../../tasks/task.model';
-import { GlobalConfigService } from '../../config/global-config.service';
-import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
+import { TaskCopy } from '../../tasks/task.model';
 import { calculateTimeFromYPosition } from '../schedule-utils';
 import { isTouchActive } from '../../../util/input-intent';
 import type { DragPreviewContext } from './schedule-week-drag.types';
@@ -50,7 +47,6 @@ const HOUR_IN_MS = 60 * 60 * 1000;
 export class ScheduleWeekDragService {
   // Central drag state handler so the component can remain mostly declarative.
   private readonly _store = inject(Store);
-  private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _calendarEventActions = inject(CalendarEventActionsService);
   private readonly _dateService = inject(DateService);
   private readonly _workSessionService = inject(WorkSessionService);
@@ -762,52 +758,11 @@ export class ScheduleWeekDragService {
     );
   }
 
-  private _scheduleTask(task: TaskCopy, scheduleTime: number): void {
-    const hasExistingSchedule = !!task?.dueWithTime;
-    const hasReminder = !!(task?.remindAt ?? task?.reminderId);
-    const defaultReminderOption = this._getDefaultReminderOption();
-    // Smart reminder logic: if task is brand new to scheduling, add a reminder based on user's default setting.
-    // If it already has a reminder, update it. Otherwise, leave reminders unchanged.
-    const remindAt =
-      !hasExistingSchedule && !hasReminder
-        ? remindOptionToMilliseconds(scheduleTime, defaultReminderOption)
-        : hasReminder
-          ? scheduleTime
-          : undefined;
-
-    const payload = {
+  private _scheduleTask(task: TaskCopy, scheduleTime: number): boolean {
+    return this._workSessionService.scheduleTask(
       task,
-      dueWithTime: scheduleTime,
-      ...(typeof remindAt === 'number' ? { remindAt } : {}),
-      isMoveToBacklog: false,
-    };
-
-    this._store.dispatch(
-      hasExistingSchedule
-        ? TaskSharedActions.reScheduleTaskWithTime(payload)
-        : TaskSharedActions.scheduleTaskWithTime(payload),
-    );
-
-    // Ensure task has a minimum duration so it's visible on the schedule.
-    // Without this, zero-duration tasks would be invisible or hard to interact with.
-    if (!task.timeEstimate || task.timeEstimate <= 0) {
-      const fallbackDuration = Math.max(SCHEDULE_TASK_MIN_DURATION_IN_MS, 15 * 60 * 1000);
-      this._store.dispatch(
-        TaskSharedActions.updateTask({
-          task: {
-            id: task.id,
-            changes: { timeEstimate: fallbackDuration },
-          },
-        }),
-      );
-    }
-  }
-
-  private _getDefaultReminderOption(): TaskReminderOptionId {
-    return (
-      (this._globalConfigService.cfg()?.reminder
-        ?.defaultTaskRemindOption as TaskReminderOptionId) ??
-      DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!
+      scheduleTime,
+      Math.max(SCHEDULE_TASK_MIN_DURATION_IN_MS, 15 * 60 * 1000),
     );
   }
 
@@ -890,8 +845,7 @@ export class ScheduleWeekDragService {
       (dropPoint ? this._calculateTimeFromDrop(dropPoint, targetDay) : null);
 
     if (scheduleTime != null) {
-      this._scheduleTask(task, scheduleTime);
-      return true;
+      return this._scheduleTask(task, scheduleTime);
     }
 
     planningCommands(this._store).planTaskForDay({

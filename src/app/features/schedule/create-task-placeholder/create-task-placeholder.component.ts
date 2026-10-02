@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
   ChangeDetectionStrategy,
@@ -25,8 +26,6 @@ import { ShortTimeHtmlPipe } from '../../../ui/pipes/short-time-html.pipe';
 import { SelectTaskMinimalComponent } from '../../tasks/select-task/select-task-minimal/select-task-minimal.component';
 import { devError } from '../../../util/dev-error';
 import { SnackService } from '../../../core/snack/snack.service';
-import { GlobalConfigService } from '../../config/global-config.service';
-import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
 import { TranslatePipe } from '@ngx-translate/core';
 import { T } from '../../../t.const';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
@@ -50,9 +49,9 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
   T: typeof T = T;
 
   private _taskService = inject(TaskService);
+  private readonly _workSessionService = inject(WorkSessionService);
   private _store = inject(Store);
   private readonly _snackService = inject(SnackService);
-  private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _dateTimeFormatService = inject(DateTimeFormatService);
 
   // Exposed so the template can pass the reactive locale to the now-pure
@@ -253,15 +252,14 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
         });
       } else {
         // Schedule task with specific time
-        this._taskService.addAndSchedule(
-          title,
-          {
-            timeEstimate: 30 * 60 * 1000,
-          },
-          this.due(),
-          this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
-            DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!,
-        );
+        const id = this._taskService.add(title, undefined, {
+          timeEstimate: 30 * 60 * 1000,
+          dueDay: null,
+        });
+        const task = await this._taskService.getByIdOnce$(id).toPromise();
+        if (!this._workSessionService.scheduleTask(task, this.due())) {
+          throw new Error('WorkSession scheduling failed');
+        }
       }
     } catch (error) {
       devError(`Failed to create or schedule task: ${error}`);
@@ -281,12 +279,7 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
       });
     } else {
       // Schedule existing task with specific time
-      this._taskService.scheduleTask(
-        task,
-        this.due(),
-        this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
-          DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!,
-      );
+      this._workSessionService.scheduleTask(task, this.due());
     }
   }
 
