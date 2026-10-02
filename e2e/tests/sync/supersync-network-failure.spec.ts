@@ -477,7 +477,9 @@ test.describe('@supersync Network Failure Recovery', () => {
 
       const serverOpsAfterCommit = (await (
         await fetch(`${SUPERSYNC_BASE_URL}/api/test/user/${user.userId}/ops?limit=100`)
-      ).json()) as { ops: Array<{ id: string }> };
+      ).json()) as {
+        ops: Array<{ id: string; entityId?: string; entityType: string; opType: string }>;
+      };
       for (const operationId of state.committedOperationIds) {
         expect(
           serverOpsAfterCommit.ops.filter((operation) => operation.id === operationId),
@@ -504,10 +506,22 @@ test.describe('@supersync Network Failure Recovery', () => {
       ).toBe(true);
       const serverOpsAfterRetry = (await (
         await fetch(`${SUPERSYNC_BASE_URL}/api/test/user/${user.userId}/ops?limit=100`)
-      ).json()) as { ops: Array<{ id: string }> };
+      ).json()) as {
+        ops: Array<{ id: string; entityId?: string; entityType: string; opType: string }>;
+      };
       for (const operationId of state.committedOperationIds) {
         expect(
           serverOpsAfterRetry.ops.filter((operation) => operation.id === operationId),
+        ).toHaveLength(1);
+      }
+      for (const taskCreate of state.committedTaskCreates) {
+        expect(
+          serverOpsAfterRetry.ops.filter(
+            (op) =>
+              op.entityType === 'TASK' &&
+              op.opType === 'CRT' &&
+              op.entityId === taskCreate.entityId,
+          ),
         ).toHaveLength(1);
       }
 
