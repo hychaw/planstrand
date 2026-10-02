@@ -7,7 +7,14 @@ import {
   SchemaMigrationService,
 } from './schema-migration.service';
 import { VectorClockService } from '../sync/vector-clock.service';
-import { StateSnapshotService } from '../backup/state-snapshot.service';
+import { AppStateSnapshot, StateSnapshotService } from '../backup/state-snapshot.service';
+import {
+  addTaskToAppData,
+  createValidAppData,
+  createValidTask,
+} from '../validation/state-validity-test-utils';
+import { WorkSessionState } from '../../features/work-session/work-session.model';
+import { AppDataComplete } from '../model/model-config';
 import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { LockService } from '../sync/lock.service';
@@ -121,6 +128,101 @@ describe('OperationLogSnapshotService', () => {
     // start clean so a leak from another spec can't fail these tests
     // order-dependently under jasmine's random order.
     clearDeferredActions();
+  });
+
+  describe('startup legacy scheduling backfill', () => {
+    const data = (): AppDataComplete => {
+      const base = createValidAppData();
+      base.globalConfig = {
+        ...base.globalConfig,
+        localization: {
+          ...base.globalConfig.localization,
+          timeZone: 'America/Vancouver',
+        },
+      };
+      return addTaskToAppData(base, {
+        ...createValidTask('legacy-task'),
+        dueWithTime: 1750000000000,
+        timeEstimate: 60000,
+      });
+    };
+
+    beforeEach(() => {
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        data() as unknown as AppStateSnapshot,
+      );
+      mockOpLogStore.getLastSeq.and.resolveTo(10);
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo({ local: 3 });
+      mockOpLogStore.saveStateCache.and.resolveTo();
+    });
+
+    it('commits before installing and preserves schema, sequence, clock and legacy fields', async () => {
+      const source = data();
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        state: source,
+        lastAppliedOpSeq: 8,
+        vectorClock: { local: 2 },
+        compactedAt: 1,
+        schemaVersion: 4,
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyTaskSchedules(install)).toBeTrue();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledBefore(install);
+      const saved = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      expect(saved.schemaVersion).toBe(4);
+      expect(saved.lastAppliedOpSeq).toBe(10);
+      expect(saved.vectorClock).toEqual({ local: 3 });
+      const state = saved.state as ReturnType<typeof data>;
+      expect(state.task.entities['legacy-task']?.dueWithTime).toBe(1750000000000);
+      expect(state.task.entities['legacy-task']?.timeEstimate).toBe(60000);
+      expect(state.workSession.ids.length).toBe(1);
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        state as unknown as AppStateSnapshot,
+      );
+      expect(await service.backfillLegacyTaskSchedules(install)).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledTimes(1);
+      expect(install).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not install when persistence fails', async () => {
+      mockOpLogStore.saveStateCache.and.rejectWith(new Error('write failed'));
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyTaskSchedules(install)).toBeFalse();
+      expect(install).not.toHaveBeenCalled();
+    });
+
+    it('does not persist or install an invalid state', async () => {
+      mockValidateStateService.validateState.and.resolveTo({
+        isValid: false,
+        typiaErrors: [],
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyTaskSchedules(install)).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+      expect(install).not.toHaveBeenCalled();
+    });
+
+    it('installs only newly backfilled sessions, preserving unrelated live edits', async () => {
+      const source = data();
+      const other = {
+        id: 'other',
+        taskId: 'legacy-task',
+        start: 1,
+        end: 2,
+        created: 1,
+        modified: 1,
+      };
+      source.workSession = { ids: ['other'], entities: { other } };
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        source as unknown as AppStateSnapshot,
+      );
+      let installed: WorkSessionState | undefined;
+      await service.backfillLegacyTaskSchedules((sessions) => {
+        installed = sessions;
+      });
+      expect(installed?.ids.length).toBe(1);
+      expect(installed?.entities['other']).toBeUndefined();
+    });
   });
 
   describe('isValidSnapshot', () => {

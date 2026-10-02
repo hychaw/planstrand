@@ -15,6 +15,9 @@ import { OperationCaptureService } from '../capture/operation-capture.service';
 import { getPhantomChangeRisk } from '../capture/phantom-change-guard.util';
 import { OperationWriteFlushService } from '../sync/operation-write-flush.service';
 import { TabSeqFrontierService } from './tab-seq-frontier.service';
+import { backfillLegacyTaskWorkSessions } from '../../features/work-session/legacy-task-work-session-backfill';
+import { WorkSessionState } from '../../features/work-session/work-session.model';
+import { AppDataComplete } from '../model/model-config';
 
 type StateCache = MigratableStateCache;
 
@@ -117,10 +120,23 @@ export class OperationLogSnapshotService {
    *   a write (the hydrator's post-migration convergence gate does).
    */
   async saveCurrentStateAsSnapshot(): Promise<boolean> {
+    return this._saveCurrentStateAsSnapshot();
+  }
+
+  /** Startup compatibility backfill; install only after persistence succeeds. */
+  async backfillLegacyTaskSchedules(
+    install: (sessions: WorkSessionState) => void,
+  ): Promise<boolean> {
+    return this._saveCurrentStateAsSnapshot(install);
+  }
+
+  private async _saveCurrentStateAsSnapshot(
+    installLegacyBackfill?: (sessions: WorkSessionState) => void,
+  ): Promise<boolean> {
     try {
       return await this.writeFlushService.flushThenRunExclusive(async () => {
         const source = await this.opLogStore.loadStateCache();
-        if (source && (source.schemaVersion ?? 1) < 5) {
+        if (source && (source.schemaVersion ?? 1) < 5 && !installLegacyBackfill) {
           // Only confirmed clean-slate replacement may advance this legacy anchor.
           return false;
         }
@@ -143,7 +159,19 @@ export class OperationLogSnapshotService {
         this.opLogStore.clearVectorClockCache();
         // Read state synchronously at the quiesce cutoff (no await before it)
         // and lastSeq after — see JSDoc above.
-        const currentState = this.stateSnapshotService.getStateSnapshotForOperationLog();
+        const capturedState =
+          this.stateSnapshotService.getStateSnapshotForOperationLog() as unknown as AppDataComplete;
+        const sessions = installLegacyBackfill
+          ? backfillLegacyTaskWorkSessions(
+              capturedState.task,
+              capturedState.workSession,
+              capturedState.globalConfig.localization?.timeZone,
+            )
+          : capturedState.workSession;
+        if (installLegacyBackfill && sessions === capturedState.workSession) return false;
+        const currentState = installLegacyBackfill
+          ? { ...capturedState, workSession: sessions }
+          : capturedState;
         const lastSeq = await this.opLogStore.getLastSeq();
 
         // GUARD (#9438): lastSeq is the global max across the SHARED store,
@@ -177,6 +205,13 @@ export class OperationLogSnapshotService {
           return false;
         }
 
+        if (installLegacyBackfill) {
+          const validation = await this.validateStateService.validateState(
+            currentState as unknown as Record<string, unknown>,
+          );
+          if (!validation.isValid) return false;
+        }
+
         // Get current vector clock; pruning happens inside saveStateCache
         // (store-owned, #9096).
         const vectorClock = await this.vectorClockService.getCurrentVectorClock();
@@ -190,9 +225,24 @@ export class OperationLogSnapshotService {
           lastAppliedOpSeq: lastSeq,
           vectorClock,
           compactedAt: Date.now(),
-          schemaVersion: CURRENT_SCHEMA_VERSION,
+          // Compatibility backfill never confirms/advances a legacy Planning anchor.
+          schemaVersion: installLegacyBackfill
+            ? source
+              ? (source.schemaVersion ?? 1)
+              : CURRENT_SCHEMA_VERSION
+            : CURRENT_SCHEMA_VERSION,
           snapshotEntityKeys,
         });
+
+        if (installLegacyBackfill) {
+          const ids = sessions.ids.filter(
+            (id) => !capturedState.workSession.entities[id],
+          );
+          installLegacyBackfill({
+            ids,
+            entities: Object.fromEntries(ids.map((id) => [id, sessions.entities[id]])),
+          });
+        }
 
         OpLog.normal('OperationLogSnapshotService: Saved new snapshot');
         return true;

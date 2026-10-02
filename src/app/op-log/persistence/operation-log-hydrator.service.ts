@@ -47,6 +47,7 @@ import {
 import { runWithLoadAllDataFailureCollector } from '../apply/load-all-data-failure-guard.meta-reducer';
 import { hasMeaningfulStateData } from '../validation/has-meaningful-state-data.util';
 import { extractEntityKeysFromState } from './extract-entity-keys';
+import { installLegacyWorkSessionBackfill } from '../../features/work-session/store/work-session.actions';
 
 /**
  * sessionStorage key used to track auto-reload attempts after IndexedDB backing store errors.
@@ -329,6 +330,15 @@ export class OperationLogHydratorService {
       // Retry any failed remote ops from previous conflict resolution attempts
       // Now that state is fully hydrated, dependencies might be resolved
       await this.retryFailedRemoteOps();
+
+      // Complete source state first; never backfill each replayed scheduling action.
+      // Reuse the quiesced snapshot transaction, preserving its version/clock/seq.
+      // Failed/degraded hydration must not overwrite an intact recovery anchor.
+      if (!hydrationFallbackRan) {
+        await this.snapshotService.backfillLegacyTaskSchedules((sessions) =>
+          this.store.dispatch(installLegacyWorkSessionBackfill({ sessions })),
+        );
+      }
 
       // CONVERGENCE: when a schema migration ran during this hydration but no
       // fresh snapshot was persisted yet, persist one now from the current,

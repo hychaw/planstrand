@@ -104,6 +104,15 @@ export const isValidWorkSessionState = (
 export const workSessionReducer = createReducer(
   initialWorkSessionState,
 
+  // Startup migration only: already durable, so this must not create an op.
+  // addMany preserves sessions edited/created while persistence was awaiting I/O.
+  on(WorkSessionActions.installLegacyWorkSessionBackfill, (state, { sessions }) =>
+    workSessionAdapter.addMany(
+      Object.values(sessions.entities).filter((s): s is WorkSession => !!s),
+      state,
+    ),
+  ),
+
   on(loadAllData, (_state, { appDataComplete }) => {
     if (!Object.hasOwn(appDataComplete, 'workSession')) return initialWorkSessionState;
     const state = (appDataComplete as { workSession: unknown }).workSession;

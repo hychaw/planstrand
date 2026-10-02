@@ -1,7 +1,13 @@
-import { createAction } from '@ngrx/store';
+import { createAction, props } from '@ngrx/store';
 import { PersistentActionMeta } from '../../../op-log/core/persistent-action.interface';
 import { OpType } from '../../../op-log/core/operation.types';
-import { WorkSession, WorkSessionUpdate } from '../work-session.model';
+import { WorkSession, WorkSessionState, WorkSessionUpdate } from '../work-session.model';
+
+/** Install only after the startup compatibility snapshot has durably committed. */
+export const installLegacyWorkSessionBackfill = createAction(
+  '[WorkSession] Install persisted legacy backfill',
+  props<{ sessions: WorkSessionState }>(),
+);
 
 export const addWorkSession = createAction(
   '[WorkSession] Add WorkSession',
