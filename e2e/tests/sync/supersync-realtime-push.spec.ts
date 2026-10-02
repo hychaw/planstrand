@@ -5,6 +5,7 @@ import {
   createSimulatedClient,
   createTestUser,
   getSuperSyncConfig,
+  isSuperSyncCutoverProbe,
   parseSuperSyncRequestBody,
   routeSuperSyncOps,
   SUPERSYNC_BASE_URL,
@@ -89,6 +90,7 @@ test.describe('@supersync Realtime Push', () => {
       expect(baselineSeq).toBeGreaterThan(0);
 
       const requests = { A: { GET: 0, POST: 0 }, B: { GET: 0, POST: 0 } };
+      const cutoverProbes: string[] = [];
       const uploads: Response[] = [];
       const uploadedOps: Array<{
         id: string;
@@ -111,6 +113,10 @@ test.describe('@supersync Realtime Push', () => {
       ] as const) {
         client.page.on('request', (request) => {
           if (new URL(request.url()).pathname !== '/api/sync/ops') return;
+          if (isSuperSyncCutoverProbe(request)) {
+            cutoverProbes.push(client.clientName);
+            return;
+          }
           const method = request.method();
           if (method === 'GET' || method === 'POST') counts[method]++;
         });
@@ -179,6 +185,7 @@ test.describe('@supersync Realtime Push', () => {
       await test.info().attach('realtime-push-metrics', {
         body: JSON.stringify({
           requests: appendRequests,
+          cutoverProbes,
           propagationMs,
           uploadedSeq,
           reloadedSeq,
