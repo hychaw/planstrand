@@ -39,7 +39,7 @@ import {
 import { WorkSessionService } from './work-session.service';
 import { selectWorkSessionFeatureState } from './store/work-session.selectors';
 import { workSessionReducer } from './store/work-session.reducer';
-import { WorkSessionState } from './work-session.model';
+import { WorkSession, WorkSessionState } from './work-session.model';
 import {
   backfillLegacyTaskWorkSessions,
   legacyTaskWorkSessionId,
@@ -223,8 +223,7 @@ describe('migrated WorkSession replay before receiver materialization', () => {
     const data = {
       ...base,
       workSession: {
-        ids: [],
-        entities: {},
+        ...base.workSession,
         ...(dismissed ? { dismissedLegacySessionIds: [id] } : {}),
       },
     };
@@ -277,8 +276,130 @@ describe('migrated WorkSession replay before receiver materialization', () => {
     expect(snapshot().task).toEqual(base.task);
   };
 
+  const withSeedOwner = (ops: Operation[], taskId: string): Operation[] =>
+    ops.map((op) => {
+      const payload = op.payload as {
+        actionPayload: { legacySession: WorkSession };
+      };
+      return {
+        ...op,
+        payload: {
+          ...payload,
+          actionPayload: {
+            ...payload.actionPayload,
+            legacySession: { ...payload.actionPayload.legacySession, taskId },
+          },
+        },
+      };
+    });
+
+  for (const intent of ['update', 'complete', 'uncomplete'] as const) {
+    it(`rejects a missing ${intent} seed owned by another live Task and permits correct startup backfill`, async () => {
+      base = addTaskToAppData(base, createValidTask('task-2'));
+      const sibling: WorkSession = {
+        id: 'sibling',
+        taskId: task.id,
+        start: 500,
+        end: 600,
+        timeZone: 'Europe/Berlin',
+        created: 100,
+        modified: 100,
+      };
+      base.workSession = { ids: [sibling.id], entities: { [sibling.id]: sibling } };
+      await receive(withSeedOwner(senderOps([intent]), 'task-2'), false);
+      expect(sessions()).toEqual(base.workSession);
+      expect(sessions().entities[id]).toBeUndefined();
+      expect(sessions().dismissedLegacySessionIds).toBeUndefined();
+      await TestBed.inject(OperationLogHydratorService).hydrateStore();
+      expect(sessions().entities[id]).toEqual(
+        jasmine.objectContaining({
+          id,
+          taskId: task.id,
+          start: 100,
+          end: 200,
+          timeZone: 'Asia/Tokyo',
+        }),
+      );
+      expect(sessions().entities[id]?.completedAt).toBeUndefined();
+      expect(sessions().entities[sibling.id]).toEqual(sibling);
+      expect(validateFull(snapshot()).isValid).toBeTrue();
+    });
+
+    it(`ignores an unused wrong-owner seed for an existing ${intent} target`, async () => {
+      const ops = withSeedOwner(senderOps([intent]), 'task-2');
+      const current: WorkSession = {
+        id,
+        taskId: task.id,
+        start: 700,
+        end: 800,
+        timeZone: 'Europe/Berlin',
+        created: 50,
+        modified: 50,
+        completedAt: 75,
+      };
+      base.workSession = { ids: [id], entities: { [id]: current } };
+      await receive(ops, false);
+      expect(sessions().entities[id]).toEqual(
+        jasmine.objectContaining({
+          taskId: task.id,
+          timeZone: current.timeZone,
+          created: current.created,
+          start: intent === 'update' ? 300 : 700,
+          end: intent === 'update' ? 450 : 800,
+          completedAt: intent === 'complete' ? 250 : intent === 'uncomplete' ? null : 75,
+        }),
+      );
+    });
+
+    it(`does not materialize a missing ${intent} seed pointing to a missing Task`, async () => {
+      await receive(withSeedOwner(senderOps([intent]), 'missing-task'), false);
+      expect(sessions()).toEqual(base.workSession);
+    });
+
+    it(`hydrates a wrong-owner ${intent} as a no-op before correct startup backfill`, async () => {
+      base = addTaskToAppData(base, createValidTask('task-2'));
+      await receive(withSeedOwner(senderOps([intent]), 'task-2'), true);
+      expect(sessions().entities[id]).toEqual(
+        jasmine.objectContaining({
+          taskId: task.id,
+          start: 100,
+          end: 200,
+          timeZone: 'Asia/Tokyo',
+        }),
+      );
+      expect(sessions().entities[id]?.completedAt).toBeUndefined();
+      expect(sessions().dismissedLegacySessionIds).toBeUndefined();
+    });
+
+    it(`keeps dismissal unchanged after a wrong-owner ${intent}`, async () => {
+      base = addTaskToAppData(base, createValidTask('task-2'));
+      await receive(withSeedOwner(senderOps([intent]), 'task-2'), false, true);
+      expect(sessions()).toEqual({
+        ids: [],
+        entities: {},
+        dismissedLegacySessionIds: [id],
+      });
+      await assertStableRestart();
+    });
+
+    it(`rejects ${intent} materialization when the encoded Task is absent`, async () => {
+      const ops = senderOps([intent]);
+      base = addTaskToAppData(createValidAppData(), createValidTask('task-2'));
+      store.dispatch(loadAllData({ appDataComplete: base }));
+      const before = sessions();
+      const result = await TestBed.inject(OperationApplierService).applyOperations(ops);
+      expect(result.appliedOps).toEqual([]);
+      expect(result.reducerFailures?.length).toBe(1);
+      expect(sessions()).toBe(before);
+      expect(validateFull(snapshot()).isValid).toBeTrue();
+      expect(backfillLegacyTaskWorkSessions(base.task, before, 'Asia/Tokyo')).toBe(
+        before,
+      );
+    });
+  }
+
   for (const hydration of [true, false]) {
-    for (const intent of ['update', 'complete', 'remove'] as const) {
+    for (const intent of ['update', 'complete', 'uncomplete', 'remove'] as const) {
       it(`${hydration ? 'hydrates' : 'live-applies'} ${intent} before materialization with sender timezone`, async () => {
         const ops = senderOps([intent]);
         await receive(ops, hydration);
@@ -295,6 +416,7 @@ describe('migrated WorkSession replay before receiver materialization', () => {
               timeZone: 'America/Vancouver',
               created: 100,
               ...(intent === 'complete' ? { completedAt: 250 } : {}),
+              ...(intent === 'uncomplete' ? { completedAt: null } : {}),
             }),
           );
           expect(sessions().ids).toEqual([id]);

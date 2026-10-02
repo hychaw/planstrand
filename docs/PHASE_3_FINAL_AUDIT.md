@@ -1,5 +1,90 @@
 # Phase 3 final audit
 
+## Final-review migrated seed ownership hardening
+
+Audit date: 2026-10-02. Base HEAD:
+`e55ad67935ee31979a89859588a739095b66300c`, branch
+`feature/phase-3-work-session-timezone`. The working tree was clean before this
+increment. This section supersedes earlier readiness statements below.
+
+Final review reproduced a second materialization defect: a canonical ID such as
+`legacy-task-schedule:6:task-1:100` could carry a seed with `taskId: task-2`.
+The reducer checked ID syntax, seed ID equality and session shape, while root
+integrity checked only that the referenced Task was live. With both Tasks live,
+Update, Complete and Uncomplete established the wrong owner and prevented later
+correct backfill.
+
+`parseLegacyTaskWorkSessionId` now returns the encoded Task ID and original
+timestamp only for canonical, round-trippable IDs. The boolean predicate delegates
+to this parser. Length prefixes, delimiter placement and timestamps retain the
+existing generator's semantics, including colon-containing Task IDs, fractional
+timestamps and canonical exponent notation. No ID format changed.
+Missing-entity materialization additionally requires the validated seed's Task ID
+to equal the parsed owner. Wrong-owner mutations are no-ops: no entity, mutation
+or dismissal marker is installed. Normal startup backfill can recover the correct
+entity. Matching seeds still pass unchanged shape validation and root live-Task
+integrity; missing referenced Tasks remain reducer failures. Existing entities
+are returned before seed validation, preserving delta semantics for unused stale
+or wrong-owner seeds. Valid seeds retain sender-authoritative range, timezone,
+creation metadata and completion; replay never consults receiver configuration.
+
+Permanent regression evidence:
+
+- Before runtime changes, the migrated replay integration suite ran with the new
+  regressions: **6 failed, 15 passed**, no skips. Three failures reproduced
+  wrong-owner Update/Complete/Uncomplete and blocked correct backfill recovery;
+  three asserted that mismatched missing-Task seeds should be ignored rather
+  than reaching the root rejection boundary.
+- Expanded integration coverage exercises valid missing seeded mutations,
+  wrong-owner mutations through production live replay and hydration,
+  existing-entity deltas, missing encoded Task rejection, mismatched missing seed
+  Task, dismissal, siblings and startup recovery. Real IndexedDB, snapshots,
+  restart and operation-count checks remain.
+- Final Chrome Headless 154 / Windows focused run: **255 passed, zero skips**.
+  Suites: migrated replay integration, WorkSession reducer, parser/backfill,
+  persistence/encrypted transport, root integrity, capture meta-reducer, capture
+  effects and operation conversion. An intermediate run had three test assertion
+  failures: reducer rejection is reported in `reducerFailures`, not `failedOp`.
+  Correcting that assertion required no runtime change; the final run includes it.
+- `checkFile` passed for all four modified TypeScript files; `git diff --check`
+  passed. No action/model/wire shape changed, so frozen-state coverage was not
+  rerun. One intent remains one operation; no synthetic Create, effect fan-out,
+  replay recapture, operation/envelope change, dependency or schema bump.
+
+The focused SuperSync E2E was inspected and retained unchanged. Ownership attacks
+are covered deterministically in integration tests; the provider test retains
+its original two-client missing-materialization replay sequence.
+
+The required command was attempted:
+
+```text
+npm run e2e:supersync:file e2e/tests/sync/supersync-migrated-work-session-replay.spec.ts -- --retries=0
+```
+
+It failed before execution because `npm` is unavailable on PATH. Invoking the
+same saved package script through the installed Git shell exited 1 with
+`docker: command not found`. The documented manual development alternative in
+`packages/super-sync-server/README.md` requires PostgreSQL through Prisma. No
+PostgreSQL executable/service or database listener on 5432/55432 was available;
+no process `DATABASE_URL` or root/server `.env` was configured. Frontend 4242 and
+SuperSync 1901 were also unavailable. PGlite SQL unit fixtures are not a supported
+provider-server replacement. No dependency or alternate harness was added.
+
+**SuperSync failing-before: not executed. SuperSync passing-after: not executed.**
+No revision was temporarily reverted and no worktree was created, because the
+server prerequisite prevents either revision from producing provider evidence.
+In a server-enabled environment, run the unchanged E2E against parent pre-repair
+behavior (`2fcad48ccbdc341d7de7809eaf2df3867c405c4a`) in isolation and repaired
+behavior without rewriting history. Discovery and startup failures provide no
+correctness evidence. Root and E2E contributor rules require provider
+failing-before/passing-after evidence; IndexedDB coverage does not waive that gate
+for a provider with an existing harness.
+
+Status: **Phase 3 still not merge-ready**. The Task-owner code blocker is fixed;
+required SuperSync E2E failing-before/passing-after evidence remains unavailable.
+Earlier mixed-version/seedless-history limitations remain unchanged. No commit,
+push, merge or rebase was performed in this increment.
+
 ## Final-review replay blocker follow-up
 
 Reviewed base: `2fcad48ccbdc341d7de7809eaf2df3867c405c4a`, on

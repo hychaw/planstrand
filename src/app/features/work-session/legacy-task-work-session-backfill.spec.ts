@@ -2,6 +2,7 @@ import {
   backfillLegacyTaskWorkSessions,
   legacyTaskWorkSessionId,
   isDeterministicLegacyTaskWorkSessionId,
+  parseLegacyTaskWorkSessionId,
 } from './legacy-task-work-session-backfill';
 import { DEFAULT_TASK, TaskState } from '../tasks/task.model';
 import { WorkSession, WorkSessionState } from './work-session.model';
@@ -26,6 +27,12 @@ describe('legacy Task WorkSession backfill', () => {
         expect(
           isDeterministicLegacyTaskWorkSessionId(legacyTaskWorkSessionId(taskId, start)),
         ).toBeTrue();
+        expect(
+          parseLegacyTaskWorkSessionId(legacyTaskWorkSessionId(taskId, start)),
+        ).toEqual({
+          taskId,
+          originalTimestamp: start,
+        });
       }
     }
     for (const id of [
@@ -36,8 +43,14 @@ describe('legacy Task WorkSession backfill', () => {
       'legacy-task-schedule:06:task-1:100',
       'legacy-task-schedule:5:task-1:100',
       'legacy-task-schedule:6:task-1:0100',
+      'legacy-task-schedule:6:task-1x100',
+      'legacy-task-schedule:0::100',
+      'legacy-task-schedule:9007199254740992:task-1:100',
+      'legacy-task-schedule:6:task-1:Infinity',
+      'legacy-task-schedule:6:task-1:100:extra',
     ]) {
       expect(isDeterministicLegacyTaskWorkSessionId(id)).toBeFalse();
+      expect(parseLegacyTaskWorkSessionId(id)).toBeNull();
     }
   });
   it('retains intentional dismissal through restart, hydration, retry and stale installation', () => {

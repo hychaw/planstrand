@@ -6,7 +6,7 @@ import * as WorkSessionActions from './work-session.actions';
 import { isValidEntityId } from '../../../op-log/validation/is-valid-entity-id';
 import { isValidIanaTimeZone } from '../../../util/iana-time-zone';
 import {
-  isDeterministicLegacyTaskWorkSessionId,
+  parseLegacyTaskWorkSessionId,
   isLegacyTaskWorkSessionId,
 } from '../legacy-task-work-session-backfill';
 
@@ -124,15 +124,15 @@ const mutationBase = (
 ): WorkSession | undefined => {
   const current = state.entities[id];
   if (current) return current;
-  if (
-    !legacySession ||
-    !isDeterministicLegacyTaskWorkSessionId(id) ||
-    state.dismissedLegacySessionIds?.includes(id)
-  )
-    return undefined;
+  if (!legacySession || state.dismissedLegacySessionIds?.includes(id)) return undefined;
+  const provenance = parseLegacyTaskWorkSessionId(id);
+  if (!provenance) return undefined;
   if (legacySession.id !== id || !isValidWorkSession(legacySession)) {
     throw new Error('Invalid migrated WorkSession seed');
   }
+  // A live but unrelated Task must not acquire this migration's identity.
+  // Ignore the malformed mutation so normal startup backfill can still recover it.
+  if (legacySession.taskId !== provenance.taskId) return undefined;
   // The cross-model integrity boundary validates the resulting live Task reference.
   // Never derive timezone, duration or completion from receiver-specific state.
   return legacySession;
