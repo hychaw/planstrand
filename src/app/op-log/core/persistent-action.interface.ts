@@ -1,5 +1,5 @@
 import { Action } from '@ngrx/store';
-import { EntityType, LwwUpdateMode, OpType } from './operation.types';
+import { EntityType, LwwUpdateMode, PlanstrandOpType } from './operation.types';
 
 /**
  * Action-envelope keys. An LWW Update action spreads its entity flat
@@ -13,7 +13,7 @@ export interface PersistentActionMeta {
   entityType: EntityType;
   entityId?: string; // Optional if entityIds is provided
   entityIds?: string[]; // For batch operations
-  opType: OpType;
+  opType: PlanstrandOpType;
   isRemote?: boolean; // TRUE if from Sync (prevents re-logging)
   // TRUE only when the op being applied was authored by a DIFFERENT client
   // (set during bulk apply when op.clientId !== this device's clientId).

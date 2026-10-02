@@ -1,3 +1,4 @@
+import { planningCommands } from '../planning/planning-commands';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -88,7 +89,6 @@ import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component
 import { SnackService } from '../../core/snack/snack.service';
 import { GlobalConfigService } from '../config/global-config.service';
 import { Store } from '@ngrx/store';
-import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { TODAY_TAG } from '../tag/tag.const';
 import { LS } from '../../core/persistence/storage-keys.const';
 import { FinishDayBtnComponent } from './finish-day-btn/finish-day-btn.component';
@@ -610,13 +610,11 @@ export class WorkViewComponent implements OnInit, OnDestroy {
 
   addAllOverdueToMyDay(): void {
     const overdueTasks = this.overdueTasks();
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: overdueTasks.map((t) => t.id),
-        today: this._dateService.todayStr(),
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: overdueTasks.map((t) => t.id),
+      today: this._dateService.todayStr(),
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+    });
   }
 
   // Reject task drags into the section-reorder list (cdkDropListGroup

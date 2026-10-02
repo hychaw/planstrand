@@ -13,6 +13,8 @@
  * The enum values must match exactly what NgRx action creators produce.
  */
 export enum ActionType {
+  PLANNING_SET = '[Planning] Set Placement',
+  PLANNING_REMOVE = '[Planning] Remove Placement',
   // Archive actions (A)
   ARCHIVE_COMPRESS = '[Archive] Compress Archive',
   ARCHIVE_FLUSH_YOUNG_TO_OLD = '[Archive] Flush Young to Old',

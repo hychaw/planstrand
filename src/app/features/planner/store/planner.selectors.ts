@@ -1,3 +1,4 @@
+import { selectCanonicalPlannerState } from '../../planning/store/planning.selectors';
 import { createFeatureSelector, createSelector } from '@ngrx/store';
 import * as fromPlanner from './planner.reducer';
 import {
@@ -44,7 +45,7 @@ export const selectAllTasksDueToday = createSelector(
   selectTodayStr,
   selectStartOfNextDayDiffMs,
   selectAllTasksInActiveProjects,
-  selectPlannerState,
+  selectCanonicalPlannerState,
   (
     todayStr,
     startOfNextDayDiffMs,
@@ -85,11 +86,13 @@ export const selectAllTasksDueToday = createSelector(
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const selectTasksForPlannerDay = (day: string) => {
   return createSelector(
-    selectPlannerState,
+    selectCanonicalPlannerState,
     selectAllTasksInActiveProjects,
     (plannerState, activeTasks) => {
-      const dayIds = new Set(plannerState.days[day] || []);
-      return activeTasks.filter((t) => dayIds.has(t.id)) as TaskCopy[];
+      const tasks = new Map(activeTasks.map((task) => [task.id, task]));
+      return (plannerState.days[day] || [])
+        .map((id) => tasks.get(id))
+        .filter((task): task is Task => !!task) as TaskCopy[];
     },
   );
 };
@@ -109,7 +112,7 @@ export const selectPlannerDays = (
 
   return createSelector(
     selectMapOfAllTasksInActiveProjects,
-    selectPlannerState,
+    selectCanonicalPlannerState,
     selectTimelineConfig,
     selectStartOfNextDayDiffMs,
     (activeTasks, plannerState, scheduleConfig, startOfNextDayDiffMs): PlannerDay[] => {
@@ -150,7 +153,7 @@ export const selectPlannerDays = (
 
 export const selectPlannerDayMap = createSelector(
   selectMapOfAllTasksInActiveProjects,
-  selectPlannerState,
+  selectCanonicalPlannerState,
   (taskMap, plannerState): PlannerDayMap => {
     const map: PlannerDayMap = {};
 
@@ -183,12 +186,7 @@ const getPlannerDay = (
     isTodayI && unplannedTaskIdsToday
       ? unplannedTaskIdsToday
       : plannerState.days[dayDate] || [];
-  const normalTasks = tIds
-    .map((id) => taskMap.get(id) as TaskCopy)
-    .filter((t) => !!t)
-    // Filter out tasks with dueDay in future if it is Today's column
-    .filter((t) => !isTodayI || !t.dueDay || t.dueDay <= todayStr);
-
+  const normalTasks = tIds.map((id) => taskMap.get(id) as TaskCopy).filter((t) => !!t);
   const {
     repeatProjectionsForDay: allRepeatProjectionsForDay,
     noStartTimeRepeatProjections: allNoStartTimeRepeatProjections,

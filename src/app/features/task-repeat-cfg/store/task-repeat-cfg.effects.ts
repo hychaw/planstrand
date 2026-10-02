@@ -15,7 +15,8 @@ import {
 import { addTaskRepeatCfgToTask, updateTaskRepeatCfg } from './task-repeat-cfg.actions';
 import { Task, TaskCopy, TaskReminderOptionId } from '../../tasks/task.model';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
-import { PlannerActions } from '../../planner/store/planner.actions';
+import { Store } from '@ngrx/store';
+import { planningCommands } from '../../planning/planning-commands';
 import { TaskService } from '../../tasks/task.service';
 import { TaskRepeatCfgService } from '../task-repeat-cfg.service';
 import { TaskRepeatCfg, TaskRepeatCfgCopy } from '../task-repeat-cfg.model';
@@ -98,6 +99,7 @@ const SCHEDULE_AFFECTING_FIELDS = (
 @Injectable()
 export class TaskRepeatCfgEffects {
   private _localActions$ = inject(LOCAL_ACTIONS);
+  private _store = inject(Store);
   private _taskService = inject(TaskService);
   private _taskRepeatCfgService = inject(TaskRepeatCfgService);
   private _matDialog = inject(MatDialog);
@@ -279,11 +281,13 @@ export class TaskRepeatCfgEffects {
         ({ isFirstOccurrenceToday_, isTimedTask }) =>
           !isFirstOccurrenceToday_ && !isTimedTask,
       ),
-      map(({ task, firstOccurrenceStr }) =>
-        PlannerActions.planTaskForDay({
-          task: task as TaskCopy,
-          day: firstOccurrenceStr,
-        }),
+      concatMap(({ task, firstOccurrenceStr }) =>
+        from(
+          planningCommands(this._store).dayAction({
+            task: task as TaskCopy,
+            day: firstOccurrenceStr,
+          }),
+        ),
       ),
     ),
   );
@@ -441,8 +445,8 @@ export class TaskRepeatCfgEffects {
                 // reducer. Skipping today here left the instance stranded on
                 // its old dueDay (#7768 Bug 1).
                 if (targetOccurrence) {
-                  return rxOf(
-                    PlannerActions.planTaskForDay({
+                  return from(
+                    planningCommands(this._store).dayAction({
                       task: task as TaskCopy,
                       day: firstOccurrenceStr,
                     }),

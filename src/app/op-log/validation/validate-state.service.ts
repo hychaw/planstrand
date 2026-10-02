@@ -16,6 +16,7 @@ import { alertDialog, confirmDialog } from '../../util/native-dialogs';
 import { recordCriticalErrorTime } from '../../util/critical-error-signal';
 import { LockService } from '../sync/lock.service';
 import { LOCK_NAMES } from '../core/operation-log.const';
+import { isMaterializingLegacyState } from '../persistence/schema-migration.service';
 
 let _validateFullPromise:
   | Promise<typeof import('./validation-fn').validateFull>
@@ -116,6 +117,12 @@ export class ValidateStateService {
     if (quickValidation.isValid) {
       OpLog.normal(`[ValidateStateService:${context}] State valid`);
       return true;
+    }
+
+    if (isMaterializingLegacyState()) {
+      // The final projected state is validated by cutover orchestration. Never
+      // mint a current-schema REPAIR against an intermediate legacy baseline.
+      return false;
     }
 
     // Keep archive compression/local archive writes out of the repair's

@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../../test-helpers/planning-fixture';
 import { ComponentFixture, fakeAsync, flush, TestBed, tick } from '@angular/core/testing';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { Store } from '@ngrx/store';
@@ -19,7 +24,6 @@ import { first } from 'rxjs/operators';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { signal, Signal } from '@angular/core';
 import { AddTaskSuggestion } from './add-task-suggestions.model';
-import { PlannerActions } from '../../planner/store/planner.actions';
 import { TaskCopy, TaskReminderOptionId } from '../task.model';
 import { DateTimeFormatService } from 'src/app/core/date-time-format/date-time-format.service';
 import { DEFAULT_LOCALE } from 'src/app/core/locale.constants';
@@ -223,6 +227,7 @@ describe('AddTaskBarComponent', () => {
       localization: () => ({ timeLocale: DEFAULT_LOCALE }),
     });
     mockStore = jasmine.createSpyObj('Store', ['select', 'dispatch', 'pipe']);
+    configurePlanningFixture(mockStore);
     mockStore.pipe.and.returnValue(of([]));
     mockStore.select.and.returnValue(of([]));
     mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);
@@ -482,13 +487,8 @@ describe('AddTaskBarComponent', () => {
 
       await component.onTaskSuggestionSelected(suggestion);
 
-      expect(mockStore.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task,
-          day: '2024-05-20',
-          isAddToTop: false,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(mockStore.dispatch, task.id, '2024-05-20');
       expect(mockTaskService.moveToCurrentWorkContext).not.toHaveBeenCalled();
     });
   });

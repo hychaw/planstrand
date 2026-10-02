@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../../test-helpers/planning-fixture';
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { NO_ERRORS_SCHEMA, signal, WritableSignal } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
@@ -16,7 +21,6 @@ import { DateService } from '../../../core/date/date.service';
 import { DateAdapter } from '@angular/material/core';
 import { TaskMultiSelectService } from '../../tasks/task-multi-select.service';
 import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
-import { PlannerActions } from '../store/planner.actions';
 import {
   moveTaskDownInTodayList,
   moveTaskToBottomInTodayList,
@@ -91,6 +95,7 @@ describe('PlannerTaskComponent', () => {
     logicalToday = new Date(2026, 8, 12);
     firstDayOfWeek = 1;
     storeMock = jasmine.createSpyObj('Store', ['dispatch']);
+    configurePlanningFixture(storeMock);
     matDialogMock = jasmine.createSpyObj('MatDialog', ['open']);
     multiSelectMock = {
       selectedIds: signal(new Set<string>()),
@@ -187,16 +192,15 @@ describe('PlannerTaskComponent', () => {
       ['ArrowLeft', '2025-12-31'],
       ['ArrowRight', '2026-01-02'],
     ] as const) {
-      it(`moves an all-day Planner card one day with ${key}`, () => {
+      it(`moves an all-day Planner card one day with ${key}`, async () => {
         const task = makeTask();
         const { component } = create(task, true, '2026-01-01');
         const event = moveDayEvent(component, key);
 
         component.onKeydown(event);
 
-        expect(storeMock.dispatch).toHaveBeenCalledWith(
-          PlannerActions.planTaskForDay({ task, day: expectedDay, isShowSnack: true }),
-        );
+        await flushPlanningWrites();
+        expectPlanningDay(storeMock.dispatch, task.id, expectedDay);
         expect(event.defaultPrevented).toBeTrue();
       });
     }
@@ -273,7 +277,7 @@ describe('PlannerTaskComponent', () => {
       expect(event.defaultPrevented).toBeFalse();
     });
 
-    it('plans an all-day task for tomorrow with the existing Planner action', () => {
+    it('plans an all-day task for tomorrow with the existing Planner action', async () => {
       config = {
         ...DEFAULT_GLOBAL_CONFIG,
         keyboard: { ...DEFAULT_GLOBAL_CONFIG.keyboard, taskScheduleTomorrow: 'M' },
@@ -282,16 +286,11 @@ describe('PlannerTaskComponent', () => {
 
       component.onTaskShortcut(shortcutEvent('m'));
 
-      expect(storeMock.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task: makeTask(),
-          day: '2026-09-13',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeMock.dispatch, makeTask().id, '2026-09-13');
     });
 
-    it('uses the locale first weekday when planning for next week', () => {
+    it('uses the locale first weekday when planning for next week', async () => {
       logicalToday = new Date(2026, 8, 13); // Sunday
       firstDayOfWeek = 1; // Monday
       config = {
@@ -303,16 +302,11 @@ describe('PlannerTaskComponent', () => {
 
       component.onTaskShortcut(shortcutEvent('w'));
 
-      expect(storeMock.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task,
-          day: '2026-09-14',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeMock.dispatch, makeTask().id, '2026-09-14');
     });
 
-    it('plans next month for the first day across a year boundary', () => {
+    it('plans next month for the first day across a year boundary', async () => {
       logicalToday = new Date(2026, 11, 31);
       config = {
         ...DEFAULT_GLOBAL_CONFIG,
@@ -323,13 +317,8 @@ describe('PlannerTaskComponent', () => {
 
       component.onTaskShortcut(shortcutEvent('m'));
 
-      expect(storeMock.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task,
-          day: '2027-01-01',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeMock.dispatch, makeTask().id, '2027-01-01');
     });
 
     it('preserves a timed task time and reminder offset when moving it', () => {

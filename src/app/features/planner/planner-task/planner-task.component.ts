@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -47,7 +48,6 @@ import { getNextWeekDayOffset } from '../../../util/get-next-week-day-offset';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { combineDateAndTime } from '../../../util/combine-date-and-time';
 import { millisecondsDiffToRemindOption } from '../../tasks/util/remind-option-to-milliseconds';
-import { PlannerActions } from '../store/planner.actions';
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { first } from 'rxjs/operators';
 import { isInputElement, isLinkTarget } from '../../../util/dom-element';
@@ -561,9 +561,11 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
       this._taskService.scheduleTask(task, timestamp, remindCfg, false);
       return;
     }
-    this._store.dispatch(
-      PlannerActions.planTaskForDay({ task, day: getDbDateStr(date), isShowSnack: true }),
-    );
+    planningCommands(this._store).planTaskForDay({
+      task,
+      day: getDbDateStr(date),
+      isShowSnack: true,
+    });
   }
 
   private _deleteTask(): void {
@@ -664,9 +666,7 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
               : moveTaskToBottomInTodayList(props);
       this._store.dispatch(action);
     } else {
-      this._store.dispatch(
-        PlannerActions.moveInList({ targetDay: day, fromIndex, toIndex }),
-      );
+      planningCommands(this._store).moveInList({ targetDay: day, fromIndex, toIndex });
     }
     this._restoreFocus(this.task().id, null, fallbackEl);
   }

@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../test-helpers/planning-fixture';
 import { TestBed } from '@angular/core/testing';
 import { AddTasksForTomorrowService } from './add-tasks-for-tomorrow.service';
 import { Store } from '@ngrx/store';
@@ -7,7 +12,6 @@ import { BehaviorSubject, of } from 'rxjs';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
 import { TaskWithDueTime, TaskWithDueDay, TaskCopy } from '../tasks/task.model';
-import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import {
   selectTasksDueForDay,
   selectTasksWithDueTimeForRange,
@@ -192,6 +196,7 @@ describe('AddTasksForTomorrowService', () => {
 
     service = TestBed.inject(AddTasksForTomorrowService);
     store = TestBed.inject(Store) as MockStore;
+    configurePlanningFixture(store);
   });
 
   describe('nrOfPlannerItemsForTomorrow$', () => {
@@ -313,18 +318,9 @@ describe('AddTasksForTomorrowService', () => {
 
       const result = await service.addAllDueTomorrow();
 
-      // The service may order tasks differently based on the sorting algorithm
-      expect(dispatchSpy).toHaveBeenCalled();
-      const actualCall = dispatchSpy.calls.first().args[0] as unknown as {
-        type: string;
-        isSkipRemoveReminder: boolean;
-        taskIds: string[];
-      };
-      expect(actualCall.type).toBe('[Task Shared] planTasksForToday');
-      expect(actualCall.isSkipRemoveReminder).toBe(true);
-      expect(actualCall.taskIds.length).toBe(2);
-      expect(actualCall.taskIds).toContain('task1');
-      expect(actualCall.taskIds).toContain('task2');
+      await flushPlanningWrites();
+      expectPlanningDay(dispatchSpy, mockTaskWithDueTimeTomorrow.id, todayStr);
+      expectPlanningDay(dispatchSpy, mockTaskWithDueDayTomorrow.id, todayStr);
       expect(result).toBe('ADDED');
     });
 
@@ -360,14 +356,8 @@ describe('AddTasksForTomorrowService', () => {
 
       const result = await service.addAllDueTomorrow();
 
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        TaskSharedActions.planTasksForToday({
-          taskIds: ['task2'], // Only task2
-          today: todayStr,
-          startOfNextDayDiffMs: 0,
-          isSkipRemoveReminder: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(dispatchSpy, 'task2', todayStr);
       expect(result).toBe('ADDED');
     });
 
@@ -435,10 +425,10 @@ describe('AddTasksForTomorrowService', () => {
       expect(taskRepeatCfgServiceMock.createRepeatableTask).toHaveBeenCalledTimes(2);
       // No dispatch since no tasks to move
       expect(dispatchSpy).not.toHaveBeenCalled();
-      expect(result).toBeUndefined();
+      expect(result).toBe('ADDED');
     });
 
-    it('should add due tasks to today', async () => {
+    it('does not promote due tasks to canonical Today membership', async () => {
       taskRepeatCfgServiceMock.getAllUnprocessedRepeatableTasks$.and.returnValue(of([]));
       store.overrideSelector(selectTasksWithDueTimeForRange, [mockTaskWithDueTimeToday]);
       store.overrideSelector(selectTasksDueForDay, [mockTaskWithDueDayToday]);
@@ -451,19 +441,8 @@ describe('AddTasksForTomorrowService', () => {
 
       const result = await service.addAllDueToday();
 
-      // The service may order tasks differently based on the sorting algorithm
-      expect(dispatchSpy).toHaveBeenCalled();
-      const actualCall = dispatchSpy.calls.first().args[0] as unknown as {
-        type: string;
-        isSkipRemoveReminder: boolean;
-        taskIds: string[];
-      };
-      expect(actualCall.type).toBe('[Task Shared] planTasksForToday');
-      expect(actualCall.isSkipRemoveReminder).toBe(true);
-      expect(actualCall.taskIds.length).toBe(2);
-      expect(actualCall.taskIds).toContain('task3');
-      expect(actualCall.taskIds).toContain('task4');
-      expect(result).toBe('ADDED');
+      expect(dispatchSpy).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
     });
 
     it('should include overdue recurring tasks from previous days', async () => {
@@ -495,7 +474,7 @@ describe('AddTasksForTomorrowService', () => {
       expect(taskRepeatCfgServiceMock.createRepeatableTask).toHaveBeenCalledTimes(1);
       // No dispatch since only repeatable tasks were created, no existing tasks to move
       expect(dispatchSpy).not.toHaveBeenCalled();
-      expect(result).toBeUndefined();
+      expect(result).toBe('ADDED');
     });
 
     it('should handle multiple overdue recurring tasks', async () => {
@@ -682,24 +661,15 @@ describe('AddTasksForTomorrowService', () => {
   });
 
   describe('_movePlannedTasksToToday()', () => {
-    it('should dispatch action when tasks are provided', () => {
+    it('authors canonical records when tasks are provided', async () => {
       const dispatchSpy = spyOn(store, 'dispatch');
       const tasks = [mockTaskWithDueTimeTomorrow, mockTaskWithDueDayTomorrow];
 
       (service as unknown as PrivateService)._movePlannedTasksToToday(tasks, todayStr, 0);
 
-      // The service may order tasks differently based on the sorting algorithm
-      expect(dispatchSpy).toHaveBeenCalled();
-      const actualCall = dispatchSpy.calls.first().args[0] as unknown as {
-        type: string;
-        isSkipRemoveReminder: boolean;
-        taskIds: string[];
-      };
-      expect(actualCall.type).toBe('[Task Shared] planTasksForToday');
-      expect(actualCall.isSkipRemoveReminder).toBe(true);
-      expect(actualCall.taskIds.length).toBe(2);
-      expect(actualCall.taskIds).toContain('task1');
-      expect(actualCall.taskIds).toContain('task2');
+      await flushPlanningWrites();
+      expectPlanningDay(dispatchSpy, mockTaskWithDueTimeTomorrow.id, todayStr);
+      expectPlanningDay(dispatchSpy, mockTaskWithDueDayTomorrow.id, todayStr);
     });
 
     it('should not dispatch when empty array', () => {

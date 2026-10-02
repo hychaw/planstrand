@@ -15,6 +15,8 @@ import {
   PersistentAction,
 } from '../core/persistent-action.interface';
 import { uuidv7 } from '../../util/uuid-v7';
+import { configurePlanningWrites } from '../../features/planning/planning-commands';
+import { isPlanningRecord, PLANNING_V1 } from '@sp/shared-schema';
 import { devError } from '../../util/dev-error';
 import { incrementVectorClock } from '../../core/util/vector-clock';
 import { MultiEntityPayload, Operation, ActionType } from '../core/operation.types';
@@ -93,6 +95,9 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
   private opLogStore = inject(OperationLogStoreService);
   private vectorClockService = inject(VectorClockService);
   private clientIdService = inject(ClientIdService);
+  constructor() {
+    configurePlanningWrites(this.clientIdService);
+  }
   private compactionService = inject(OperationLogCompactionService);
   private snackService = inject(SnackService);
   private operationCaptureService = inject(OperationCaptureService);
@@ -325,8 +330,19 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           (action.meta.entityId ? [action.meta.entityId] : undefined);
         const entityId = action.meta.entityId ?? entityIds?.[0];
 
+        const planningRecord =
+          opType === PLANNING_V1 && action.meta.entityType === 'PLANNING'
+            ? actionPayload['record']
+            : undefined;
+        if (
+          opType === PLANNING_V1 &&
+          (!isPlanningRecord(planningRecord) ||
+            planningRecord.revision.clientId !== clientId)
+        ) {
+          throw new Error('Planning identity changed before capture; write stopped');
+        }
         const op: Operation = {
-          id: uuidv7(),
+          id: isPlanningRecord(planningRecord) ? planningRecord.revision.opId : uuidv7(),
           // NgRx action.type is string, but it matches ActionType enum values
           actionType: action.type as ActionType,
           opType,

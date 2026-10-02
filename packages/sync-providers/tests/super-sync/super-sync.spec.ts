@@ -1790,6 +1790,7 @@ describe('SuperSyncProvider', () => {
         'REPAIR',
         'REPAIR',
         17,
+        12,
       );
 
       expect(capturedBody).not.toBeNull();
@@ -1803,6 +1804,7 @@ describe('SuperSyncProvider', () => {
       expect(payload.schemaVersion).toBe(2);
       expect(payload.snapshotOpType).toBe('REPAIR');
       expect(payload.repairBaseServerSeq).toBe(17);
+      expect(payload.lastKnownServerSeq).toBe(12);
     });
 
     it('produces a stable snapshot requestId for the same clientId+opId, regardless of state', async () => {
@@ -2054,6 +2056,11 @@ describe('SuperSyncProvider', () => {
         2,
         true,
         'test-op-id-native',
+        true,
+        'SYNC_IMPORT',
+        'SERVER_MIGRATION',
+        undefined,
+        1,
       );
 
       const base64 = requests[0].data as string;
@@ -2065,6 +2072,8 @@ describe('SuperSyncProvider', () => {
       expect(payload.vectorClock).toEqual({ clientA: 10 });
       expect(payload.schemaVersion).toBe(2);
       expect(payload.isPayloadEncrypted).toBe(true);
+      expect(payload.lastKnownServerSeq).toBe(1);
+      expect(payload.repairBaseServerSeq).toBeUndefined();
     });
 
     /**

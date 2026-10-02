@@ -99,7 +99,7 @@ export const autoFixTypiaErrors = (
       const keys = parsePath(path);
       // WorkSession has a frozen Phase 1 contract. Coercing its fields could
       // turn unsupported incoming data into a destructive downgrade.
-      if (keys[0] === 'workSession') return;
+      if (keys[0] === 'workSession' || keys[0] === 'planning') return;
       const value = getValueByPath(data, keys);
       logAutoFixAttempt(error, path, keys, value);
 

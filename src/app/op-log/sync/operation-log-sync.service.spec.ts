@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { TabSeqFrontierService } from '../persistence/tab-seq-frontier.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
 import { SyncLocalStateService } from './sync-local-state.service';
+import { LegacyCutoverService } from './legacy-cutover.service';
 import { SchemaMigrationService } from '../persistence/schema-migration.service';
 import { OperationLogHydratorService } from '../persistence/operation-log-hydrator.service';
 import { SnackService } from '../../core/snack/snack.service';
@@ -323,6 +324,10 @@ describe('OperationLogSyncService', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        {
+          provide: LegacyCutoverService,
+          useValue: { tryCutover: jasmine.createSpy('tryCutover').and.resolveTo(false) },
+        },
         OperationLogSyncService,
         provideMockStore(),
         { provide: SchemaMigrationService, useValue: schemaMigrationServiceSpy },
@@ -4250,6 +4255,54 @@ describe('OperationLogSyncService', () => {
           expect(syncHydrationServiceSpy.hydrateFromRemoteSync).toHaveBeenCalled();
         });
 
+        it('merges newer Planning despite a dominating generic snapshot clock', async () => {
+          const local = {
+            ids: ['X'],
+            entities: {
+              X: {
+                id: 'X',
+                placement: null,
+                revision: { counter: 9, clientId: 'local', opId: 'local-op' },
+              },
+            },
+          };
+          const remote = {
+            ids: ['X'],
+            entities: {
+              X: {
+                ...local.entities.X,
+                revision: { counter: 10, clientId: 'peer', opId: 'peer-op' },
+              },
+            },
+          };
+          TestBed.inject(MockStore).setState({ planning: local });
+          opLogStoreSpy.getUnsynced.and.resolveTo([]);
+          opLogStoreSpy.getVectorClock.and.resolveTo({ peer: 1, local: 5 });
+          const hydration = TestBed.inject(
+            SyncHydrationService,
+          ) as jasmine.SpyObj<SyncHydrationService>;
+          hydration.hydrateFromRemoteSync.and.resolveTo();
+          downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+            newOps: [],
+            needsFullStateUpload: false,
+            success: true,
+            providerMode: 'fileSnapshotOps',
+            failedFileCount: 0,
+            snapshotState: { planning: remote },
+            snapshotVectorClock: { peer: 1 },
+            latestServerSeq: 1,
+          });
+          const provider = {
+            isReady: async () => true,
+            supportsOperationSync: true,
+            setLastServerSeq: jasmine.createSpy('seq').and.resolveTo(),
+          } as unknown as OperationSyncCapable;
+          await service.downloadRemoteOps(provider);
+          expect(hydration.hydrateFromRemoteSync).toHaveBeenCalled();
+          const call = hydration.hydrateFromRemoteSync.calls.mostRecent().args;
+          expect(call[0]).toEqual({ planning: remote });
+          expect(call[2]?.preservePendingOps).toBeTrue();
+        });
         it('should skip hydration AND conflict when local clock dominates remote snapshot (issue #7339)', async () => {
           // Reproduces the iOS WebDAV loop: a foreign-written snapshot with the
           // same syncVersion fires gap detection on every sync from a client that

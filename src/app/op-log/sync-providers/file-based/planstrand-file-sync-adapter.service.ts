@@ -39,7 +39,10 @@ export interface PlanstrandLegacyImportHooks {
   /** Must persist the local pre-import recovery point before materialization. */
   captureRecoveryPoint: () => Promise<void>;
   /** Return current host state after validation/migration/replay, including split tails. */
-  materialize: (source: FileSnapshotOpDownloadResponse) => Promise<unknown>;
+  materialize: (
+    source: FileSnapshotOpDownloadResponse,
+    sourceSchemaVersion: number,
+  ) => Promise<unknown>;
 }
 
 /** Production file entry point. The delegated engine never sees a raw target. */
@@ -75,7 +78,10 @@ export class PlanstrandFileSyncAdapterService {
     };
     const transport = new PlanstrandFileTransport(provider, cfg, key, {
       supportedOpTypes: options.supportedOpTypes ?? KNOWN_OP_TYPES,
-      requiredOpTypes: options.requiredOpTypes ?? PLANSTRAND_REQUIRED_FILE_OP_TYPES,
+      requiredOpTypes: requiredFileOpTypes(
+        options.requiredOpTypes ?? [],
+        PLANSTRAND_REQUIRED_FILE_OP_TYPES,
+      ),
       readCfg: options.readCfg,
       readKey: options.readKey,
       assertTargetCurrent,
@@ -144,7 +150,7 @@ export class PlanstrandFileSyncAdapterService {
     }
     const source = await readLegacyImportSource(provider, cfg, key);
     await hooks.captureRecoveryPoint();
-    const state = await hooks.materialize(source.response);
+    const state = await hooks.materialize(source.response, source.schemaVersion);
     await source.verifyRevision();
     if (generation !== this._generation)
       throw new FileSyncTargetChangedError(generation, this._generation);

@@ -1381,6 +1381,7 @@ describe('OperationLogUploadService', () => {
           'SYNC_IMPORT', // snapshotOpType
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
+          undefined, // lastKnownServerSeq
         );
       });
 
@@ -1402,6 +1403,7 @@ describe('OperationLogUploadService', () => {
           'BACKUP_IMPORT', // snapshotOpType
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
+          undefined, // lastKnownServerSeq
         );
       });
 
@@ -1423,6 +1425,7 @@ describe('OperationLogUploadService', () => {
           'REPAIR', // snapshotOpType
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
+          undefined, // lastKnownServerSeq
         );
       });
 
@@ -1941,8 +1944,8 @@ describe('OperationLogUploadService', () => {
         // Get the call arguments
         const callArgs = mockApiProvider.uploadSnapshot.calls.mostRecent().args;
 
-        // The final optional argument carries a REPAIR snapshot's causal server base.
-        expect(callArgs.length).toBe(11);
+        // Separate optional arguments carry REPAIR and state-replacement bases.
+        expect(callArgs.length).toBe(12);
 
         // Verify specific args
         expect(callArgs[1]).toBe('client-1'); // clientId
@@ -1995,6 +1998,7 @@ describe('OperationLogUploadService', () => {
           'BACKUP_IMPORT', // snapshotOpType
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
+          undefined, // lastKnownServerSeq
         );
       });
 

@@ -1,3 +1,4 @@
+import { planningCommands } from '../planning/planning-commands';
 import { inject, Injectable } from '@angular/core';
 import { TaskCopy, TaskWithDueDay, TaskWithDueTime } from '../tasks/task.model';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
@@ -15,7 +16,6 @@ import { first, map, switchMap, withLatestFrom } from 'rxjs/operators';
 import { GlobalTrackingIntervalService } from '../../core/global-tracking-interval/global-tracking-interval.service';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { DateService } from '../../core/date/date.service';
-import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { selectTodayTaskIds } from '../work-context/store/work-context.selectors';
 import { selectTasksForPlannerDay } from '../planner/store/planner.selectors';
 import { TaskLog } from '../../core/log';
@@ -101,7 +101,7 @@ export class AddTasksForTomorrowService {
       this._store.select(selectTasksForPlannerDay(getDbDateStr(tomorrow))).pipe(first()),
     );
 
-    const allDue = tomorrowTasksFromPlanner;
+    const allDue = [...tomorrowTasksFromPlanner];
 
     [...dueWithTime, ...dueWithDay].forEach((task) => {
       if (!allDue.find((t) => t.id === task.id)) {
@@ -140,7 +140,6 @@ export class AddTasksForTomorrowService {
     const todayDate = this._dateService.getLogicalTodayDate();
     const todayTS = todayDate.getTime();
     const todayStr = this._dateService.todayStr();
-    const startOfNextDayDiffMs = this._dateService.getStartOfNextDayDiffMs();
 
     // eslint-disable-next-line local-rules/no-user-content-in-logs -- grandfathered log baseline (2026-09), not yet triaged
     TaskLog.log('[AddTasksForTomorrow] Starting addAllDueToday', { todayStr });
@@ -178,58 +177,9 @@ export class AddTasksForTomorrowService {
     // the root cause, but it follows the established pattern (see OperationApplierService).
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // Get tasks due for today
-    const [dueWithTime, dueWithDay] = await firstValueFrom(
-      combineLatest([
-        this._store.select(selectTasksWithDueTimeForRange, {
-          ...getDateRangeForDay(todayDate.getTime()),
-        }),
-        this._store.select(selectTasksDueForDay, { day: getDbDateStr(todayDate) }),
-      ]).pipe(first()),
-    );
-
-    // Get today from planner instead of tomorrow
-    // const daysFromPlanner = await this._plannerService.days$.pipe(first()).toPromise();
-    // const todayFromPlanner = daysFromPlanner.find((d) => d.dayDate === todayStr);
-    // const todayTasksFromPlanner = todayFromPlanner?.tasks || [];
-    const todayTasksFromPlanner = await firstValueFrom(
-      this._store.select(selectTasksForPlannerDay(todayStr)).pipe(first()),
-    );
-
-    const allDue = todayTasksFromPlanner;
-
-    [...dueWithTime, ...dueWithDay].forEach((task) => {
-      if (!allDue.find((t) => t.id === task.id)) {
-        allDue.push(task);
-      }
-    });
-
-    const todaysTaskIds = await firstValueFrom(
-      this._store.select(selectTodayTaskIds).pipe(first()),
-    );
-    const allDueSorted = this._sortAll([
-      ...allDue
-        .filter((t) => !todaysTaskIds.includes(t.id))
-        // Exclude subtasks whose parent is already in TODAY
-        // (preventParentAndSubTaskInTodayList$ will remove them anyway,
-        // causing an infinite add/remove loop and phantom sync changes)
-        .filter((t) => !t.parentId || !todaysTaskIds.includes(t.parentId)),
-    ]);
-
-    if (allDueSorted.length > 0) {
-      TaskLog.log('[AddTasksForTomorrow] Found tasks due today to add', {
-        count: allDueSorted.length,
-        repeatableTasks: dueRepeatCfgs.length,
-        dueWithTime: dueWithTime.length,
-        dueWithDay: dueWithDay.length,
-      });
-    }
-
-    this._movePlannedTasksToToday(allDueSorted, todayStr, startOfNextDayDiffMs);
-
-    if (allDueSorted.length) {
-      return 'ADDED';
-    }
+    // Recurrence creation above expresses its own dated intent. Scheduling/due fields
+    // never automatically promote other Tasks into canonical planning.
+    if (dueRepeatCfgs.length) return 'ADDED';
   }
 
   private _movePlannedTasksToToday(
@@ -238,14 +188,12 @@ export class AddTasksForTomorrowService {
     startOfNextDayDiffMs: number,
   ): void {
     if (plannedTasks.length) {
-      this._store.dispatch(
-        TaskSharedActions.planTasksForToday({
-          taskIds: plannedTasks.map((t) => t.id),
-          today,
-          startOfNextDayDiffMs,
-          isSkipRemoveReminder: true,
-        }),
-      );
+      planningCommands(this._store).planTasksForToday({
+        taskIds: plannedTasks.map((t) => t.id),
+        today,
+        startOfNextDayDiffMs,
+        isSkipRemoveReminder: true,
+      });
     }
   }
 

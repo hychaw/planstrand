@@ -1,3 +1,4 @@
+import { configurePlanningWrites } from '../planning/planning-commands';
 import { TestBed } from '@angular/core/testing';
 import { TaskRepeatCfgService } from './task-repeat-cfg.service';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -112,6 +113,11 @@ describe('TaskRepeatCfgService', () => {
 
     service = TestBed.inject(TaskRepeatCfgService);
     store = TestBed.inject(MockStore);
+    store.setState({
+      taskRepeatCfg: { ids: [], entities: {} },
+      planning: { ids: [], entities: {} },
+    });
+    configurePlanningWrites({ getOrGenerateClientId: async () => 'repeat-fixture' });
     matDialog = TestBed.inject(MatDialog) as jasmine.SpyObj<MatDialog>;
     taskService = TestBed.inject(TaskService) as jasmine.SpyObj<TaskService>;
 
@@ -350,7 +356,7 @@ describe('TaskRepeatCfgService', () => {
 
       await service.createRepeatableTask(mockTaskRepeatCfg, targetDayDate);
 
-      expect(dispatchSpy).toHaveBeenCalledTimes(2);
+      expect(dispatchSpy).toHaveBeenCalledTimes(3);
 
       // Check addTask action
       expect(dispatchSpy.calls.argsFor(0)[0]).toEqual(
@@ -824,6 +830,7 @@ describe('TaskRepeatCfgService', () => {
         lastTaskCreationDay: '1970-01-01',
       };
       taskService.getTasksWithSubTasksByRepeatCfgId$.and.returnValue(of([]));
+      taskService.createNewTaskWithDefaults.and.returnValue(mockTask);
 
       // Should not throw, but return actions with fallback date handling
       const result = await service._getActionsForTaskRepeatCfg(cfgInvalid as any);
@@ -1066,18 +1073,18 @@ describe('TaskRepeatCfgService', () => {
       );
 
       // Should have addTask action + updateTaskRepeatCfg + 2 addSubTask actions
-      expect(actions.length).toBe(4);
+      expect(actions.length).toBe(5);
 
       // Verify main task creation
       expect(actions[0].type).toBe(TaskSharedActions.addTask.type);
 
       // Verify subtask creations
-      expect(actions[2].type).toBe('[Task] Add SubTask');
       expect(actions[3].type).toBe('[Task] Add SubTask');
+      expect(actions[4].type).toBe('[Task] Add SubTask');
 
       // Verify subtask properties
-      const subTask1Action = actions[2] as any;
-      const subTask2Action = actions[3] as any;
+      const subTask1Action = actions[3] as any;
+      const subTask2Action = actions[4] as any;
 
       expect(subTask1Action.task.title).toBe('SubTask 1');
       expect(subTask1Action.task.notes).toBe('Notes 1');
@@ -1110,7 +1117,7 @@ describe('TaskRepeatCfgService', () => {
       );
 
       // Should have only addTask and updateTaskRepeatCfg actions
-      expect(actions.length).toBe(2);
+      expect(actions.length).toBe(3);
       expect(actions[0].type).toBe(TaskSharedActions.addTask.type);
       expect(actions[1].type).toBe(updateTaskRepeatCfg.type);
     });
@@ -1133,7 +1140,7 @@ describe('TaskRepeatCfgService', () => {
       );
 
       // Should have only addTask and updateTaskRepeatCfg actions
-      expect(actions.length).toBe(2);
+      expect(actions.length).toBe(3);
       expect(actions[0].type).toBe(TaskSharedActions.addTask.type);
       expect(actions[1].type).toBe(updateTaskRepeatCfg.type);
     });
@@ -1181,9 +1188,9 @@ describe('TaskRepeatCfgService', () => {
         targetDayDate,
       );
 
-      expect(actions.length).toBe(3);
+      expect(actions.length).toBe(4);
 
-      const subTaskAction = actions[2] as any;
+      const subTaskAction = actions[3] as any;
       expect(subTaskAction.task.title).toBe('Minimal SubTask');
       expect(subTaskAction.task.notes).toBe(''); // Should default to empty string
       expect(subTaskAction.task.timeEstimate).toBe(0); // Should default to 0
@@ -1231,8 +1238,8 @@ describe('TaskRepeatCfgService', () => {
         targetDayDate,
       );
 
-      const subTaskAction1 = actions[2] as any;
-      const subTaskAction2 = actions[3] as any;
+      const subTaskAction1 = actions[3] as any;
+      const subTaskAction2 = actions[4] as any;
 
       expect(subTaskAction1.task.projectId).toBe('specific-project-id');
       expect(subTaskAction2.task.projectId).toBe('specific-project-id');
@@ -1281,7 +1288,7 @@ describe('TaskRepeatCfgService', () => {
         targetDayDate,
       );
 
-      const subTaskAction1 = actions[2] as any;
+      const subTaskAction1 = actions[3] as any;
       expect(subTaskAction1.task.projectId).toBeUndefined();
     });
   });
@@ -1675,7 +1682,7 @@ describe('TaskRepeatCfgService', () => {
       );
 
       // Should create new task (addTask + updateTaskRepeatCfg)
-      expect(actions.length).toBe(2);
+      expect(actions.length).toBe(3);
       expect(actions[0].type).toBe(TaskSharedActions.addTask.type);
       expect(actions[1].type).toBe(updateTaskRepeatCfg.type);
     });
@@ -1706,7 +1713,7 @@ describe('TaskRepeatCfgService', () => {
       );
 
       // Should create new task (addTask + updateTaskRepeatCfg)
-      expect(actions.length).toBe(2);
+      expect(actions.length).toBe(3);
       expect(actions[0].type).toBe(TaskSharedActions.addTask.type);
       expect(actions[1].type).toBe(updateTaskRepeatCfg.type);
     });
@@ -1781,7 +1788,7 @@ describe('TaskRepeatCfgService', () => {
       );
 
       // Should create new task
-      expect(actions.length).toBe(2);
+      expect(actions.length).toBe(3);
       expect(actions[0].type).toBe(TaskSharedActions.addTask.type);
       expect(actions[1].type).toBe(updateTaskRepeatCfg.type);
     });
@@ -1905,7 +1912,7 @@ describe('TaskRepeatCfgService', () => {
       );
 
       // Should create new task (addTask + updateTaskRepeatCfg)
-      expect(actions.length).toBe(2);
+      expect(actions.length).toBe(3);
       expect(actions[0].type).toBe(TaskSharedActions.addTask.type);
       expect(actions[1].type).toBe(updateTaskRepeatCfg.type);
     });

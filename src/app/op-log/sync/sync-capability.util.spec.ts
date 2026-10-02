@@ -1,3 +1,4 @@
+import { ENTITY_TYPES } from '@sp/shared-schema';
 import {
   evaluateOperationCompatibility,
   getOperationCapabilityRequirement,
@@ -26,6 +27,24 @@ const capabilities = (
 });
 
 describe('sync capability requirements', () => {
+  it('checks the live upload schema floor independently of legacy read transport', () => {
+    const release = capabilities([...ENTITY_TYPES], {
+      minSchemaVersion: 5,
+      maxSchemaVersion: 5,
+    });
+    expect(evaluateOperationCompatibility([op('TASK', 4)], release).compatible).toBe(
+      false,
+    );
+    expect(evaluateOperationCompatibility([op('TASK', 5)], release).compatible).toBe(
+      true,
+    );
+    expect(
+      evaluateOperationCompatibility(
+        [{ opType: 'SYNC_IMPORT', entityType: 'ALL', schemaVersion: 5, payload: {} }],
+        release,
+      ).compatible,
+    ).toBe(true);
+  });
   it('maps a legacy operation to its entity and schema requirement', () => {
     expect(getOperationCapabilityRequirement(op('TASK'))).toEqual({
       opType: 'UPD',

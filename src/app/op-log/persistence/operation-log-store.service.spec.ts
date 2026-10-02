@@ -1572,6 +1572,7 @@ describe('OperationLogStoreService', () => {
       await service.append(existingOp, 'remote');
 
       const result = await service.commitFileSnapshotBaseline({
+        schemaVersion: 5,
         state: { task: { ids: ['remote-task'] } },
         lastAppliedOpSeq: 1,
         vectorClock: { remote: 7 },
@@ -1649,6 +1650,7 @@ describe('OperationLogStoreService', () => {
 
       await expectAsync(
         service.commitFileSnapshotBaseline({
+          schemaVersion: 5,
           state: { sentinel: 'new-state' },
           lastAppliedOpSeq: 1,
           vectorClock: { remote: 2 },
@@ -1674,6 +1676,7 @@ describe('OperationLogStoreService', () => {
       ]);
 
       await service.commitFileSnapshotBaseline({
+        schemaVersion: 5,
         state: { sentinel: 'hydrated' },
         lastAppliedOpSeq: 1,
         vectorClock: { remote: 3 },
@@ -1698,6 +1701,7 @@ describe('OperationLogStoreService', () => {
       // Stale lastAppliedOpSeq (0 ≠ current tail 1) trips the tail-changed guard.
       await expectAsync(
         service.commitFileSnapshotBaseline({
+          schemaVersion: 5,
           state: { sentinel: 'should-not-apply' },
           lastAppliedOpSeq: 0,
           vectorClock: { remote: 9 },
@@ -4404,6 +4408,7 @@ describe('OperationLogStoreService', () => {
       const lastSeq = await service.getLastSeq();
 
       await service.commitFileSnapshotBaseline({
+        schemaVersion: 5,
         state: { some: 'state' },
         lastAppliedOpSeq: lastSeq,
         vectorClock: createBloatedClock({ importAuthor: 1, testClient: 999 }),

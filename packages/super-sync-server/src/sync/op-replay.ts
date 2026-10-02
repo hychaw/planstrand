@@ -1,6 +1,8 @@
+import { applyPlanningReplay } from './planning-replay';
 import {
   CURRENT_SCHEMA_VERSION,
   migrateOperation,
+  isPlanningState,
   type OperationLike,
 } from '@sp/shared-schema';
 import { Operation } from './sync.types';
@@ -102,6 +104,16 @@ export class LegacyRepairReplayUnsupportedError extends Error {
   }
 }
 
+/** A legacy replacement after Planstrand authority is corrupt history, not migration. */
+export class LegacyFullStateAfterCutoverError extends Error {
+  constructor() {
+    super(
+      'LEGACY_FULL_STATE_AFTER_CUTOVER: legacy full state follows schema-5 authority',
+    );
+    this.name = 'LegacyFullStateAfterCutoverError';
+  }
+}
+
 export type ReplayOperationRow = {
   id: string;
   serverSeq: number;
@@ -151,9 +163,17 @@ export const replayOpsToState = (
   const state = { ...(initialState as Record<string, Record<string, unknown>>) };
   let estimatedBytes = Object.keys(state).length === 0 ? 2 : assertReplayStateSize(state);
   let accumulatedDeltaBytes = 0;
+  let hasSchema5Authority = isPlanningState(initialState['planning']);
 
   for (let i = 0; i < ops.length; i++) {
     const row = ops[i];
+    if (
+      hasSchema5Authority &&
+      (row.schemaVersion ?? 1) < 5 &&
+      isReplayFullStateOpType(row.opType)
+    ) {
+      throw new LegacyFullStateAfterCutoverError();
+    }
 
     // Server cannot decrypt E2E payloads. Snapshot callers reject encrypted
     // ranges upfront; this guard prevents accidental partial replays.
@@ -265,9 +285,21 @@ export const replayOpsToState = (
           state[key] = fullStateRecord[key] as Record<string, unknown>;
         }
         forceStateSizeMeasurement = true;
+        if (opSchemaVersion >= 5) hasSchema5Authority = true;
         continue;
       }
 
+      if (
+        applyPlanningReplay(
+          state,
+          processOpType,
+          processEntityType,
+          processEntityId,
+          processPayload,
+          row.entityIds,
+        )
+      )
+        continue;
       if (!ALLOWED_ENTITY_TYPES.has(processEntityType)) continue;
 
       if (!state[processEntityType]) {

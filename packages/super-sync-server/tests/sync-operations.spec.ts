@@ -574,7 +574,7 @@ describe('Sync Operations', () => {
     payload: {},
     vectorClock,
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: 5,
   });
 
   const createOp = (
@@ -592,7 +592,7 @@ describe('Sync Operations', () => {
     payload: opType === 'DEL' ? null : { title: `Task ${entityId}` },
     vectorClock: { [clientId]: 1 },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: 5,
   });
 
   beforeEach(() => {
@@ -630,7 +630,7 @@ describe('Sync Operations', () => {
           payload: { title: 'Task A' },
           vectorClock: { 'old-client-a': 5 },
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
       await service.uploadOps(userId, 'old-client-b', [
@@ -644,7 +644,7 @@ describe('Sync Operations', () => {
           payload: { title: 'Task B' },
           vectorClock: { 'old-client-a': 5, 'old-client-b': 3 },
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -678,7 +678,7 @@ describe('Sync Operations', () => {
           payload: { title: 'A' },
           vectorClock: { 'shared-client': 2 },
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -738,7 +738,7 @@ describe('Sync Operations', () => {
         payload: { title: 'Updated Title', done: true },
         vectorClock: { [clientId]: 2 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [updateOp]);
 
@@ -825,7 +825,7 @@ describe('Sync Operations', () => {
         payload: { title: 'My Project' },
         vectorClock: { [clientId]: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       await service.uploadOps(userId, clientId, [taskOp, projectOp]);
@@ -849,7 +849,7 @@ describe('Sync Operations', () => {
         payload: { timeSpent: 120000, taskId: 'task-1' },
         vectorClock: { [clientId]: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [timeTrackingOp]);

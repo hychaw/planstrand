@@ -1045,7 +1045,7 @@ describe('SnapshotService', () => {
                 payload: { task: { t1: { id: 't1', title: 'after-clean-slate' } } },
                 isPayloadEncrypted: false,
                 serverSeq: 102,
-                schemaVersion: 1,
+                schemaVersion: 5,
               },
             ]),
           },
@@ -1610,7 +1610,7 @@ describe('SnapshotService', () => {
           },
           isPayloadEncrypted: false,
           serverSeq: 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ];
 
@@ -1671,7 +1671,7 @@ describe('SnapshotService', () => {
           },
           isPayloadEncrypted: false,
           serverSeq: 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ];
 
@@ -1715,7 +1715,7 @@ describe('SnapshotService', () => {
           },
           isPayloadEncrypted: false,
           serverSeq: 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ];
 
@@ -1768,7 +1768,7 @@ describe('SnapshotService', () => {
           payload: maliciousPayload,
           isPayloadEncrypted: false,
           serverSeq: 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ];
 

@@ -1,3 +1,4 @@
+import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
@@ -358,6 +359,7 @@ describe('SyncHydrationService', () => {
       expect(mockOpLogStore.commitFileSnapshotBaseline).toHaveBeenCalledWith(
         jasmine.objectContaining({
           state: jasmine.any(Object),
+          schemaVersion: CURRENT_SCHEMA_VERSION,
           vectorClock: { localClient: 6 },
         }),
       );
@@ -1154,6 +1156,103 @@ describe('SyncHydrationService', () => {
       expect(dispatchedSync['syncProvider']).toBe(SyncProviderId.SuperSync);
       expect(dispatchedSync['syncInterval']).toBe(300000);
       expect(dispatchedSync['isManualSyncOnly']).toBe(true);
+    });
+  });
+  describe('Planning register snapshot adoption', () => {
+    beforeEach(setupDefaultMocks);
+    for (const tombstone of [false, true]) {
+      it(
+        'retains local revision ten over stale snapshot nine, tombstone=' + tombstone,
+        async () => {
+          const local = createValidAppData();
+          const winner = {
+            id: 'X',
+            placement: tombstone
+              ? null
+              : { target: { type: 'DAY' as const, key: '2026-10-05' }, orderKey: 'F' },
+            revision: { counter: 10, clientId: 'local', opId: 'winner' },
+          };
+          local.planning = { ids: ['X'], entities: { X: winner } };
+          mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(local);
+          const remote = {
+            ...local,
+            planning: {
+              ids: ['X'],
+              entities: {
+                X: {
+                  ...winner,
+                  placement: {
+                    target: { type: 'DAY' as const, key: '2026-10-06' },
+                    orderKey: 'T',
+                  },
+                  revision: { counter: 9, clientId: 'peer', opId: 'stale' },
+                },
+              },
+            },
+          };
+          await service.hydrateFromRemoteSync(remote, {}, { snapshotIncludedOps: [] });
+          expect(
+            (getCommittedBaseline().state as typeof local).planning!.entities.X,
+          ).toEqual(winner);
+          expect(
+            mockOpLogStore.commitFileSnapshotBaseline.calls.mostRecent().args[0]
+              .rejectOpIds,
+          ).toBeUndefined();
+        },
+      );
+    }
+    it('retains pending Planning originals while preserving generic snapshot rejection', async () => {
+      const pending = (id: string, planning: boolean): OperationLogEntry => ({
+        seq: planning ? 1 : 2,
+        appliedAt: 1,
+        source: 'local',
+        op: {
+          id,
+          clientId: 'localClient',
+          actionType: ActionType.TASK_SHARED_UPDATE,
+          opType: planning ? 'PLANNING_V1' : OpType.Update,
+          entityType: planning ? 'PLANNING' : 'TASK',
+          entityId: 'X',
+          payload: {},
+          vectorClock: { localClient: 1 },
+          timestamp: 1,
+          schemaVersion: 5,
+        },
+      });
+      mockOpLogStore.getUnsynced.and.resolveTo([
+        pending('planning-pending', true),
+        pending('task-pending', false),
+      ]);
+      await service.hydrateFromRemoteSync(
+        createValidAppData(),
+        {},
+        { snapshotIncludedOps: [] },
+      );
+      expect(
+        mockOpLogStore.commitFileSnapshotBaseline.calls.mostRecent().args[0].rejectOpIds,
+      ).toEqual(['task-pending']);
+    });
+    it('keeps explicit replacement separate from ordinary snapshot merge', async () => {
+      const local = createValidAppData();
+      local.planning = {
+        ids: ['X'],
+        entities: {
+          X: {
+            id: 'X',
+            placement: null,
+            revision: { counter: 10, clientId: 'local', opId: 'winner' },
+          },
+        },
+      };
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(local);
+      await service.hydrateFromRemoteSync({
+        ...local,
+        planning: { ids: [], entities: {} },
+      });
+      expect((getCommittedBaseline().state as typeof local).planning).toEqual({
+        ids: [],
+        entities: {},
+      });
     });
   });
 });

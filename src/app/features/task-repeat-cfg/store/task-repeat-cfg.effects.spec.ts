@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideMockActions } from '@ngrx/effects/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, of, throwError, firstValueFrom } from 'rxjs';
 import { Action } from '@ngrx/store';
 import { TaskRepeatCfgEffects } from './task-repeat-cfg.effects';
 import { TaskService } from '../../tasks/task.service';
@@ -19,7 +19,31 @@ import { DEFAULT_TASK_REPEAT_CFG, TaskRepeatCfgCopy } from '../task-repeat-cfg.m
 import { addSubTask } from '../../tasks/store/task.actions';
 import { TestScheduler } from 'rxjs/testing';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
-import { PlannerActions } from '../../planner/store/planner.actions';
+import { setPlacement as preparedSet } from '../../planning/store/planning.actions';
+import { PlanningPlacement } from '@sp/shared-schema';
+import { configurePlanningWrites } from '../../planning/planning-commands';
+const setPlacement = Object.assign(
+  ({ placement }: { placement: PlanningPlacement }) => ({
+    ...preparedSet({
+      record: {
+        id: placement.id,
+        placement: { target: placement.target, orderKey: placement.orderKey },
+        revision: { counter: 1, clientId: 'testClient', opId: 'fixture' },
+      },
+    }),
+    record: jasmine.objectContaining({
+      id: placement.id,
+      placement: { target: placement.target, orderKey: placement.orderKey },
+      revision: jasmine.objectContaining({
+        counter: 1,
+        clientId: 'testClient',
+        opId: jasmine.any(String),
+      }),
+    }),
+  }),
+  { type: preparedSet.type },
+);
+import { provideMockStore } from '@ngrx/store/testing';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { getDateTimeFromClockString } from '../../../util/get-date-time-from-clock-string';
@@ -29,6 +53,9 @@ import { getFirstRepeatOccurrence } from './get-first-repeat-occurrence.util';
 import { getNextRepeatOccurrence } from './get-next-repeat-occurrence.util';
 
 describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
+  beforeEach(() =>
+    configurePlanningWrites({ getOrGenerateClientId: async () => 'testClient' }),
+  );
   let actions$: Observable<Action>;
   let effects: TaskRepeatCfgEffects;
   let taskService: jasmine.SpyObj<TaskService>;
@@ -113,6 +140,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
     TestBed.configureTestingModule({
       providers: [
         TaskRepeatCfgEffects,
+        provideMockStore({ initialState: { planning: { ids: [], entities: {} } } }),
         provideMockActions(() => actions$),
         { provide: TaskService, useValue: taskServiceSpy },
         { provide: TaskRepeatCfgService, useValue: taskRepeatCfgServiceSpy },
@@ -301,9 +329,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { subTasks: _ignored, ...expectedTask } = taskCreatedToday;
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: expectedTask as any,
-            day: firstOccurrenceStr,
+          setPlacement({
+            placement: {
+              id: (expectedTask as Task).id,
+              target: { type: 'DAY', key: firstOccurrenceStr },
+              orderKey: 'V',
+            },
           }),
         );
 
@@ -520,9 +551,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { subTasks: _ignored, ...expectedTask } = taskCreatedToday;
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: expectedTask as any,
-            day: firstOccurrenceStr,
+          setPlacement({
+            placement: {
+              id: (expectedTask as Task).id,
+              target: { type: 'DAY', key: firstOccurrenceStr },
+              orderKey: 'V',
+            },
           }),
         );
         expect(taskService.update).toHaveBeenCalledWith('parent-task-id', {
@@ -581,9 +615,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { subTasks: _ignored, ...expectedTask } = taskCreatedToday;
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: expectedTask as any,
-            day: firstOccurrenceStr,
+          setPlacement({
+            placement: {
+              id: (expectedTask as Task).id,
+              target: { type: 'DAY', key: firstOccurrenceStr },
+              orderKey: 'V',
+            },
           }),
         );
         expect(taskService.update).toHaveBeenCalledWith('parent-task-id', {
@@ -641,9 +678,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { subTasks: _ignored, ...expectedTask } = taskWithoutDueDay;
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: expectedTask as any,
-            day: firstOccurrenceStr,
+          setPlacement({
+            placement: {
+              id: (expectedTask as Task).id,
+              target: { type: 'DAY', key: firstOccurrenceStr },
+              orderKey: 'V',
+            },
           }),
         );
         expect(taskService.update).toHaveBeenCalledWith('parent-task-id', {
@@ -930,9 +970,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { subTasks: _ignored, ...expectedTask } = taskCreatedToday;
           expect(result).toEqual(
-            PlannerActions.planTaskForDay({
-              task: expectedTask as any,
-              day: firstOccurrenceStr,
+            setPlacement({
+              placement: {
+                id: (expectedTask as Task).id,
+                target: { type: 'DAY', key: firstOccurrenceStr },
+                orderKey: 'V',
+              },
             }),
           );
           expect(taskService.update).toHaveBeenCalledWith('parent-task-id', {
@@ -988,9 +1031,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { subTasks: _ignored, ...expectedTask } = taskWithPastDueDay;
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: expectedTask as any,
-            day: pastDueDayStr,
+          setPlacement({
+            placement: {
+              id: (expectedTask as Task).id,
+              target: { type: 'DAY', key: pastDueDayStr },
+              orderKey: 'V',
+            },
           }),
         );
 
@@ -2165,9 +2211,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: liveTask as any,
-            day: firstOccurrenceStr,
+          setPlacement({
+            placement: {
+              id: (liveTask as Task).id,
+              target: { type: 'DAY', key: firstOccurrenceStr },
+              orderKey: 'V',
+            },
           }),
         );
         expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalledWith(
@@ -2218,7 +2267,13 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({ task: liveTask as any, day: todayStr }),
+          setPlacement({
+            placement: {
+              id: (liveTask as Task).id,
+              target: { type: 'DAY', key: todayStr },
+              orderKey: 'V',
+            },
+          }),
         );
         expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalledWith(
           'repeat-cfg-id',
@@ -2266,7 +2321,13 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({ task: overdueTask as any, day: todayStr }),
+          setPlacement({
+            placement: {
+              id: (overdueTask as Task).id,
+              target: { type: 'DAY', key: todayStr },
+              orderKey: 'V',
+            },
+          }),
         );
         expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalledWith(
           'repeat-cfg-id',
@@ -2592,9 +2653,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: liveTask as any,
-            day: newStartDateStr,
+          setPlacement({
+            placement: {
+              id: (liveTask as Task).id,
+              target: { type: 'DAY', key: newStartDateStr },
+              orderKey: 'V',
+            },
           }),
         );
         expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalledWith(
@@ -2662,9 +2726,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: liveTask as any,
-            day: newStartDateStr,
+          setPlacement({
+            placement: {
+              id: (liveTask as Task).id,
+              target: { type: 'DAY', key: newStartDateStr },
+              orderKey: 'V',
+            },
           }),
         );
         done();
@@ -2705,9 +2772,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: liveTask as any,
-            day: newStartDateStr,
+          setPlacement({
+            placement: {
+              id: (liveTask as Task).id,
+              target: { type: 'DAY', key: newStartDateStr },
+              orderKey: 'V',
+            },
           }),
         );
         done();
@@ -2759,8 +2829,8 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
       // and assert it never equals the past startDate.
       let emittedDay: string | undefined;
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
-        if (result.type === PlannerActions.planTaskForDay.type) {
-          emittedDay = result.day;
+        if (result.type === setPlacement.type) {
+          emittedDay = result.record.placement!.target.key;
         }
       });
       setTimeout(() => {
@@ -2809,9 +2879,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: liveTask as any,
-            day: newStartDateStr,
+          setPlacement({
+            placement: {
+              id: (liveTask as Task).id,
+              target: { type: 'DAY', key: newStartDateStr },
+              orderKey: 'V',
+            },
           }),
         );
         done();
@@ -2908,9 +2981,12 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) => {
         expect(result).toEqual(
-          PlannerActions.planTaskForDay({
-            task: liveTask as any,
-            day: todayStr,
+          setPlacement({
+            placement: {
+              id: (liveTask as Task).id,
+              target: { type: 'DAY', key: todayStr },
+              orderKey: 'V',
+            },
           }),
         );
         done();
@@ -2974,7 +3050,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
     // like editing the weekly weekday booleans does -- but the monthly anchor
     // fields were missing from SCHEDULE_AFFECTING_FIELDS, so the live instance
     // silently stayed on the old day.
-    it('reschedules the live instance when only the monthly nth-weekday anchor changes', () => {
+    it('reschedules the live instance when only the monthly nth-weekday anchor changes', async () => {
       const today = new Date();
       const todayStr = getDbDateStr(today);
 
@@ -3009,13 +3085,17 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
       taskRepeatCfgService.getTaskRepeatCfgById$.and.returnValue(of(updatedCfg));
       taskService.getTasksByRepeatCfgId$.and.returnValue(of([liveTask]));
 
-      const emitted: Action[] = [];
-      effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) =>
-        emitted.push(result),
-      );
-
+      const emitted: Action[] = [
+        await firstValueFrom(effects.rescheduleTaskOnRepeatCfgUpdate$),
+      ];
       expect(emitted).toEqual([
-        PlannerActions.planTaskForDay({ task: liveTask as any, day: expectedDayStr }),
+        setPlacement({
+          placement: {
+            id: (liveTask as Task).id,
+            target: { type: 'DAY', key: expectedDayStr },
+            orderKey: 'V',
+          },
+        }),
       ]);
       expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalledWith(
         'repeat-cfg-id',
@@ -3023,7 +3103,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
       );
     });
 
-    it('reschedules the live instance when only monthlyLastDay changes', () => {
+    it('reschedules the live instance when only monthlyLastDay changes', async () => {
       const today = new Date();
       const todayStr = getDbDateStr(today);
 
@@ -3057,13 +3137,17 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
       taskRepeatCfgService.getTaskRepeatCfgById$.and.returnValue(of(updatedCfg));
       taskService.getTasksByRepeatCfgId$.and.returnValue(of([liveTask]));
 
-      const emitted: Action[] = [];
-      effects.rescheduleTaskOnRepeatCfgUpdate$.subscribe((result) =>
-        emitted.push(result),
-      );
-
+      const emitted: Action[] = [
+        await firstValueFrom(effects.rescheduleTaskOnRepeatCfgUpdate$),
+      ];
       expect(emitted).toEqual([
-        PlannerActions.planTaskForDay({ task: liveTask as any, day: expectedDayStr }),
+        setPlacement({
+          placement: {
+            id: (liveTask as Task).id,
+            target: { type: 'DAY', key: expectedDayStr },
+            orderKey: 'V',
+          },
+        }),
       ]);
       expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalledWith(
         'repeat-cfg-id',
@@ -3078,6 +3162,9 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
  * These tests ensure reliable, reproducible results regardless of when they run.
  */
 describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
+  beforeEach(() =>
+    configurePlanningWrites({ getOrGenerateClientId: async () => 'testClient' }),
+  );
   let actions$: Observable<Action>;
   let effects: TaskRepeatCfgEffects;
   let taskService: jasmine.SpyObj<TaskService>;
@@ -3139,6 +3226,7 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
     TestBed.configureTestingModule({
       providers: [
         TaskRepeatCfgEffects,
+        provideMockStore({ initialState: { planning: { ids: [], entities: {} } } }),
         provideMockActions(() => actions$),
         { provide: TaskService, useValue: taskServiceSpy },
         { provide: TaskRepeatCfgService, useValue: taskRepeatCfgServiceSpy },
@@ -3748,7 +3836,7 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       created: FIXED_WEDNESDAY.getTime(),
     };
 
-    it('should dispatch planTaskForDay for WEEKLY on Friday with precise created timestamp', () => {
+    it('should dispatch planTaskForDay for WEEKLY on Friday with precise created timestamp', async () => {
       const weeklyFridayCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
         repeatCycle: 'WEEKLY',
@@ -3776,17 +3864,17 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       // Friday Jan 17, 2025 at noon
       const expectedCreated = new Date(2025, 0, 17, 12, 0, 0, 0).getTime();
 
-      let result: any;
-      effects.updateTaskAfterMakingItRepeatable$.subscribe((r) => {
-        result = r;
-      });
+      const result = await firstValueFrom(effects.updateTaskAfterMakingItRepeatable$);
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { subTasks: _ignored, ...expectedTask } = baseTaskWithSubTasks;
       expect(result).toEqual(
-        PlannerActions.planTaskForDay({
-          task: expectedTask as any,
-          day: '2025-01-17',
+        setPlacement({
+          placement: {
+            id: (expectedTask as Task).id,
+            target: { type: 'DAY', key: '2025-01-17' },
+            orderKey: 'V',
+          },
         }),
       );
 
@@ -3808,7 +3896,7 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       expect((effects as any)._updateRegularTaskInstance).toHaveBeenCalled();
     });
 
-    it('should dispatch planTaskForDay for WEEKLY on Monday (5 days future)', () => {
+    it('should dispatch planTaskForDay for WEEKLY on Monday (5 days future)', async () => {
       const weeklyMondayCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
         repeatCycle: 'WEEKLY',
@@ -3833,17 +3921,17 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
 
       spyOn(effects as any, '_updateRegularTaskInstance');
 
-      let result: any;
-      effects.updateTaskAfterMakingItRepeatable$.subscribe((r) => {
-        result = r;
-      });
+      const result = await firstValueFrom(effects.updateTaskAfterMakingItRepeatable$);
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { subTasks: _ignored, ...expectedTask } = baseTaskWithSubTasks;
       expect(result).toEqual(
-        PlannerActions.planTaskForDay({
-          task: expectedTask as any,
-          day: '2025-01-20',
+        setPlacement({
+          placement: {
+            id: (expectedTask as Task).id,
+            target: { type: 'DAY', key: '2025-01-20' },
+            orderKey: 'V',
+          },
         }),
       );
 
@@ -3895,7 +3983,7 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       expect((effects as any)._updateRegularTaskInstance).toHaveBeenCalled();
     });
 
-    it('should dispatch planTaskForDay for MONTHLY when startDate is in the future', () => {
+    it('should dispatch planTaskForDay for MONTHLY when startDate is in the future', async () => {
       // Today is Wednesday Jan 15, 2025; startDate is Jan 20 (5 days out).
       const monthlyRepeatCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
@@ -3914,17 +4002,17 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
 
       spyOn(effects as any, '_updateRegularTaskInstance');
 
-      let result: any;
-      effects.updateTaskAfterMakingItRepeatable$.subscribe((r) => {
-        result = r;
-      });
+      const result = await firstValueFrom(effects.updateTaskAfterMakingItRepeatable$);
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { subTasks: _ignored, ...expectedTask } = baseTaskWithSubTasks;
       expect(result).toEqual(
-        PlannerActions.planTaskForDay({
-          task: expectedTask as any,
-          day: '2025-01-20',
+        setPlacement({
+          placement: {
+            id: (expectedTask as Task).id,
+            target: { type: 'DAY', key: '2025-01-20' },
+            orderKey: 'V',
+          },
         }),
       );
 
@@ -3961,7 +4049,7 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       expect(taskService.update).not.toHaveBeenCalled();
     });
 
-    it('should dispatch planTaskForDay for YEARLY when startDate is in the future', () => {
+    it('should dispatch planTaskForDay for YEARLY when startDate is in the future', async () => {
       // Today is Jan 15, 2025; startDate is Feb 15, 2025 (~1 month out).
       const yearlyRepeatCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
@@ -3980,17 +4068,17 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
 
       spyOn(effects as any, '_updateRegularTaskInstance');
 
-      let result: any;
-      effects.updateTaskAfterMakingItRepeatable$.subscribe((r) => {
-        result = r;
-      });
+      const result = await firstValueFrom(effects.updateTaskAfterMakingItRepeatable$);
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { subTasks: _ignored, ...expectedTask } = baseTaskWithSubTasks;
       expect(result).toEqual(
-        PlannerActions.planTaskForDay({
-          task: expectedTask as any,
-          day: '2025-02-15',
+        setPlacement({
+          placement: {
+            id: (expectedTask as Task).id,
+            target: { type: 'DAY', key: '2025-02-15' },
+            orderKey: 'V',
+          },
         }),
       );
 
@@ -4047,7 +4135,7 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       expect((effects as any)._updateRegularTaskInstance).toHaveBeenCalled();
     });
 
-    it('should dispatch planTaskForDay for DAILY with future startDate', () => {
+    it('should dispatch planTaskForDay for DAILY with future startDate', async () => {
       const futureStartCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
         repeatCycle: 'DAILY',
@@ -4065,17 +4153,17 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
 
       spyOn(effects as any, '_updateRegularTaskInstance');
 
-      let result: any;
-      effects.updateTaskAfterMakingItRepeatable$.subscribe((r) => {
-        result = r;
-      });
+      const result = await firstValueFrom(effects.updateTaskAfterMakingItRepeatable$);
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { subTasks: _ignored, ...expectedTask } = baseTaskWithSubTasks;
       expect(result).toEqual(
-        PlannerActions.planTaskForDay({
-          task: expectedTask as any,
-          day: '2025-02-01',
+        setPlacement({
+          placement: {
+            id: (expectedTask as Task).id,
+            target: { type: 'DAY', key: '2025-02-01' },
+            orderKey: 'V',
+          },
         }),
       );
 

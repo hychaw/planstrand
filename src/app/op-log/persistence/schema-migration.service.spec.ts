@@ -11,7 +11,7 @@ describe('SchemaMigrationService', () => {
 
   const createMockCache = (
     schemaVersion?: number,
-    state: unknown = { testData: 'value' },
+    state: unknown = { testData: 'value', task: { ids: [], entities: {} } },
   ): MigratableStateCache => ({
     state,
     lastAppliedOpSeq: 100,

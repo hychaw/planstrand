@@ -138,6 +138,11 @@ export class OperationLogCompactionService {
       return false;
     }
     const compactExclusively = async (): Promise<boolean> => {
+      const source = await this.opLogStore.loadStateCache();
+      if (source && (source.schemaVersion ?? 1) < 5) {
+        // Includes emergency compaction: retain the complete pre-cutover source.
+        return false;
+      }
       const startTime = Date.now();
       const label = isEmergency ? 'emergency ' : '';
 

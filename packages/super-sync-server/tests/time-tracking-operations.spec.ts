@@ -447,7 +447,7 @@ describe('TIME_TRACKING Operations', () => {
     },
     vectorClock: { [clientId]: vectorClockValue },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: 5,
   });
 
   beforeEach(() => {
@@ -579,7 +579,7 @@ describe('TIME_TRACKING Operations', () => {
         },
         vectorClock: { [clientA]: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const opB: Operation = {
@@ -597,7 +597,7 @@ describe('TIME_TRACKING Operations', () => {
         },
         vectorClock: { [clientB]: 1 }, // No knowledge of clientA's op = concurrent
         timestamp: Date.now() + 100,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const resultsA = await service.uploadOps(userId, clientA, [opA]);
@@ -631,7 +631,7 @@ describe('TIME_TRACKING Operations', () => {
         },
         vectorClock: { [clientA]: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       // Client B's operation with knowledge of A's operation (merged clock)
@@ -650,7 +650,7 @@ describe('TIME_TRACKING Operations', () => {
         },
         vectorClock: { [clientA]: 1, [clientB]: 1 }, // Has knowledge of A's op
         timestamp: Date.now() + 100,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const resultsA = await service.uploadOps(userId, clientA, [opA]);
@@ -711,7 +711,7 @@ describe('TIME_TRACKING Operations', () => {
         payload: { data: { s: 1000 } },
         vectorClock: { [clientId]: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       // Second operation (update)
@@ -725,7 +725,7 @@ describe('TIME_TRACKING Operations', () => {
         payload: { data: { s: 2000, e: 3000 } }, // Updated values
         vectorClock: { [clientId]: 2 },
         timestamp: Date.now() + 1000,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       await service.uploadOps(userId, clientId, [op1, op2]);
@@ -777,7 +777,7 @@ describe('TIME_TRACKING Operations', () => {
         payload: { title: 'Test Task' },
         vectorClock: { [clientId]: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const timeTrackingOp = createTimeTrackingOp(

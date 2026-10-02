@@ -379,7 +379,7 @@ describe('Conflict Detection', () => {
     payload: { title: 'Updated' },
     vectorClock: {},
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: 5,
     ...overrides,
   });
 
@@ -679,7 +679,7 @@ describe('Conflict Detection', () => {
         payload: { entities: {} },
         vectorClock: { [clientB]: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       const result = await service.uploadOps(userId, clientB, [op2]);
       expect(result[0].accepted).toBe(true);

@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,12 +11,10 @@ import { T } from '../../../t.const';
 import { PlannerDay, ScheduleItem, ScheduleItemType } from '../planner.model';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { TaskCopy } from '../../tasks/task.model';
-import { PlannerActions } from '../store/planner.actions';
 import { millisecondsDiffToRemindOption } from '../../tasks/util/remind-option-to-milliseconds';
 import { Store } from '@ngrx/store';
 import { MatDialog } from '@angular/material/dialog';
 import { TaskService } from '../../tasks/task.service';
-import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { DateService } from '../../../core/date/date.service';
 import { DialogScheduleTaskComponent } from '../dialog-schedule-task/dialog-schedule-task.component';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
@@ -136,32 +135,26 @@ export class PlannerDayComponent {
     } else if (targetList === 'TODO') {
       if (ev.previousContainer === ev.container) {
         if (this.day.isToday) {
-          this._store.dispatch(
-            TaskSharedActions.moveTaskInTodayTagList({
-              toTaskId: allItems[ev.currentIndex].id,
-              fromTaskId: task.id,
-            }),
-          );
+          planningCommands(this._store).moveTaskInTodayTagList({
+            toTaskId: allItems[ev.currentIndex].id,
+            fromTaskId: task.id,
+          });
         } else {
-          this._store.dispatch(
-            PlannerActions.moveInList({
-              targetDay: ev.container.data,
-              fromIndex: ev.previousIndex,
-              toIndex: ev.currentIndex,
-            }),
-          );
+          planningCommands(this._store).moveInList({
+            targetDay: ev.container.data,
+            fromIndex: ev.previousIndex,
+            toIndex: ev.currentIndex,
+          });
         }
       } else {
-        this._store.dispatch(
-          PlannerActions.transferTask({
-            task: task,
-            prevDay: ev.previousContainer.data,
-            newDay: newDay,
-            targetIndex: ev.currentIndex,
-            today: this._dateService.todayStr(),
-            targetTaskId: allItems[ev.currentIndex]?.id,
-          }),
-        );
+        planningCommands(this._store).transferTask({
+          task: task,
+          prevDay: ev.previousContainer.data,
+          newDay: newDay,
+          targetIndex: ev.currentIndex,
+          today: this._dateService.todayStr(),
+          targetTaskId: allItems[ev.currentIndex]?.id,
+        });
       }
     }
   }

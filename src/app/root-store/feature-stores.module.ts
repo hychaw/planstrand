@@ -1,3 +1,7 @@
+import {
+  PLANNING_FEATURE_NAME,
+  planningReducer,
+} from '../features/planning/store/planning.reducer';
 import { NgModule } from '@angular/core';
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -152,6 +156,7 @@ import {
     StoreModule.forFeature(SECTION_FEATURE_NAME, sectionReducer),
 
     StoreModule.forFeature(WORK_SESSION_FEATURE_NAME, workSessionReducer),
+    StoreModule.forFeature(PLANNING_FEATURE_NAME, planningReducer),
 
     StoreModule.forFeature(TAG_FEATURE_NAME, tagReducer),
     EffectsModule.forFeature([TagEffects]),

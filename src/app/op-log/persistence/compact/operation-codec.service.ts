@@ -5,7 +5,7 @@ import {
   EntityType,
   Operation,
   OperationLogEntry,
-  OpType,
+  PlanstrandOpType,
   SyncImportReason,
 } from '../../core/operation.types';
 
@@ -51,7 +51,7 @@ export const decodeOperation = (compact: CompactOperation): Operation => {
     // Type assertion: We trust the data was encoded with a valid ActionType.
     // Unknown action types from future versions are handled by decodeActionType's fallback.
     actionType: decodeActionType(compact.a) as ActionType,
-    opType: compact.o as OpType,
+    opType: compact.o as PlanstrandOpType,
     entityType: compact.e as EntityType,
     payload: compact.p,
     clientId: compact.c,

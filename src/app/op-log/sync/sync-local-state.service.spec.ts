@@ -36,7 +36,7 @@ describe('SyncLocalStateService', () => {
       payload: {},
       vectorClock: { clientA: 1 },
       timestamp: Date.now(),
-      schemaVersion: 1,
+      schemaVersion: 5,
     },
     appliedAt: Date.now(),
     source,
@@ -52,7 +52,7 @@ describe('SyncLocalStateService', () => {
     ActionType.RECOVERY_DATA_IMPORT,
     OpType.Batch,
   );
-  const regularOp = entry('TASK', '[Task] Add Task' as ActionType, OpType.Create);
+  const regularOp = entry('TASK', ActionType.TASK_SHARED_ADD, OpType.Create);
   const syncImport = entry('ALL', ActionType.LOAD_ALL_DATA, OpType.SyncImport);
 
   beforeEach(() => {

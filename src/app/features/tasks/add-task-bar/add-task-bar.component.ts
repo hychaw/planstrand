@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   afterRenderEffect,
   AfterViewInit,
@@ -86,7 +87,6 @@ import { TODAY_TAG } from '../../tag/tag.const';
 import { BodyClass } from '../../../app.constants';
 import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
 import { Store } from '@ngrx/store';
-import { PlannerActions } from '../../planner/store/planner.actions';
 import { DateService } from '../../../core/date/date.service';
 import { MenuTreeService } from '../../menu-tree/menu-tree.service';
 import { SelectOptionRowComponent } from '../../../ui/select-option-row/select-option-row.component';
@@ -946,13 +946,11 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
       return;
     }
 
-    this._store.dispatch(
-      PlannerActions.planTaskForDay({
-        task,
-        day: planForDay,
-        isAddToTop: !this.isAddToBottom(),
-      }),
-    );
+    planningCommands(this._store).planTaskForDay({
+      task,
+      day: planForDay,
+      isAddToTop: !this.isAddToBottom(),
+    });
   }
 
   private async _confirmNewTags(): Promise<boolean> {

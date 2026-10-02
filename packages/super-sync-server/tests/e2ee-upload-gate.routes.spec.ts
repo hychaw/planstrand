@@ -86,7 +86,7 @@ const createEncryptedOp = (clientId: string, id = 'op-1') => ({
   isPayloadEncrypted: true,
   vectorClock: {},
   timestamp: Date.now(),
-  schemaVersion: 1,
+  schemaVersion: 5,
 });
 
 const createPlaintextOp = (clientId: string, id = 'op-plain') => ({
@@ -103,7 +103,7 @@ const createSnapshotRequest = (
   clientId,
   reason: 'initial',
   vectorClock: {},
-  schemaVersion: 1,
+  schemaVersion: 5,
   isPayloadEncrypted: true,
   ...overrides,
 });

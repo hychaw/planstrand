@@ -135,69 +135,69 @@ This audit compares the current repository at `feature/architecture-audit` with 
 
 “Replace” below means replace the feature's domain semantics incrementally behind existing interfaces, not rewrite Angular/NgRx or delete upstream functionality at once.
 
-| Planstrand feature | Classification | Rationale and intended seam |
-| --- | --- | --- |
-| Recursive folders | New implementation required | `MenuTreeFolderNode` is recursive but owns navigation nodes, while Section is flat and Project owns Tasks. Add a normalized Folder domain with stable `parentId` and order; reuse menu-tree rendering/DnD patterns, not its persisted meaning. |
-| Inbox | Reuse largely as-is | `INBOX_PROJECT` already gives stable, title-only capture and default routing. Later map it to the system Inbox Folder without changing Task identity. |
-| Master Tasks | New implementation required | Existing work-context pages show one Project/Tag, not one continuous hierarchy. Build a hierarchy selector/view over canonical Task and Folder entities. Reuse Task rows, add bar, inspector, search, and DnD primitives. |
-| This Week | Refactor | Planner day arrays are a useful ordered-membership base, but current semantics couple planning to due/scheduled fields and lack week-only membership. Evolve planning membership independently from calendar scheduling. |
-| Today | Refactor | Reuse virtual Today ordering, selectors, overdue handling, and task UI, but decouple Today membership from `dueDay`/`dueWithTime` and combine it with WorkSessions in a dedicated composition. |
-| Priorities | Extend | Existing optional 3-level priority, UI, sorting hooks, and sync behavior are reusable. Migrate safely to four explicit P1-P4 levels with None and update labels/order/colors. |
-| Optional task estimates | Refactor | Existing duration UI/time tracking is valuable, but required numeric `timeEstimate` and zero defaults erase “unknown.” Migrate legacy `0` to Unknown, preserve positive values, use nullable/optional Planstrand semantics, and expose `0` only through legacy compatibility adapters. |
-| Multiple Work Sessions per Task | New implementation required | No persisted entity exists; current Task can hold only one authoritative block. Add a normalized entity/store with `taskId` foreign key. |
-| Task/WorkSession completion separation | New implementation required | WorkSession needs its own `completedAt` and reducers. V1 completion is manual through an explicit user action; elapsed end time never completes a session, and no WorkSession transition may dispatch Task completion. Add explicit invariant tests. |
-| Year/Month/Week/Day calendar | Extend | Reuse Schedule service/view components, grid math, Day/Week/Month, drag/resize, and provider overlays. Add Year and converge all four views on a shared `CalendarDisplayItem` selector. |
-| Deadlines | Reuse largely as-is | Task deadline fields, selectors, Planner markers, reminders, and tests are already separate from due scheduling. Rename/presentation changes can wait; retain their semantics while WorkSessions replace time-block use of due fields. |
-| Weekly templates | New implementation required | `TaskRepeatCfg` has useful recurrence utilities but generates Tasks. Add WeeklyTemplate/occurrence state with date ranges, an explicit IANA timezone, multiple templates, reminders, and exception/split-series editing. V1 entries produce Event-like occurrences, never Task-linked WorkSessions. |
-| Recurrence | Extend | Reuse date calculations and iCal expansion concepts, but introduce a shared recurrence/exception model usable by Event and WeeklyTemplate without forcing Task generation. |
-| Reminders | Refactor | Reuse scheduling/delivery workers and platform adapters. Replace the one-per-Task NOTE/TASK record with normalized, multi-target reminder rules for Task, WorkSession, Event, and template/series occurrences. |
-| Account system | Extend | Passkey and magic-link server flows, account deletion, auth UI, and local-without-account behavior already meet much of V1. Add Planstrand product configuration, account/settings composition, and key recovery; do not couple login to decryption. |
-| Local-first storage | Reuse largely as-is | NgRx + durable IndexedDB operation log already updates locally and syncs later across web/Electron/native wrappers. Add new slices through the same mechanism; do not introduce per-task files or a second database. |
-| Encrypted sync | Extend | AES-GCM/Argon2id E2EE and encrypted operation/snapshot flows are substantial foundations. Cover all new entity payloads, preserve file-provider compatibility, and require an advertised Planstrand entity/schema capability before server upload. The recovery design remains unresolved and must be settled before making E2EE the default. |
-| Device management | Refactor | Device listing and global sign-out exist. Per-device revocation requires server-side per-device sessions/tokens; deleting advisory device rows is not sufficient. |
-| Backups | Extend | Reuse complete snapshots, import migration/repair, recovery ring, rotated desktop/mobile backups, and restore UI. Add an encrypted backup envelope as default and explicit readable JSON/CSV exports; add a browser snapshot strategy. |
-| Trash | New implementation required | Archive and one-action Undo are not soft deletion. Add synced deletion metadata, deletion-age display, restore relationships, and explicit permanent-delete rules without repurposing Archive. V1 performs no automatic age-based purge. |
-| External calendar integrations | Extend | iCal, Google, CalDAV, provider capabilities, caching, and overlays are strong adapter foundations. V1 displays external events and supports explicit export of selected Planstrand Events and provider-supported WorkSessions. It does not require automatic full two-way entity sync; WorkSessions remain private by default. |
-| Desktop navigation | Refactor | Reuse shell, collapsible/resizable sidebar, keyboard shortcuts, and nav tree. Replace primary destination configuration and later bind the tree to Planstrand Folder hierarchy. |
-| Tablet navigation | Extend | Reuse responsive sidebar/overlay and touch components, but add an explicit medium breakpoint and tested landscape/portrait two-pane rules. |
-| Mobile navigation | Refactor | Keep the bottom-nav shell, global Quick Add, sheets, safe areas, and gestures. Change destinations/compositions to Today/Week/Tasks/Calendar with secondary screens under a menu. |
-| Responsive layout | Refactor | Preserve shared components and CSS foundations, but define phone/tablet/desktop layout contracts instead of relying almost entirely on the 600px cutoff. |
-| Drag-and-drop scheduling | Refactor | Reuse CDK wiring, pointer/touch fixes, calendar hit testing, move/resize geometry, and keyboard alternatives. Change the write target from Task `dueWithTime`/`timeEstimate` to WorkSession create/update actions. |
+| Planstrand feature                     | Classification              | Rationale and intended seam                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recursive folders                      | New implementation required | `MenuTreeFolderNode` is recursive but owns navigation nodes, while Section is flat and Project owns Tasks. Add a normalized Folder domain with stable `parentId` and order; reuse menu-tree rendering/DnD patterns, not its persisted meaning.                                                                                                |
+| Inbox                                  | Reuse largely as-is         | `INBOX_PROJECT` already gives stable, title-only capture and default routing. Later map it to the system Inbox Folder without changing Task identity.                                                                                                                                                                                         |
+| Master Tasks                           | New implementation required | Existing work-context pages show one Project/Tag, not one continuous hierarchy. Build a hierarchy selector/view over canonical Task and Folder entities. Reuse Task rows, add bar, inspector, search, and DnD primitives.                                                                                                                     |
+| This Week                              | Refactor                    | Planner day arrays are a useful ordered-membership base, but current semantics couple planning to due/scheduled fields and lack week-only membership. Evolve planning membership independently from calendar scheduling.                                                                                                                      |
+| Today                                  | Refactor                    | Reuse virtual Today ordering, selectors, overdue handling, and task UI, but decouple Today membership from `dueDay`/`dueWithTime` and combine it with WorkSessions in a dedicated composition.                                                                                                                                                |
+| Priorities                             | Extend                      | Existing optional 3-level priority, UI, sorting hooks, and sync behavior are reusable. Migrate safely to four explicit P1-P4 levels with None and update labels/order/colors.                                                                                                                                                                 |
+| Optional task estimates                | Refactor                    | Existing duration UI/time tracking is valuable, but required numeric `timeEstimate` and zero defaults erase “unknown.” Migrate legacy `0` to Unknown, preserve positive values, use nullable/optional Planstrand semantics, and expose `0` only through legacy compatibility adapters.                                                        |
+| Multiple Work Sessions per Task        | New implementation required | No persisted entity exists; current Task can hold only one authoritative block. Add a normalized entity/store with `taskId` foreign key.                                                                                                                                                                                                      |
+| Task/WorkSession completion separation | New implementation required | WorkSession needs its own `completedAt` and reducers. V1 completion is manual through an explicit user action; elapsed end time never completes a session, and no WorkSession transition may dispatch Task completion. Add explicit invariant tests.                                                                                          |
+| Year/Month/Week/Day calendar           | Extend                      | Reuse Schedule service/view components, grid math, Day/Week/Month, drag/resize, and provider overlays. Add Year and converge all four views on a shared `CalendarDisplayItem` selector.                                                                                                                                                       |
+| Deadlines                              | Reuse largely as-is         | Task deadline fields, selectors, Planner markers, reminders, and tests are already separate from due scheduling. Rename/presentation changes can wait; retain their semantics while WorkSessions replace time-block use of due fields.                                                                                                        |
+| Weekly templates                       | New implementation required | `TaskRepeatCfg` has useful recurrence utilities but generates Tasks. Add WeeklyTemplate/occurrence state with date ranges, an explicit IANA timezone, multiple templates, reminders, and exception/split-series editing. V1 entries produce Event-like occurrences, never Task-linked WorkSessions.                                           |
+| Recurrence                             | Extend                      | Reuse date calculations and iCal expansion concepts, but introduce a shared recurrence/exception model usable by Event and WeeklyTemplate without forcing Task generation.                                                                                                                                                                    |
+| Reminders                              | Refactor                    | Reuse scheduling/delivery workers and platform adapters. Replace the one-per-Task NOTE/TASK record with normalized, multi-target reminder rules for Task, WorkSession, Event, and template/series occurrences.                                                                                                                                |
+| Account system                         | Extend                      | Passkey and magic-link server flows, account deletion, auth UI, and local-without-account behavior already meet much of V1. Add Planstrand product configuration, account/settings composition, and key recovery; do not couple login to decryption.                                                                                          |
+| Local-first storage                    | Reuse largely as-is         | NgRx + durable IndexedDB operation log already updates locally and syncs later across web/Electron/native wrappers. Add new slices through the same mechanism; do not introduce per-task files or a second database.                                                                                                                          |
+| Encrypted sync                         | Extend                      | AES-GCM/Argon2id E2EE and encrypted operation/snapshot flows are substantial foundations. Cover all new entity payloads, preserve file-provider compatibility, and require an advertised Planstrand entity/schema capability before server upload. The recovery design remains unresolved and must be settled before making E2EE the default. |
+| Device management                      | Refactor                    | Device listing and global sign-out exist. Per-device revocation requires server-side per-device sessions/tokens; deleting advisory device rows is not sufficient.                                                                                                                                                                             |
+| Backups                                | Extend                      | Reuse complete snapshots, import migration/repair, recovery ring, rotated desktop/mobile backups, and restore UI. Add an encrypted backup envelope as default and explicit readable JSON/CSV exports; add a browser snapshot strategy.                                                                                                        |
+| Trash                                  | New implementation required | Archive and one-action Undo are not soft deletion. Add synced deletion metadata, deletion-age display, restore relationships, and explicit permanent-delete rules without repurposing Archive. V1 performs no automatic age-based purge.                                                                                                      |
+| External calendar integrations         | Extend                      | iCal, Google, CalDAV, provider capabilities, caching, and overlays are strong adapter foundations. V1 displays external events and supports explicit export of selected Planstrand Events and provider-supported WorkSessions. It does not require automatic full two-way entity sync; WorkSessions remain private by default.                |
+| Desktop navigation                     | Refactor                    | Reuse shell, collapsible/resizable sidebar, keyboard shortcuts, and nav tree. Replace primary destination configuration and later bind the tree to Planstrand Folder hierarchy.                                                                                                                                                               |
+| Tablet navigation                      | Extend                      | Reuse responsive sidebar/overlay and touch components, but add an explicit medium breakpoint and tested landscape/portrait two-pane rules.                                                                                                                                                                                                    |
+| Mobile navigation                      | Refactor                    | Keep the bottom-nav shell, global Quick Add, sheets, safe areas, and gestures. Change destinations/compositions to Today/Week/Tasks/Calendar with secondary screens under a menu.                                                                                                                                                             |
+| Responsive layout                      | Refactor                    | Preserve shared components and CSS foundations, but define phone/tablet/desktop layout contracts instead of relying almost entirely on the 600px cutoff.                                                                                                                                                                                      |
+| Drag-and-drop scheduling               | Refactor                    | Reuse CDK wiring, pointer/touch fixes, calendar hit testing, move/resize geometry, and keyboard alternatives. Change the write target from Task `dueWithTime`/`timeEstimate` to WorkSession create/update actions.                                                                                                                            |
 
 ### V1 traceability
 
-| Product-spec V1 item | Plan coverage |
-| --- | --- |
-| 1. Recursive folders | Folder entity/migration in sections 3–5; hierarchy risks in section 6. |
-| 2. Inbox | Existing `INBOX_PROJECT` reused, then mapped to system Inbox Folder. |
-| 3. Master hierarchical task page | Master Tasks matrix row and Phase 5. |
-| 4. Priority | Four-level extension and priority migration. |
-| 5. Optional due dates | Existing deadline/due fields retained independently of WorkSessions. |
-| 6. Optional estimated duration | Legacy zero migrates to Unknown, positive values are preserved, and new estimates are nullable/optional. |
-| 7. This Week | Independent Planner week membership, Phases 2 and 6. |
-| 8. Today | Independent day membership and responsive Today composition, Phases 2 and 6. |
-| 9. Multiple WorkSessions | First-class WorkSession entity, Phases 1 and 3. |
-| 10. Standalone Event | Local Event entity and Phase 7. |
-| 11. Year/Month/Week/Day | Unified calendar projection plus Year in Phase 7. |
-| 12. Recurring events | Shared recurrence/exception model in Phase 8. |
-| 13. Weekly templates | WeeklyTemplate aggregate and Phase 8. |
-| 14. Drag-and-drop scheduling | Existing gesture geometry retargeted to WorkSession in Phase 3. |
-| 15. Resizable WorkSessions | Existing resize UI retargeted to WorkSession in Phase 3. |
-| 16. Manual Task completion | Existing Task completion retained; never driven by a session reducer. |
-| 17. Separate WorkSession completion | Explicit manual WorkSession completion and no Task side effect in Phases 1 and 3. |
-| 18. Reminders | Normalized multi-target Reminder and Phase 9. |
-| 19. Overdue handling | Existing selectors reused in the Phase 6 Today composition; daily notification policy in Phase 9. |
-| 20. Responsive desktop/tablet/mobile | Platform inventory plus Phases 5, 6, and 13. |
-| 21. Light/dark | Existing `GlobalThemeService` retained. |
-| 22. Comfortable/Compact density | New semantic density configuration/tokens in Phase 13. |
-| 23. Local-first persistence | Existing operation log/IndexedDB pipeline reused for every new entity. |
-| 24. Account sign-in | Existing passkey/magic-link system extended in Phase 11. |
-| 25. Encrypted synchronization | Existing E2EE retained and extended, with recovery in Phase 11. |
-| 26. Device management | Per-device session/revocation refactor in Phase 11. |
-| 27. Backup/export/restore | Existing snapshots/restore extended with encrypted envelopes in Phase 12. |
-| 28. Trash | Explicit soft-delete/restore and user-initiated permanent deletion in Phase 10; no V1 automatic purge. |
-| 29. Optional external calendars | External display plus explicit selected Event/WorkSession export in Phase 13; no required automatic two-way sync. |
-| 30. Public repository safety | Existing environment/template boundary retained; no runtime secrets or user exports enter Git. |
+| Product-spec V1 item                 | Plan coverage                                                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| 1. Recursive folders                 | Folder entity/migration in sections 3–5; hierarchy risks in section 6.                                            |
+| 2. Inbox                             | Existing `INBOX_PROJECT` reused, then mapped to system Inbox Folder.                                              |
+| 3. Master hierarchical task page     | Master Tasks matrix row and Phase 5.                                                                              |
+| 4. Priority                          | Four-level extension and priority migration.                                                                      |
+| 5. Optional due dates                | Existing deadline/due fields retained independently of WorkSessions.                                              |
+| 6. Optional estimated duration       | Legacy zero migrates to Unknown, positive values are preserved, and new estimates are nullable/optional.          |
+| 7. This Week                         | Independent Planner week membership, Phases 2 and 6.                                                              |
+| 8. Today                             | Independent day membership and responsive Today composition, Phases 2 and 6.                                      |
+| 9. Multiple WorkSessions             | First-class WorkSession entity, Phases 1 and 3.                                                                   |
+| 10. Standalone Event                 | Local Event entity and Phase 7.                                                                                   |
+| 11. Year/Month/Week/Day              | Unified calendar projection plus Year in Phase 7.                                                                 |
+| 12. Recurring events                 | Shared recurrence/exception model in Phase 8.                                                                     |
+| 13. Weekly templates                 | WeeklyTemplate aggregate and Phase 8.                                                                             |
+| 14. Drag-and-drop scheduling         | Existing gesture geometry retargeted to WorkSession in Phase 3.                                                   |
+| 15. Resizable WorkSessions           | Existing resize UI retargeted to WorkSession in Phase 3.                                                          |
+| 16. Manual Task completion           | Existing Task completion retained; never driven by a session reducer.                                             |
+| 17. Separate WorkSession completion  | Explicit manual WorkSession completion and no Task side effect in Phases 1 and 3.                                 |
+| 18. Reminders                        | Normalized multi-target Reminder and Phase 9.                                                                     |
+| 19. Overdue handling                 | Existing selectors reused in the Phase 6 Today composition; daily notification policy in Phase 9.                 |
+| 20. Responsive desktop/tablet/mobile | Platform inventory plus Phases 5, 6, and 13.                                                                      |
+| 21. Light/dark                       | Existing `GlobalThemeService` retained.                                                                           |
+| 22. Comfortable/Compact density      | New semantic density configuration/tokens in Phase 13.                                                            |
+| 23. Local-first persistence          | Existing operation log/IndexedDB pipeline reused for every new entity.                                            |
+| 24. Account sign-in                  | Existing passkey/magic-link system extended in Phase 11.                                                          |
+| 25. Encrypted synchronization        | Existing E2EE retained and extended, with recovery in Phase 11.                                                   |
+| 26. Device management                | Per-device session/revocation refactor in Phase 11.                                                               |
+| 27. Backup/export/restore            | Existing snapshots/restore extended with encrypted envelopes in Phase 12.                                         |
+| 28. Trash                            | Explicit soft-delete/restore and user-initiated permanent deletion in Phase 10; no V1 automatic purge.            |
+| 29. Optional external calendars      | External display plus explicit selected Event/WorkSession export in Phase 13; no required automatic two-way sync. |
+| 30. Public repository safety         | Existing environment/template boundary retained; no runtime secrets or user exports enter Git.                    |
 
 ## 3. Proposed Planstrand Domain Model
 
@@ -219,7 +219,7 @@ interface Task {
   deadlineDay?: string | null; // retained during compatibility period
   deadlineWithTime?: number | null;
   tagIds: string[];
-  parentId?: string;           // retain upstream subtask/checklist semantics
+  parentId?: string; // retain upstream subtask/checklist semantics
   subTaskIds: string[];
   repeatCfgId?: string;
   deletedAt?: number | null;
@@ -262,12 +262,12 @@ General/Master Tasks is a selector over every non-trashed Task organized by `fol
 This Week, Today, and calendar scheduling must remain independent:
 
 - Keep one Task ID.
-- Evolve `PlannerState` into explicit planning membership/order, not time scheduling. It may hold ordered week-level and day-level Task ID lists, for example `weeks[weekStart].taskIds` and `days[date].taskIds`.
+- Persist one revisioned `PlanningRecord { id: Task.id, placement: { target: { type: WEEK | DAY, key: DB date }, orderKey } | null, revision }` per Task in the `PLANNING` adapter. The placement is the conflict identity; week/day lists are derived. Legacy `PLANNER` remains solely for historical replay.
 - A Task in a day list is also derived into that week's view, while a week list supports “this week, no day.” Moving from week-only to a day changes membership references, not Task identity.
 - Today selects the current date's planning IDs plus overdue/scheduled/completed groupings. It does not infer intent merely from a calendar block.
 - Calendar selectors read WorkSessions, Events, deadlines, template occurrences, and external adapters. A Task appears on Calendar only through a WorkSession or deadline projection.
 
-This design reuses the existing Planner map and ordering operations while removing the current dependency on `Task.dueDay`/`dueWithTime`. The migration must run before new selectors become authoritative.
+Compatibility selectors retain the current screens, reading canonical placements after migration. Due dates, timed schedules, deadlines, and WorkSessions remain independent. A single absolute dense key plus lexical Task-ID tie-break replaces synced splice/index instructions.
 
 ### WorkSession
 
@@ -316,7 +316,7 @@ interface TimedEvent extends EventBase {
 
 interface AllDayEvent extends EventBase {
   allDay: true;
-  startDate: string;        // YYYY-MM-DD
+  startDate: string; // YYYY-MM-DD
   endDateExclusive: string; // YYYY-MM-DD
   // no midnight-UTC start/end representation
 }
@@ -345,8 +345,9 @@ interface Reminder {
   id: string;
   targetType: 'TASK' | 'WORK_SESSION' | 'EVENT' | 'TEMPLATE_OCCURRENCE';
   targetId: string;
-  trigger: { kind: 'ABSOLUTE'; at: number } |
-           { kind: 'RELATIVE_START' | 'RELATIVE_DUE'; offsetMs: number };
+  trigger:
+    | { kind: 'ABSOLUTE'; at: number }
+    | { kind: 'RELATIVE_START' | 'RELATIVE_DUE'; offsetMs: number };
   snoozedUntil?: number | null;
   lastDeliveredOccurrence?: string;
   deletedAt?: number | null;
@@ -403,9 +404,9 @@ Authentication, TLS, and E2EE negotiation do not prove entity compatibility. In 
 ### Planning membership separation
 
 - Existing shape: `PlannerState.days`, `TODAY_TAG.taskIds`, `Task.dueDay`, and `Task.dueWithTime` overlap. Scheduling reducers remove/add IDs across these stores.
-- Proposed shape: explicit week/day planning membership in Planner; Task due/deadline remains deadline semantics; calendar time lives in WorkSession.
-- Backwards compatibility: initially seed day membership from existing Planner/Today order and Task due-day state. Do not immediately clear Task scheduling fields; legacy Schedule continues reading them until WorkSession migration is verified.
-- Order: add independent selectors/actions; backfill Planner membership; introduce WorkSession projection; switch UI writes; switch reads; retire coupling in `taskSharedSchedulingMetaReducer`/`plannerSharedMetaReducer` last.
+- Implemented shape: normalized per-Task `PLANNING` placements. `PLANNING_V1` Set/Remove carries a complete absolute placement or its Task ID, independently of legacy scheduling.
+- Backwards compatibility: schema 4 → 5 projects only date-addressable evidence: explicit Planner days, then Today ordering backed by a valid dueDay, then other valid dueDay Tasks. Tasks and schedules remain intact; ambiguous Today/time-only entries are not promoted.
+- Order: migrate before authoritative selectors; redirect current gestures to Placement actions; keep legacy reducers for replay. Historical cleanup and current scheduling never mutate canonical Planning. WorkSession calendar projection remains Phase 3.
 - Failure/recovery: deterministic dedupe rules choose one order per day and preserve otherwise orphaned Tasks in week/day lists. Log/report inconsistent legacy combinations.
 - Sync: plan-day/week operations and session moves are different entity intents. They must not share an action whose older client interprets a day plan as a due-date change.
 
@@ -510,7 +511,7 @@ Authentication, TLS, and E2EE negotiation do not prove entity compatibility. In 
 
 - Objective: make week/day intent independent from due/schedule state while retaining current screens.
 - Affected code: Planner model/actions/reducer/selectors, Today selectors, shared planner/scheduling meta-reducers.
-- New code: week membership/order selectors and compatibility backfill.
+- New code: normalized adapter, absolute dense-key commands, derived week/day/Today selectors, bounded one-time legacy projection, and deterministic revisioned register merge.
 - Dependencies: Phase 0, completed Phase 2A and validated Phase 2B. The first incompatible writer must enable both the operation family and build-level file manifest requirement.
 - Tests: week-only, day-without-session, Today rollover, ordering, offline/conflicting moves, no Task duplication.
 - Migration risk: medium. Sync risk: medium. UI impact: minimal/behind compatibility selectors.
@@ -616,27 +617,27 @@ Authentication, TLS, and E2EE negotiation do not prove entity compatibility. In 
 
 ## 6. Technical Risks
 
-| Risk | Consequence | Practical mitigation |
-| --- | --- | --- |
-| Missing or false Planstrand sync capabilities | Authentication can succeed against an upstream/incompatible SuperSync server that rejects or cannot safely replay Planstrand entities. | Require a machine-readable per-entity/schema handshake and gate every upload. Keep local actions durable and pending, report the limitation, test false/stale advertisements, and never downgrade or convert unsupported entities. Do not rely only on schema version. |
-| Cross-entity atomicity | Moving/deleting Task/Folder/Session can leave dangling references after conflicts. | Keep one intent = one operation, use bounded multi-entity payloads/meta-reducers, validate after remote batches, and model subtree moves by parent reference rather than rewriting descendants. |
-| E2EE key loss | Server cannot recover user content. | Resolve the recovery-mechanism/custody decision in section 8 before making E2EE default, then threat-model and test the chosen design. Until then, preserve the authentication/encryption separation and never invent server-side plaintext recovery. |
-| Metadata leakage | Encrypted payloads still expose operation/entity timing and identifiers. | Document the threat model, minimize metadata, use opaque IDs/device labels, and avoid titles/calendar details outside ciphertext. |
-| Recurrence, timezone, and DST | Occurrences move, duplicate, or disappear across time zones/DST; all-day dates can shift if represented as UTC midnight. | Require IANA zones on timed Events/WorkSessions and WeeklyTemplate, evaluate templates in their configured zone, keep all-day Events date-only, use stable original-local occurrence keys and bounded expansion, and test DST/travel/default-zone changes. |
-| Calendar model divergence | Day/Week/Month/Year show different items or permissions. | One `CalendarDisplayItem` projection and capability model; view components only lay it out. |
-| Offline concurrent edits | Same session/folder/order edited on multiple devices can produce destructive LWW results. | Prefer field/intent operations, deterministic ordering identifiers where necessary, conflict tests, recovery snapshots, and a Sync Issues path for unresolved destructive cases. |
-| Migration of timed Tasks | Old block duration versus total-estimate semantics are ambiguous, legacy records have no explicit IANA zone, and mixed clients can recreate divergence. | Deterministic migrated session IDs, preserve instants, assign the configured/default IANA zone with stable migration provenance, dual-read dedupe, migration issue reporting, capability gating, and never map additional sessions back into the one legacy field. Legacy estimate zero itself is not ambiguous: it migrates to Unknown. |
-| Deeply nested folders | Cycles, stack overflow, slow full-tree recomputation. | Validate cycles/depth, iterative traversal, memoized per-branch selectors, stable track IDs, performance fixtures; virtualize only after measurement. |
-| Task identity duplication | Moving between Master/Week/Today/Calendar accidentally clones Tasks. | Centralize membership/session actions around Task ID and add invariant/E2E tests asserting one Task entity after every move/drop. |
-| Multiple WorkSessions | Existing code assumes Task ID is calendar item ID and estimate is block duration. | Give WorkSession its own ID, update DnD/editor contracts before UI switch, and keep estimate calculations read-only/derived. |
-| WorkSession completion drift | Timer/end-time effects could accidentally mark a session or its Task complete. | Make completion an explicit manual action only, keep elapsed time read-only, prohibit completion dispatches from clocks/notifications, and test that passing end time and completing a session never complete Task. |
-| Responsive DnD | Touch scrolling conflicts with drag/resize; inaccessible without pointer. | Reuse current delays/handles/hit testing, add explicit schedule/move dialogs and keyboard commands, and test iOS/Android/tablet viewports. |
-| External calendar export duplication/privacy | Explicitly exported items can be exported twice, reappear as external duplicates, or leak private WorkSessions. | V1 has no automatic full two-way entity sync. Keep display adapters read-only unless the user invokes export, use durable provider/calendar/external IDs and origin markers for idempotent re-export/display dedupe, check provider capabilities, and keep every WorkSession local by default. |
-| Notification duplication/staleness | Repeated alerts after sync, recurrence edits, or platform restart. | Stable reminder/occurrence IDs, last-delivered ledger, idempotent cancel/reschedule, bounded horizon, permission-aware reconciliation on startup/time-zone change. |
-| Explicit permanent deletion while peers are offline | A user-requested permanent delete on one device can race with a restore on another. | Perform no automatic V1 purge, require explicit confirmation and a recovery point, use a distinct permanent-delete operation with deterministic causal rules, and defer age-based retention until offline-safe purge semantics are designed. |
-| Backup false confidence | Sync is mistaken for backup; browser has no rotated external snapshots. | Clearly separate status, expose last verified backup, implement encrypted snapshot rotation/export, and retain existing pre-destructive recovery ring. |
-| Plugin/public API compatibility | Changing Task priority/estimate/project fields breaks bundled or third-party plugins. | Keep adapter fields, version the plugin API later, return compatible numeric/project views, and test bundled providers/importers before removing legacy fields. |
-| Upstream divergence | Security/platform fixes become hard to integrate as core files diverge. | Maintain `upstream` remote, isolate Planstrand domains behind adapters/facades, record divergence, and selectively cherry-pick tested fixes rather than broad merges. |
+| Risk                                                | Consequence                                                                                                                                             | Practical mitigation                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Missing or false Planstrand sync capabilities       | Authentication can succeed against an upstream/incompatible SuperSync server that rejects or cannot safely replay Planstrand entities.                  | Require a machine-readable per-entity/schema handshake and gate every upload. Keep local actions durable and pending, report the limitation, test false/stale advertisements, and never downgrade or convert unsupported entities. Do not rely only on schema version.                                                                   |
+| Cross-entity atomicity                              | Moving/deleting Task/Folder/Session can leave dangling references after conflicts.                                                                      | Keep one intent = one operation, use bounded multi-entity payloads/meta-reducers, validate after remote batches, and model subtree moves by parent reference rather than rewriting descendants.                                                                                                                                          |
+| E2EE key loss                                       | Server cannot recover user content.                                                                                                                     | Resolve the recovery-mechanism/custody decision in section 8 before making E2EE default, then threat-model and test the chosen design. Until then, preserve the authentication/encryption separation and never invent server-side plaintext recovery.                                                                                    |
+| Metadata leakage                                    | Encrypted payloads still expose operation/entity timing and identifiers.                                                                                | Document the threat model, minimize metadata, use opaque IDs/device labels, and avoid titles/calendar details outside ciphertext.                                                                                                                                                                                                        |
+| Recurrence, timezone, and DST                       | Occurrences move, duplicate, or disappear across time zones/DST; all-day dates can shift if represented as UTC midnight.                                | Require IANA zones on timed Events/WorkSessions and WeeklyTemplate, evaluate templates in their configured zone, keep all-day Events date-only, use stable original-local occurrence keys and bounded expansion, and test DST/travel/default-zone changes.                                                                               |
+| Calendar model divergence                           | Day/Week/Month/Year show different items or permissions.                                                                                                | One `CalendarDisplayItem` projection and capability model; view components only lay it out.                                                                                                                                                                                                                                              |
+| Offline concurrent edits                            | Same session/folder/order edited on multiple devices can produce destructive LWW results.                                                               | Prefer field/intent operations, deterministic ordering identifiers where necessary, conflict tests, recovery snapshots, and a Sync Issues path for unresolved destructive cases.                                                                                                                                                         |
+| Migration of timed Tasks                            | Old block duration versus total-estimate semantics are ambiguous, legacy records have no explicit IANA zone, and mixed clients can recreate divergence. | Deterministic migrated session IDs, preserve instants, assign the configured/default IANA zone with stable migration provenance, dual-read dedupe, migration issue reporting, capability gating, and never map additional sessions back into the one legacy field. Legacy estimate zero itself is not ambiguous: it migrates to Unknown. |
+| Deeply nested folders                               | Cycles, stack overflow, slow full-tree recomputation.                                                                                                   | Validate cycles/depth, iterative traversal, memoized per-branch selectors, stable track IDs, performance fixtures; virtualize only after measurement.                                                                                                                                                                                    |
+| Task identity duplication                           | Moving between Master/Week/Today/Calendar accidentally clones Tasks.                                                                                    | Centralize membership/session actions around Task ID and add invariant/E2E tests asserting one Task entity after every move/drop.                                                                                                                                                                                                        |
+| Multiple WorkSessions                               | Existing code assumes Task ID is calendar item ID and estimate is block duration.                                                                       | Give WorkSession its own ID, update DnD/editor contracts before UI switch, and keep estimate calculations read-only/derived.                                                                                                                                                                                                             |
+| WorkSession completion drift                        | Timer/end-time effects could accidentally mark a session or its Task complete.                                                                          | Make completion an explicit manual action only, keep elapsed time read-only, prohibit completion dispatches from clocks/notifications, and test that passing end time and completing a session never complete Task.                                                                                                                      |
+| Responsive DnD                                      | Touch scrolling conflicts with drag/resize; inaccessible without pointer.                                                                               | Reuse current delays/handles/hit testing, add explicit schedule/move dialogs and keyboard commands, and test iOS/Android/tablet viewports.                                                                                                                                                                                               |
+| External calendar export duplication/privacy        | Explicitly exported items can be exported twice, reappear as external duplicates, or leak private WorkSessions.                                         | V1 has no automatic full two-way entity sync. Keep display adapters read-only unless the user invokes export, use durable provider/calendar/external IDs and origin markers for idempotent re-export/display dedupe, check provider capabilities, and keep every WorkSession local by default.                                           |
+| Notification duplication/staleness                  | Repeated alerts after sync, recurrence edits, or platform restart.                                                                                      | Stable reminder/occurrence IDs, last-delivered ledger, idempotent cancel/reschedule, bounded horizon, permission-aware reconciliation on startup/time-zone change.                                                                                                                                                                       |
+| Explicit permanent deletion while peers are offline | A user-requested permanent delete on one device can race with a restore on another.                                                                     | Perform no automatic V1 purge, require explicit confirmation and a recovery point, use a distinct permanent-delete operation with deterministic causal rules, and defer age-based retention until offline-safe purge semantics are designed.                                                                                             |
+| Backup false confidence                             | Sync is mistaken for backup; browser has no rotated external snapshots.                                                                                 | Clearly separate status, expose last verified backup, implement encrypted snapshot rotation/export, and retain existing pre-destructive recovery ring.                                                                                                                                                                                   |
+| Plugin/public API compatibility                     | Changing Task priority/estimate/project fields breaks bundled or third-party plugins.                                                                   | Keep adapter fields, version the plugin API later, return compatible numeric/project views, and test bundled providers/importers before removing legacy fields.                                                                                                                                                                          |
+| Upstream divergence                                 | Security/platform fixes become hard to integrate as core files diverge.                                                                                 | Maintain `upstream` remote, isolate Planstrand domains behind adapters/facades, record divergence, and selectively cherry-pick tested fixes rather than broad merges.                                                                                                                                                                    |
 
 ## 7. Recommended First Implementation
 
@@ -681,28 +682,28 @@ Only the following decisions remain unresolved by the source documents, current 
 
 No capability should be removed during the audit or early domain migration.
 
-| Classification | Capability | Important paths / preservation concern |
-| --- | --- | --- |
-| Keep | Time tracking, current-task timer, work log, idle handling | `src/app/features/time-tracking/`, `worklog/`, `idle/`; integrate with WorkSession only through explicit later rules. |
-| Keep | Focus mode, Pomodoro, Flowtime, breaks | `src/app/features/focus-mode/`, config models, native foreground services. Valuable personal-productivity behavior outside the core planning spec. |
-| Keep | Notes, attachments, markdown, clipboard images | `src/app/features/note/`, Task attachments/detail panel, import/export and local draft recovery. |
-| Keep | Search, keyboard shortcuts, global shortcuts, quick capture | `src/app/pages/search-page/`, `src/app/core-ui/shortcut/`, and Electron/Android/iOS capture paths. Adapt search to Folder ancestors. |
-| Keep | Offline PWA and platform wrappers | Service worker, Electron, Capacitor Android/iOS, share extensions, widgets, notification bridges. |
-| Keep | Operation log, vector clocks, recovery, E2EE, provider abstraction | `src/app/op-log/`, `packages/sync-core/`, `sync-providers/`, `super-sync-server/`. These are foundational and high-risk to replace. |
-| Keep | WebDAV, Nextcloud, Dropbox, OneDrive, local-file sync | Existing users may depend on non-account sync even if Planstrand promotes its own account service. New entities must remain provider-neutral. |
-| Keep | iCal/Google/CalDAV integrations | Preserve as adapters and evolve behind the unified calendar facade. |
-| Keep | Automatic local backups, archives, import/export, repair | `src/app/imex/local-backup/`, `src/app/op-log/backup/`, `features/archive/`. Do not confuse Archive with Trash. |
-| Keep but hide initially | Issue integrations (Jira, GitHub/GitLab, OpenProject, Redmine, Nextcloud Deck) | `src/app/features/issue/` and plugin providers. They complicate primary UI but contain valuable upstream capability and rely on Project/Task compatibility. |
-| Keep but hide initially | Boards/Kanban/Eisenhower | `src/app/features/boards/`; not V1 core, but removing could strand user configuration. |
-| Keep but hide initially | Habits/simple counters and metrics | `src/app/features/simple-counter/`, `metric/`; V1 explicitly excludes habit expansion/advanced analytics. |
-| Keep but hide initially | Project notes, daily summary, finish-day workflow | Existing users may rely on them; Today/Folder work must not break their Task/archive assumptions. |
-| Reconsider later | Project/Tag work-context theming and wallpapers | Rich theming conflicts with the restrained design direction but is data-bearing and should remain compatible while a simpler default ships. |
-| Reconsider later | Sections and Project backlog | They overlap future Folder/grouping and This Week concepts. Preserve data until migration value is clear; do not silently translate them. |
-| Reconsider later | Plugin marketplace/user plugins and public Task API | Useful extensibility, but Planstrand entity/API versioning must be defined before exposing WorkSession/Event/Folder. |
-| Reconsider later | Productivity evaluation, donations, onboarding/tours, celebration assets | Product-specific surfaces can be hidden/reworked after branding decisions; they are not architectural blockers. |
-| Likely remove eventually | Legacy password/test-only auth surfaces and obsolete migration shims | Only after production passkey/magic-link/recovery paths and supported-data windows make removal safe. |
-| Likely remove eventually | Super Productivity-specific branding/URLs/default server names | Required eventually by product identity, but explicitly deferred and intertwined with packaging, OAuth, translations, and migration paths. |
-| Likely remove eventually | Deprecated config/legacy fields after compatibility window | Examples include older schedule/reminder/theme flags. Removal requires migrations and mixed-client policy, never opportunistic cleanup. |
+| Classification           | Capability                                                                     | Important paths / preservation concern                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Keep                     | Time tracking, current-task timer, work log, idle handling                     | `src/app/features/time-tracking/`, `worklog/`, `idle/`; integrate with WorkSession only through explicit later rules.                                       |
+| Keep                     | Focus mode, Pomodoro, Flowtime, breaks                                         | `src/app/features/focus-mode/`, config models, native foreground services. Valuable personal-productivity behavior outside the core planning spec.          |
+| Keep                     | Notes, attachments, markdown, clipboard images                                 | `src/app/features/note/`, Task attachments/detail panel, import/export and local draft recovery.                                                            |
+| Keep                     | Search, keyboard shortcuts, global shortcuts, quick capture                    | `src/app/pages/search-page/`, `src/app/core-ui/shortcut/`, and Electron/Android/iOS capture paths. Adapt search to Folder ancestors.                        |
+| Keep                     | Offline PWA and platform wrappers                                              | Service worker, Electron, Capacitor Android/iOS, share extensions, widgets, notification bridges.                                                           |
+| Keep                     | Operation log, vector clocks, recovery, E2EE, provider abstraction             | `src/app/op-log/`, `packages/sync-core/`, `sync-providers/`, `super-sync-server/`. These are foundational and high-risk to replace.                         |
+| Keep                     | WebDAV, Nextcloud, Dropbox, OneDrive, local-file sync                          | Existing users may depend on non-account sync even if Planstrand promotes its own account service. New entities must remain provider-neutral.               |
+| Keep                     | iCal/Google/CalDAV integrations                                                | Preserve as adapters and evolve behind the unified calendar facade.                                                                                         |
+| Keep                     | Automatic local backups, archives, import/export, repair                       | `src/app/imex/local-backup/`, `src/app/op-log/backup/`, `features/archive/`. Do not confuse Archive with Trash.                                             |
+| Keep but hide initially  | Issue integrations (Jira, GitHub/GitLab, OpenProject, Redmine, Nextcloud Deck) | `src/app/features/issue/` and plugin providers. They complicate primary UI but contain valuable upstream capability and rely on Project/Task compatibility. |
+| Keep but hide initially  | Boards/Kanban/Eisenhower                                                       | `src/app/features/boards/`; not V1 core, but removing could strand user configuration.                                                                      |
+| Keep but hide initially  | Habits/simple counters and metrics                                             | `src/app/features/simple-counter/`, `metric/`; V1 explicitly excludes habit expansion/advanced analytics.                                                   |
+| Keep but hide initially  | Project notes, daily summary, finish-day workflow                              | Existing users may rely on them; Today/Folder work must not break their Task/archive assumptions.                                                           |
+| Reconsider later         | Project/Tag work-context theming and wallpapers                                | Rich theming conflicts with the restrained design direction but is data-bearing and should remain compatible while a simpler default ships.                 |
+| Reconsider later         | Sections and Project backlog                                                   | They overlap future Folder/grouping and This Week concepts. Preserve data until migration value is clear; do not silently translate them.                   |
+| Reconsider later         | Plugin marketplace/user plugins and public Task API                            | Useful extensibility, but Planstrand entity/API versioning must be defined before exposing WorkSession/Event/Folder.                                        |
+| Reconsider later         | Productivity evaluation, donations, onboarding/tours, celebration assets       | Product-specific surfaces can be hidden/reworked after branding decisions; they are not architectural blockers.                                             |
+| Likely remove eventually | Legacy password/test-only auth surfaces and obsolete migration shims           | Only after production passkey/magic-link/recovery paths and supported-data windows make removal safe.                                                       |
+| Likely remove eventually | Super Productivity-specific branding/URLs/default server names                 | Required eventually by product identity, but explicitly deferred and intertwined with packaging, OAuth, translations, and migration paths.                  |
+| Likely remove eventually | Deprecated config/legacy fields after compatibility window                     | Examples include older schedule/reminder/theme flags. Removal requires migrations and mixed-client policy, never opportunistic cleanup.                     |
 
 ## 10. Architecture Dependency Map
 
@@ -789,3 +790,46 @@ Platform shells
 ```
 
 The core architectural rule for implementation is therefore: introduce each Planstrand concept once as canonical normalized domain state, pass it through the existing operation/persistence/sync pipeline, and derive Master, Week, Today, Calendar, responsive layouts, and provider exports from that state. Do not make a view, provider, or platform wrapper a second source of truth.
+
+### Phase 2 migration contract and ordering limitation
+
+Schema 5 persists one revisioned PlanningRecord per Task:
+
+```text
+PlanningRecord {
+  id: Task.id,
+  placement: {
+    target: { type: DAY | WEEK, key: DB date },
+    orderKey
+  } | null,
+  revision: {
+    counter,
+    clientId,
+    opId
+  }
+}
+```
+
+Active placement and tombstone records are retained. Selectors hide Planning records whose Tasks are absent.
+
+Legacy evidence never becomes current authority. Snapshot projection prefers the earliest lexically sorted valid Planner day for duplicate memberships and preserves that day's list order. For each day, Planner order precedes eligible TODAY_TAG order, then dueDay-only Task IDs sorted lexically using JavaScript string comparison (no locale, timestamp, timezone, wall clock or object iteration). Base-62 fractional string keys allow repeated insertion without renumbering siblings; equal keys sort by Task ID.
+
+| Legacy evidence                                                   | Result                                                                   |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Explicit valid Planner day                                        | One DAY placement at that day                                            |
+| Valid dueDay, optionally TODAY_TAG order                          | One DAY placement at dueDay                                              |
+| TODAY_TAG only, or TODAY_TAG with dueWithTime but no valid dueDay | No placement                                                             |
+| dueWithTime/deadline/reminder/WorkSession alone                   | No placement                                                             |
+| Multiple Planner days                                             | Earliest valid day wins; duplicate count reported by the pure projection |
+
+Legacy TODAY_TAG membership without a recoverable planning date is ambiguous because released scheduling actions could add/remove Today membership using transient local-date state. Phase 2 migrates only date-addressable planning evidence. Scheduled-only Tasks retain their schedule but are not promoted to canonical planning. Diagnostics contain aggregate ambiguous-entry, invalid-reference and duplicate-membership counts; no titles, notes or decrypted content.
+
+Released schema 4 is the legacy migration source; schema 5 is the Planstrand cutover. Complete legacy state/history and supported local unsynced edits are materialized before schema4→5 projection, validation, recovery creation and durable checkpoint preparation. The checkpoint binds baseServerSeq; the schema-5 clean-slate replacement is CAS-protected. Response-loss retry reuses the original checkpoint/operation; stale checkpoints require reconciliation. Compaction remains deferred until confirmation.
+
+After confirmation, PLANNING_V1 and revisioned PlanningRecords are authoritative. Ordinary schema-5 hydration/replay never projects Planner, Today or due fields into Planning. Legacy runtime translation, prefix permissions, synthetic Planning compensation and physical removal are absent. Old clients cannot live-upload schema 4. Unfinished Phase-2 development formats (revisionless placements, earlier payload shapes and temporary compensation formats) are unsupported.
+
+One-time migration evidence precedence is explicit PlannerState.days membership/order, then valid dueDay with usable Today order, then valid dueDay with deterministic lexical Task-ID fallback, otherwise no active placement. Duplicate Planner membership chooses the earliest valid date deterministically. Today-only, dueWithTime-only, WorkSession, reminders, deadlines and transient current-Today context provide no placement evidence. Migration revisions use counter 0; authored counter-1 writes and tombstones beat them.
+
+File sync preserves the explicit one-time boundary: legacy namespace → full import/materialization → schema-5 state → Planstrand namespace. It never automatically re-reads the legacy namespace afterward.
+
+Phase 3 remains gated on passing the real multi-client SuperSync convergence matrix and the remaining Phase 2 verification; an unavailable provider is a failed prerequisite, never a successful skip.

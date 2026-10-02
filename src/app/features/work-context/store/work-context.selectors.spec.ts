@@ -1,3 +1,25 @@
+import {
+  projectLegacyPlanning,
+  comparePlacements,
+  planningPlacementView,
+} from '@sp/shared-schema';
+/** Existing legacy fixtures cross the one-time migration before canonical selection. */
+const migrateLegacyTodayFixture = (
+  tags: { entities: Record<string, { taskIds?: readonly string[] } | undefined> },
+  tasks: Record<string, { id: string; dueDay?: unknown; parentId?: unknown } | undefined>,
+  today: string,
+): string[] =>
+  Object.values(
+    projectLegacyPlanning({
+      task: { ids: Object.keys(tasks), entities: tasks },
+      tag: tags,
+    }).state.entities,
+  )
+    .map(planningPlacementView)
+    .filter((p) => !!p)
+    .sort(comparePlacements)
+    .filter((p) => p.target.type === 'DAY' && p.target.key === today)
+    .map((p) => p.id);
 import { TODAY_TAG } from '../../tag/tag.const';
 import { fakeEntityStateFromArray } from '../../../util/fake-entity-state-from-array';
 import {
@@ -31,11 +53,15 @@ describe('workContext selectors', () => {
           activeId: TODAY_TAG.id,
           activeType: WorkContextType.TAG,
         } as any,
-        // } as Partial<WorkContextCopy> as WorkContextCopy,
         fakeEntityStateFromArray([]),
         fakeEntityStateFromArray([TODAY_TAG]),
         (fakeEntityStateFromArray([]) as any).entities,
         [],
+        migrateLegacyTodayFixture(
+          fakeEntityStateFromArray([TODAY_TAG]),
+          (fakeEntityStateFromArray([]) as any).entities,
+          todayStr,
+        ),
         todayStr,
         0,
       );
@@ -105,6 +131,11 @@ describe('workContext selectors', () => {
         fakeEntityStateFromArray([todayTagWithStaleIds]),
         fakeEntityStateFromArray([task1, task2, taskNotForToday]).entities,
         [],
+        migrateLegacyTodayFixture(
+          fakeEntityStateFromArray([todayTagWithStaleIds]),
+          fakeEntityStateFromArray([task1, task2, taskNotForToday]).entities,
+          todayStr,
+        ),
         todayStr,
         0,
       );
@@ -117,7 +148,7 @@ describe('workContext selectors', () => {
       const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
       const offsetTodayStr = '2026-02-15';
 
-      it('should include task with dueWithTime at 2 AM next day when offset extends today', () => {
+      it('does not infer canonical planning from offset-adjusted scheduling', () => {
         // 2 AM on Feb 16 local time; with 4h offset: 2 AM - 4h = 10 PM Feb 15 = today
         const feb16_2am = new Date(2026, 1, 16, 2, 0, 0, 0).getTime();
 
@@ -140,14 +171,19 @@ describe('workContext selectors', () => {
           fakeEntityStateFromArray([todayTagWithOrder]),
           fakeEntityStateFromArray([task]).entities,
           [],
+          migrateLegacyTodayFixture(
+            fakeEntityStateFromArray([todayTagWithOrder]),
+            fakeEntityStateFromArray([task]).entities,
+            offsetTodayStr,
+          ),
           offsetTodayStr,
           FOUR_HOURS_MS,
         );
 
-        expect(result.taskIds).toEqual(['task1']);
+        expect(result.taskIds).toEqual([]);
       });
 
-      it('should order tasks correctly when offset causes mixed dueDay and dueWithTime membership', () => {
+      it('migrates dueDay-backed planning without promoting an offset-adjusted schedule', () => {
         // Task with dueDay = today (Feb 15)
         const taskDueDay = {
           id: 'task-dueday',
@@ -190,12 +226,18 @@ describe('workContext selectors', () => {
           fakeEntityStateFromArray([todayTagWithOrder]),
           fakeEntityStateFromArray([taskDueDay, taskDueWithTime, taskNotToday]).entities,
           [],
+          migrateLegacyTodayFixture(
+            fakeEntityStateFromArray([todayTagWithOrder]),
+            fakeEntityStateFromArray([taskDueDay, taskDueWithTime, taskNotToday])
+              .entities,
+            offsetTodayStr,
+          ),
           offsetTodayStr,
           FOUR_HOURS_MS,
         );
 
         // task-not-today excluded (5 AM - 4h = 1 AM Feb 16 != Feb 15)
-        expect(result.taskIds).toEqual(['task-duewithtime', 'task-dueday']);
+        expect(result.taskIds).toEqual(['task-dueday']);
       });
     });
 
@@ -213,6 +255,11 @@ describe('workContext selectors', () => {
         fakeEntityStateFromArray([TODAY_TAG]),
         fakeEntityStateFromArray([activeTask]).entities,
         [],
+        migrateLegacyTodayFixture(
+          fakeEntityStateFromArray([TODAY_TAG]),
+          fakeEntityStateFromArray([activeTask]).entities,
+          todayStr,
+        ),
         todayStr,
         0,
       );
@@ -235,6 +282,11 @@ describe('workContext selectors', () => {
         fakeEntityStateFromArray([TODAY_TAG]),
         (fakeEntityStateFromArray([]) as any).entities,
         [],
+        migrateLegacyTodayFixture(
+          fakeEntityStateFromArray([TODAY_TAG]),
+          (fakeEntityStateFromArray([]) as any).entities,
+          todayStr,
+        ),
         todayStr,
         0,
       );
@@ -256,6 +308,11 @@ describe('workContext selectors', () => {
         fakeEntityStateFromArray([TODAY_TAG]),
         (fakeEntityStateFromArray([]) as any).entities,
         [],
+        migrateLegacyTodayFixture(
+          fakeEntityStateFromArray([TODAY_TAG]),
+          (fakeEntityStateFromArray([]) as any).entities,
+          todayStr,
+        ),
         todayStr,
         0,
       );
@@ -454,10 +511,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual([]);
     });
@@ -486,10 +541,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['task1', 'task2']);
     });
@@ -517,10 +570,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['task1']);
     });
@@ -548,10 +599,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['task1', 'task2']);
     });
@@ -580,10 +629,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([parentTask, subtask]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['parent']); // subtask excluded - shown nested under parent
     });
@@ -612,10 +659,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([parentTask, subtask]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['subtask1']); // subtask included as top-level item
     });
@@ -638,10 +683,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([task1]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['task1']); // deleted tasks filtered out
     });
@@ -669,16 +712,14 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([activeTask]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['active-task']); // archived task ID filtered out
     });
 
     // Tests for dueWithTime fallback (issue #5841)
-    it('should include task with dueWithTime for today but no dueDay (fallback)', () => {
+    it('does not promote schedule-only Tasks without a recoverable planning date', () => {
       // Create a timestamp for today (e.g., 8:00 AM today)
       const today = new Date();
       today.setHours(8, 0, 0, 0);
@@ -701,15 +742,13 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([taskWithDueWithTimeOnly]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
-      expect(result).toEqual(['task1']); // Should be included via dueWithTime fallback
+      expect(result).toEqual([]); // Should be included via dueWithTime fallback
     });
 
-    it('should INCLUDE task with dueWithTime for today even when dueDay is set to different date (dueWithTime takes priority)', () => {
+    it('uses the recoverable dueDay target even when the schedule is Today', () => {
       // Create a timestamp for today (e.g., 8:00 AM today)
       const today = new Date();
       today.setHours(8, 0, 0, 0);
@@ -733,12 +772,10 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([taskWithBothFields]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
-      expect(result).toEqual(['task1']); // dueWithTime takes priority - task IS in today
+      expect(result).toEqual([]); // dueWithTime takes priority - task IS in today
     });
 
     it('should NOT include task with dueWithTime for tomorrow (no fallback)', () => {
@@ -765,10 +802,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([taskWithDueWithTimeTomorrow]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual([]); // Should NOT be included
     });
@@ -797,15 +832,13 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([taskWithBoth]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       expect(result).toEqual(['task1']); // Should be included via dueWithTime (no duplicates)
     });
 
-    it('should handle mix of dueDay and dueWithTime fallback tasks', () => {
+    it('migrates dueDay evidence without schedule-only fallback', () => {
       // Create a timestamp for today (e.g., 8:00 AM today)
       const today = new Date();
       today.setHours(8, 0, 0, 0);
@@ -838,16 +871,14 @@ describe('workContext selectors', () => {
       ]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
-      expect(result).toEqual(['task1', 'task2']); // Both included, task2 appended
+      expect(result).toEqual(['task1']); // Both included, task2 appended
     });
 
     // Test for dueWithTime priority pattern
-    it('task with dueWithTime for today should be in today list even with stale dueDay', () => {
+    it('keeps the recoverable dueDay target independently of timed scheduling', () => {
       // With mutual exclusivity pattern, dueWithTime takes priority over dueDay
       // This handles legacy data where both might be set inconsistently
       const today = new Date();
@@ -875,13 +906,11 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([taskWithConflictingState]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       // dueWithTime takes priority - task IS in today (despite stale dueDay)
-      expect(result).toEqual(['task1']);
+      expect(result).toEqual([]);
     });
 
     it('task scheduled for tomorrow via dialog should NOT appear in today (mutual exclusivity)', () => {
@@ -914,10 +943,8 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([taskScheduledForTomorrow]) as any;
 
       const result = selectTodayTaskIds.projector(
-        tagState,
+        migrateLegacyTodayFixture(tagState, taskState.entities, todayStr),
         taskState.entities,
-        todayStr,
-        0,
       );
       // Task should NOT appear in today (dueWithTime is for tomorrow)
       expect(result).toEqual([]);
@@ -925,10 +952,9 @@ describe('workContext selectors', () => {
 
     // Tests for startOfNextDayDiff offset behavior
     describe('with startOfNextDayDiff offset', () => {
-      const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
       const offsetTodayStr = '2026-02-15';
 
-      it('should include task with dueWithTime at 2 AM Feb 16 when offset is 4h (2 AM - 4h = 10 PM Feb 15 = today)', () => {
+      it('does not infer a planning day from an offset-adjusted schedule', () => {
         // 2 AM on Feb 16 local time
         const feb16_2am = new Date(2026, 1, 16, 2, 0, 0, 0).getTime();
 
@@ -945,12 +971,10 @@ describe('workContext selectors', () => {
         const taskState = fakeEntityStateFromArray([task]) as any;
 
         const result = selectTodayTaskIds.projector(
-          tagState,
+          migrateLegacyTodayFixture(tagState, taskState.entities, offsetTodayStr),
           taskState.entities,
-          offsetTodayStr,
-          FOUR_HOURS_MS,
         );
-        expect(result).toEqual(['task1']);
+        expect(result).toEqual([]);
       });
 
       it('should NOT include task with dueWithTime at 5 AM Feb 16 when offset is 4h (5 AM - 4h = 1 AM Feb 16 != Feb 15)', () => {
@@ -970,10 +994,8 @@ describe('workContext selectors', () => {
         const taskState = fakeEntityStateFromArray([task]) as any;
 
         const result = selectTodayTaskIds.projector(
-          tagState,
+          migrateLegacyTodayFixture(tagState, taskState.entities, offsetTodayStr),
           taskState.entities,
-          offsetTodayStr,
-          FOUR_HOURS_MS,
         );
         expect(result).toEqual([]);
       });
@@ -995,10 +1017,8 @@ describe('workContext selectors', () => {
         const taskState = fakeEntityStateFromArray([task]) as any;
 
         const result = selectTodayTaskIds.projector(
-          tagState,
+          migrateLegacyTodayFixture(tagState, taskState.entities, offsetTodayStr),
           taskState.entities,
-          offsetTodayStr,
-          FOUR_HOURS_MS,
         );
         expect(result).toEqual([]);
       });
@@ -1021,15 +1041,13 @@ describe('workContext selectors', () => {
         const taskState = fakeEntityStateFromArray([task]) as any;
 
         const result = selectTodayTaskIds.projector(
-          tagState,
+          migrateLegacyTodayFixture(tagState, taskState.entities, offsetTodayStr),
           taskState.entities,
-          offsetTodayStr,
-          FOUR_HOURS_MS,
         );
         expect(result).toEqual([]);
       });
 
-      it('should include task with dueWithTime at 3:59 AM Feb 16 when offset is 4h (3:59 AM - 4h = 11:59 PM Feb 15 = today)', () => {
+      it('does not infer a planning day at the logical scheduling boundary', () => {
         // 3:59 AM on Feb 16 local time
         // 3:59 AM - 4h offset = 11:59 PM Feb 15, which IS Feb 15 (today)
         const feb16_3_59am = new Date(2026, 1, 16, 3, 59, 0, 0).getTime();
@@ -1047,12 +1065,10 @@ describe('workContext selectors', () => {
         const taskState = fakeEntityStateFromArray([task]) as any;
 
         const result = selectTodayTaskIds.projector(
-          tagState,
+          migrateLegacyTodayFixture(tagState, taskState.entities, offsetTodayStr),
           taskState.entities,
-          offsetTodayStr,
-          FOUR_HOURS_MS,
         );
-        expect(result).toEqual(['task1']);
+        expect(result).toEqual([]);
       });
 
       it('should still include task with dueDay matching todayStr regardless of offset', () => {
@@ -1069,15 +1085,13 @@ describe('workContext selectors', () => {
         const taskState = fakeEntityStateFromArray([task]) as any;
 
         const result = selectTodayTaskIds.projector(
-          tagState,
+          migrateLegacyTodayFixture(tagState, taskState.entities, offsetTodayStr),
           taskState.entities,
-          offsetTodayStr,
-          FOUR_HOURS_MS,
         );
         expect(result).toEqual(['task1']);
       });
 
-      it('should handle mix of dueDay and offset-adjusted dueWithTime tasks', () => {
+      it('keeps dueDay-backed planning without offset scheduling inference', () => {
         // Task via dueDay (string match)
         const taskDueDay = {
           id: 'task-dueday',
@@ -1118,13 +1132,11 @@ describe('workContext selectors', () => {
         ]) as any;
 
         const result = selectTodayTaskIds.projector(
-          tagState,
+          migrateLegacyTodayFixture(tagState, taskState.entities, offsetTodayStr),
           taskState.entities,
-          offsetTodayStr,
-          FOUR_HOURS_MS,
         );
         // task-offset-out excluded, the other two included in stored order
-        expect(result).toEqual(['task-dueday', 'task-offset-ok']);
+        expect(result).toEqual(['task-dueday']);
       });
     });
   });

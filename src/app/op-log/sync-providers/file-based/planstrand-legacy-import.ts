@@ -117,6 +117,7 @@ export const readLegacyImportSource = async (
       latestSeq: ops.syncVersion,
       snapshotVectorClock: ops.vectorClock,
       snapshotAppliedOpIds: applied,
+      snapshotSchemaVersion: state.schemaVersion ?? ops.schemaVersion,
       snapshotState: {
         ...(state.state as object),
         ...(state.archiveYoung ? { archiveYoung: state.archiveYoung } : {}),

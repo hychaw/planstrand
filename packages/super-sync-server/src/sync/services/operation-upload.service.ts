@@ -1,3 +1,4 @@
+import { PLANNING_V1 } from '@sp/shared-schema';
 import { Prisma } from '@prisma/client';
 import { Logger } from '../../logger';
 import {
@@ -411,7 +412,10 @@ export class OperationUploadService {
     }
 
     // Check for conflicts with existing operations
-    const conflict = await detectConflict(userId, op, tx);
+    const conflict =
+      op.entityType === 'PLANNING' && op.opType === PLANNING_V1
+        ? { hasConflict: false }
+        : await detectConflict(userId, op, tx);
     if (conflict.hasConflict) {
       const errorCode =
         conflict.conflictType === 'concurrent' ||

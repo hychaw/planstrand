@@ -1,6 +1,9 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { uuidv7 } from 'uuidv7';
-import { SuperSyncUploadSnapshotRequestSchema } from '@sp/shared-schema';
+import {
+  SuperSyncUploadSnapshotRequestSchema,
+  SUPER_SYNC_OPERATION_CAPABILITIES,
+} from '@sp/shared-schema';
 import { prisma } from '../db';
 import { Logger } from '../logger';
 import { getAuthUser } from '../middleware';
@@ -107,9 +110,23 @@ export const uploadSnapshotHandler = async (
       snapshotOpType,
       syncImportReason,
       repairBaseServerSeq,
+      lastKnownServerSeq,
       requestId,
     } = snapshotRequest;
     const shouldCleanSlate = snapshotOpType === 'REPAIR' ? false : isCleanSlate;
+    // Parsing remains tolerant of old requests; live ingress must never default
+    // a missing legacy schema to the release floor, even on a dedup retry.
+    if (
+      !Number.isInteger(schemaVersion) ||
+      schemaVersion === undefined ||
+      schemaVersion < SUPER_SYNC_OPERATION_CAPABILITIES.minSchemaVersion ||
+      schemaVersion > 100
+    ) {
+      return reply.code(400).send({
+        error: 'Explicit live-upload schemaVersion >= 5 is required',
+        errorCode: SYNC_ERROR_CODES.INVALID_SCHEMA_VERSION,
+      });
+    }
     const isLegacyRepairUpload =
       snapshotOpType === 'REPAIR' &&
       repairBaseServerSeq === undefined &&
@@ -136,20 +153,22 @@ export const uploadSnapshotHandler = async (
     // the dedup check only invokes it when an entry for this requestId exists
     // (a genuine retry).
     let memoizedFingerprint: string | undefined;
+    const fingerprintInput = {
+      state,
+      clientId,
+      reason,
+      vectorClock,
+      schemaVersion,
+      isPayloadEncrypted,
+      syncImportReason,
+      opId,
+      isCleanSlate: shouldCleanSlate,
+      snapshotOpType,
+      repairBaseServerSeq,
+      ...(lastKnownServerSeq !== undefined ? { lastKnownServerSeq } : {}),
+    };
     const getRequestFingerprint = (): string =>
-      (memoizedFingerprint ??= createSnapshotRequestFingerprint({
-        state,
-        clientId,
-        reason,
-        vectorClock,
-        schemaVersion,
-        isPayloadEncrypted,
-        syncImportReason,
-        opId,
-        isCleanSlate: shouldCleanSlate,
-        snapshotOpType,
-        repairBaseServerSeq,
-      }));
+      (memoizedFingerprint ??= createSnapshotRequestFingerprint(fingerprintInput));
 
     if (requestId) {
       const cachedResponse = syncService.checkSnapshotRequestDedup(
@@ -413,6 +432,7 @@ export const uploadSnapshotHandler = async (
           undefined,
           repairBaseServerSeq,
           isLegacyRepairUpload,
+          lastKnownServerSeq,
         );
         const uploadResult = results[0];
 

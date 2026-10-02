@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,7 +19,6 @@ import { MatIcon } from '@angular/material/icon';
 import { TaskService } from '../../tasks/task.service';
 import { Task } from '../../tasks/task.model';
 import { LocaleDatePipe } from 'src/app/ui/pipes/locale-date.pipe';
-import { PlannerActions } from '../../planner/store/planner.actions';
 import { Store } from '@ngrx/store';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { ShortTimeHtmlPipe } from '../../../ui/pipes/short-time-html.pipe';
@@ -247,12 +247,10 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
         if (!task) {
           throw new Error(`Failed to retrieve task after creation. Task ID: ${id}`);
         }
-        this._store.dispatch(
-          PlannerActions.planTaskForDay({
-            task: task,
-            day: getDbDateStr(this.due()),
-          }),
-        );
+        planningCommands(this._store).planTaskForDay({
+          task: task,
+          day: getDbDateStr(this.due()),
+        });
       } else {
         // Schedule task with specific time
         this._taskService.addAndSchedule(
@@ -277,12 +275,10 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
   private async scheduleExistingTask(task: Task): Promise<void> {
     if (this.isForDayMode()) {
       // Plan existing task for day
-      this._store.dispatch(
-        PlannerActions.planTaskForDay({
-          task: task,
-          day: getDbDateStr(this.due()),
-        }),
-      );
+      planningCommands(this._store).planTaskForDay({
+        task: task,
+        day: getDbDateStr(this.due()),
+      });
     } else {
       // Schedule existing task with specific time
       this._taskService.scheduleTask(

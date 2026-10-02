@@ -1,3 +1,4 @@
+import { planningCommands } from '../../../features/planning/planning-commands';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { WorkContextService } from '../../../features/work-context/work-context.service';
 import { TaskService } from '../../../features/tasks/task.service';
@@ -11,7 +12,6 @@ import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { Store } from '@ngrx/store';
 import { selectUndoneTodayTaskIds } from '../../../features/work-context/store/work-context.selectors';
-import { PlannerActions } from '../../../features/planner/store/planner.actions';
 import { first } from 'rxjs/operators';
 import { selectTasksWithSubTasksByIdsFactory } from '../../../features/tasks/store/task.selectors';
 import { getDbDateStr } from '../../../util/get-db-date-str';
@@ -50,15 +50,14 @@ export class PlanTasksTomorrowComponent {
       .pipe(first())
       .toPromise();
     tasks.forEach((task) => {
-      this._store.dispatch(
-        PlannerActions.planTaskForDay({ day: tomorrow!.dayDate, task }),
-      );
+      planningCommands(this._store).planTaskForDay({ day: tomorrow!.dayDate, task });
       if (task.subTasks) {
         task.subTasks.forEach((subTask) => {
           if (subTask.dueDay && subTask.dueDay === todayStr) {
-            this._store.dispatch(
-              PlannerActions.planTaskForDay({ day: tomorrow!.dayDate, task: subTask }),
-            );
+            planningCommands(this._store).planTaskForDay({
+              day: tomorrow!.dayDate,
+              task: subTask,
+            });
           }
         });
       }

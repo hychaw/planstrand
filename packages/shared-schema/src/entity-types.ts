@@ -24,6 +24,7 @@ export const ENTITY_TYPES = [
   'TASK_REPEAT_CFG',
   'ISSUE_PROVIDER',
   'PLANNER',
+  'PLANNING',
   'MENU_TREE',
   'METRIC',
   'BOARD',

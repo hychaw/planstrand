@@ -388,6 +388,7 @@ export class SuperSyncProvider
     snapshotOpType?: string,
     syncImportReason?: string,
     repairBaseServerSeq?: number,
+    lastKnownServerSeq?: number,
   ): Promise<SnapshotUploadResponse> {
     this._deps.logger.normal(`${this._logLabel}: uploadSnapshot: Starting...`, {
       clientId,
@@ -414,6 +415,7 @@ export class SuperSyncProvider
       snapshotOpType,
       ...(syncImportReason ? { syncImportReason } : {}),
       ...(repairBaseServerSeq !== undefined ? { repairBaseServerSeq } : {}),
+      ...(lastKnownServerSeq !== undefined ? { lastKnownServerSeq } : {}),
       requestId,
     });
 

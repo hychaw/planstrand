@@ -1,3 +1,5 @@
+import { planningCommands } from '../planning/planning-commands';
+import { setPlacement } from '../planning/store/planning.actions';
 import { inject, Injectable } from '@angular/core';
 import { select, Store } from '@ngrx/store';
 import {
@@ -180,6 +182,7 @@ export class TaskRepeatCfgService {
       | ReturnType<typeof updateTaskRepeatCfg>
       | ReturnType<typeof TaskSharedActions.scheduleTaskWithTime>
       | ReturnType<typeof addSubTask>
+      | ReturnType<typeof setPlacement>
     )[]
   > {
     // NOTE: there might be multiple configs in case something went wrong
@@ -299,6 +302,7 @@ export class TaskRepeatCfgService {
       | ReturnType<typeof updateTaskRepeatCfg>
       | ReturnType<typeof TaskSharedActions.scheduleTaskWithTime>
       | ReturnType<typeof addSubTask>
+      | ReturnType<typeof setPlacement>
     )[] = [
       TaskSharedActions.addTask({
         task: taskWithTargetDates,
@@ -331,6 +335,15 @@ export class TaskRepeatCfgService {
       }),
     ];
 
+    if (!(isValidSplitTime(taskRepeatCfg.startTime) && taskRepeatCfg.remindAt)) {
+      createNewActions.push(
+        await planningCommands(this._store$).dayAction({
+          task: taskWithTargetDates,
+          day: targetDateStr,
+          isAddToTop: !isAddToBottom,
+        }),
+      );
+    }
     // Schedule if given
     if (isValidSplitTime(taskRepeatCfg.startTime) && taskRepeatCfg.remindAt) {
       // NOTE: schedule tasks against the computed repeat day to avoid mismatched due dates.

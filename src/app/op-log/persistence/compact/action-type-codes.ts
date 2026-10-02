@@ -33,6 +33,8 @@ import { ActionType } from '../../core/action-types.enum';
  */
 
 export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
+  [ActionType.PLANNING_SET]: 'QQS',
+  [ActionType.PLANNING_REMOVE]: 'QQD',
   // Archive actions (A)
   [ActionType.ARCHIVE_COMPRESS]: 'AC',
   [ActionType.ARCHIVE_FLUSH_YOUNG_TO_OLD]: 'AF',

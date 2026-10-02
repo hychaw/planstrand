@@ -1,3 +1,5 @@
+import { PlanningState } from '../../features/planning/planning.model';
+import { initialPlanningState } from '../../features/planning/store/planning.reducer';
 import { AllModelData, ModelCfg } from '../core/types/sync.types';
 import { ProjectState } from '../../features/project/project.model';
 import { MenuTreeState } from '../../features/menu-tree/store/menu-tree.model';
@@ -62,6 +64,7 @@ export type AllModelConfig = {
   simpleCounter: ModelCfg<SimpleCounterState>;
   section: ModelCfg<SectionState>;
   workSession: ModelCfg<WorkSessionState>;
+  planning?: ModelCfg<PlanningState>;
   taskRepeatCfg: ModelCfg<TaskRepeatCfgState>;
   reminders: ModelCfg<Reminder[]>;
   timeTracking: ModelCfg<TimeTrackingState>;
@@ -74,6 +77,7 @@ export type AllModelConfig = {
 export type AppDataComplete = AllModelData<AllModelConfig>;
 
 export const MODEL_CONFIGS: AllModelConfig = {
+  planning: { defaultData: initialPlanningState, isMainFileModel: true },
   task: {
     defaultData: initialTaskState,
     isMainFileModel: true,
@@ -185,7 +189,7 @@ export const MODEL_CONFIGS: AllModelConfig = {
 export const getDefaultMainModelData = (): Partial<AppDataComplete> => {
   const result: Partial<AppDataComplete> = {};
   for (const [key, config] of Object.entries(MODEL_CONFIGS)) {
-    if (config.isMainFileModel) {
+    if (config?.isMainFileModel) {
       (result as Record<string, unknown>)[key] = config.defaultData;
     }
   }
@@ -207,10 +211,11 @@ export const withDefaultModelSlices = (data: object): AppDataComplete => {
   const result: Record<string, unknown> = { ...data };
   const defaulted: string[] = [];
   for (const [key, config] of Object.entries(MODEL_CONFIGS)) {
+    if (!config) continue;
     // WorkSession defaults only when absent. A present null/undefined slice is
     // invalid input and must reach validation rather than become empty data.
     const needsDefault =
-      key === 'workSession'
+      key === 'workSession' || key === 'planning'
         ? !Object.hasOwn(result, key)
         : result[key] === undefined || result[key] === null;
     if (needsDefault) {

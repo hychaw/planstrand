@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { PLANNING_V1 } from './planning';
 import { ENTITY_TYPES } from './entity-types';
-import { CURRENT_SCHEMA_VERSION, MIN_SUPPORTED_SCHEMA_VERSION } from './schema-version';
+import { CURRENT_SCHEMA_VERSION } from './schema-version';
 
 /**
  * Version of the machine-readable operation-sync capability contract.
@@ -34,7 +35,10 @@ export const SUPER_SYNC_BASELINE_OP_TYPES = [
 ] as const;
 
 /** Server validation and advertisement share this authoritative vocabulary. */
-export const SUPER_SYNC_OP_TYPES = [...SUPER_SYNC_BASELINE_OP_TYPES] as const;
+export const SUPER_SYNC_OP_TYPES = [
+  ...SUPER_SYNC_BASELINE_OP_TYPES,
+  PLANNING_V1,
+] as const;
 
 /**
  * Authoritative capabilities advertised by this shared-schema build.
@@ -45,7 +49,9 @@ export const SUPER_SYNC_OPERATION_CAPABILITIES = {
   contractVersion: SUPER_SYNC_CAPABILITY_CONTRACT_VERSION,
   supportedEntityTypes: ENTITY_TYPES,
   supportedOpTypes: SUPER_SYNC_OP_TYPES,
-  minSchemaVersion: MIN_SUPPORTED_SCHEMA_VERSION,
+  // Planstrand release floor for LIVE UPLOAD, not retained-history download.
+  // Deploy this floor on every serving instance before enabling legacy cutover.
+  minSchemaVersion: 5,
   maxSchemaVersion: CURRENT_SCHEMA_VERSION,
 } as const;
 
@@ -215,6 +221,7 @@ export const SuperSyncUploadSnapshotRequestSchema = z
     isCleanSlate: z.boolean().optional(),
     snapshotOpType: z.enum(SUPER_SYNC_SNAPSHOT_OP_TYPES).optional(),
     repairBaseServerSeq: z.number().int().min(0).optional(),
+    lastKnownServerSeq: z.number().int().min(0).optional(),
     requestId: SuperSyncRequestIdSchema.optional(),
   })
   .superRefine((request, context) => {

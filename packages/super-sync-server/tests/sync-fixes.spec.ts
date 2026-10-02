@@ -275,7 +275,7 @@ const createOp = (
   isPayloadEncrypted: true,
   vectorClock: {},
   timestamp: Date.now(),
-  schemaVersion: 1,
+  schemaVersion: 5,
   ...overrides,
 });
 
@@ -450,7 +450,7 @@ describe('Sync System Fixes', () => {
           clientId: 'test-client',
           reason: 'recovery',
           vectorClock: { 'test-client': 1 },
-          schemaVersion: 1,
+          schemaVersion: 5,
           isPayloadEncrypted: true,
         },
       });
@@ -487,7 +487,7 @@ describe('Sync System Fixes', () => {
           clientId: 'test-client',
           reason: 'initial',
           vectorClock: { 'test-client': 1 },
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       });
 
@@ -647,7 +647,7 @@ describe('Sync System Fixes', () => {
               isPayloadEncrypted: true,
               vectorClock: { [clientA]: 1 },
               timestamp: Date.now(),
-              schemaVersion: 1,
+              schemaVersion: 5,
             },
           ],
           clientId: clientA,

@@ -48,6 +48,18 @@ describe('OperationLogSnapshotService', () => {
   let mockValidateStateService: jasmine.SpyObj<ValidateStateService>;
   let mockLockService: jasmine.SpyObj<LockService>;
 
+  it('keeps the durable legacy anchor unversioned by ordinary snapshot saves', async () => {
+    mockOpLogStore.loadStateCache.and.resolveTo({
+      state: MEANINGFUL_SNAPSHOT_STATE,
+      lastAppliedOpSeq: 10,
+      vectorClock: {},
+      compactedAt: 1000,
+      schemaVersion: 4,
+    });
+    expect(await service.saveCurrentStateAsSnapshot()).toBe(false);
+    expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'clearVectorClockCache',
@@ -56,10 +68,12 @@ describe('OperationLogSnapshotService', () => {
       'clearStateCacheBackup',
       'restoreStateCacheFromBackup',
       'getLastSeq',
+      'loadStateCache',
     ]);
     mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
       'getCurrentVectorClock',
     ]);
+    mockOpLogStore.loadStateCache.and.resolveTo(null);
     mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
       'getStateSnapshot',
       'getStateSnapshotForOperationLog',

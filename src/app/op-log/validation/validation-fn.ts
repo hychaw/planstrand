@@ -1,3 +1,4 @@
+import { PlanningState } from '../../features/planning/planning.model';
 import { isEntityStateConsistent } from '../../util/check-fix-entity-state-consistency';
 import {
   getLastValidityError,
@@ -56,6 +57,7 @@ const _validateTimeTracking = createValidate<TimeTrackingState>();
 const _validatePluginUserData = createValidate<PluginUserDataState>();
 const _validatePluginMetadata = createValidate<PluginMetaDataState>();
 const _validateSection = createValidate<SectionState>();
+const _validatePlanning = createValidate<PlanningState>();
 const _validateWorkSession = createValidate<WorkSessionState>();
 
 /**
@@ -159,7 +161,7 @@ export const validateAllData = <R>(
  * Maps each property of AppDataComplete to its corresponding validation function
  */
 export const appDataValidators: {
-  [K in keyof AppDataComplete]: <R>(
+  [K in keyof AppDataComplete]-?: <R>(
     data: AppDataComplete[K] | R,
   ) => ValidationResult<AppDataComplete[K] | R>;
 } = {
@@ -195,6 +197,8 @@ export const appDataValidators: {
     _wrapValidate(_validatePluginMetadata(d), d, false, 'pluginMetadata'),
   section: <R>(d: R | SectionState) =>
     _wrapValidate(_validateSection(d), d, true, 'section'),
+  planning: <R>(d: R | PlanningState) =>
+    _wrapValidate(_validatePlanning(d), d, true, 'planning'),
   workSession: <R>(d: R | WorkSessionState) =>
     _wrapValidate(_validateWorkSession(d), d, true, 'workSession'),
 } as const;
@@ -233,7 +237,10 @@ export const validateAppDataProperty = <K extends keyof AppDataComplete>(
   key: K,
   data: AppDataComplete[K],
 ): ValidationResult<AppDataComplete[K]> => {
-  return appDataValidators[key](data);
+  const validate = appDataValidators[key] as (
+    value: AppDataComplete[K],
+  ) => ValidationResult<AppDataComplete[K]>;
+  return validate(data);
 };
 
 const _wrapValidate = <R>(

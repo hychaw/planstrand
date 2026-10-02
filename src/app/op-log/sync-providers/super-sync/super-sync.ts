@@ -7,7 +7,7 @@ import {
 } from '@sp/sync-providers/super-sync';
 import type { NativeHttpResponse } from '@sp/sync-providers/http';
 import type { SuperSyncImportReason, SuperSyncOpType } from '@sp/shared-schema';
-import { OpType, type SyncImportReason } from '../../core/operation.types';
+import { type PlanstrandOpType, type SyncImportReason } from '../../core/operation.types';
 import { OP_LOG_SYNC_LOGGER } from '../../core/sync-logger.adapter';
 import { SyncCredentialStore } from '../credential-store.service';
 import { APP_PROVIDER_PLATFORM_INFO } from '../platform/app-provider-platform-info';
@@ -45,7 +45,7 @@ type MutuallyAssignable<A, B> = [A] extends [B]
     ? true
     : never
   : never;
-const _opTypeParity: MutuallyAssignable<`${OpType}`, SuperSyncOpType> = true;
+const _opTypeParity: MutuallyAssignable<`${PlanstrandOpType}`, SuperSyncOpType> = true;
 void _opTypeParity;
 const _importReasonParity: MutuallyAssignable<SyncImportReason, SuperSyncImportReason> =
   true;

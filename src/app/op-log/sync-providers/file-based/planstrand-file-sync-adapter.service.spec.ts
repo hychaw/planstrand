@@ -146,7 +146,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
         jasmine.objectContaining({
           version: 4,
           product: 'planstrand',
-          compatibility: { requiredOpTypes: [] },
+          compatibility: { requiredOpTypes: ['PLANNING_V1'] },
         }),
       );
       const writes = provider
@@ -426,7 +426,10 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     try {
       const adapter = service.createAdapter(provider, cfg, undefined);
       await adapter.uploadOps([op(future)], 'new', 0, state);
-      expect((await read()).compatibility.requiredOpTypes).toEqual([future]);
+      expect((await read()).compatibility.requiredOpTypes).toEqual([
+        'PLANNING_V1',
+        future,
+      ]);
       for (const type of ['SYNC_IMPORT', 'REPAIR', 'BACKUP_IMPORT'] as const) {
         await adapter.uploadSnapshot(
           state,
@@ -440,7 +443,10 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
           type,
         );
         expect((await read()).recentOps).toEqual([]);
-        expect((await read()).compatibility.requiredOpTypes).toEqual([future]);
+        expect((await read()).compatibility.requiredOpTypes).toEqual([
+          'PLANNING_V1',
+          future,
+        ]);
       }
       localStorage.clear();
       service.invalidateAllTargets();
@@ -456,6 +462,42 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     ).toBeRejectedWithError(PlanstrandFileIncompatibleError);
   });
 
+  it('cannot opt out of PLANNING_V1 and preserves it after all full-state writers and cold reload', async () => {
+    for (const type of ['SYNC_IMPORT', 'REPAIR', 'BACKUP_IMPORT'] as const) {
+      const adapter = service.createAdapter(provider, cfg, undefined, {
+        requiredOpTypes: [],
+      });
+      await adapter.uploadSnapshot(
+        state,
+        'new',
+        'recovery',
+        {},
+        CURRENT_SCHEMA_VERSION,
+        true,
+        'id',
+        false,
+        type,
+      );
+      const envelope = await read();
+      expect(envelope.compatibility.requiredOpTypes).toContain('PLANNING_V1');
+      expect(envelope.recentOps).toEqual([]);
+      localStorage.clear();
+      service.invalidateAllTargets();
+      const cold = TestBed.runInInjectionContext(
+        () => new PlanstrandFileSyncAdapterService(),
+      ).createAdapter(provider, cfg, undefined);
+      expect((await cold.downloadOps(0)).snapshotState).toEqual(state);
+    }
+    const known = KNOWN_OP_TYPES as Set<string>;
+    known.delete('PLANNING_V1');
+    try {
+      await expectAsync(
+        service.createAdapter(provider, cfg, undefined).downloadOps(0),
+      ).toBeRejectedWithError(PlanstrandFileIncompatibleError);
+    } finally {
+      known.add('PLANNING_V1');
+    }
+  });
   it('persists a build requirement without a retained future operation', async () => {
     const adapter = service.createAdapter(provider, cfg, undefined, {
       requiredOpTypes: [future],
@@ -470,7 +512,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
       false,
       'id',
     );
-    expect((await read()).compatibility.requiredOpTypes).toEqual([future]);
+    expect((await read()).compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
   });
 
   for (const useSplit of [false, true]) {
@@ -489,7 +531,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
         }));
         await adapter.uploadOps(batch, 'new', response.latestSeq, state);
         const commit = await read(useSplit ? P.opsFile : P.syncFile);
-        expect(commit.compatibility.requiredOpTypes).toEqual([future]);
+        expect(commit.compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
         expect(
           commit.recentOps.some((value) => (value as { id: string }).id === 'test-op'),
         ).toBeFalse();
@@ -617,7 +659,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
       'new-password',
       (await provider.downloadFile(P.syncFile)).dataStr,
     );
-    expect(raw.compatibility.requiredOpTypes).toEqual([future]);
+    expect(raw.compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
   });
 
   it('recovers compatible Planstrand backup but rejects an incompatible backup', async () => {
@@ -642,10 +684,10 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     });
     await adapter.uploadOps([op()], 'new', 0, state);
     const commit = await read(P.opsFile);
-    expect(commit.compatibility.requiredOpTypes).toEqual([future]);
+    expect(commit.compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
     expect(commit.snapshotRef?.file).toMatch(/^planstrand-sync-state__/);
     expect((await read(commit.snapshotRef!.file!)).compatibility.requiredOpTypes).toEqual(
-      [future],
+      ['PLANNING_V1', future],
     );
   });
 
@@ -714,6 +756,31 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     );
   });
 
+  it('round-trips Planning revisions and tombstones through a persisted file snapshot', async () => {
+    for (const placement of [
+      null,
+      { target: { type: 'DAY' as const, key: '2026-10-05' }, orderKey: 'V' },
+    ]) {
+      const record = {
+        id: 'X',
+        placement,
+        revision: { counter: 10, clientId: 'new', opId: 'planning-op' },
+      };
+      const snapshot = { ...state, planning: { ids: ['X'], entities: { X: record } } };
+      const adapter = service.createAdapter(provider, cfg, undefined);
+      await adapter.uploadSnapshot(
+        snapshot,
+        'new',
+        'initial',
+        {},
+        CURRENT_SCHEMA_VERSION,
+        true,
+        'snapshot-op',
+      );
+      const restarted = service.createAdapter(provider, cfg, undefined);
+      expect((await restarted.downloadOps(0)).snapshotState).toEqual(snapshot);
+    }
+  });
   it('round-trips encrypted compressed v4 files and refuses plaintext recovery', async () => {
     const encrypted = { isEncrypt: true, isCompress: true };
     const adapter = service.createAdapter(provider, encrypted, 'password');

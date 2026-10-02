@@ -1,3 +1,5 @@
+import { PLANNING_V1 } from '@sp/shared-schema';
+import { convertOpToAction } from '../apply/operation-converter.util';
 import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
@@ -175,6 +177,7 @@ export class RemoteOpsProcessingService {
     // intentional terminal drop and do NOT block.
     // ─────────────────────────────────────────────────────────────────────────
     const currentVersion = this.schemaMigrationService.getCurrentVersion();
+    // Legacy state is materialized separately before the one-time schema-5 projection.
     const migratedOps: Operation[] = [];
     const droppedEntityIds = new Set<string>();
     let blockReason: RemoteOpBlockReason = 'MIGRATION_FAILED';
@@ -861,6 +864,11 @@ export class RemoteOpsProcessingService {
     const CONFLICT_CHECK_BATCH_SIZE = 100;
     for (let i = 0; i < remoteOps.length; i++) {
       const remoteOp = remoteOps[i];
+      if (remoteOp.entityType === 'PLANNING' && remoteOp.opType === PLANNING_V1) {
+        convertOpToAction(remoteOp); // Validate the decrypted register before bypassing generic resolution.
+        nonConflicting.push(remoteOp);
+        continue;
+      }
       const result = await this.conflictResolutionService.checkOpForConflicts(remoteOp, {
         localPendingOpsByEntity,
         appliedFrontierByEntity,

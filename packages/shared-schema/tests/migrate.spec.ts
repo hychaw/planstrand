@@ -18,9 +18,9 @@ import { MIGRATIONS } from '../src/migrations';
 
 describe('shared-schema migration functions', () => {
   it('includes the schema-v4 project-delete conflict-policy barrier', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(4);
-    expect(PROJECT_DELETE_WINS_SCHEMA_VERSION).toBe(CURRENT_SCHEMA_VERSION);
-    expect(MIGRATIONS.at(-1)).toMatchObject({
+    expect(CURRENT_SCHEMA_VERSION).toBe(5);
+    expect(PROJECT_DELETE_WINS_SCHEMA_VERSION).toBe(4);
+    expect(MIGRATIONS.find((m) => m.toVersion === 4)).toMatchObject({
       fromVersion: 3,
       toVersion: 4,
       requiresOperationMigration: false,
@@ -147,8 +147,11 @@ describe('shared-schema migration functions', () => {
 
       const result = migrateOperation(op);
 
-      expect(result).toMatchObject({ success: true, migratedToVersion: 4 });
-      expect(result.data).toEqual({ ...op, schemaVersion: 4 });
+      expect(result).toMatchObject({
+        success: true,
+        migratedToVersion: CURRENT_SCHEMA_VERSION,
+      });
+      expect(result.data).toEqual({ ...op, schemaVersion: CURRENT_SCHEMA_VERSION });
       expect(
         (
           (result.data as OperationLike).payload as {

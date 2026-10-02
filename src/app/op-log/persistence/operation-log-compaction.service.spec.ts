@@ -51,6 +51,37 @@ describe('OperationLogCompactionService', () => {
 
   const mockVectorClock = { clientA: 10, clientB: 5 };
 
+  for (const emergency of [false, true]) {
+    it(`defers ${emergency ? 'emergency' : 'normal'} compaction while the durable source is schema 4`, async () => {
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        state: mockState,
+        lastAppliedOpSeq: 10,
+        vectorClock: {},
+        compactedAt: 1000,
+        schemaVersion: 4,
+      });
+      expect(await (emergency ? service.emergencyCompact() : service.compact())).toBe(
+        false,
+      );
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+      expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
+    });
+  }
+
+  it('resumes ordinary compaction after the confirmed schema-5 anchor is installed', async () => {
+    mockOpLogStore.loadStateCache.and.resolveTo({
+      state: mockState,
+      lastAppliedOpSeq: 10,
+      vectorClock: {},
+      compactedAt: 1000,
+      schemaVersion: 5,
+    });
+    expect(await service.compact()).toBe(true);
+    expect(mockOpLogStore.saveStateCache).toHaveBeenCalledWith(
+      jasmine.objectContaining({ schemaVersion: 5 }),
+    );
+  });
+
   beforeEach(() => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'clearVectorClockCache',
@@ -61,6 +92,7 @@ describe('OperationLogCompactionService', () => {
       'getPendingRemoteOps',
       'countOps',
       'hasSyncedOps',
+      'loadStateCache',
     ]);
     mockLockService = jasmine.createSpyObj('LockService', ['request']);
     mockStateSnapshot = jasmine.createSpyObj('StateSnapshotService', [
@@ -81,6 +113,7 @@ describe('OperationLogCompactionService', () => {
       fn(),
     );
     mockOpLogStore.getLastSeq.and.returnValue(Promise.resolve(100));
+    mockOpLogStore.loadStateCache.and.resolveTo(null);
     mockOpLogStore.saveStateCache.and.returnValue(Promise.resolve());
     mockOpLogStore.resetCompactionCounter.and.returnValue(Promise.resolve());
     mockOpLogStore.deleteOpsWhere.and.returnValue(Promise.resolve());
@@ -1084,6 +1117,8 @@ describe('OperationLogCompactionService', () => {
 
       Object.keys(MODEL_CONFIGS).forEach((modelKey) => {
         const expectedPrefix = modelToEntityType[modelKey];
+        // Planning uses its revision register, rather than the generic entity frontier.
+        if (modelKey === 'planning') return;
         if (!expectedPrefix) {
           fail(
             `Test setup error: No expected EntityType defined for model '${modelKey}'`,

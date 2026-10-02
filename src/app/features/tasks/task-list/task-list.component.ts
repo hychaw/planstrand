@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -678,13 +679,11 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
       const workContextType = this._workContextService
         .activeWorkContextType as WorkContextType;
       const afterTaskId = getAnchorFromDragDrop(taskId, newOrderedIds);
-      this._store.dispatch(
-        TaskSharedActions.planTasksForToday({
-          taskIds: [taskId],
-          today: this._dateService.todayStr(),
-          startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        }),
-      );
+      planningCommands(this._store).planTasksForToday({
+        taskIds: [taskId],
+        today: this._dateService.todayStr(),
+        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+      });
       this._store.dispatch(
         moveTaskInTodayList({
           taskId,

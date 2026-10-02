@@ -172,7 +172,12 @@ export class SyncService {
     const txStartedAt = Date.now();
     let uploadDbRoundtrips = 0;
     const prevalidatedResults = new Map<Operation, ValidationResult>();
-    const containsRepair = ops.some((op) => op.opType === 'REPAIR');
+    const containsRepair = ops.some(
+      (op) =>
+        op.opType === 'REPAIR' &&
+        (this.prevalidatedOps.get(op) ?? this.validationService.validateOp(op, clientId))
+          .valid,
+    );
     const isLegacyRepairUpload =
       containsRepair && repairBaseServerSeq === undefined && allowLegacyRepairWithoutBase;
     const shouldCleanSlate = !!isCleanSlate && !containsRepair;

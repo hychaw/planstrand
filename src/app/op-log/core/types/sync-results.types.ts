@@ -89,6 +89,7 @@ export interface SuperSyncDownloadResult extends DownloadResultBase {
 }
 
 export interface FileSnapshotDownloadResult extends DownloadResultBase {
+  snapshotSchemaVersion?: number;
   /** Whether download completed successfully (vs partial/failed) */
   success: true;
   providerMode: 'fileSnapshotOps';

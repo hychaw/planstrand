@@ -788,11 +788,13 @@ export class OperationLogUploadService {
    * @param encryptKey - Optional encryption key for E2E encryption
    * @param isCleanSlate - If true, server deletes all data before accepting the snapshot
    */
-  private async _uploadFullStateOpAsSnapshot(
+  /** Caller owns upload serialization; acknowledgement remains with the caller. */
+  async _uploadFullStateOpAsSnapshot(
     syncProvider: OperationSyncCapable,
     entry: OperationLogEntry,
     encryptKey: string | undefined,
     isCleanSlate?: boolean,
+    lastKnownServerSeq?: number,
   ): Promise<{
     accepted: boolean;
     serverSeq?: number;
@@ -825,8 +827,7 @@ export class OperationLogUploadService {
       };
     }
 
-    // Extract state from payload, handling both wrapped and unwrapped formats.
-    // Uses shared utility to ensure consistent handling across the codebase.
+    // Normalize wrapped and unwrapped full-state payloads.
     let state: unknown = stripLocalOnlySyncSettingsFromAppData(
       extractFullStateFromPayload(op.payload),
     );
@@ -862,6 +863,7 @@ export class OperationLogUploadService {
         op.opType as RestorePointType,
         op.syncImportReason,
         repairBaseServerSeq,
+        lastKnownServerSeq,
       );
       return response;
     } catch (err) {

@@ -16,6 +16,7 @@ describe('entity-registry', () => {
   // Entity types that should have configs
   const REGULAR_ENTITY_TYPES: EntityType[] = [
     'TASK',
+    'PLANNING',
     'PROJECT',
     'TAG',
     'NOTE',
@@ -42,6 +43,7 @@ describe('entity-registry', () => {
   // Categorize entity types by storage pattern
   const ADAPTER_ENTITIES: EntityType[] = [
     'TASK',
+    'PLANNING',
     'PROJECT',
     'TAG',
     'NOTE',
@@ -457,8 +459,8 @@ describe('entity-registry', () => {
       ];
 
       // Update this count when adding new entity types to EntityType union
-      // Current: 19 regular + 3 special = 22 total
-      expect(ALL_TESTED.length).toBe(22);
+      // Current: 20 regular + 3 special = 23 total
+      expect(ALL_TESTED.length).toBe(23);
 
       // Verify no duplicates
       const uniqueTypes = new Set(ALL_TESTED);

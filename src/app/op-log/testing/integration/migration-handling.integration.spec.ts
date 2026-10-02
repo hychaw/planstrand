@@ -124,7 +124,7 @@ describe('Migration Handling Integration', () => {
     const createOp = (version: number): Operation => ({
       id: `op-v${version}`,
       clientId: 'remoteClientId',
-      actionType: '[Test] Action' as ActionType,
+      actionType: ActionType.TASK_SHARED_UPDATE,
       opType: OpType.Update,
       entityType: 'TASK',
       entityId: 'task-1',
@@ -188,14 +188,14 @@ describe('Migration Handling Integration', () => {
     const createOp = (id: string): Operation => ({
       id,
       clientId: 'remoteClientId',
-      actionType: '[Test] Action' as ActionType,
+      actionType: ActionType.TASK_SHARED_UPDATE,
       opType: OpType.Update,
       entityType: 'TASK',
       entityId: 'task-1',
       payload: {},
       vectorClock: { remoteClientId: 1 },
       timestamp: Date.now(),
-      schemaVersion: 1,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     });
 
     it('should mark operations as failed if application returns failure result', async () => {

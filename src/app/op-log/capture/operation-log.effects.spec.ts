@@ -1,4 +1,5 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { setPlacement as planningSet } from '../../features/planning/store/planning.actions';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { Action, Store } from '@ngrx/store';
 import type { DeferredLocalActionsPort } from '@sp/sync-core';
@@ -980,6 +981,30 @@ describe('OperationLogEffects', () => {
   });
 
   describe('processDeferredActions', () => {
+    it('reuses the prepared Planning revision ID in durable operation capture', async () => {
+      const action = planningSet({
+        record: {
+          id: 'task-1',
+          placement: { target: { type: 'DAY', key: '2026-10-05' }, orderKey: 'F' },
+          revision: {
+            counter: 1,
+            clientId: 'testClient',
+            opId: '01900000-0000-7000-8000-000000000001',
+          },
+        },
+      });
+      bufferDeferredAction(action);
+      await effects.processDeferredActions();
+      expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          id: action.record.revision.opId,
+          clientId: 'testClient',
+          opType: 'PLANNING_V1',
+          payload: { actionPayload: { record: action.record }, entityChanges: [] },
+        }),
+        'local',
+      );
+    });
     it('captures WorkSession through the existing durable-operation writer', async () => {
       const workSession = {
         id: 'session-1',

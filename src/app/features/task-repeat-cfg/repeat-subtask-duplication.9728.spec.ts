@@ -1,3 +1,4 @@
+import { configurePlanningFixture } from '../../../test-helpers/planning-fixture';
 /**
  * Reproduction for #9728 — a recurring task duplicates all of its subtasks.
  *
@@ -121,6 +122,7 @@ describe('Recurring task subtask duplication (#9728)', () => {
       ],
     });
 
+    configurePlanningFixture(TestBed.inject(MockStore));
     service = TestBed.inject(TaskRepeatCfgService);
     spyOn(TestBed.inject(MockStore), 'dispatch');
 

@@ -293,7 +293,7 @@ describe('Gap Detection', () => {
     payload: { title: 'Test' },
     vectorClock: { [clientId]: 1 },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: 5,
   });
 
   beforeEach(() => {

@@ -80,7 +80,10 @@ export class BackupService {
       timestamp: Date.now(),
       lastUpdate: Date.now(),
       crossModelVersion: CROSS_MODEL_VERSION,
-      data: data as AppDataComplete,
+      data: {
+        ...(data as AppDataComplete),
+        planning: (data as AppDataComplete).planning ?? { ids: [], entities: {} },
+      },
     };
   }
 

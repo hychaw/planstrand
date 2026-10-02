@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../test-helpers/planning-fixture';
 import { TestBed } from '@angular/core/testing';
 import { computed, Signal, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
@@ -17,7 +22,6 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { T } from '../../t.const';
 import { TranslateService, TranslateStore } from '@ngx-translate/core';
 import { LocaleDatePipe } from '../../ui/pipes/locale-date.pipe';
-import { PlannerActions } from '../planner/store/planner.actions';
 
 describe('TaskBulkActionService', () => {
   let service: TaskBulkActionService;
@@ -179,6 +183,7 @@ describe('TaskBulkActionService', () => {
         { provide: LocaleDatePipe, useValue: { transform: () => 'DATE' } },
       ],
     });
+    configurePlanningFixture(store as unknown as Store);
     service = TestBed.inject(TaskBulkActionService);
   });
 
@@ -527,13 +532,13 @@ describe('TaskBulkActionService', () => {
   });
 
   describe('addToToday', () => {
-    it('uses the existing bulk planTasksForToday action once', async () => {
+    it('authors one canonical Planning record per selected Today task', async () => {
       select([t('a'), t('b', { dueDay: '2026-09-05' }), t('sub', { parentId: 'a' })]);
       await service.addToToday();
-      expect(dispatchedTypes()).toEqual([TaskSharedActions.planTasksForToday.type]);
-      const action = store.dispatch.calls.mostRecent().args[0];
-      expect(action.taskIds).toEqual(['a', 'sub']);
-      expect(action.parentTaskMap).toEqual({ a: undefined, sub: 'a' });
+      await flushPlanningWrites();
+      expectPlanningDay(store.dispatch, 'a', '2026-09-05');
+      expectPlanningDay(store.dispatch, 'sub', '2026-09-05');
+      expect(store.dispatch).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -653,13 +658,14 @@ describe('TaskBulkActionService', () => {
         time: null,
         remindOption: null,
       });
+      await flushPlanningWrites();
       const plan = store.dispatch.calls
         .allArgs()
         .map(([a]) => a)
-        .filter((a) => a.type === PlannerActions.planTaskForDay.type);
+        .filter((a) => a.type === '[Planning] Set Placement');
       expect(plan.length).toBe(1);
-      expect(plan[0].task.id).toBe('a');
-      expect(plan[0].isShowSnack).toBeFalse();
+      expect(plan[0].record.id).toBe('a');
+      expect(plan[0].record.placement.target).toEqual({ type: 'DAY', key: '2026-09-10' });
       // timed task keeps its time on the new day
       expect(taskService.scheduleTask).toHaveBeenCalledWith(
         jasmine.objectContaining({ id: 'b' }),
@@ -682,9 +688,9 @@ describe('TaskBulkActionService', () => {
         time: null,
         remindOption: null,
       });
-      const action = store.dispatch.calls.mostRecent().args[0];
-      expect(action.type).toBe(TaskSharedActions.planTasksForToday.type);
-      expect(action.taskIds).toEqual(['a', 'b']);
+      await flushPlanningWrites();
+      expectPlanningDay(store.dispatch, 'a', '2026-09-05');
+      expectPlanningDay(store.dispatch, 'b', '2026-09-05');
     });
 
     it('schedules with the picked time for every task', async () => {

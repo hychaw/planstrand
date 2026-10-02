@@ -6,6 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { validateMigrationRegistry } from '../src/migrate';
 import { MIGRATIONS } from '../src/migrations';
 import { CURRENT_SCHEMA_VERSION } from '../src/schema-version';
+import {
+  gitBlobSha,
+  RELEASED_V18_22_0,
+} from './released-client-oracles/v18-22-0.fixture';
 
 type RuntimeSurface = 'reducer' | 'persistence' | 'cursor';
 
@@ -17,6 +21,7 @@ interface SharedSchemaEvidence {
 interface ReleasedOracleEvidence {
   kind: 'pinned-released-oracle';
   oracleSpecPath: `tests/released-client-oracles/${string}.spec.ts`;
+  fixturePath: `tests/released-client-oracles/${string}.fixture.ts`;
   cohorts: readonly {
     releaseTag: `v${string}`;
     commitSha: string;
@@ -168,7 +173,25 @@ const withTestGitRepository = (
  * deterministic oracle pinned to the affected released cohort.
  */
 const POLICY_BASELINE_SCHEMA_VERSION = 4;
-const COMPATIBILITY_ASSESSMENTS: readonly CompatibilityAssessment[] = [];
+const COMPATIBILITY_ASSESSMENTS: readonly CompatibilityAssessment[] = [
+  {
+    toVersion: 5,
+    runtimeSurfaces: ['reducer', 'persistence', 'cursor'],
+    evidence: {
+      kind: 'pinned-released-oracle',
+      oracleSpecPath: 'tests/released-client-oracles/planning-v5.spec.ts',
+      fixturePath: 'tests/released-client-oracles/v18-22-0.fixture.ts',
+      cohorts: [
+        {
+          releaseTag: 'v18.22.0',
+          commitSha: '88d533285170f8e4e483355f59ff6c03b1d385ff',
+          sourcePath: 'src/app/op-log/sync/remote-op-block.util.ts',
+          sourceBlobSha: '2834cf8c89a4fd64de443cb08d1aa8992eeda16f',
+        },
+      ],
+    },
+  },
+];
 
 const expectExistingSpec = (specPath: string): void => {
   expect(
@@ -289,9 +312,29 @@ describe('released-client compatibility policy', () => {
 
       expectExistingSpec(assessment.evidence.oracleSpecPath);
       expect(assessment.evidence.cohorts.length).toBeGreaterThan(0);
-      const repositoryRoot = runGit(process.cwd(), ['rev-parse', '--show-toplevel']);
+      expect(existsSync(resolve(process.cwd(), assessment.evidence.fixturePath))).toBe(
+        true,
+      );
+      // External release metadata is immutable evidence, not a claim that this
+      // Planstrand checkout contains upstream history. Check executable bytes offline.
       for (const cohort of assessment.evidence.cohorts) {
-        expect(validateReleasedOracleProvenance(cohort, repositoryRoot)).toEqual([]);
+        expect(cohort.releaseTag).toMatch(RELEASE_TAG_PATTERN);
+        expect(cohort.commitSha).toMatch(SHA1_PATTERN);
+        expect(cohort.releaseTag).toBe(RELEASED_V18_22_0.releaseTag);
+        expect(cohort.commitSha).toBe(RELEASED_V18_22_0.commitSha);
+        expect(cohort.sourceBlobSha).toMatch(SHA1_PATTERN);
+        const embeddedSource = Object.entries(RELEASED_V18_22_0.sources).find(
+          ([sourcePath]) => sourcePath === cohort.sourcePath,
+        )?.[1];
+        expect(
+          embeddedSource,
+          'Missing embedded source: ' + cohort.sourcePath,
+        ).toBeDefined();
+        expect(embeddedSource?.blobSha).toBe(cohort.sourceBlobSha);
+      }
+      for (const { source, blobSha } of Object.values(RELEASED_V18_22_0.sources)) {
+        expect(blobSha).toMatch(SHA1_PATTERN);
+        expect(gitBlobSha(source)).toBe(blobSha);
       }
     }
   });

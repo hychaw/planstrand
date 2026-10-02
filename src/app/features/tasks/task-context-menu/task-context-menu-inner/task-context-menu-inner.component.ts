@@ -1,3 +1,4 @@
+import { planningCommands } from '../../../planning/planning-commands';
 import { TaskPriorityIndicatorComponent } from '../../task-priority-indicator/task-priority-indicator.component';
 import { TASK_PRIORITY_LABEL_KEY, TASK_PRIORITY_LEVELS } from '../../task-priority.const';
 import {
@@ -60,7 +61,6 @@ import { selectTaskByIdWithSubTaskData } from '../../store/task.selectors';
 import { MatIconButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { getDbDateStr } from '../../../../util/get-db-date-str';
-import { PlannerActions } from '../../../planner/store/planner.actions';
 import { combineDateAndTime } from '../../../../util/combine-date-and-time';
 import { getNextWeekDayOffset } from '../../../../util/get-next-week-day-offset';
 import { DateAdapter } from '@angular/material/core';
@@ -597,15 +597,13 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
   }
 
   addToMyDay(): void {
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: [this.task.id],
-        today: this._dateService.todayStr(),
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        parentTaskMap: { [this.task.id]: this.task.parentId },
-        isShowSnack: true,
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: [this.task.id],
+      today: this._dateService.todayStr(),
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+      parentTaskMap: { [this.task.id]: this.task.parentId },
+      isShowSnack: true,
+    });
   }
 
   unschedule(): void {
@@ -777,13 +775,11 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
       if (newDay === this._dateService.todayStr()) {
         this.addToMyDay();
       } else {
-        this._store.dispatch(
-          PlannerActions.planTaskForDay({
-            task: this.task,
-            day: newDay,
-            isShowSnack: true,
-          }),
-        );
+        planningCommands(this._store).planTaskForDay({
+          task: this.task,
+          day: newDay,
+          isShowSnack: true,
+        });
       }
     }
   }

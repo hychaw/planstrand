@@ -62,7 +62,7 @@ describe('Retention Configuration', () => {
       payload: { title: 'Test' },
       vectorClock: { [clientId]: 1 },
       timestamp,
-      schemaVersion: 1,
+      schemaVersion: 5,
     });
 
     it('should accept operation within retention window (44 days old)', () => {

@@ -212,7 +212,7 @@ describe('Forced seq-0 download after compaction pruned an applied SYNC_IMPORT (
   ): SyncOperation => ({
     id,
     clientId,
-    actionType: '[Task] Update Task' as ActionType,
+    actionType: ActionType.TASK_SHARED_UPDATE,
     opType: OpType.Update,
     entityType: 'TASK',
     entityId: SHARED_TASK_ID,
@@ -225,7 +225,7 @@ describe('Forced seq-0 download after compaction pruned an applied SYNC_IMPORT (
   const localTaskUpdate = (id: string, vectorClock: VectorClock): Operation => ({
     id,
     clientId: ownClientId,
-    actionType: '[Task] Update Task' as ActionType,
+    actionType: ActionType.TASK_SHARED_UPDATE,
     opType: OpType.Update,
     entityType: 'TASK',
     entityId: SHARED_TASK_ID,

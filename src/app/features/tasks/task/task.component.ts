@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -83,7 +84,6 @@ import {
   keyboardConfigOrEmpty,
 } from '@sp/keyboard-config';
 import { DialogScheduleTaskComponent } from '../../planner/dialog-schedule-task/dialog-schedule-task.component';
-import { PlannerActions } from '../../planner/store/planner.actions';
 import { PlannerService } from '../../planner/planner.service';
 import { DialogDeadlineComponent } from '../dialog-deadline/dialog-deadline.component';
 import { isDeadlineOverdue as isDeadlineOverdueFn } from '../util/is-deadline-overdue';
@@ -716,13 +716,11 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
         },
       });
     } else {
-      this._store.dispatch(
-        PlannerActions.planTaskForDay({
-          task: task as TaskCopy,
-          day,
-          isShowSnack: true,
-        }),
-      );
+      planningCommands(this._store).planTaskForDay({
+        task: task as TaskCopy,
+        day,
+        isShowSnack: true,
+      });
     }
     this.focusSelfOrNextIfNotPossible();
   }
@@ -1234,14 +1232,12 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
 
   addToMyDay(): void {
     const task = this.task();
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: [task.id],
-        today: this._dateService.todayStr(),
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        parentTaskMap: { [task.id]: task.parentId },
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: [task.id],
+      today: this._dateService.todayStr(),
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+      parentTaskMap: { [task.id]: task.parentId },
+    });
   }
 
   unschedule(): void {

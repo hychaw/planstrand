@@ -1,3 +1,4 @@
+import { PlanningState } from '../features/planning/planning.model';
 import { TASK_FEATURE_NAME } from '../features/tasks/store/task.reducer';
 import { TaskState } from '../features/tasks/task.model';
 import { PROJECT_FEATURE_NAME } from '../features/project/store/project.reducer';
@@ -26,6 +27,7 @@ import { WorkSessionState } from '../features/work-session/work-session.model';
 import { WORK_SESSION_FEATURE_NAME } from '../features/work-session/store/work-session.reducer';
 
 export interface RootState {
+  planning?: PlanningState;
   [TASK_FEATURE_NAME]: TaskState;
   [WORK_CONTEXT_FEATURE_NAME]: WorkContextState;
   [PROJECT_FEATURE_NAME]: ProjectState;

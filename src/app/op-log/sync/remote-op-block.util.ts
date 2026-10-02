@@ -1,12 +1,15 @@
-import { CURRENT_SCHEMA_VERSION, SUPER_SYNC_IMPORT_REASONS } from '@sp/shared-schema';
-import { OpType } from '../core/operation.types';
+import {
+  CURRENT_SCHEMA_VERSION,
+  SUPER_SYNC_OP_TYPES,
+  SUPER_SYNC_IMPORT_REASONS,
+} from '@sp/shared-schema';
 import { KNOWN_ACTION_TYPES } from '../core/action-types.enum';
 import {
   getOperationSchemaVersion,
   MIN_SUPPORTED_SCHEMA_VERSION,
 } from '../persistence/schema-migration.service';
 
-export const KNOWN_OP_TYPES: ReadonlySet<string> = new Set<string>(Object.values(OpType));
+export const KNOWN_OP_TYPES: ReadonlySet<string> = new Set<string>(SUPER_SYNC_OP_TYPES);
 const KNOWN_IMPORT_REASONS: ReadonlySet<string> = new Set<string>(
   SUPER_SYNC_IMPORT_REASONS,
 );

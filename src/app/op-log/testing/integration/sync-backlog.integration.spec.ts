@@ -138,7 +138,7 @@ class ServerBackedProvider
 
 const createTaskUpdate = (author: TestClient, n: number): Operation =>
   author.createOperation({
-    actionType: '[Task] Update Task' as ActionType,
+    actionType: ActionType.TASK_SHARED_UPDATE,
     opType: OpType.Update,
     entityType: 'TASK',
     entityId: `task-${n}`,

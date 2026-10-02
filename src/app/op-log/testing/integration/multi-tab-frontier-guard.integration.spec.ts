@@ -223,11 +223,13 @@ describe('Multi-tab frontier guard (#9438)', () => {
 
     await storeService.commitFileSnapshotBaseline({
       state: meaningfulState,
+      schemaVersion: 5,
       lastAppliedOpSeq: 0,
       vectorClock: {},
       compactedAt: Date.now(),
       snapshotIncludedOps: [],
     });
+    expect((await storeService.loadStateCache())?.schemaVersion).toBe(5);
 
     const postWipeSeq = await storeService.append(
       createTaskOperation(client, 'post-wipe-task', OpType.Create, {

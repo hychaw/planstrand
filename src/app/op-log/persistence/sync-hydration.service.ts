@@ -1,3 +1,8 @@
+import { mergePlanningState, isPlanningState, PLANNING_V1 } from '@sp/shared-schema';
+import {
+  SchemaMigrationService,
+  CURRENT_SCHEMA_VERSION,
+} from './schema-migration.service';
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
@@ -27,6 +32,9 @@ import { LOCK_NAMES } from '../core/operation-log.const';
 import { TaskTimeSyncService } from '../../features/tasks/task-time-sync.service';
 
 interface SnapshotHydrationHooks {
+  /** Planning-only adoption must retain existing pending operations. */
+  preservePendingOps?: boolean;
+  sourceSchemaVersion?: number;
   /** Remote operations already represented by a file-based snapshot. */
   snapshotIncludedOps?: readonly Operation[];
   /** Runs synchronously after downloaded archive replacement commits. */
@@ -56,6 +64,7 @@ interface SnapshotHydrationHooks {
 @Injectable({ providedIn: 'root' })
 export class SyncHydrationService {
   private store = inject(Store);
+  private schemaMigration = inject(SchemaMigrationService);
   private opLogStore = inject(OperationLogStoreService);
   private stateSnapshotService = inject(StateSnapshotService);
   private clientIdService = inject(ClientIdService);
@@ -135,10 +144,27 @@ export class SyncHydrationService {
 
       // 2. Merge the serialized archive data with passed entity data.
 
-      const mergedData = downloadedMainModelData
-        ? { ...dbData, ...downloadedMainModelData }
-        : dbData;
-
+      const migratedDownload =
+        downloadedMainModelData &&
+        hooks?.sourceSchemaVersion !== undefined &&
+        hooks.sourceSchemaVersion < CURRENT_SCHEMA_VERSION
+          ? (this.schemaMigration.migrateStateIfNeeded({
+              state: downloadedMainModelData,
+              lastAppliedOpSeq: 0,
+              vectorClock: {},
+              compactedAt: 0,
+              schemaVersion: hooks.sourceSchemaVersion,
+            }).state as Record<string, unknown>)
+          : downloadedMainModelData;
+      const mergedData = migratedDownload ? { ...dbData, ...migratedDownload } : dbData;
+      // Ordinary snapshot adoption retains the Planning register; explicit replacement callers omit these hooks.
+      if (
+        hooks?.snapshotIncludedOps !== undefined &&
+        isPlanningState(dbData.planning) &&
+        isPlanningState(mergedData.planning)
+      ) {
+        mergedData.planning = mergePlanningState(dbData.planning, mergedData.planning);
+      }
       const syncedData = stripLocalOnlySyncSettingsFromAppData(mergedData);
       const locallyReplayableSyncedData = applyLocalOnlySyncSettingsToAppData(
         syncedData,
@@ -242,9 +268,21 @@ export class SyncHydrationService {
       // against it; there is no cache-only or ops-only restart state.
       {
         // Reject superseded local ops atomically with the state replacement.
-        const rejectOpIds = unsyncedOpsToReject.map((entry) => entry.op.id);
+        const rejectOpIds = hooks?.preservePendingOps
+          ? []
+          : unsyncedOpsToReject
+              .filter(
+                (entry) =>
+                  !(
+                    hooks?.snapshotIncludedOps !== undefined &&
+                    entry.op.entityType === 'PLANNING' &&
+                    entry.op.opType === PLANNING_V1
+                  ),
+              )
+              .map((entry) => entry.op.id);
         const appendResult = await this.opLogStore.commitFileSnapshotBaseline({
           state: dataToLoad,
+          schemaVersion: CURRENT_SCHEMA_VERSION,
           lastAppliedOpSeq: lastSeq,
           vectorClock: clockForStorage,
           compactedAt: Date.now(),

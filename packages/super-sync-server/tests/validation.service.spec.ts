@@ -23,12 +23,48 @@ describe('ValidationService', () => {
     entityId: 'entity-1',
     payload: { name: 'Test' },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: 5,
     vectorClock: { [clientId]: 1 },
+    ...(overrides['opType'] === 'PLANNING_V1' || overrides['entityType'] === 'PLANNING'
+      ? {
+          actionType: '[Planning] Set Placement',
+          opType: 'PLANNING_V1' as const,
+          entityType: 'PLANNING',
+          payload: {
+            actionPayload: {
+              record: {
+                id: 'entity-1',
+                placement: { target: { type: 'DAY', key: '2026-10-08' }, orderKey: 'V' },
+                revision: { counter: 1, clientId, opId: 'op-1' },
+              },
+            },
+            entityChanges: [],
+          },
+        }
+      : {}),
     ...overrides,
   });
 
   describe('validateOp', () => {
+    it('advertises the schema-5 live upload floor', () => {
+      expect(SUPER_SYNC_OPERATION_CAPABILITIES.minSchemaVersion).toBe(5);
+    });
+    for (const opType of [
+      'CRT',
+      'UPD',
+      'SYNC_IMPORT',
+      'BACKUP_IMPORT',
+      'REPAIR',
+    ] as const)
+      for (const schemaVersion of [undefined, 4])
+        it(`rejects live ${opType} with schema ${schemaVersion}`, () => {
+          const result = validationService.validateOp(
+            createValidOp({ opType, schemaVersion }),
+            clientId,
+          );
+          expect(result.valid).toBe(false);
+          expect(result.errorCode).toBe(SYNC_ERROR_CODES.INVALID_SCHEMA_VERSION);
+        });
     it('accepts a valid encrypted WorkSession operation through authoritative validation', () => {
       const op = createValidOp({
         actionType: '[WorkSession] Add WorkSession',
@@ -39,6 +75,35 @@ describe('ValidationService', () => {
       });
       expect(validationService.validateOp(op, clientId).valid).toBe(true);
     });
+    for (const actionType of ['[Planning] Set Placement', '[Planning] Remove Placement'])
+      it('accepts Planning semantic family ' + actionType, () => {
+        const op = createValidOp({
+          actionType,
+          opType: 'PLANNING_V1',
+          entityType: 'PLANNING',
+          entityId: 'planned-task',
+          schemaVersion: 5,
+          payload: {
+            actionPayload: {
+              record: {
+                id: 'planned-task',
+                placement: actionType.includes('Remove')
+                  ? null
+                  : {
+                      target: { type: 'DAY', key: '2026-10-08' },
+                      orderKey: 'V',
+                    },
+                revision: { counter: 1, clientId, opId: 'op-1' },
+              },
+            },
+            entityChanges: [],
+          },
+        });
+        expect(validationService.validateOp(op, clientId).valid).toBe(true);
+        expect(SUPER_SYNC_OPERATION_CAPABILITIES.supportedOpTypes).toContain(
+          'PLANNING_V1',
+        );
+      });
     it('should accept a valid operation', () => {
       const op = createValidOp();
       const result = validationService.validateOp(op, clientId);
@@ -409,7 +474,7 @@ describe('ValidationService', () => {
     });
 
     it('should accept valid schema versions 1-100', () => {
-      for (const schemaVersion of [1, 50, 100]) {
+      for (const schemaVersion of [5, 50, 100]) {
         const op = createValidOp({ schemaVersion });
         const result = validationService.validateOp(op, clientId);
         expect(result.valid).toBe(true);
@@ -647,6 +712,7 @@ describe('ValidationService', () => {
         'BOARD',
         'SECTION',
         'WORK_SESSION',
+        'PLANNING',
         'REMINDER',
         'MIGRATION',
         'RECOVERY',
@@ -661,7 +727,7 @@ describe('ValidationService', () => {
     });
 
     it('should have exactly the expected number of entity types', () => {
-      expect(ALLOWED_ENTITY_TYPES.size).toBe(22);
+      expect(ALLOWED_ENTITY_TYPES.size).toBe(23);
     });
   });
 });

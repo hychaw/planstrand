@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../../test-helpers/planning-fixture';
 import { signal, WritableSignal } from '@angular/core';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { Location } from '@angular/common';
@@ -7,7 +12,6 @@ import { BehaviorSubject, of } from 'rxjs';
 import { DialogFullscreenMarkdownComponent } from '../../../ui/dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
 import { DateAdapter } from '@angular/material/core';
 import { PlannerActions } from '../../planner/store/planner.actions';
-import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { DateService } from '../../../core/date/date.service';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { LayoutService } from '../../../core-ui/layout/layout.service';
@@ -124,6 +128,7 @@ describe('TaskComponent shortcut handling', () => {
     );
     storeSpy = jasmine.createSpyObj<Store>('Store', ['dispatch', 'select']);
     storeSpy.select.and.returnValue(of(new Set<string>()));
+    configurePlanningFixture(storeSpy);
 
     await TestBed.configureTestingModule({
       imports: [TaskComponent],
@@ -525,72 +530,47 @@ describe('TaskComponent shortcut handling', () => {
       plannerService.getSnackExtraStr.and.returnValue(Promise.resolve(''));
     });
 
-    it('schedules for tomorrow', () => {
+    it('schedules for tomorrow', async () => {
       component.scheduleTaskTomorrow();
 
-      expect(storeSpy.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task: component.task() as any,
-          day: '2026-06-02',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeSpy.dispatch, component.task().id, '2026-06-02');
     });
 
-    it('schedules for next week (next Monday)', () => {
+    it('schedules for next week (next Monday)', async () => {
       component.scheduleTaskNextWeek();
 
       // Next week from Monday June 1st should be June 8th
-      expect(storeSpy.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task: component.task() as any,
-          day: '2026-06-08',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeSpy.dispatch, component.task().id, '2026-06-08');
     });
 
-    it('schedules for next week (from Sunday, next Monday)', () => {
+    it('schedules for next week (from Sunday, next Monday)', async () => {
       dateService.getLogicalTodayDate.and.returnValue(new Date('2026-06-07T12:00:00')); // Sunday
 
       component.scheduleTaskNextWeek();
 
       // Next week from Sunday June 7th (first day Monday) should be June 8th
-      expect(storeSpy.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task: component.task() as any,
-          day: '2026-06-08',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeSpy.dispatch, component.task().id, '2026-06-08');
     });
 
-    it('schedules for next week (from Sunday, next Monday) - US locale (Sunday first)', () => {
+    it('schedules for next week (from Sunday, next Monday) - US locale (Sunday first)', async () => {
       dateAdapter.getFirstDayOfWeek.and.returnValue(0); // Sunday
       dateService.getLogicalTodayDate.and.returnValue(new Date('2026-06-07T12:00:00')); // Sunday
 
       component.scheduleTaskNextWeek();
 
       // Next week from Sunday June 7th (first day Sunday) should be June 14th
-      expect(storeSpy.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task: component.task() as any,
-          day: '2026-06-14',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeSpy.dispatch, component.task().id, '2026-06-14');
     });
 
-    it('schedules for next month (first of next month)', () => {
+    it('schedules for next month (first of next month)', async () => {
       component.scheduleTaskNextMonth();
 
-      expect(storeSpy.dispatch).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task: component.task() as any,
-          day: '2026-07-01',
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(storeSpy.dispatch, component.task().id, '2026-07-01');
     });
 
     it('preserves time and reminder when scheduling a timed task for tomorrow', async () => {
@@ -733,7 +713,7 @@ describe('TaskComponent shortcut handling', () => {
     }));
   });
 
-  describe('scheduleForToday — Shift+T (#9563)', () => {
+  describe('scheduleForToday — Shift+T (#9563)', async () => {
     // Must match the GlobalTrackingIntervalService.todayDateStr signal above,
     // which is what isScheduledToday() reads.
     const TODAY = '2026-05-05';
@@ -752,15 +732,7 @@ describe('TaskComponent shortcut handling', () => {
     };
 
     const expectScheduledForToday = (): void =>
-      expect(storeSpy.dispatch).toHaveBeenCalledOnceWith(
-        TaskSharedActions.planTasksForToday({
-          taskIds: ['top-1'],
-          today: TODAY,
-          startOfNextDayDiffMs: 0,
-          // computed key: a quoted 'top-1' trips the naming-convention rule
-          parentTaskMap: { ['top-1']: undefined },
-        }),
-      );
+      expectPlanningDay(storeSpy.dispatch, component.task().id, TODAY);
 
     beforeEach(() => {
       dateService = TestBed.inject(DateService) as jasmine.SpyObj<DateService>;
@@ -773,46 +745,50 @@ describe('TaskComponent shortcut handling', () => {
         .and.returnValue(0);
     });
 
-    it('schedules an unscheduled task for today', () => {
+    it('schedules an unscheduled task for today', async () => {
       // The #9563/#9567 regression: this did only a backlog→regular move, which
       // the project reducer no-ops for a task already in the regular list — so
       // the shortcut did nothing at all.
       setTask({});
 
       component.scheduleForToday();
+      await flushPlanningWrites();
 
       expectScheduledForToday();
     });
 
-    it('schedules an overdue task for today (#8851)', () => {
+    it('schedules an overdue task for today (#8851)', async () => {
       setTask({ dueDay: '2026-04-30' });
 
       component.scheduleForToday();
+      await flushPlanningWrites();
 
       expectScheduledForToday();
     });
 
-    it('never moves the task between the backlog and the regular list (#8592)', () => {
+    it('never moves the task between the backlog and the regular list (#8592)', async () => {
       // #8592 reported Shift+T (advertised in the "Move to regular list" menu
       // entry) changing the schedule as a side effect of a list move. The two
       // intents stay separate: this shortcut schedules and never repositions.
       setTask({});
 
       component.scheduleForToday();
+      await flushPlanningWrites();
 
       expect(projectService.moveTaskToTodayList).not.toHaveBeenCalled();
       expect(projectService.moveTaskToBacklog).not.toHaveBeenCalled();
     });
 
-    it('leaves a task already scheduled for today untouched', () => {
+    it('leaves a task already scheduled for today untouched', async () => {
       setTask({ dueDay: TODAY });
 
       component.scheduleForToday();
+      await flushPlanningWrites();
 
       expect(storeSpy.dispatch).not.toHaveBeenCalled();
     });
 
-    it('keeps the reminder of a task due at a time today', () => {
+    it('keeps the reminder of a task due at a time today', async () => {
       // planTasksForToday clears remindAt unconditionally, so re-planning a task
       // that is already on Today would silently drop its reminder.
       // isToday is installed as a property on the DateService mock, so it has
@@ -824,16 +800,18 @@ describe('TaskComponent shortcut handling', () => {
       setTask({ dueWithTime: 1746453600000, remindAt: 1746452000000 });
 
       component.scheduleForToday();
+      await flushPlanningWrites();
 
       expect(storeSpy.dispatch).not.toHaveBeenCalled();
     });
 
-    it('does not put a done task on Today', () => {
+    it('does not put a done task on Today', async () => {
       // Completion never synthesizes a dueDay; done tasks reach Today's Done
       // list via isDone. Dating one inflates the daily summary's done count.
       setTask({ isDone: true, dueDay: '2026-04-30' });
 
       component.scheduleForToday();
+      await flushPlanningWrites();
 
       expect(storeSpy.dispatch).not.toHaveBeenCalled();
     });
@@ -853,6 +831,7 @@ describe('TaskComponent shortcut handling', () => {
         setTask({});
 
         component.scheduleForTodayWithFocus();
+        tick();
 
         expect(focusSelfSpy).toHaveBeenCalled();
         expect(focusNextSpy).not.toHaveBeenCalled();
@@ -864,6 +843,7 @@ describe('TaskComponent shortcut handling', () => {
         setTask({});
 
         component.scheduleForTodayWithFocus();
+        tick();
         tick(200);
 
         expectScheduledForToday();

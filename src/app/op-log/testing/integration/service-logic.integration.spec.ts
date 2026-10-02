@@ -478,14 +478,14 @@ describe('Service Logic Integration', () => {
       const op: Operation = {
         id: 'op-1',
         clientId: 'local-client',
-        actionType: 'TEST' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update,
         entityType: 'TASK',
         entityId: 't1',
         payload: { title: 'Secret Task' },
         vectorClock: { localClient: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
       await opLogStore.append(op, 'local');
 
@@ -517,7 +517,7 @@ describe('Service Logic Integration', () => {
       const remoteOp: SyncOperation = {
         id: 'op-remote-1',
         clientId: 'remote-client', // Different client
-        actionType: 'TEST' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update as any,
         entityType: 'TASK' as any,
         entityId: 't1',
@@ -525,7 +525,7 @@ describe('Service Logic Integration', () => {
         isPayloadEncrypted: true,
         vectorClock: { remoteClient: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
       // Mock download to return this op
@@ -619,14 +619,14 @@ describe('Service Logic Integration', () => {
       const localOp: Operation = {
         id: 'op-local-1',
         clientId: 'local-client',
-        actionType: 'TEST' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update,
         entityType: 'TASK',
         entityId: 't1',
         payload: { title: 'Local Version' },
         vectorClock: { localClient: 1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
       await opLogStore.append(localOp, 'local');
 
@@ -634,14 +634,14 @@ describe('Service Logic Integration', () => {
       const remoteOp: SyncOperation = {
         id: 'op-remote-1',
         clientId: 'remote-client',
-        actionType: 'TEST' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update as any,
         entityType: 'TASK' as any,
         entityId: 't1', // Same entity
         payload: { title: 'Remote Version' },
         vectorClock: { remoteClient: 1 }, // Concurrent vector clock
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
       // Mock download
@@ -698,7 +698,7 @@ describe('Service Logic Integration', () => {
         payload: { appDataComplete: {} },
         vectorClock: { clientA: 5 }, // Import's vector clock
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
       await opLogStore.append(importOp, 'remote');
 
@@ -707,27 +707,27 @@ describe('Service Logic Integration', () => {
       const offlineOp1: SyncOperation = {
         id: 'offline-op-1',
         clientId: 'client-b',
-        actionType: '[Task] Update Task' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update as any,
         entityType: 'TASK' as any,
         entityId: 'task-1',
         payload: { title: 'Offline change 1' },
         vectorClock: { clientB: 3 }, // CONCURRENT - no knowledge of clientA: 5
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
       const offlineOp2: SyncOperation = {
         id: 'offline-op-2',
         clientId: 'client-b',
-        actionType: '[Task] Create Task' as ActionType,
+        actionType: ActionType.TASK_SHARED_ADD,
         opType: OpType.Create as any,
         entityType: 'TASK' as any,
         entityId: 'task-2',
         payload: { title: 'Offline task' },
         vectorClock: { clientA: 2, clientB: 4 }, // CONCURRENT - clientA:2 < import's clientA:5
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
       // 3. Mock download to return these offline ops (B uploaded after coming online)
@@ -768,7 +768,7 @@ describe('Service Logic Integration', () => {
         payload: { appDataComplete: {} },
         vectorClock: { clientA: 5 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
       await opLogStore.append(importOp, 'remote');
 
@@ -777,14 +777,14 @@ describe('Service Logic Integration', () => {
       const postImportOp: SyncOperation = {
         id: 'post-import-op-1',
         clientId: 'client-b',
-        actionType: '[Task] Create Task' as ActionType,
+        actionType: ActionType.TASK_SHARED_ADD,
         opType: OpType.Create as any,
         entityType: 'TASK' as any,
         entityId: 'new-task-1',
         payload: { title: 'Post-import task' },
         vectorClock: { clientA: 5, clientB: 1 }, // GREATER_THAN - includes import's clock
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
       // 3. Mock download
@@ -830,7 +830,7 @@ describe('Service Logic Integration', () => {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         vectorClock: { clientA: 5, 'client-b': 1 },
         timestamp: Date.now() - 3600000, // Import was 1 hour ago
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
       await opLogStore.append(importOp, 'remote');
 
@@ -841,14 +841,14 @@ describe('Service Logic Integration', () => {
         // This UUIDv7 would be in the "future" due to clock drift
         id: '019afd90-0001-7000-0000-000000000000',
         clientId: 'client-b',
-        actionType: '[Task] Update Task' as ActionType,
+        actionType: ActionType.TASK_SHARED_UPDATE,
         opType: OpType.Update as any,
         entityType: 'TASK' as any,
         entityId: 'task-drift',
         payload: { title: 'Created with drifted clock' },
         vectorClock: { clientB: 3 }, // CONCURRENT - no knowledge of import
         timestamp: Date.now() + 7200000, // 2 hours in the "future" (clock drift)
-        schemaVersion: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
       };
 
       // 3. Mock download

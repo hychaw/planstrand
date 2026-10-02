@@ -1,3 +1,4 @@
+import { selectTodayPlanningIds } from '../../planning/store/planning.selectors';
 import { createFeatureSelector, createSelector } from '@ngrx/store';
 import { WorkContext, WorkContextState, WorkContextType } from '../work-context.model';
 import {
@@ -20,105 +21,12 @@ import { selectNoteTodayOrder } from '../../note/store/note.reducer';
 import { TODAY_TAG } from '../../tag/tag.const';
 import { Log } from '../../../core/log';
 import { isTodayWithOffset } from '../../../util/is-today.util';
-import { Tag } from '../../tag/tag.model';
 import {
   selectStartOfNextDayDiffMs,
   selectTodayStr,
 } from '../../../root-store/app-state/app-state.selectors';
 
 export const WORK_CONTEXT_FEATURE_NAME = 'workContext';
-
-/**
- * Computes ordered task IDs for TODAY_TAG using dueDay for membership.
- *
- * TODAY_TAG is a "virtual tag" - membership is determined by task.dueDay === today,
- * NOT by task.tagIds. TODAY_TAG.taskIds only stores the ordering.
- *
- * Fallback: Tasks with dueWithTime for today (but no/stale dueDay) are also included.
- * This handles edge cases like imported tasks with scheduled times.
- *
- * See: ARCHITECTURE-DECISIONS.md Decision #2
- */
-const computeOrderedTaskIdsForToday = (
-  todayTag: Tag | undefined,
-  taskEntities: Record<
-    string,
-    | {
-        id: string;
-        dueDay?: string | null;
-        dueWithTime?: number | null;
-        parentId?: string | null;
-      }
-    | undefined
-  >,
-  todayStr: string,
-  startOfNextDayDiffMs: number = 0,
-): string[] => {
-  const storedOrder = todayTag?.taskIds || [];
-
-  // IMPORTANT: Implements dueDay/dueWithTime mutual exclusivity pattern
-  // - Check dueWithTime FIRST (it takes priority over dueDay)
-  // - Only check dueDay if dueWithTime is not set
-  // - If dueWithTime is set, do NOT check dueDay (even for legacy data with both fields)
-  // - This ensures correct behavior with both new data (only one field set) and legacy data (both fields set)
-  // See: ARCHITECTURE-DECISIONS.md Decision #1
-  const tasksForToday: string[] = [];
-  for (const taskId of Object.keys(taskEntities)) {
-    const task = taskEntities[taskId];
-    if (task) {
-      // Check dueWithTime first (takes priority - mutual exclusivity)
-      if (task.dueWithTime) {
-        if (isTodayWithOffset(task.dueWithTime, todayStr, startOfNextDayDiffMs)) {
-          tasksForToday.push(taskId);
-        }
-        // If dueWithTime is set but not for today, skip (don't check dueDay)
-      }
-      // Fallback: check dueDay only if dueWithTime is not set
-      else if (task.dueDay === todayStr) {
-        tasksForToday.push(taskId);
-      }
-    }
-  }
-
-  if (tasksForToday.length === 0) {
-    return [];
-  }
-
-  // Filter out subtasks whose parent is also in TODAY
-  // (subtasks should only appear nested under their parent, not as separate top-level items)
-  const tasksForTodaySet = new Set(tasksForToday);
-  const topLevelTasksForToday = tasksForToday.filter((taskId) => {
-    const task = taskEntities[taskId];
-    return !task?.parentId || !tasksForTodaySet.has(task.parentId);
-  });
-
-  if (topLevelTasksForToday.length === 0) {
-    return [];
-  }
-
-  // Order tasks according to TODAY_TAG.taskIds, with unordered tasks appended
-  // PERF: Use Map for O(1) lookup instead of indexOf which is O(n) per task
-  const topLevelTasksSet = new Set(topLevelTasksForToday);
-  const storedOrderMap = new Map(storedOrder.map((id, idx) => [id, idx]));
-  const orderedTasks: (string | undefined)[] = [];
-  const unorderedTasks: string[] = [];
-
-  for (const taskId of topLevelTasksForToday) {
-    const orderIndex = storedOrderMap.get(taskId);
-    if (orderIndex !== undefined) {
-      orderedTasks[orderIndex] = taskId;
-    } else {
-      unorderedTasks.push(taskId);
-    }
-  }
-
-  return [
-    ...orderedTasks.filter(
-      (id): id is string => id !== undefined && topLevelTasksSet.has(id),
-    ),
-    ...unorderedTasks,
-  ];
-};
 
 export const selectContextFeatureState = createFeatureSelector<WorkContextState>(
   WORK_CONTEXT_FEATURE_NAME,
@@ -148,6 +56,7 @@ export const selectActiveWorkContext = createSelector(
   selectTagFeatureState,
   selectTaskEntitiesInActiveProjects,
   selectNoteTodayOrder,
+  selectTodayPlanningIds,
   selectTodayStr,
   selectStartOfNextDayDiffMs,
   (
@@ -156,22 +65,18 @@ export const selectActiveWorkContext = createSelector(
     tagState,
     activeTaskEntities,
     todayOrder,
+    planningIds,
     todayStr,
     startOfNextDayDiffMs,
   ): WorkContext => {
     if (activeType === WorkContextType.TAG) {
       const tag = selectTagById.projector(tagState, { id: activeId });
 
-      // TODAY_TAG uses dueDay for membership (virtual tag pattern)
+      // TODAY_TAG reads canonical dated placements
       // Regular tags use task.tagIds for membership (board-style pattern)
       const orderedTaskIds =
         activeId === TODAY_TAG.id
-          ? computeOrderedTaskIdsForToday(
-              tag,
-              activeTaskEntities,
-              todayStr,
-              startOfNextDayDiffMs,
-            )
+          ? planningIds.filter((id) => !!activeTaskEntities[id])
           : computeOrderedTaskIdsForTag(activeId, tag, activeTaskEntities);
 
       return {
@@ -192,13 +97,8 @@ export const selectActiveWorkContext = createSelector(
         if (!tag) {
           throw new Error('Today tag not found');
         }
-        // Fallback to TODAY tag - use dueDay for membership (virtual tag pattern)
-        const orderedTaskIds = computeOrderedTaskIdsForToday(
-          tag,
-          activeTaskEntities,
-          todayStr,
-          startOfNextDayDiffMs,
-        );
+        // Fallback to Today using canonical placements
+        const orderedTaskIds = planningIds.filter((id) => !!activeTaskEntities[id]);
         return {
           ...tag,
           taskIds: orderedTaskIds,
@@ -341,20 +241,14 @@ export const selectUndoneBacklogTaskIdsForActiveContext = createSelector(
  */
 // SPAP-20: fed by the scheduling snapshot (as a Record) instead of the full
 // active-project task entities, so a `timeSpent`-only tick — which does not
-// change any field computeOrderedTaskIdsForToday reads (id/dueDay/dueWithTime/
-// parentId) — leaves the snapshot ref stable and this selector is skipped.
+// change Task existence/parent fields needed for rendering — leaves the snapshot ref stable and this selector is skipped.
 export const selectTodayTaskIds = createSelector(
-  selectTagFeatureState,
+  selectTodayPlanningIds,
   selectTaskSchedulingSnapshotRecord,
-  selectTodayStr,
-  selectStartOfNextDayDiffMs,
-  (tagState, activeTaskEntities, todayStr, startOfNextDayDiffMs): string[] => {
-    const todayTag = tagState.entities[TODAY_TAG.id];
-    return computeOrderedTaskIdsForToday(
-      todayTag,
-      activeTaskEntities,
-      todayStr,
-      startOfNextDayDiffMs,
+  (ids, tasks) => {
+    const planned = new Set(ids);
+    return ids.filter(
+      (id) => !!tasks[id] && (!tasks[id].parentId || !planned.has(tasks[id].parentId!)),
     );
   },
 );

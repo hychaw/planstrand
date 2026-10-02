@@ -1,7 +1,7 @@
+import { planningCommands } from '../../planning/planning-commands';
 import { CdkDragMove, CdkDragRelease, CdkDragStart } from '@angular/cdk/drag-drop';
 import { inject, Injectable, Signal, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { PlannerActions } from '../../planner/store/planner.actions';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import {
   FH,
@@ -264,12 +264,10 @@ export class ScheduleWeekDragService {
     }
 
     const dispatchMoveBefore = (): void => {
-      this._store.dispatch(
-        PlannerActions.moveBeforeTask({
-          fromTask: task,
-          toTaskId: targetTaskId,
-        }),
-      );
+      planningCommands(this._store).moveBeforeTask({
+        fromTask: task,
+        toTaskId: targetTaskId,
+      });
     };
 
     // Handle drop scenarios in priority order using if-else chain:
@@ -838,13 +836,11 @@ export class ScheduleWeekDragService {
     }
 
     if (this.isShiftMode()) {
-      this._store.dispatch(
-        PlannerActions.planTaskForDay({
-          task,
-          day: targetDay,
-          isAddToTop: !isMoveToEndOfDay,
-        }),
-      );
+      planningCommands(this._store).planTaskForDay({
+        task,
+        day: targetDay,
+        isAddToTop: !isMoveToEndOfDay,
+      });
       return true;
     }
 
@@ -858,13 +854,11 @@ export class ScheduleWeekDragService {
       return true;
     }
 
-    this._store.dispatch(
-      PlannerActions.planTaskForDay({
-        task,
-        day: targetDay,
-        isAddToTop: !isMoveToEndOfDay,
-      }),
-    );
+    planningCommands(this._store).planTaskForDay({
+      task,
+      day: targetDay,
+      isAddToTop: !isMoveToEndOfDay,
+    });
     return true;
   }
 

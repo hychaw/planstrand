@@ -1,3 +1,4 @@
+import { planningCommands } from '../planning/planning-commands';
 import { computed, inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { MatDialog } from '@angular/material/dialog';
@@ -17,7 +18,6 @@ import {
   selectTaskByIdWithSubTaskData,
 } from './store/task.selectors';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
-import { PlannerActions } from '../planner/store/planner.actions';
 import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
 import { DialogScheduleTaskComponent } from '../planner/dialog-schedule-task/dialog-schedule-task.component';
 import { DialogDeadlineComponent } from './dialog-deadline/dialog-deadline.component';
@@ -375,23 +375,19 @@ export class TaskBulkActionService {
           // reminder), matching the single-task flow.
           todayIds.push(task.id);
         } else if (task.dueDay !== day) {
-          this._store.dispatch(
-            PlannerActions.planTaskForDay({ task, day, isShowSnack: false }),
-          );
+          planningCommands(this._store).planTaskForDay({ task, day, isShowSnack: false });
           applied++;
         }
       });
       if (todayIds.length) {
-        this._store.dispatch(
-          TaskSharedActions.planTasksForToday({
-            taskIds: todayIds,
-            today: todayStr,
-            startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-            parentTaskMap: Object.fromEntries(
-              tasks.filter((t) => todayIds.includes(t.id)).map((t) => [t.id, t.parentId]),
-            ),
-          }),
-        );
+        planningCommands(this._store).planTasksForToday({
+          taskIds: todayIds,
+          today: todayStr,
+          startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+          parentTaskMap: Object.fromEntries(
+            tasks.filter((t) => todayIds.includes(t.id)).map((t) => [t.id, t.parentId]),
+          ),
+        });
         applied += todayIds.length;
       }
     });
@@ -443,15 +439,13 @@ export class TaskBulkActionService {
       return;
     }
     const focusTargetId = this._getFocusTargetAfterRemoval();
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: tasks.map((t) => t.id),
-        today: todayStr,
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        parentTaskMap: Object.fromEntries(tasks.map((t) => [t.id, t.parentId])),
-        isShowSnack: true,
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: tasks.map((t) => t.id),
+      today: todayStr,
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+      parentTaskMap: Object.fromEntries(tasks.map((t) => [t.id, t.parentId])),
+      isShowSnack: true,
+    });
     await this._flush();
     this._finish(focusTargetId);
   }

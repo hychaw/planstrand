@@ -1,3 +1,4 @@
+import { planningCommands } from '../../features/planning/planning-commands';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -40,7 +41,6 @@ import { SnackService } from '../../core/snack/snack.service';
 import { WorkContextMarkdownService } from '../../features/work-context/work-context-markdown.service';
 import { ShareService, ShareSupport } from '../../core/share/share.service';
 import { Store } from '@ngrx/store';
-import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { TaskWithSubTasks } from '../../features/tasks/task.model';
 import { firstValueFrom, Observable, of } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
@@ -475,28 +475,9 @@ export class WorkContextMenuComponent implements OnInit {
       return;
     }
 
-    const scheduledTasks = undoneTasks.filter(
-      (task) => !!task.dueDay || !!task.dueWithTime,
-    );
-
-    scheduledTasks.forEach((task) => {
-      this._store.dispatch(
-        TaskSharedActions.unscheduleTask({
-          id: task.id,
-          isSkipToast: true,
-        }),
-      );
-    });
-
-    const remainingIds = undoneTasks
-      .filter((task) => !task.dueDay && !task.dueWithTime)
-      .map((task) => task.id);
-
-    if (remainingIds.length) {
-      this._store.dispatch(
-        TaskSharedActions.removeTasksFromTodayTag({ taskIds: remainingIds }),
-      );
-    }
+    const today = this._dateService.todayStr();
+    for (const task of undoneTasks)
+      planningCommands(this._store).unplanDay(task.id, today);
 
     this._snackService.open(T.GLOBAL_SNACK.UNPLANNED_TODAY_TASKS);
   }

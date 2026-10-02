@@ -26,7 +26,7 @@ const createTestOp = (overrides: Record<string, any> = {}) => ({
   payload: { foo: 'bar' },
   vectorClock: { 'client-1': 1 },
   timestamp: TEST_TIMESTAMP,
-  schemaVersion: 1,
+  schemaVersion: 5,
   ...overrides,
 });
 
@@ -172,7 +172,7 @@ describe('Duplicate Operation Pre-check', () => {
       const originalOp = createTestOp({
         id: 'metadata-collision-op',
         timestamp: baseTimestamp,
-        schemaVersion: 1,
+        schemaVersion: 5,
         isPayloadEncrypted: true,
         syncImportReason: 'initial',
       });
@@ -182,28 +182,28 @@ describe('Duplicate Operation Pre-check', () => {
         createTestOp({
           id: 'metadata-collision-op',
           timestamp: baseTimestamp + 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
           isPayloadEncrypted: true,
           syncImportReason: 'initial',
         }),
         createTestOp({
           id: 'metadata-collision-op',
           timestamp: baseTimestamp,
-          schemaVersion: 2,
+          schemaVersion: 6,
           isPayloadEncrypted: true,
           syncImportReason: 'initial',
         }),
         createTestOp({
           id: 'metadata-collision-op',
           timestamp: baseTimestamp,
-          schemaVersion: 1,
+          schemaVersion: 5,
           isPayloadEncrypted: false,
           syncImportReason: 'initial',
         }),
         createTestOp({
           id: 'metadata-collision-op',
           timestamp: baseTimestamp,
-          schemaVersion: 1,
+          schemaVersion: 5,
           isPayloadEncrypted: true,
           syncImportReason: 'retry',
         }),
@@ -444,7 +444,7 @@ describe('Duplicate Operation Pre-check', () => {
               entityIds: [],
               payload: { foo: 'bar' },
               vectorClock: { 'client-1': 1 },
-              schemaVersion: 1,
+              schemaVersion: 5,
               clientTimestamp: BigInt(raceTimestamp),
               receivedAt: BigInt(raceTimestamp),
               isPayloadEncrypted: false,
@@ -526,7 +526,7 @@ describe('Duplicate Operation Pre-check', () => {
               entityIds: [],
               payload: { foo: 'bar' },
               vectorClock: { 'client-1': 1 },
-              schemaVersion: 1,
+              schemaVersion: 5,
               clientTimestamp: BigInt(raceTimestamp),
               receivedAt: BigInt(raceTimestamp),
               isPayloadEncrypted: false,

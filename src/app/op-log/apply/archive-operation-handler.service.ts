@@ -555,7 +555,7 @@ export class ArchiveOperationHandler implements ArchiveSideEffectPort<Persistent
     label: 'archiveYoung' | 'archiveOld';
     existing: ArchiveModel | undefined;
     incoming: ArchiveModel | undefined;
-    opType: OpType;
+    opType: import('../core/operation.types').PlanstrandOpType;
   }): Promise<boolean> {
     const hasExisting = (opts.existing?.task?.ids?.length ?? 0) > 0;
     const isIncomingEmpty = !opts.incoming?.task?.ids?.length;

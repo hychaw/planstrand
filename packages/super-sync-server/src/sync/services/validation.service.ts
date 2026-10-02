@@ -13,7 +13,13 @@ import {
   sanitizeVectorClock,
   validatePayload,
 } from '../sync.types';
-import { ENTITY_TYPES, SUPER_SYNC_MAX_ENTITY_IDS_PER_OP } from '@sp/shared-schema';
+import {
+  ENTITY_TYPES,
+  SUPER_SYNC_MAX_ENTITY_IDS_PER_OP,
+  PLANNING_V1,
+  isPlanningRecord,
+  SUPER_SYNC_OPERATION_CAPABILITIES,
+} from '@sp/shared-schema';
 import { Logger } from '../../logger';
 
 /**
@@ -71,6 +77,20 @@ export class ValidationService {
    * Mutates op.vectorClock if sanitization is needed.
    */
   validateOp(op: Operation, requestClientId: string): ValidationResult {
+    // This is live ingress. Retained history download uses the historical
+    // schema support range and must not apply this release upload floor.
+    if (
+      !Number.isInteger(op.schemaVersion) ||
+      op.schemaVersion === undefined ||
+      op.schemaVersion < SUPER_SYNC_OPERATION_CAPABILITIES.minSchemaVersion ||
+      op.schemaVersion > 100
+    ) {
+      return {
+        valid: false,
+        error: `Invalid schema version: ${op.schemaVersion}`,
+        errorCode: SYNC_ERROR_CODES.INVALID_SCHEMA_VERSION,
+      };
+    }
     // Validate clientId matches request
     if (op.clientId !== requestClientId) {
       return {
@@ -185,6 +205,30 @@ export class ValidationService {
       };
     }
 
+    if (op.opType === PLANNING_V1 || op.entityType === 'PLANNING') {
+      const body = !op.isPayloadEncrypted ? extractActionPayload(op.payload) : null;
+      const record = body?.['record'];
+      const isRemove = op.actionType === '[Planning] Remove Placement';
+      if (
+        op.opType !== PLANNING_V1 ||
+        op.entityType !== 'PLANNING' ||
+        (op.actionType !== '[Planning] Set Placement' && !isRemove) ||
+        (op.entityIds &&
+          (op.entityIds.length !== 1 || op.entityIds[0] !== op.entityId)) ||
+        (!op.isPayloadEncrypted &&
+          (!isPlanningRecord(record) ||
+            record.id !== op.entityId ||
+            record.revision.opId !== op.id ||
+            record.revision.clientId !== op.clientId ||
+            (record.placement === null) !== isRemove))
+      ) {
+        return {
+          valid: false,
+          error: 'Invalid Planning register operation',
+          errorCode: SYNC_ERROR_CODES.INVALID_PAYLOAD,
+        };
+      }
+    }
     // Validate the visible form of additive task-time operations at the server
     // boundary. Encrypted payloads are validated by the client after decryption.
     if (op.actionType === TASK_TIME_DELTA_ACTION_TYPE && !op.isPayloadEncrypted) {
@@ -204,20 +248,6 @@ export class ValidationService {
         };
       }
     }
-    if (op.schemaVersion !== undefined) {
-      if (
-        !Number.isInteger(op.schemaVersion) ||
-        op.schemaVersion < 1 ||
-        op.schemaVersion > 100
-      ) {
-        return {
-          valid: false,
-          error: `Invalid schema version: ${op.schemaVersion}`,
-          errorCode: SYNC_ERROR_CODES.INVALID_SCHEMA_VERSION,
-        };
-      }
-    }
-
     // A non-integer or non-finite timestamp cannot be persisted: uploads store
     // clientTimestamp as BigInt, and BigInt() throws on such values, which would
     // abort the whole batch mid-insert with an unstructured 500. Reject it here as

@@ -1,6 +1,6 @@
 import {
   Operation,
-  OpType,
+  PlanstrandOpType,
   EntityType,
   VectorClock,
   ActionType,
@@ -56,7 +56,7 @@ export class TestClient {
    */
   createOperation(params: {
     actionType: string;
-    opType: OpType;
+    opType: PlanstrandOpType;
     entityType: EntityType;
     entityId: string;
     payload: unknown;

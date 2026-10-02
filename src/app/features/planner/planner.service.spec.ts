@@ -16,7 +16,7 @@ import { first, map, shareReplay } from 'rxjs/operators';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { signal, WritableSignal } from '@angular/core';
 import { LayoutService } from '../../core-ui/layout/layout.service';
-import { selectPlannerState } from './store/planner.selectors';
+import { selectCanonicalPlannerState as selectPlannerState } from '../planning/store/planning.selectors';
 import { selectTimelineConfig } from '../config/store/global-config.reducer';
 import { selectStartOfNextDayDiffMs } from '../../root-store/app-state/app-state.selectors';
 import { findSpringForwardSunday } from '../tasks/dst.test-helper';

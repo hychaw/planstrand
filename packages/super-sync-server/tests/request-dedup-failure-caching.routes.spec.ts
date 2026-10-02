@@ -90,7 +90,7 @@ const createOp = (): unknown => ({
   isPayloadEncrypted: true,
   vectorClock: {},
   timestamp: Date.now(),
-  schemaVersion: 1,
+  schemaVersion: 5,
 });
 
 // The exact shape uploadOps returns when its transaction rolls back
@@ -159,6 +159,7 @@ describe('Request dedup — transaction-failure results are not cached (#8332)',
         isPayloadEncrypted: true,
         clientId,
         reason: 'recovery',
+        schemaVersion: 5,
         vectorClock: { [clientId]: 1 },
         opId: '018f2f0b-1c2d-7a1b-8c3d-123456789abc',
         requestId,

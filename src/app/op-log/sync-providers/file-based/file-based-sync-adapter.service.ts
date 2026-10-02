@@ -63,12 +63,8 @@ import { compactToSyncOp, syncOpToCompact } from './file-based-operation-convers
  * This adapter wraps a file-based provider and implements `OperationSyncCapable`,
  * allowing the unified sync system to work with file storage instead of APIs.
  *
- * ## Single File Approach
- * All sync data is stored in `sync-data.json`:
- * - Full state snapshot (for bootstrapping and recovery)
- * - Recent operations (for conflict detection and merging)
- * - Vector clock (for causality tracking)
- * - syncVersion counter (for optimistic locking)
+ * Snapshot downloads preserve the source schema so the host can migrate the
+ * baseline and gate only its original legacy tail.
  *
  * ## Conflict Resolution
  * Unlike PFAPI's model-level conflicts, this approach enables entity-level
@@ -1324,7 +1320,12 @@ export class FileBasedSyncAdapterService {
       gapDetected: needsGapDetection,
       // Include full state snapshot for fresh downloads (sinceSeq === 0)
       // This allows new clients to bootstrap with complete state, not just recent ops
-      ...(snapshotStateWithArchives ? { snapshotState: snapshotStateWithArchives } : {}),
+      ...(snapshotStateWithArchives
+        ? {
+            snapshotState: snapshotStateWithArchives,
+            snapshotSchemaVersion: syncData.schemaVersion ?? 1,
+          }
+        : {}),
       ...(snapshotStateWithArchives
         ? { snapshotAppliedOpIds: limitedOps.map(({ op }) => op.id) }
         : {}),
@@ -2746,7 +2747,12 @@ export class FileBasedSyncAdapterService {
       snapshotVectorClock: snapshot?.vectorClock ?? opsFile.vectorClock,
       remoteLastModified: opsFile.lastModified,
       gapDetected: needsGapDetection,
-      ...(snapshotStateWithArchives ? { snapshotState: snapshotStateWithArchives } : {}),
+      ...(snapshotStateWithArchives
+        ? {
+            snapshotState: snapshotStateWithArchives,
+            snapshotSchemaVersion: snapshot?.schemaVersion ?? opsFile.schemaVersion ?? 1,
+          }
+        : {}),
       ...(snapshotStateWithArchives ? { snapshotAppliedOpIds } : {}),
     };
   }
@@ -2788,7 +2794,10 @@ export class FileBasedSyncAdapterService {
         remoteLastModified: data.lastModified,
         gapDetected: sinceSeq > 0,
         ...(snapshotStateWithArchives
-          ? { snapshotState: snapshotStateWithArchives }
+          ? {
+              snapshotState: snapshotStateWithArchives,
+              snapshotSchemaVersion: data.schemaVersion ?? 1,
+            }
           : {}),
         ...(snapshotStateWithArchives
           ? { snapshotAppliedOpIds: filteredOps.map(({ op }) => op.id) }

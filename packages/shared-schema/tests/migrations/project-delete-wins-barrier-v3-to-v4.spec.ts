@@ -9,7 +9,7 @@ import type { OperationLike } from '../../src/migration.types';
 
 describe('project delete-wins compatibility barrier v3 -> v4', () => {
   it('makes marked project deletions visible as a new schema generation', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(4);
+    expect(CURRENT_SCHEMA_VERSION).toBeGreaterThanOrEqual(4);
     expect(PROJECT_DELETE_WINS_SCHEMA_VERSION).toBe(4);
     expect(ProjectDeleteWinsBarrierMigration_v3v4.fromVersion).toBe(3);
     expect(ProjectDeleteWinsBarrierMigration_v3v4.toVersion).toBe(4);

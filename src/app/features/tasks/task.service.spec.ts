@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../test-helpers/planning-fixture';
 import { TestBed } from '@angular/core/testing';
 import { TaskService } from './task.service';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -167,6 +172,7 @@ describe('TaskService', () => {
 
     service = TestBed.inject(TaskService);
     store = TestBed.inject(MockStore);
+    configurePlanningFixture(store);
     archiveService = TestBed.inject(ArchiveService) as jasmine.SpyObj<ArchiveService>;
     deletedTaskIssueSidecar = TestBed.inject(DeletedTaskIssueSidecarService);
     taskTimeSync = TestBed.inject(TaskTimeSyncService);
@@ -296,18 +302,13 @@ describe('TaskService', () => {
   });
 
   describe('addToToday', () => {
-    it('should dispatch planTasksForToday', () => {
+    it('authors a canonical Planning record for Today', async () => {
       const task = createMockTaskWithSubTasks(createMockTask('task-1'));
 
       service.addToToday(task);
 
-      expect(store.dispatch).toHaveBeenCalledWith(
-        TaskSharedActions.planTasksForToday({
-          taskIds: ['task-1'],
-          today: '2026-01-05',
-          startOfNextDayDiffMs: 0,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(store.dispatch as jasmine.Spy, 'task-1', '2026-01-05');
     });
   });
 
@@ -809,14 +810,14 @@ describe('TaskService', () => {
       expect(task.tagIds).not.toContain(TODAY_TAG.id);
     });
 
-    it('should set dueDay for TODAY tag context', () => {
+    it('keeps dueDay independent from TODAY planning context', () => {
       const task = service.createNewTaskWithDefaults({
         title: 'Test',
         workContextType: WorkContextType.TAG,
         workContextId: TODAY_TAG.id,
       });
 
-      expect(task.dueDay).toBeTruthy();
+      expect(task.dueDay).toBeUndefined();
     });
 
     // The TODAY default is keyed on `'dueDay' in additional`, not on its value,

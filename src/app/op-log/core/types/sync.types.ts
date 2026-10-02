@@ -47,10 +47,10 @@ export interface ModelCfg<T extends ModelBase> {
 }
 
 export type ModelCfgs = {
-  [modelId: string]: ModelCfg<ModelBase>;
+  [modelId: string]: ModelCfg<ModelBase> | undefined;
 };
 
-type ExtractModelCfgType<T extends ModelCfg<ModelBase>> =
+type ExtractModelCfgType<T extends ModelCfg<ModelBase> | undefined> =
   T extends ModelCfg<infer U> ? U : never;
 
 export type AllModelData<T extends ModelCfgs> = {

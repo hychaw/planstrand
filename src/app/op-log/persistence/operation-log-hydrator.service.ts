@@ -1,3 +1,7 @@
+import {
+  buildHydrationReplayBatch,
+  HydrationReplayBatch,
+} from './hydration-replay-batch';
 import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { OperationLogStoreService } from './operation-log-store.service';
@@ -6,7 +10,6 @@ import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { OperationLogMigrationService } from './operation-log-migration.service';
 import {
   CURRENT_SCHEMA_VERSION,
-  getOperationSchemaVersion,
   SchemaMigrationService,
 } from './schema-migration.service';
 import { OperationLogSnapshotService } from './operation-log-snapshot.service';
@@ -43,6 +46,7 @@ import {
 } from '../apply/bulk-replay-failure-collector';
 import { runWithLoadAllDataFailureCollector } from '../apply/load-all-data-failure-guard.meta-reducer';
 import { hasMeaningfulStateData } from '../validation/has-meaningful-state-data.util';
+import { extractEntityKeysFromState } from './extract-entity-keys';
 
 /**
  * sessionStorage key used to track auto-reload attempts after IndexedDB backing store errors.
@@ -50,21 +54,7 @@ import { hasMeaningfulStateData } from '../validation/has-meaningful-state-data.
  */
 export const IDB_OPEN_ERROR_RELOAD_KEY = 'sp_idb_open_reload_attempt';
 
-interface HydrationReplayBatch {
-  operations: Operation[];
-  atomicReplayGroups: string[][];
-  sourceOpIdByReplayedOpId: Map<string, string>;
-  sourceOpIdsWithReplay: Set<string>;
-  sourceEntryByOpId: Map<string, OperationLogEntry>;
-}
-
-/**
- * Handles the hydration (loading) of the application state from the operation log
- * during application startup. It first attempts to load a saved state snapshot,
- * and then replays any subsequent operations from the log to bring the application
- * state up to date. This approach optimizes startup performance by avoiding a full
- * replay of all historical operations.
- */
+/** Hydrates a saved snapshot and replays its durable operation tail. */
 @Injectable({ providedIn: 'root' })
 export class OperationLogHydratorService {
   private store = inject(Store);
@@ -89,6 +79,7 @@ export class OperationLogHydratorService {
 
   // Track if schema migration ran during this hydration (requires validation)
   private _migrationRanDuringHydration = false;
+  private _legacySource = false;
 
   async hydrateStore(): Promise<void> {
     OpLog.normal('OperationLogHydratorService: Starting hydration...');
@@ -99,26 +90,9 @@ export class OperationLogHydratorService {
     // would fire the post-migration convergence save — and Checkpoint B's
     // synchronous full-state validation — on a run where no migration ran.
     this._migrationRanDuringHydration = false;
-    // Whether the on-disk cache already holds a fresh CURRENT_SCHEMA_VERSION
-    // snapshot, so the post-migration convergence save at the end of the try
-    // block can skip its redundant write. Assigned from the save's RETURN VALUE,
-    // never set unconditionally: saveCurrentStateAsSnapshot() resolves normally
-    // when a guard (#8751 phantom / #7892 empty) or a caught write failure
-    // skipped the write, and treating that as "persisted" would suppress the
-    // convergence save that is this method's whole point.
-    // NB: this does not track migrateSnapshotWithBackup's step-5 persist — on the
-    // healthy backfill path (migrated snapshot validates and is persisted) with
-    // few/no tail ops, convergence still writes once more. That extra write is
-    // harmless and its post-replay state is strictly more advanced, so it is not
-    // worth extra plumbing to suppress; only the every-boot re-migration it
-    // prevents matters.
-    //
-    // Version stamping (#8770): convergence writes its snapshot AFTER the
-    // migration chain has run, so stamping CURRENT_SCHEMA_VERSION is safe —
-    // see the invariant on saveStateCache(). (The last writer that persisted
-    // downloaded state unversioned was removed in 6073c2cce4; downloaded full
-    // state now only arrives as a SYNC_IMPORT op, never written to the cache
-    // directly.)
+    this._legacySource = false;
+    // Only an actual cache write suppresses convergence persistence. Legacy
+    // anchors remain schema 4 until a confirmed clean-slate replacement.
     let snapshotPersistedDuringHydration = false;
     // Set only when the try block below ran to completion; gates the startup
     // compaction check after the finally so recovery/aborted boots never prune.
@@ -170,11 +144,45 @@ export class OperationLogHydratorService {
         snapshot = await this.opLogStore.loadStateCache();
       }
 
-      // 2. Run schema migration if needed (A.7.12: with backup safety)
+      // An acknowledged local replacement is confirmation, unlike compaction's
+      // schema stamp. Recover a crash between acknowledgement and cache install.
+      if (!snapshot || (snapshot.schemaVersion ?? 1) < 5) {
+        const replacement = await this.opLogStore.getLatestFullStateOpEntry();
+        if (
+          replacement?.source === 'local' &&
+          replacement.syncedAt !== undefined &&
+          replacement.op.schemaVersion >= 5 &&
+          replacement.op.opType === OpType.SyncImport &&
+          (replacement.op.syncImportReason === 'FORCE_UPLOAD' ||
+            replacement.op.syncImportReason === 'SERVER_MIGRATION')
+        ) {
+          const state = this._extractFullStateFromOp(replacement.op);
+          if (!state) throw new Error('Confirmed cutover has no full state');
+          snapshot = {
+            state,
+            lastAppliedOpSeq: replacement.seq,
+            vectorClock: replacement.op.vectorClock,
+            compactedAt: Date.now(),
+            schemaVersion: replacement.op.schemaVersion,
+          };
+          await this.opLogStore.saveStateCache({
+            ...snapshot,
+            schemaVersion: replacement.op.schemaVersion,
+            snapshotEntityKeys: extractEntityKeysFromState(state as AppStateSnapshot),
+          });
+        }
+      }
+      this._legacySource = !!snapshot && (snapshot.schemaVersion ?? 1) < 5;
+
+      // 2. Earlier legacy migrations may run, but Planning projection waits for
+      // complete remote materialization and confirmed clean-slate replacement.
       let hydrationFallbackRan = false;
-      if (snapshot && this.schemaMigrationService.needsMigration(snapshot)) {
+      if (snapshot && (snapshot.schemaVersion ?? 1) < (this._legacySource ? 4 : 5)) {
         try {
-          snapshot = await this.snapshotService.migrateSnapshotWithBackup(snapshot);
+          snapshot = await this.snapshotService.migrateSnapshotWithBackup(
+            snapshot,
+            this._legacySource ? 4 : CURRENT_SCHEMA_VERSION,
+          );
           this._migrationRanDuringHydration = true;
         } catch (migrationErr) {
           // #9140: escalating a migration throw would hit attemptRecovery(),
@@ -306,10 +314,11 @@ export class OperationLogHydratorService {
           hydrationFallbackRan = true;
         } else {
           // 4. Replay tail operations (A.7.13: with operation migration)
-          snapshotPersistedDuringHydration = await this._replayTailOps(
-            snapshot.lastAppliedOpSeq,
-            pendingRemoteOps,
-          );
+          const replay = (): Promise<boolean> =>
+            this._replayTailOps(snapshot.lastAppliedOpSeq, pendingRemoteOps);
+          snapshotPersistedDuringHydration = this._legacySource
+            ? await this.schemaMigrationService.materializeLegacy(replay)
+            : await replay();
           OpLog.normal('OperationLogHydratorService: Hydration complete.');
         }
       } else if (!hydrationFallbackRan) {
@@ -525,7 +534,17 @@ export class OperationLogHydratorService {
         ? allTailEntries[allTailEntries.length - 1].seq
         : lastAppliedOpSeq;
     const tailOps = allTailEntries.filter(
-      (entry) => entry.reducerRejectedAt === undefined,
+      (entry) =>
+        entry.reducerRejectedAt === undefined &&
+        !(
+          this._legacySource &&
+          entry.source === 'local' &&
+          entry.syncedAt === undefined &&
+          entry.op.schemaVersion >= 5 &&
+          entry.op.opType === OpType.SyncImport &&
+          (entry.op.syncImportReason === 'FORCE_UPLOAD' ||
+            entry.op.syncImportReason === 'SERVER_MIGRATION')
+        ),
     );
 
     if (tailOps.length === 0) {
@@ -655,11 +674,32 @@ export class OperationLogHydratorService {
     // Status-blind except for durable reducer rejections — see the replay
     // policy note on _replayTailOps.
     const allEntries = await this.opLogStore.getOpsAfterSeq(0);
+    if (
+      !this.schemaMigrationService.isMaterializingLegacyState &&
+      allEntries.some((entry) => (entry.op.schemaVersion ?? 1) < 5)
+    ) {
+      this._legacySource = true;
+      return this.schemaMigrationService.materializeLegacy(() =>
+        this._replayAllOpsFromScratch(pendingRemoteOps, fallbackCause),
+      );
+    }
     // #9438: see _replayTailOps — the frontier covers everything read here,
     // reducer-rejected entries included. Not established in fallback mode
     // (partial state; the #9140 guards keep every save path skipped there).
     const coveredSeq = allEntries.length > 0 ? allEntries[allEntries.length - 1].seq : 0;
-    const allOps = allEntries.filter((entry) => entry.reducerRejectedAt === undefined);
+    const allOps = allEntries.filter(
+      (entry) =>
+        entry.reducerRejectedAt === undefined &&
+        !(
+          this._legacySource &&
+          entry.source === 'local' &&
+          entry.syncedAt === undefined &&
+          entry.op.schemaVersion >= 5 &&
+          entry.op.opType === OpType.SyncImport &&
+          (entry.op.syncImportReason === 'FORCE_UPLOAD' ||
+            entry.op.syncImportReason === 'SERVER_MIGRATION')
+        ),
+    );
 
     if (allOps.length === 0) {
       if (fallbackCause !== undefined) {
@@ -705,6 +745,16 @@ export class OperationLogHydratorService {
       );
       if (fallbackCause === undefined) {
         this.tabSeqFrontier.establishFrontier(coveredSeq);
+        if (this._legacySource) {
+          await this.opLogStore.saveStateCache({
+            state: appData,
+            lastAppliedOpSeq: coveredSeq,
+            vectorClock: (await this.opLogStore.getVectorClock()) ?? {},
+            compactedAt: Date.now(),
+            schemaVersion: 4,
+            snapshotEntityKeys: extractEntityKeysFromState(appData as AppStateSnapshot),
+          });
+        }
       }
       // No snapshot save needed - full state ops already contain complete state
       OpLog.normal('OperationLogHydratorService: Full replay complete.');
@@ -761,7 +811,21 @@ export class OperationLogHydratorService {
       OpLog.normal(
         `OperationLogHydratorService: Saving snapshot after replaying ${opsToReplay.length} ops`,
       );
-      snapshotPersisted = await this.snapshotService.saveCurrentStateAsSnapshot();
+      if (this._legacySource) {
+        const state =
+          await this.stateSnapshotService.getStateSnapshotForOperationLogAsync();
+        await this.opLogStore.saveStateCache({
+          state,
+          lastAppliedOpSeq: coveredSeq,
+          vectorClock: (await this.opLogStore.getVectorClock()) ?? {},
+          compactedAt: Date.now(),
+          schemaVersion: 4,
+          snapshotEntityKeys: extractEntityKeysFromState(state),
+        });
+        snapshotPersisted = true;
+      } else {
+        snapshotPersisted = await this.snapshotService.saveCurrentStateAsSnapshot();
+      }
     }
 
     OpLog.normal('OperationLogHydratorService: Full replay complete.');
@@ -812,6 +876,9 @@ export class OperationLogHydratorService {
     if (failedFullStateOp) {
       throw failedFullStateOp.error;
     }
+    if (this._legacySource && reducerFailures.length > 0) {
+      throw reducerFailures[0].error;
+    }
 
     const failedLocalOp = reducerFailures.find((failure) => {
       const sourceOpId = sourceOpIdByReplayedOpId.get(failure.op.id) ?? failure.op.id;
@@ -859,15 +926,7 @@ export class OperationLogHydratorService {
     }
   }
 
-  /**
-   * Extracts full application state from operations that contain complete state.
-   * Returns undefined for operations that don't contain full state (normal CRUD ops).
-   *
-   * Operations that contain full state:
-   * - OpType.SyncImport: Full state from remote sync
-   * - OpType.Repair: Full repaired state from auto-repair
-   * - OpType.BackupImport: Full state from backup file restore
-   */
+  /** Extracts complete state from imports/repairs; CRUD operations have none. */
   private _extractFullStateFromOp(op: Operation): unknown | undefined {
     if (!op.payload) {
       return undefined;
@@ -912,81 +971,7 @@ export class OperationLogHydratorService {
    * @returns Migrated operations plus their durable source-row lineage
    */
   private _migrateTailOps(entries: OperationLogEntry[]): HydrationReplayBatch {
-    // Lenient boundary: a malformed stored schemaVersion (legacy or corrupt
-    // entry) must not abort the WHOLE hydration into attemptRecovery() — that
-    // trades one questionable op for possible tail-data loss on every boot.
-    // Strict parsing stays on the receive/upload paths; locally we replay the
-    // op verbatim as a best effort (stamping the current version so
-    // migrateOperations passes it through unchanged, preserving order).
-    const sanitizedOps = entries.map(({ op }) => {
-      try {
-        getOperationSchemaVersion(op);
-        return op;
-      } catch {
-        OpLog.warn(
-          'OperationLogHydratorService: Stored op has a malformed schemaVersion; replaying verbatim without migration.',
-          { id: op.id },
-        );
-        return { ...op, schemaVersion: CURRENT_SCHEMA_VERSION };
-      }
-    });
-
-    // Check if any ops need migration
-    const needsMigration = sanitizedOps.some((op) =>
-      this.schemaMigrationService.operationNeedsMigration(op),
-    );
-
-    const sourceOpIdByReplayedOpId = new Map<string, string>();
-    const sourceOpIdsWithReplay = new Set<string>();
-    const sourceEntryByOpId = new Map(entries.map((entry) => [entry.op.id, entry]));
-
-    if (!needsMigration) {
-      for (const op of sanitizedOps) {
-        sourceOpIdByReplayedOpId.set(op.id, op.id);
-        sourceOpIdsWithReplay.add(op.id);
-      }
-      return {
-        operations: sanitizedOps,
-        atomicReplayGroups: [],
-        sourceOpIdByReplayedOpId,
-        sourceOpIdsWithReplay,
-        sourceEntryByOpId,
-      };
-    }
-
-    OpLog.normal(
-      `OperationLogHydratorService: Migrating ${sanitizedOps.length} tail ops to current schema version...`,
-    );
-
-    const atomicReplayGroups: string[][] = [];
-    const operations = sanitizedOps.flatMap((op) => {
-      const migrationResult = this.schemaMigrationService.operationNeedsMigration(op)
-        ? this.schemaMigrationService.migrateOperation(op)
-        : op;
-      const migratedOps = migrationResult
-        ? Array.isArray(migrationResult)
-          ? migrationResult
-          : [migrationResult]
-        : [];
-      if (migratedOps.length > 0) {
-        sourceOpIdsWithReplay.add(op.id);
-      }
-      if (migratedOps.length > 1) {
-        atomicReplayGroups.push(migratedOps.map((migratedOp) => migratedOp.id));
-      }
-      for (const migratedOp of migratedOps) {
-        sourceOpIdByReplayedOpId.set(migratedOp.id, op.id);
-      }
-      return migratedOps;
-    });
-
-    return {
-      operations,
-      atomicReplayGroups,
-      sourceOpIdByReplayedOpId,
-      sourceOpIdsWithReplay,
-      sourceEntryByOpId,
-    };
+    return buildHydrationReplayBatch(entries, this.schemaMigrationService);
   }
 
   /**

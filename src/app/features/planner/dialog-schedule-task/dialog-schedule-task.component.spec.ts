@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../../test-helpers/planning-fixture';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogScheduleTaskComponent } from './dialog-schedule-task.component';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -22,7 +27,6 @@ import {
 } from '../../config/store/global-config.reducer';
 import { TaskCopy, TaskReminderOptionId, TaskWithDueTime } from '../../tasks/task.model';
 import { ReminderService } from '../../reminder/reminder.service';
-import { PlannerActions } from '../store/planner.actions';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { selectAllTasksWithDueTimeSorted } from '../../tasks/store/task.selectors';
@@ -137,6 +141,7 @@ describe('DialogScheduleTaskComponent', () => {
     fixture = TestBed.createComponent(DialogScheduleTaskComponent);
     component = fixture.componentInstance;
     store = TestBed.inject(MockStore);
+    configurePlanningFixture(store);
     const t = {
       id: 'task123',
       title: 'Test Task',
@@ -429,13 +434,8 @@ describe('DialogScheduleTaskComponent', () => {
 
       await component.submit();
 
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        PlannerActions.planTaskForDay({
-          task: mockTask,
-          day: getDbDateStr(today),
-          isShowSnack: true,
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(dispatchSpy, mockTask.id, getDbDateStr(today));
       expect(dialogRefSpy.close).toHaveBeenCalledWith(true);
     });
 

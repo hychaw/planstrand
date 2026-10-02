@@ -1,3 +1,4 @@
+import { isPlanningState } from '../../features/planning/planning.model';
 import { AppBaseDataEntityLikeStates } from '../../imex/sync/sync.model';
 import { TagCopy } from '../../features/tag/tag.model';
 import { ProjectCopy } from '../../features/project/project.model';
@@ -140,6 +141,10 @@ export const dataRepair = (
   dataOut = _repairMenuTree(dataOut, summary);
   dataOut = _repairSections(dataOut, summary);
   dataOut = _repairWorkSessions(dataOut, summary);
+  if (Object.hasOwn(dataOut, 'planning')) {
+    if (!isPlanningState(dataOut.planning))
+      throw new Error('Malformed Planning cannot be auto-repaired');
+  }
   dataOut = autoFixTypiaErrors(dataOut, errors);
   summary.typeErrorsFixed = errors.length;
 

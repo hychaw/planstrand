@@ -15,7 +15,8 @@ import type {
   LwwUpdateMode,
 } from '@sp/sync-core';
 import type { EntityType as SharedEntityType } from '@sp/shared-schema';
-import { ENTITY_TYPES } from '@sp/shared-schema';
+import { ENTITY_TYPES, PLANNING_V1 } from '@sp/shared-schema';
+export type PlanstrandOpType = OpType | typeof PLANNING_V1;
 import {
   createFullStateOpTypeHelpers,
   isMultiEntityPayload as libIsMultiEntityPayload,
@@ -28,7 +29,7 @@ export { OpType, extractActionPayload } from '@sp/sync-core';
 export type { VectorClock, LwwUpdateMode };
 export { ENTITY_TYPES, ActionType };
 
-const fullStateOpTypeHelpers = createFullStateOpTypeHelpers<OpType>([
+const fullStateOpTypeHelpers = createFullStateOpTypeHelpers<PlanstrandOpType>([
   OpType.SyncImport,
   OpType.BackupImport,
   OpType.Repair,
@@ -74,7 +75,10 @@ export type SyncImportReason =
  * `entityType` to the app's enums and adds the optional `syncImportReason`
  * field carried on full-state ops.
  */
-export interface Operation extends Omit<LibOperation, 'actionType' | 'entityType'> {
+export interface Operation extends Omit<
+  LibOperation<PlanstrandOpType>,
+  'actionType' | 'entityType'
+> {
   actionType: ActionType;
   entityType: EntityType;
   /**
@@ -91,12 +95,15 @@ export interface OperationLogEntry extends Omit<LibOperationLogEntry, 'op'> {
   op: Operation;
 }
 
-export interface EntityChange extends Omit<LibEntityChange, 'entityType'> {
+export interface EntityChange extends Omit<
+  LibEntityChange<PlanstrandOpType>,
+  'entityType'
+> {
   entityType: EntityType;
 }
 
 export interface EntityConflict extends Omit<
-  LibEntityConflict,
+  LibEntityConflict<Operation>,
   'entityType' | 'localOps' | 'remoteOps'
 > {
   entityType: EntityType;
@@ -105,18 +112,24 @@ export interface EntityConflict extends Omit<
 }
 
 export interface ConflictResult extends Omit<
-  LibConflictResult,
+  LibConflictResult<Operation>,
   'nonConflicting' | 'conflicts'
 > {
   nonConflicting: Operation[];
   conflicts: EntityConflict[];
 }
 
-export interface MultiEntityPayload extends Omit<LibMultiEntityPayload, 'entityChanges'> {
+export interface MultiEntityPayload extends Omit<
+  LibMultiEntityPayload<PlanstrandOpType>,
+  'entityChanges'
+> {
   entityChanges: EntityChange[];
 }
 
-export interface LwwUpdatePayload extends Omit<LibLwwUpdatePayload, 'entityChanges'> {
+export interface LwwUpdatePayload extends Omit<
+  LibLwwUpdatePayload<PlanstrandOpType>,
+  'entityChanges'
+> {
   entityChanges: EntityChange[];
 }
 

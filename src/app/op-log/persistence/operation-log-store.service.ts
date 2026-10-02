@@ -880,6 +880,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    */
   async commitFileSnapshotBaseline(opts: {
     state: unknown;
+    schemaVersion: number;
     lastAppliedOpSeq: number;
     vectorClock: VectorClock;
     compactedAt: number;
@@ -888,8 +889,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     // A standalone markRejected() commits in its own transaction, so it would
     // persist even when this baseline transaction later rolls back (e.g. the
     // op-log tail changed): those ops become non-uploadable while the old state
-    // was never replaced — a permanent local edit loss. Rejecting them here ties
-    // their fate to the state replacement.
+    // was never replaced. Rejecting here ties their fate to state replacement.
     rejectOpIds?: readonly string[];
     archiveYoung?: ArchiveStoreEntry['data'];
     archiveOld?: ArchiveStoreEntry['data'];
@@ -897,8 +897,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     await this._ensureInit();
 
     // Pruned OUTSIDE the transaction (foreign awaits inside would break it);
-    // a stale author cannot be committed here — any interleaving append moves
-    // the op-log tail and the tail check below aborts the transaction (#9096).
+    // Interleaving appends abort through the tail check below (#9096).
     const prunedVectorClock = await this.pruneClockForStorage(opts.vectorClock);
 
     const storeNames: OpLogStoreName[] = [
@@ -984,6 +983,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
           await tx.put(STORE_NAMES.STATE_CACHE, {
             id: SINGLETON_KEY,
             state: opts.state,
+            schemaVersion: opts.schemaVersion,
             lastAppliedOpSeq: snapshotFrontier,
             vectorClock: prunedVectorClock,
             compactedAt: opts.compactedAt,

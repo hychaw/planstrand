@@ -263,7 +263,10 @@ for (const isUseSplitSyncFiles of [false, true]) {
           { provide: ArchiveDbAdapter, useValue: archiveDbSpy },
           {
             provide: GlobalConfigService,
-            useValue: { sync: () => ({ isUseSplitSyncFiles }) },
+            useValue: {
+              sync: () => ({ isUseSplitSyncFiles }),
+              localization: () => ({ startOfNextDay: 0 }),
+            },
           },
           {
             provide: RepairOperationService,
@@ -456,7 +459,7 @@ for (const isUseSplitSyncFiles of [false, true]) {
             capabilities: {
               contractVersion: 1,
               supportedEntityTypes: ['TASK'],
-              minSchemaVersion: 1,
+              minSchemaVersion: 5,
               maxSchemaVersion: CURRENT_SCHEMA_VERSION,
               supportedOpTypes: options?.forceRefresh ? ['FUTURE_FENCED_V1'] : ['UPD'],
             },
@@ -477,6 +480,7 @@ for (const isUseSplitSyncFiles of [false, true]) {
           },
           getEncryptKey: async () => undefined,
           uploadOps: upload,
+          downloadOps: async () => ({ ops: [], hasMore: false, latestSeq: 0 }),
         } as unknown as OperationSyncCapable;
         expect((await syncService.uploadPendingOps(api)).kind).toBe(
           'blocked_server_incompatible',
@@ -546,7 +550,7 @@ for (const isUseSplitSyncFiles of [false, true]) {
               expect(await opLogStore.hasOp(blocked.id)).toBeFalse();
               expect(await opLogStore.hasOp(later.id)).toBeFalse();
               expect(appliedOpIdsPassedToApplier()).toEqual([prefix.id]);
-              expect(download).toHaveBeenCalledTimes(2);
+              expect(download).toHaveBeenCalledTimes(3);
             } finally {
               clearSessionKeyCache();
               setArgon2ParamsForTesting();
@@ -602,6 +606,7 @@ for (const isUseSplitSyncFiles of [false, true]) {
                 },
                 getEncryptKey: async () => (encrypted ? 'test-password' : undefined),
                 uploadOps: upload,
+                downloadOps: async () => ({ ops: [], hasMore: false, latestSeq: 0 }),
               } as unknown as OperationSyncCapable;
               expect((await syncService.uploadPendingOps(api)).kind).toBe(
                 'blocked_incompatible',

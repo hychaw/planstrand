@@ -44,7 +44,7 @@ import { SyncProviderManager } from '../sync-providers/provider-manager.service'
  * processed here before. Missing entries (pruned or import-reset clock) yield
  * false so the op falls through to the regular filters.
  */
-const isOpCoveredByLocalClock = (
+export const isOpCoveredByLocalClock = (
   op: Pick<SyncOperation, 'clientId' | 'vectorClock'>,
   localClock: VectorClock | null,
 ): boolean => {
@@ -87,6 +87,8 @@ export interface RemoteOpsDownloadOptions {
   forceFromSeq0?: boolean;
   isReDeliveryRetry?: boolean;
   includeOwnAndAppliedOps?: boolean;
+  /** Caller-owned, transient lineage for bounded replay against a local source. */
+  sourceServerSeqByOpId?: Map<string, number>;
   /**
    * Keep the ops decrypted on earlier pages when a later page fails to decrypt
    * (#9256), instead of discarding the whole run. Opt-in: only the top-level
@@ -238,6 +240,7 @@ export class OperationLogDownloadService implements OnDestroy {
     let finalLatestSeq = 0;
     let snapshotVectorClock: import('../core/operation.types').VectorClock | undefined;
     let snapshotState: unknown | undefined;
+    let snapshotSchemaVersion: number | undefined;
     let snapshotAppliedOpIds: string[] | undefined;
     let remoteLastModified: number | undefined;
     // Track encryption state of downloaded operations for detecting encryption config mismatch.
@@ -423,6 +426,10 @@ export class OperationLogDownloadService implements OnDestroy {
           response.snapshotState
         ) {
           snapshotState = response.snapshotState;
+          snapshotSchemaVersion =
+            'snapshotSchemaVersion' in response
+              ? response.snapshotSchemaVersion
+              : undefined;
           snapshotAppliedOpIds =
             'snapshotAppliedOpIds' in response
               ? response.snapshotAppliedOpIds
@@ -511,6 +518,7 @@ export class OperationLogDownloadService implements OnDestroy {
         const pageClocks: VectorClock[] = [];
         if (forceFromSeq0) {
           for (const serverOp of response.ops) {
+            options?.sourceServerSeqByOpId?.set(serverOp.op.id, serverOp.serverSeq);
             if (serverOp.op.vectorClock) {
               allOpClocks.push(serverOp.op.vectorClock);
               pageClocks.push(serverOp.op.vectorClock);
@@ -846,7 +854,7 @@ export class OperationLogDownloadService implements OnDestroy {
         ...baseResult,
         providerMode: 'fileSnapshotOps',
         // Include snapshot state for file-based sync fresh downloads
-        ...(snapshotState ? { snapshotState } : {}),
+        ...(snapshotState ? { snapshotState, snapshotSchemaVersion } : {}),
         ...(snapshotAppliedOpIds ? { snapshotAppliedOpIds } : {}),
         ...(remoteLastModified !== undefined ? { remoteLastModified } : {}),
       };

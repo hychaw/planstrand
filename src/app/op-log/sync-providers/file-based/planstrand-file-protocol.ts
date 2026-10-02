@@ -1,10 +1,12 @@
-import { SUPER_SYNC_BASELINE_OP_TYPES } from '@sp/shared-schema';
+import { PLANNING_V1, SUPER_SYNC_BASELINE_OP_TYPES } from '@sp/shared-schema';
 import { FILE_BASED_SYNC_CONSTANTS as LEGACY } from './file-based-sync.types';
 import { SyncOperation } from '../provider.interface';
 
 export const PLANSTRAND_FILE_VERSION = 4 as const;
 /** Phase 2 must add its stable operation family here with its first writer. */
-export const PLANSTRAND_REQUIRED_FILE_OP_TYPES: readonly string[] = Object.freeze([]);
+export const PLANSTRAND_REQUIRED_FILE_OP_TYPES: readonly string[] = Object.freeze([
+  PLANNING_V1,
+]);
 
 export interface FileSyncNamespace {
   readonly syncFile: string;

@@ -1,3 +1,6 @@
+import { moveTaskToEdge } from './util/move-task-to-edge';
+import { dispatchPlanningWorkContext } from '../planning/dispatch-planning-work-context';
+import { planningCommands } from '../planning/planning-commands';
 import { nanoid } from 'nanoid';
 import typia from 'typia';
 import { distinctUntilChanged, first, map, take, withLatestFrom } from 'rxjs/operators';
@@ -22,8 +25,6 @@ import {
   addSubTask,
   moveSubTask,
   moveSubTaskDown,
-  moveSubTaskToBottom,
-  moveSubTaskToTop,
   moveSubTaskUp,
   removeTimeSpent,
   roundTimeSpentForDay,
@@ -64,8 +65,6 @@ import { WorkContextType } from '../work-context/work-context.model';
 import {
   moveTaskDownInTodayList,
   moveTaskInTodayList,
-  moveTaskToBottomInTodayList,
-  moveTaskToTopInTodayList,
   moveTaskUpInTodayList,
 } from '../work-context/store/work-context-meta.actions';
 import { getAnchorFromDragDrop } from '../work-context/store/work-context-meta.helper';
@@ -77,9 +76,7 @@ import {
   moveProjectTaskDownInBacklogList,
   moveProjectTaskInBacklogList,
   moveProjectTaskToBacklogList,
-  moveProjectTaskToBottomInBacklogList,
   moveProjectTaskToRegularList,
-  moveProjectTaskToTopInBacklogList,
   moveProjectTaskUpInBacklogList,
 } from '../project/store/project.actions';
 import { Update } from '@ngrx/entity';
@@ -95,7 +92,7 @@ import { ArchiveService } from '../archive/archive.service';
 import { TaskArchiveService } from '../archive/task-archive.service';
 import { TODAY_TAG } from '../tag/tag.const';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
-import { getDbDateStr, isDBDateStr } from '../../util/get-db-date-str';
+import { isDBDateStr } from '../../util/get-db-date-str';
 import { INBOX_PROJECT } from '../project/project.const';
 import { GlobalConfigService } from '../config/global-config.service';
 import { TaskLog } from '../../core/log';
@@ -426,6 +423,19 @@ export class TaskService {
         ),
       }),
     );
+    if (
+      workContextId === TODAY_TAG.id &&
+      !isAddToBacklog &&
+      !task.parentId &&
+      !additional.dueWithTime &&
+      !('dueDay' in additional)
+    ) {
+      planningCommands(this._store).planTaskForDay({
+        task,
+        day: this._dateService.todayStr(),
+        isAddToTop: !isAddToBottom,
+      });
+    }
     return task && task.id;
   }
 
@@ -435,7 +445,7 @@ export class TaskService {
     due: number,
     remindCfg?: TaskReminderOptionId,
   ): Promise<string> {
-    const id = this.add(title, undefined, additional, undefined);
+    const id = this.add(title, undefined, { ...additional, dueWithTime: due }, undefined);
     const task = await this.getByIdOnce$(id).toPromise();
     this.scheduleTask(
       task,
@@ -448,13 +458,11 @@ export class TaskService {
   }
 
   addToToday(task: TaskWithSubTasks): void {
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: [task.id],
-        today: this._dateService.todayStr(),
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: [task.id],
+      today: this._dateService.todayStr(),
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+    });
   }
 
   /**
@@ -465,14 +473,12 @@ export class TaskService {
    */
   scheduleForTodayById(taskId: string): void {
     const task = this._taskEntities()[taskId];
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: [taskId],
-        today: this._dateService.todayStr(),
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        parentTaskMap: task ? { [taskId]: task.parentId } : undefined,
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: [taskId],
+      today: this._dateService.todayStr(),
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+      parentTaskMap: task ? { [taskId]: task.parentId } : undefined,
+    });
   }
 
   remove(task: TaskWithSubTasks): void {
@@ -583,7 +589,9 @@ export class TaskService {
       const workContextType = this._workContextService
         .activeWorkContextType as WorkContextType;
       const afterTaskId = getAnchorFromDragDrop(taskId, newOrderedIds);
-      this._store.dispatch(
+      dispatchPlanningWorkContext(
+        this._store,
+        this._dateService.todayStr(),
         moveTaskInTodayList({
           taskId,
           afterTaskId,
@@ -667,7 +675,9 @@ export class TaskService {
         const undoneTaskIds = await this._workContextService.undoneTaskIds$
           .pipe(take(1))
           .toPromise();
-        this._store.dispatch(
+        dispatchPlanningWorkContext(
+          this._store,
+          this._dateService.todayStr(),
           moveTaskUpInTodayList({
             taskId: id,
             workContextType,
@@ -721,7 +731,9 @@ export class TaskService {
         const undoneTaskIds = await this._workContextService.undoneTaskIds$
           .pipe(take(1))
           .toPromise();
-        this._store.dispatch(
+        dispatchPlanningWorkContext(
+          this._store,
+          this._dateService.todayStr(),
           moveTaskDownInTodayList({
             taskId: id,
             workContextType,
@@ -734,83 +746,27 @@ export class TaskService {
   }
 
   moveToTop(id: string, parentId: string | null = null, isBacklog: boolean): void {
-    if (parentId) {
-      this._store.dispatch(moveSubTaskToTop({ id, parentId }));
-    } else {
-      const workContextId = this._workContextService.activeWorkContextId as string;
-      const workContextType = this._workContextService
-        .activeWorkContextType as WorkContextType;
-
-      if (isBacklog) {
-        this._workContextService.undoneBacklogTaskIds$
-          .pipe(take(1))
-          .subscribe((undoneBacklogTaskIds) => {
-            if (!undoneBacklogTaskIds) {
-              throw new Error('No undoneBacklogTaskIds found');
-            }
-            this._store.dispatch(
-              moveProjectTaskToTopInBacklogList({
-                taskId: id,
-                workContextId,
-                doneBacklogTaskIds: undoneBacklogTaskIds,
-              }),
-            );
-          });
-      } else {
-        this._workContextService.undoneTaskIds$
-          .pipe(take(1))
-          .subscribe((undoneTaskIds) => {
-            this._store.dispatch(
-              moveTaskToTopInTodayList({
-                taskId: id,
-                workContextType,
-                workContextId,
-                doneTaskIds: undoneTaskIds,
-              }),
-            );
-          });
-      }
-    }
+    moveTaskToEdge(
+      this._store,
+      this._workContextService,
+      () => this._dateService.todayStr(),
+      id,
+      parentId,
+      isBacklog,
+      false,
+    );
   }
 
   moveToBottom(id: string, parentId: string | null = null, isBacklog: boolean): void {
-    if (parentId) {
-      this._store.dispatch(moveSubTaskToBottom({ id, parentId }));
-    } else {
-      const workContextId = this._workContextService.activeWorkContextId as string;
-      const workContextType = this._workContextService
-        .activeWorkContextType as WorkContextType;
-
-      if (isBacklog) {
-        this._workContextService.undoneBacklogTaskIds$
-          .pipe(take(1))
-          .subscribe((undoneBacklogTaskIds) => {
-            if (!undoneBacklogTaskIds) {
-              throw new Error('No undoneBacklogTaskIds found');
-            }
-            this._store.dispatch(
-              moveProjectTaskToBottomInBacklogList({
-                taskId: id,
-                workContextId,
-                doneBacklogTaskIds: undoneBacklogTaskIds,
-              }),
-            );
-          });
-      } else {
-        this._workContextService.undoneTaskIds$
-          .pipe(take(1))
-          .subscribe((undoneTaskIds) => {
-            this._store.dispatch(
-              moveTaskToBottomInTodayList({
-                taskId: id,
-                workContextType,
-                workContextId,
-                doneTaskIds: undoneTaskIds,
-              }),
-            );
-          });
-      }
-    }
+    moveTaskToEdge(
+      this._store,
+      this._workContextService,
+      () => this._dateService.todayStr(),
+      id,
+      parentId,
+      isBacklog,
+      true,
+    );
   }
 
   addSubTaskTo(parentId: string, additional: Partial<Task> = {}): string {
@@ -1073,13 +1029,11 @@ export class TaskService {
   moveToCurrentWorkContext(task: TaskWithSubTasks | Task): void {
     if (this._workContextService.activeWorkContextType === WorkContextType.TAG) {
       if (this._workContextService.activeWorkContextId === TODAY_TAG.id) {
-        this._store.dispatch(
-          TaskSharedActions.planTasksForToday({
-            taskIds: [task.id],
-            today: this._dateService.todayStr(),
-            startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-          }),
-        );
+        planningCommands(this._store).planTasksForToday({
+          taskIds: [task.id],
+          today: this._dateService.todayStr(),
+          startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+        });
       } else {
         this.updateTags(task, [this._workContextService.activeWorkContextId as string]);
       }
@@ -1488,13 +1442,6 @@ export class TaskService {
         workContextId !== TODAY_TAG.id
           ? [workContextId]
           : [],
-
-      ...(workContextId === TODAY_TAG.id &&
-      !additional.parentId &&
-      !additional.dueWithTime &&
-      !('dueDay' in additional)
-        ? { dueDay: getDbDateStr() }
-        : {}),
 
       ...additional,
     };

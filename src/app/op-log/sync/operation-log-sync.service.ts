@@ -1,3 +1,6 @@
+import { preflightRemoteRebuild } from './remote-rebuild-preflight';
+import { isPlanningState, mergePlanningState } from '@sp/shared-schema';
+import { selectPlanningState } from '../../features/planning/store/planning.selectors';
 import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { planSnapshotHydration } from '@sp/sync-core';
@@ -16,7 +19,6 @@ import { BackupService } from '../backup/backup.service';
 import { OpLog } from '../../core/log';
 import { OperationSyncCapable } from '../sync-providers/provider.interface';
 import { OperationLogUploadService } from './operation-log-upload.service';
-import { getUnknownOpVocabulary } from './remote-op-block.util';
 import {
   DownloadOutcome,
   SuccessfulDownloadResult,
@@ -59,9 +61,7 @@ import {
 } from './sync-import-conflict-gate.service';
 import {
   CURRENT_SCHEMA_VERSION,
-  MIN_SUPPORTED_SCHEMA_VERSION,
   SchemaMigrationService,
-  getOperationSchemaVersion,
 } from '../persistence/schema-migration.service';
 import { OperationLogHydratorService } from '../persistence/operation-log-hydrator.service';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
@@ -88,6 +88,7 @@ import { OperationApplierService } from '../apply/operation-applier.service';
 import { processDeferredActions } from './process-deferred-actions-flush.util';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { getDeferredActions } from '../capture/operation-capture.meta-reducer';
+import { LegacyCutoverService } from './legacy-cutover.service';
 
 type RemoteOpsProcessingResult = Awaited<
   ReturnType<RemoteOpsProcessingService['processRemoteOps']>
@@ -208,6 +209,7 @@ export class OperationLogSyncService {
   private operationApplier = inject(OperationApplierService);
   private hydrationState = inject(HydrationStateService);
   private injector = inject(Injector);
+  private legacyCutover = inject(LegacyCutoverService);
 
   /**
    * Once-per-session latch for the USE_REMOTE newer-schema snack: the block
@@ -250,13 +252,8 @@ export class OperationLogSyncService {
    * This order ensures users see conflict dialogs when the server rejects their changes,
    * rather than having their local changes silently discarded.
    *
-   * SAFETY: A wholly fresh client (no snapshot, no operations) should NOT upload.
-   * Fresh clients must first download and apply remote data before they can contribute.
-   * This prevents scenarios where a fresh/empty client overwrites existing remote data.
-   *
-   * SERVER MIGRATION: When a client with history connects to an empty server for the
-   * first time (server migration scenario), we create a SYNC_IMPORT with full state
-   * before uploading regular ops. This ensures all data is transferred to the new server.
+   * Fresh clients download first. Clients with local history seed an empty
+   * server with a validated full-state SYNC_IMPORT before incremental uploads.
    */
   async uploadPendingOps(
     syncProvider: OperationSyncCapable,
@@ -269,12 +266,10 @@ export class OperationLogSyncService {
       forceCapabilityRefresh?: boolean;
     },
   ): Promise<UploadOutcome> {
-    // CRITICAL: Ensure all pending write operations have completed before uploading.
-    // The effect that writes operations uses concatMap for sequential processing,
-    // but if sync is triggered before all operations are written to IndexedDB,
-    // we would upload an incomplete set. This flush waits for all queued writes.
+    // Capture must be durable before cutover or ordinary upload selection.
     await this._flushLocalWritesIncludingDeferredActions();
     await this._assertNoIncompleteRemoteOperations();
+    await this.legacyCutover.tryCutover(syncProvider, options?.fenceEpoch);
 
     // Capture never-synced status before the upload runs. The orchestrator passes a
     // value captured even earlier (pre-download, since download persists synced ops);
@@ -643,6 +638,10 @@ export class OperationLogSyncService {
     }
     await this._assertNoIncompleteRemoteOperations();
 
+    if (await this.legacyCutover.tryCutover(syncProvider, options?.fenceEpoch)) {
+      return { kind: 'snapshot_hydrated' };
+    }
+
     const result = await this.downloadService.downloadRemoteOps(syncProvider, options);
 
     // FIX #6571: Check download success before processing results.
@@ -716,7 +715,6 @@ export class OperationLogSyncService {
       }
       return { kind: 'server_migration_handled' };
     }
-
     // FILE-BASED SYNC: Handle full state snapshot from fresh download
     // When downloading from seq 0 on file-based providers (Dropbox, WebDAV, LocalFile),
     // we receive the complete application state in snapshotState. This must be hydrated
@@ -743,6 +741,35 @@ export class OperationLogSyncService {
         });
       }
       if (hydrationPlan.shouldSkipHydration) {
+        const remotePlanning = (result.snapshotState as Record<string, unknown>)[
+          'planning'
+        ];
+        if (remotePlanning !== undefined) {
+          if (!isPlanningState(remotePlanning))
+            throw new Error('Invalid Planning snapshot');
+          const localPlanning = this.store.selectSignal(selectPlanningState)();
+          const mergedPlanning = mergePlanningState(localPlanning, remotePlanning);
+          if (
+            mergedPlanning.ids.some(
+              (id) => mergedPlanning.entities[id] !== localPlanning.entities[id],
+            )
+          ) {
+            await this.writeFlushService.flushThenRunExclusive(async () => {
+              const pending = await this.opLogStore.getUnsynced();
+              await this._hydrateSnapshotExclusive(
+                {
+                  ...result,
+                  snapshotState: { planning: remotePlanning },
+                  snapshotSchemaVersion: 5,
+                  planningOnly: true,
+                },
+                new Set(pending.map((entry) => entry.op.id)),
+                [],
+                null,
+              );
+            });
+          }
+        }
         OpLog.normal(
           `OperationLogSyncService: Local vector clock ${hydrationPlan.comparison} remote snapshot — ` +
             'skipping snapshot hydration (local already has all remote data).',
@@ -775,7 +802,9 @@ export class OperationLogSyncService {
             postSnapshotOps,
             undefined,
             [],
-            { fenceEpoch: options?.fenceEpoch },
+            {
+              fenceEpoch: options?.fenceEpoch,
+            },
           );
           if (suffixProcessResult.blockedByIncompatibleOp) {
             return { kind: 'blocked_incompatible' };
@@ -798,15 +827,12 @@ export class OperationLogSyncService {
               snapshotVectorClock: result.snapshotVectorClock,
             };
       }
-
       OpLog.normal(
         'OperationLogSyncService: Received snapshotState from file-based sync. Hydrating...',
       );
-
       // Check if client has unsynced local ops that would be lost
       const unsyncedOps = await this.opLogStore.getUnsynced();
       const hasLocalChanges = unsyncedOps.length > 0;
-
       // Nothing from this sync is persisted yet, so these live reads reflect
       // whether the client completed a prior sync cycle.
       const isNeverSyncedAtSyncStart =
@@ -827,12 +853,10 @@ export class OperationLogSyncService {
       const lastSyncedVectorClock = hasCompletedSyncBaseline
         ? ((await this.vectorClockService.getSnapshotVectorClock()) ?? null)
         : null;
-
       // Collected here, applied AFTER hydrateFromRemoteSync succeeds so a
       // hydration failure doesn't permanently drop discardable startup ops
       // while leaving the user without the remote snapshot.
       let startupOpIdsToDiscard: string[] = [];
-
       if (hasLocalChanges) {
         // Throw LocalDataConflictError if unsynced ops contain meaningful user data
         // OR if the NgRx store has meaningful data (tasks, projects, tags, notes).
@@ -868,7 +892,6 @@ export class OperationLogSyncService {
             unsyncedOps,
             pendingOpClassification,
           ) || (await this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds));
-
         if (hasMeaningfulUserData) {
           // SPAP-9: before surfacing the binary USE_LOCAL/USE_REMOTE dialog, use
           // the vector clocks to decide the safe outcome by causality. Only a
@@ -881,7 +904,6 @@ export class OperationLogSyncService {
             localClock,
             result.snapshotVectorClock,
           );
-
           if (gate === 'keep-local') {
             // Local strictly dominates the snapshot: keep local, no dialog. The
             // pending ops are left untouched so the normal upload phase ships them.
@@ -898,7 +920,6 @@ export class OperationLogSyncService {
               snapshotVectorClock: result.snapshotVectorClock,
             };
           }
-
           if (gate === 'dialog') {
             // Client has meaningful user data and clocks can't be auto-resolved -
             // show conflict dialog.
@@ -907,7 +928,6 @@ export class OperationLogSyncService {
                 'with meaningful user data (pending ops or store data). ' +
                 'Throwing LocalDataConflictError for conflict resolution dialog.',
             );
-
             throw new LocalDataConflictError(
               unsyncedOps.length,
               result.snapshotState as Record<string, unknown>,
@@ -916,7 +936,6 @@ export class OperationLogSyncService {
               result.remoteLastModified,
             );
           }
-
           // gate === 'apply-snapshot': the remote snapshot strictly dominates the
           // local clock, so local holds nothing the snapshot lacks. Adopt the
           // snapshot without a dialog by falling through to hydration below.
@@ -936,11 +955,9 @@ export class OperationLogSyncService {
           );
         }
       }
-
       // Only show confirmation for wholly fresh clients without any local changes
       if (!hasLocalChanges) {
         const isFreshClient = await this.isWhollyFreshClient();
-
         // CRITICAL FIX: Even if op-log is empty, check if NgRx store has meaningful data.
         // This catches data that existed before the operation-log feature was added.
         if (
@@ -951,7 +968,6 @@ export class OperationLogSyncService {
             'OperationLogSyncService: Fresh client detected with meaningful local data in store. ' +
               'Throwing LocalDataConflictError for conflict resolution dialog.',
           );
-
           // Fresh client (no unsynced ops, no prior sync) — there is no
           // last-synced clock, so pass null explicitly (SPAP-7).
           throw new LocalDataConflictError(
@@ -962,13 +978,11 @@ export class OperationLogSyncService {
             result.remoteLastModified,
           );
         }
-
         // Original flow for truly fresh clients (no store data)
         if (isFreshClient) {
           OpLog.warn(
             'OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting snapshot.',
           );
-
           const confirmed = this.syncLocalStateService.confirmFreshClientSync(1); // Show as "1 snapshot"
           if (!confirmed) {
             OpLog.normal(
@@ -979,15 +993,12 @@ export class OperationLogSyncService {
             });
             return { kind: 'cancelled' };
           }
-
           OpLog.normal(
             'OperationLogSyncService: User confirmed fresh client sync. Proceeding with snapshot.',
           );
         }
       }
-
       const initialUnsyncedOpIds = new Set(unsyncedOps.map((entry) => entry.op.id));
-
       // Single-file snapshots are current through every returned recent op. Split
       // snapshots can lag behind sync-ops.json, so only the explicitly-listed
       // snapshot ops may be recorded as already applied; the remaining suffix
@@ -997,7 +1008,6 @@ export class OperationLogSyncService {
         result.newOps,
         result.snapshotAppliedOpIds,
       );
-
       // #9074: hydration replaces local state wholesale from the downloaded
       // snapshot — the single worst write a stale cycle can make after a
       // provider/target switch (an old provider's snapshot over new state).
@@ -1013,33 +1023,30 @@ export class OperationLogSyncService {
           lastSyncedVectorClock,
         ),
       );
-
       // Now that the remote snapshot is applied, it's safe to drop the
       // startup ops we previously decided were obsolete. Doing this
       // after hydration ensures a hydration failure leaves the queue intact
       // so the next attempt can retry.
       await this._discardStartupOps(startupOpIdsToDiscard);
-
       let suffixProcessResult: RemoteOpsProcessingResult | undefined;
       if (postSnapshotOps.length > 0) {
         suffixProcessResult = await this._processRemoteOpsWithStartupCleanup(
           postSnapshotOps,
           undefined,
           [],
-          { fenceEpoch: options?.fenceEpoch },
+          {
+            fenceEpoch: options?.fenceEpoch,
+          },
         );
         if (suffixProcessResult.blockedByIncompatibleOp) {
           return { kind: 'blocked_incompatible' };
         }
       }
-
       // Persist lastServerSeq after hydration
       if (result.latestServerSeq !== undefined) {
         await syncProvider.setLastServerSeq(result.latestServerSeq);
       }
-
       OpLog.normal('OperationLogSyncService: Snapshot hydration complete.');
-
       return suffixProcessResult
         ? {
             kind: 'ops_processed',
@@ -1054,7 +1061,6 @@ export class OperationLogSyncService {
             snapshotVectorClock: result.snapshotVectorClock,
           };
     }
-
     if (result.newOps.length === 0) {
       // FIX I.2: Pre-op-log client with meaningful data on empty server. It can't
       // upload (isWhollyFreshClient blocks it), server migration won't trigger
@@ -1094,7 +1100,6 @@ export class OperationLogSyncService {
           return { kind: 'server_migration_handled' };
         }
       }
-
       OpLog.normal(
         'OperationLogSyncService: No new remote operations to process after download.',
       );
@@ -1110,7 +1115,6 @@ export class OperationLogSyncService {
         snapshotVectorClock: result.snapshotVectorClock,
       };
     }
-
     // SAFETY: a wholly fresh client — or a never-synced genesis client on the
     // otherwise silent path (#9863) — receiving remote data for the first time.
     const isFreshClient =
@@ -1125,11 +1129,9 @@ export class OperationLogSyncService {
         const unsyncedCount = (await this.opLogStore.getUnsynced()).length;
         throw new LocalDataConflictError(unsyncedCount, null, undefined, null);
       }
-
       OpLog.warn(
         `OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting ${result.newOps.length} remote ops.`,
       );
-
       const confirmed = this.syncLocalStateService.confirmFreshClientSync(
         result.newOps.length,
       );
@@ -1512,7 +1514,9 @@ export class OperationLogSyncService {
    */
   private async _hydrateSnapshotExclusive(
     result: {
+      planningOnly?: boolean;
       snapshotState?: unknown;
+      snapshotSchemaVersion?: number;
       snapshotVectorClock?: Record<string, number>;
       remoteLastModified?: number;
     },
@@ -1557,6 +1561,8 @@ export class OperationLogSyncService {
           result.snapshotVectorClock,
           {
             snapshotIncludedOps,
+            preservePendingOps: result.planningOnly,
+            sourceSchemaVersion: result.snapshotSchemaVersion,
             // Capture only actions that ran on the old state. Actions emitted
             // by loadAllData effects run after the snapshot reducer and are
             // already valid on top of the new state, so replaying those would
@@ -1883,6 +1889,17 @@ export class OperationLogSyncService {
 
     let snapshotState = result.snapshotState as Record<string, unknown> | undefined;
     if (hasSnapshotState && snapshotState) {
+      if (
+        result.providerMode === 'fileSnapshotOps' &&
+        (result.snapshotSchemaVersion ?? 5) < 5
+      )
+        snapshotState = this.schemaMigrationService.migrateStateIfNeeded({
+          state: snapshotState,
+          lastAppliedOpSeq: 0,
+          vectorClock: {},
+          compactedAt: 0,
+          schemaVersion: result.snapshotSchemaVersion,
+        }).state as Record<string, unknown>;
       // File providers intentionally omit device-local schedule fields and null
       // the provider on the wire. Restore this device's values before schema
       // validation so a valid transport snapshot is locally replayable.
@@ -2364,58 +2381,21 @@ export class OperationLogSyncService {
   }
 
   private _preflightRemoteOperations(remoteOps: Operation[]): Operation[] {
-    for (const op of remoteOps) {
-      let version: number;
-      try {
-        version = getOperationSchemaVersion(op as { schemaVersion?: unknown });
-      } catch (e) {
-        // Keep the root cause diagnosable (id-only, no payloads) — this is a
-        // rare, support-heavy failure path.
-        OpLog.err('OperationLogSyncService: USE_REMOTE preflight version parse failed', {
-          id: op.id,
-          name: (e as Error | undefined)?.name,
+    return preflightRemoteRebuild(remoteOps, this.schemaMigrationService, () => {
+      if (
+        !this._hasWarnedRebuildVersionBlockThisSession &&
+        !this.snackService.hasPendingPersistentAction()
+      ) {
+        this._hasWarnedRebuildVersionBlockThisSession = true;
+        this.snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.VERSION_TOO_OLD,
+          actionStr: T.PS.UPDATE_APP,
+          actionFn: () =>
+            window.open('https://super-productivity.com/download', '_blank'),
         });
-        throw new Error(
-          'USE_REMOTE aborted: remote history has an invalid schema version.',
-          { cause: e },
-        );
       }
-
-      if (version < MIN_SUPPORTED_SCHEMA_VERSION) {
-        throw new Error(
-          'USE_REMOTE aborted: remote history contains an unsupported schema version.',
-        );
-      }
-      if (version > CURRENT_SCHEMA_VERSION || getUnknownOpVocabulary(op) !== null) {
-        if (
-          !this._hasWarnedRebuildVersionBlockThisSession &&
-          !this.snackService.hasPendingPersistentAction()
-        ) {
-          this._hasWarnedRebuildVersionBlockThisSession = true;
-          this.snackService.open({
-            type: 'ERROR',
-            msg: T.F.SYNC.S.VERSION_TOO_OLD,
-            actionStr: T.PS.UPDATE_APP,
-            actionFn: () =>
-              window.open('https://super-productivity.com/download', '_blank'),
-          });
-        }
-        throw new Error(
-          'USE_REMOTE aborted: remote history contains ops from a newer schema version or with an unknown op type — update the app first.',
-        );
-      }
-    }
-
-    try {
-      return this.schemaMigrationService.migrateOperations(remoteOps);
-    } catch (e) {
-      OpLog.err('OperationLogSyncService: USE_REMOTE preflight migration failed', {
-        name: (e as Error | undefined)?.name,
-      });
-      throw new Error('USE_REMOTE aborted: remote operation migration failed.', {
-        cause: e,
-      });
-    }
+    });
   }
 
   /**

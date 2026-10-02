@@ -162,6 +162,8 @@ export interface SuperSyncOpDownloadResponse extends OpDownloadResponseBase {
 }
 
 export interface FileSnapshotOpDownloadResponse extends OpDownloadResponseBase {
+  /** Source application schema for safe host-side snapshot/tail reconstruction. */
+  snapshotSchemaVersion?: number;
   snapshotState?: unknown;
   /** Last modification time recorded by the remote snapshot/ops file. */
   remoteLastModified?: number;
@@ -241,6 +243,8 @@ export interface OperationSyncCapable<
     snapshotOpType?: TRestorePointType,
     syncImportReason?: string,
     repairBaseServerSeq?: number,
+    /** Cursor bound to a prepared destructive replacement, never refreshed on retry. */
+    lastKnownServerSeq?: number,
   ): Promise<SnapshotUploadResponse>;
   deleteAllData(): Promise<{ success: boolean }>;
   getEncryptKey?(): Promise<string | undefined>;

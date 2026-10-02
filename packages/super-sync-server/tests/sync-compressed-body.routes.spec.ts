@@ -102,7 +102,7 @@ const createOp = (clientId: string) => ({
   isPayloadEncrypted: true,
   vectorClock: {},
   timestamp: Date.now(),
-  schemaVersion: 1,
+  schemaVersion: 5,
 });
 
 const createStoredDuplicateOp = (op: ReturnType<typeof createOp>) => ({
@@ -1034,6 +1034,36 @@ describe('Sync compressed body routes', () => {
     );
   });
 
+  for (const snapshotOpType of ['SYNC_IMPORT', 'BACKUP_IMPORT', 'REPAIR'])
+    for (const schemaVersion of [undefined, 4])
+      it(`rejects live snapshot ${snapshotOpType} schema ${schemaVersion} before side effects`, async () => {
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/sync/snapshot',
+          headers: {
+            authorization: `Bearer ${authToken}`,
+            'content-type': 'application/json',
+          },
+          payload: {
+            state: encryptedPayload(10, 2048),
+            isPayloadEncrypted: true,
+            clientId: 'floor-test-client',
+            reason: 'recovery',
+            vectorClock: { 'floor-test-client': 1 },
+            schemaVersion,
+            snapshotOpType,
+            opId: '00000000-0000-4000-8000-000000000001',
+            repairBaseServerSeq: 0,
+            requestId: 'floor-test-dedup',
+          },
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json().errorCode).toBe('INVALID_SCHEMA_VERSION');
+        expect(mocks.syncService.checkSnapshotRequestDedup).not.toHaveBeenCalled();
+        expect(mocks.syncService.prepareSnapshotCache).not.toHaveBeenCalled();
+        expect(mocks.syncService.uploadOps).not.toHaveBeenCalled();
+      });
+
   it('should charge compressed snapshot uploads by decompressed JSON size', async () => {
     const clientId = 'base64-gzip-snapshot-client';
     const payload = {
@@ -1042,7 +1072,7 @@ describe('Sync compressed body routes', () => {
       clientId,
       reason: 'recovery',
       vectorClock: { [clientId]: 1 },
-      schemaVersion: 1,
+      schemaVersion: 5,
     };
     const jsonPayload = JSON.stringify(payload);
     const compressedPayload = await gzipAsync(Buffer.from(jsonPayload, 'utf-8'));
@@ -1088,7 +1118,7 @@ describe('Sync compressed body routes', () => {
       clientId,
       reason: 'recovery',
       vectorClock: { [clientId]: 1 },
-      schemaVersion: 1,
+      schemaVersion: 5,
     };
     const compressedPayload = await gzipAsync(
       Buffer.from(JSON.stringify(payload), 'utf-8'),
@@ -1193,6 +1223,7 @@ describe('Sync compressed body routes', () => {
         vectorClock: {},
         opId: '018f2f0b-1c2d-7a1b-8c3d-123456789abc',
         isCleanSlate: true,
+        schemaVersion: 5,
       },
     });
 
@@ -1230,6 +1261,7 @@ describe('Sync compressed body routes', () => {
         vectorClock: {},
         opId: '018f2f0b-1c2d-7a1b-8c3d-abcdef123456',
         isCleanSlate: true,
+        schemaVersion: 5,
       },
     });
 
@@ -1277,6 +1309,7 @@ describe('Sync compressed body routes', () => {
         schemaVersion: CURRENT_SCHEMA_VERSION,
         opId,
         isCleanSlate: true,
+        lastKnownServerSeq: 1,
       },
     });
 
@@ -1284,6 +1317,42 @@ describe('Sync compressed body routes', () => {
     expect(response.json()).toEqual({ accepted: true, serverSeq: 77 });
     expect(mocks.syncService.uploadOps).not.toHaveBeenCalled();
     expect(mocks.syncService.checkStorageQuota).not.toHaveBeenCalled();
+  });
+
+  it('forwards the prepared replacement cursor and includes it in semantic request fingerprints', async () => {
+    const fingerprints: string[] = [];
+    mocks.syncService.checkSnapshotRequestDedup.mockImplementation(
+      (_user, _id, fingerprint: () => string) => {
+        fingerprints.push(fingerprint());
+        return null;
+      },
+    );
+    const payload = {
+      state: encryptedPayload(11),
+      isPayloadEncrypted: true,
+      clientId: 'migration-client',
+      reason: 'migration',
+      vectorClock: { migrationClient: 1 },
+      schemaVersion: 5,
+      opId: '018f2f0b-1c2d-7a1b-8c3d-123456789abc',
+      isCleanSlate: true,
+      snapshotOpType: 'SYNC_IMPORT',
+      syncImportReason: 'SERVER_MIGRATION',
+      requestId: 'snapshot-v1-migration-cursor',
+    };
+    for (const lastKnownServerSeq of [1, 3]) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/sync/snapshot',
+        headers: { authorization: `Bearer ${authToken}` },
+        payload: { ...payload, lastKnownServerSeq },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(mocks.syncService.uploadOps.mock.lastCall?.[7]).toBe(lastKnownServerSeq);
+      expect(mocks.syncService.uploadOps.mock.lastCall?.[5]).toBeUndefined();
+    }
+    expect(fingerprints).toHaveLength(2);
+    expect(fingerprints[0]).not.toBe(fingerprints[1]);
   });
 
   it('should reject a clean-slate retry whose opId belongs to different content', async () => {
@@ -1349,6 +1418,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId,
@@ -1378,6 +1448,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId: 'snapshot-retry-client',
@@ -1445,6 +1516,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId: 'dup-client',
@@ -1488,7 +1560,7 @@ describe('Sync compressed body routes', () => {
       entityIds: [],
       payload: state,
       vectorClock,
-      schemaVersion: 1,
+      schemaVersion: 5,
       isPayloadEncrypted: true,
       syncImportReason: 'REPAIR',
       repairBaseServerSeq: 10,
@@ -1505,7 +1577,7 @@ describe('Sync compressed body routes', () => {
         clientId: 'repair-client',
         reason: 'recovery',
         vectorClock,
-        schemaVersion: 1,
+        schemaVersion: 5,
         opId: repairId,
         snapshotOpType: 'REPAIR',
         syncImportReason: 'REPAIR',
@@ -1531,7 +1603,7 @@ describe('Sync compressed body routes', () => {
         clientId: 'legacy-repair-client',
         reason: 'recovery',
         vectorClock: { 'legacy-repair-client': 1 },
-        schemaVersion: 1,
+        schemaVersion: 5,
         opId: repairId,
         snapshotOpType: 'REPAIR',
         syncImportReason: 'REPAIR',
@@ -1548,6 +1620,7 @@ describe('Sync compressed body routes', () => {
       undefined,
       undefined,
       true,
+      undefined,
     );
     expect(mocks.syncService.cacheSnapshotIfReplayable).not.toHaveBeenCalled();
   });
@@ -1570,7 +1643,7 @@ describe('Sync compressed body routes', () => {
         clientId: 'stale-repair-client',
         reason: 'recovery',
         vectorClock: { 'stale-repair-client': 2 },
-        schemaVersion: 1,
+        schemaVersion: 5,
         opId: '018f2f0b-1c2d-7a1b-8c3d-123456789abc',
         snapshotOpType: 'REPAIR',
         syncImportReason: 'REPAIR',
@@ -1608,6 +1681,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId: 'dup-client',
@@ -1649,6 +1723,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId: 'dup-client',
@@ -1691,6 +1766,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId: 'dup-client',
@@ -1732,6 +1808,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId,
@@ -1759,6 +1836,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId,
@@ -1791,6 +1869,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId,
@@ -1831,6 +1910,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId,
@@ -1869,6 +1949,7 @@ describe('Sync compressed body routes', () => {
       url: '/api/sync/snapshot',
       headers: { authorization: `Bearer ${authToken}` },
       payload: {
+        schemaVersion: 5,
         state: ENCRYPTED_PAYLOAD,
         isPayloadEncrypted: true,
         clientId,

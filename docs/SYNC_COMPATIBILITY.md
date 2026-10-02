@@ -6,6 +6,32 @@ Authentication proves that a client may access a SuperSync account. It does not 
 
 This preflight is an additional safety layer. The server's existing operation validation remains authoritative for every request.
 
+Planstrand's schema-5 release sets `operationSync.minSchemaVersion` to 5 for
+**live uploads**, including snapshots, imports, and repairs. Missing or older
+upload schemas are rejected; retained schema-4 history remains downloadable as
+a bounded migration source. Deploy this enforcement on **every serving server
+instance before enabling migration clients**. Authentication and download access
+do not permit legacy clients to write.
+
+The cutover must materialize the complete legacy state and recoverable tail,
+including local work, before one-time Planning projection. Validate that result,
+capture recovery, and then use the existing causal clean-slate schema-5 import.
+Only confirmed replacement completes cutover. Client preparation keeps the
+legacy replay anchor at schema 4, suppresses live Planning translation, and
+uses deterministic counter-0 migration records. Ambiguous undated Today actions
+fail materialization rather than guessing the replay day or a UTC date.
+
+Prepared migration checkpoints durably bind their completed-download cursor to
+their existing opId and projected state. Snapshot upload forwards that unchanged
+as `lastKnownServerSeq`, separately from REPAIR's `repairBaseServerSeq`. The
+existing server row-lock check rejects a competing stale checkpoint before any
+wipe or sequence allocation. Durable same-op retry recognition runs first, so a
+lost committed response resolves without another wipe. Stale checkpoints retain
+source/recovery data and existing rejection metadata; they require reconciliation,
+never a refreshed cursor attached to old state. No new cutover marker is used.
+The schema-5 upload floor rejects late schema-4 operations, and replay fails
+closed on legacy full-state replacement after schema-5 authority.
+
 ## Contract
 
 An authenticated `GET /api/sync/status` response may advertise:
@@ -127,3 +153,19 @@ The audited released v19.1.0 WebDAV/Nextcloud, Dropbox and OneDrive paths append
 Operation/action types remain plaintext envelope metadata, with the existing integrity limitations; this change adds no new authentication claim. API AES-GCM payload authentication, mandatory-encryption checks, file encryption, and authenticated payload footprints are unchanged. Compatibility diagnostics do not log decrypted user payloads.
 
 Synthetic future operations are not reachable through current application writers and the server deliberately rejects future types. Tests therefore inject real wire/file shapes through the real client download/upload/processing and IndexedDB paths, with provider transports and reducer application controlled by the integration harness. They are protocol prerequisites, not new domain features.
+
+## Phase 2 normalized Planning activation (schema 5)
+
+PLANNING_V1 is now registered independently from the immutable deployed generic baseline. SuperSync advertises both PLANNING and PLANNING_V1. Set and Remove conflict only on PLANNING:Task.id; dense order keys are absolute and equal keys use lexical Task-ID ordering. Deterministic per-Task register merge resolves originals directly, retaining tombstones and revision metadata without replacement operations.
+
+Planstrand's build-level requiredOpTypes now always includes PLANNING_V1, even when callers supply an empty custom requirement. Requirements survive snapshots, operation trimming, repair, force writes, backups, password rotation and cold reload independently of retained operations. Legacy namespace and baseline vocabulary remain unchanged.
+
+The released v18.22.0/schema-4 oracle runs its actual compatibility predicate against schema-5 SYNC_IMPORT, BACKUP_IMPORT and REPAIR payloads and rejects before hydration/cursor advancement. The independent semantic fence also rejects PLANNING_V1 mislabeled with schema 4. The source pin and executable oracle live in packages/shared-schema/tests/released-client-oracles/planning-v5.spec.ts. Older pre-schema-4 tolerance bands are not treated as proof of full-state safety; Planstrand namespace isolation and the durable manifest remain independently necessary.
+
+Released schema 4 is the legacy migration source; schema 5 is the Planstrand cutover. Complete legacy state/history and supported local unsynced edits are materialized before schema4→5 projection, validation, recovery creation and durable checkpoint preparation. The checkpoint binds baseServerSeq; the schema-5 clean-slate replacement is CAS-protected. Response-loss retry reuses the original checkpoint/operation; stale checkpoints require reconciliation. Compaction remains deferred until confirmation.
+
+After confirmation, PLANNING_V1 and revisioned PlanningRecords are authoritative. Ordinary schema-5 hydration/replay never projects Planner, Today or due fields into Planning. Legacy runtime translation, prefix permissions, synthetic Planning compensation and physical removal are absent. Old clients cannot live-upload schema 4. Unfinished Phase-2 development formats (revisionless placements, earlier payload shapes and temporary compensation formats) are unsupported.
+
+One-time migration evidence precedence is explicit PlannerState.days membership/order, then valid dueDay with usable Today order, then valid dueDay with deterministic lexical Task-ID fallback, otherwise no active placement. Duplicate Planner membership chooses the earliest valid date deterministically. Today-only, dueWithTime-only, WorkSession, reminders, deadlines and transient current-Today context provide no placement evidence. Migration revisions use counter 0; authored counter-1 writes and tombstones beat them.
+
+File sync preserves the explicit one-time boundary: legacy namespace → full import/materialization → schema-5 state → Planstrand namespace. It never automatically re-reads the legacy namespace afterward.

@@ -15,6 +15,8 @@ import {
 import { SyncLog } from '../../core/log';
 import { isValidDBDateStr } from '../../util/get-db-date-str';
 import { applyClearedFields } from '../../util/cleared-update-fields';
+import { PLANNING_V1, isPlanningRecord } from '@sp/shared-schema';
+import { isMaterializingLegacyState } from '../persistence/schema-migration.service';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -113,9 +115,13 @@ const addLegacyConvertToMainTaskDates = (
 
   return {
     ...actionPayload,
-    today: isValidDbDate(actionPayload['today'])
-      ? actionPayload['today']
-      : getDeterministicLegacyDay(op.timestamp),
+    ...(!isMaterializingLegacyState() || isValidDbDate(actionPayload['today'])
+      ? {
+          today: isValidDbDate(actionPayload['today'])
+            ? actionPayload['today']
+            : getDeterministicLegacyDay(op.timestamp),
+        }
+      : {}),
     modified: isFiniteNumber(actionPayload['modified'])
       ? actionPayload['modified']
       : getDeterministicLegacyTimestamp(op.timestamp),
@@ -321,9 +327,42 @@ export const convertOpToAction = (
     actionPayload = {};
   }
 
-  actionPayload = addLegacyPlanForTodayDate(actionType, actionPayload, op);
+  if (
+    op.opType === PLANNING_V1 ||
+    actionType === ActionType.PLANNING_SET ||
+    actionType === ActionType.PLANNING_REMOVE
+  ) {
+    const isSet = actionType === ActionType.PLANNING_SET;
+    const isRemove = actionType === ActionType.PLANNING_REMOVE;
+    const record = actionPayload['record'];
+    if (
+      op.opType !== PLANNING_V1 ||
+      op.entityType !== 'PLANNING' ||
+      (!isSet && !isRemove) ||
+      !op.entityId ||
+      !isPlanningRecord(record) ||
+      record.id !== op.entityId ||
+      record.revision.opId !== op.id ||
+      record.revision.clientId !== op.clientId ||
+      (record.placement === null) !== isRemove ||
+      (op.entityIds && (op.entityIds.length !== 1 || op.entityIds[0] !== op.entityId))
+    )
+      throw new Error('Invalid Planning operation');
+  }
+  if (!isMaterializingLegacyState()) {
+    actionPayload = addLegacyPlanForTodayDate(actionType, actionPayload, op);
+    actionPayload = addLegacyUnscheduleDate(actionType, actionPayload, op);
+  } else if (
+    !isValidDbDate(actionPayload['today']) &&
+    (actionType === ActionType.TASK_SHARED_PLAN_FOR_TODAY ||
+      (actionType === ActionType.TASK_SHARED_UNSCHEDULE &&
+        actionPayload['isLeaveInToday'] === true))
+  ) {
+    // The reducers otherwise fall back to this device's current Today. Such
+    // history cannot establish a date-addressable legacy placement.
+    throw new Error(`Legacy Today operation ${op.id} lacks a recoverable date`);
+  }
   actionPayload = addLegacyConvertToMainTaskDates(actionType, actionPayload, op);
-  actionPayload = addLegacyUnscheduleDate(actionType, actionPayload, op);
   actionPayload = addReplaySafeDoneFields(actionType, actionPayload, op);
   actionPayload = stripMalformedConvertToMainTaskParentTagIds(
     actionType,
@@ -403,6 +442,12 @@ export const convertOpToAction = (
   return {
     ...actionPayload,
     type: replayActionType,
+    ...(isFullStateOp &&
+    (op.opType === OpType.Repair ||
+      op.syncImportReason === 'SERVER_MIGRATION' ||
+      op.syncImportReason === 'PASSWORD_CHANGED')
+      ? { planningSnapshotMerge: true }
+      : {}),
     meta: {
       isPersistent: true,
       entityType: op.entityType,

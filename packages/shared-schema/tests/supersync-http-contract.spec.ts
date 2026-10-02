@@ -30,6 +30,16 @@ const createValidOperation = (clientId: string = 'client_1') => ({
 });
 
 describe('SuperSync HTTP contract schemas', () => {
+  it('advertises a live-upload floor without forbidding retained legacy transport', () => {
+    expect(SUPER_SYNC_OPERATION_CAPABILITIES.minSchemaVersion).toBe(5);
+    expect(SuperSyncOperationSchema.parse(createValidOperation()).schemaVersion).toBe(1);
+    expect(
+      SuperSyncOperationSchema.parse({
+        ...createValidOperation(),
+        schemaVersion: 4,
+      }).schemaVersion,
+    ).toBe(4);
+  });
   it('validates ops upload requests with the shared server limit', () => {
     const parsed = SuperSyncUploadOpsRequestSchema.parse({
       ops: [createValidOperation()],
@@ -471,5 +481,29 @@ describe('SuperSync HTTP contract schemas', () => {
         errorCode: 409,
       }),
     ).toThrow();
+  });
+
+  it('keeps snapshot replacement and repair bases separate and validates the replacement cursor', () => {
+    const request = {
+      state: {},
+      clientId: 'client_1',
+      reason: 'migration',
+      schemaVersion: 5,
+      vectorClock: {},
+      repairBaseServerSeq: 17,
+      lastKnownServerSeq: 1,
+    };
+    expect(SuperSyncUploadSnapshotRequestSchema.parse(request)).toMatchObject({
+      repairBaseServerSeq: 17,
+      lastKnownServerSeq: 1,
+    });
+    for (const cursor of [-1, 1.5, '1']) {
+      expect(() =>
+        SuperSyncUploadSnapshotRequestSchema.parse({
+          ...request,
+          lastKnownServerSeq: cursor,
+        }),
+      ).toThrow();
+    }
   });
 });

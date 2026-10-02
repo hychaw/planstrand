@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../../test-helpers/planning-fixture';
 import { TestBed } from '@angular/core/testing';
 import { CdkDragRelease } from '@angular/cdk/drag-drop';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
@@ -10,7 +15,6 @@ import { signal } from '@angular/core';
 import { GlobalConfigState } from '../../config/global-config.model';
 import { ScheduleEvent } from '../schedule.model';
 import { FH, SVEType, T_ID_PREFIX } from '../schedule.const';
-import { PlannerActions } from '../../planner/store/planner.actions';
 import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 import { DateService } from '../../../core/date/date.service';
 
@@ -146,7 +150,20 @@ describe('ScheduleWeekDragService', () => {
       setupTestBed();
     });
 
-    it('should still reorder when shift-dropping over a normal schedule task', () => {
+    it('reorders canonical planning when shift-dropping over a planned task', async () => {
+      configurePlanningFixture(store);
+      store.setState({
+        planning: {
+          ids: ['target'],
+          entities: {
+            target: {
+              id: 'target',
+              placement: { target: { type: 'DAY', key: '2026-03-20' }, orderKey: 'F' },
+              revision: { counter: 1, clientId: 'fixture', opId: 'target' },
+            },
+          },
+        },
+      });
       const sourceEl = createScheduleEventElement('source', SVEType.ScheduledTask);
       const targetEl = createScheduleEventElement('target');
       spyOn(document, 'elementsFromPoint').and.returnValue([targetEl]);
@@ -156,12 +173,8 @@ describe('ScheduleWeekDragService', () => {
         createReleaseEvent(createTaskEvent({ id: 'source' }), sourceEl),
       );
 
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          type: PlannerActions.moveBeforeTask.type,
-          toTaskId: 'target',
-        }),
-      );
+      await flushPlanningWrites();
+      expectPlanningDay(dispatchSpy, 'source', '2026-03-20');
     });
   });
 

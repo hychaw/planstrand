@@ -768,6 +768,16 @@ describe('Planner Selectors - selectAllTasksDueToday', () => {
     [appStateFeatureKey]: { todayStr, startOfNextDayDiffMs: 0 },
     [TASK_FEATURE_NAME]: { ...mockTaskState, ...taskState },
     [plannerFeatureKey]: { ...mockPlannerState, ...plannerState },
+    planning: {
+      ids: ['taskOnPlannerOnly'],
+      entities: {
+        taskOnPlannerOnly: {
+          id: 'taskOnPlannerOnly',
+          placement: { target: { type: 'DAY', key: today }, orderKey: 'F' },
+          revision: { counter: 1, clientId: 'fixture', opId: 'fixture' },
+        },
+      },
+    },
     [PROJECT_FEATURE_NAME]: { ids: [], entities: {} },
   });
 

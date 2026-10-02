@@ -12,11 +12,18 @@ import {
   validateMigrationRegistry,
   type SchemaMigration,
   type OperationLike,
+  isPlanningState,
+  mergePlanningState,
 } from '@sp/shared-schema';
 
 // Re-export shared constants for backwards compatibility
 export const CURRENT_SCHEMA_VERSION = SHARED_CURRENT_SCHEMA_VERSION;
 export const MIN_SUPPORTED_SCHEMA_VERSION = SHARED_MIN_SUPPORTED_SCHEMA_VERSION;
+
+// Replay conversion runs synchronously inside reducers, outside Angular injection.
+// The owner holds the existing hydration/apply window for this bounded context.
+let legacyMaterializationDepth = 0;
+export const isMaterializingLegacyState = (): boolean => legacyMaterializationDepth > 0;
 
 // Re-export types
 export type { SchemaMigration };
@@ -80,6 +87,20 @@ export interface MigratableStateCache {
  */
 @Injectable({ providedIn: 'root' })
 export class SchemaMigrationService {
+  /** Bounded replay only; never changes the live wire schema or upload floor. */
+  get isMaterializingLegacyState(): boolean {
+    return isMaterializingLegacyState();
+  }
+
+  async materializeLegacy<T>(materialize: () => Promise<T>): Promise<T> {
+    legacyMaterializationDepth++;
+    try {
+      return await materialize();
+    } finally {
+      legacyMaterializationDepth--;
+    }
+  }
+
   constructor() {
     // Validate migration registry on startup (A.7.15)
     this._validateMigrationRegistry();
@@ -106,15 +127,16 @@ export class SchemaMigrationService {
    */
   migrateStateIfNeeded(
     cache: MigratableStateCache,
+    targetVersion: number = CURRENT_SCHEMA_VERSION,
   ): MigratableStateCache & { schemaVersion: number } {
     // Handle old caches that don't have schemaVersion
     const currentVersion = cache.schemaVersion ?? 1;
 
-    if (currentVersion >= CURRENT_SCHEMA_VERSION) {
+    if (currentVersion >= targetVersion) {
       // Already at current version
       return {
         ...cache,
-        schemaVersion: CURRENT_SCHEMA_VERSION,
+        schemaVersion: targetVersion,
       };
     }
 
@@ -122,7 +144,7 @@ export class SchemaMigrationService {
       `SchemaMigrationService: Migrating state from v${currentVersion} to v${CURRENT_SCHEMA_VERSION}`,
     );
 
-    const result = migrateState(cache.state, currentVersion, CURRENT_SCHEMA_VERSION);
+    const result = migrateState(cache.state, currentVersion, targetVersion);
 
     if (!result.success) {
       throw new Error(`SchemaMigrationService: ${result.error}`);
@@ -135,7 +157,7 @@ export class SchemaMigrationService {
     return {
       ...cache,
       state: result.data,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
+      schemaVersion: targetVersion,
     };
   }
 
@@ -154,10 +176,13 @@ export class SchemaMigrationService {
    * @param op - The operation to migrate
    * @returns The migrated operation(s), or null if it should be dropped
    */
-  migrateOperation(op: Operation): Operation | Operation[] | null {
+  migrateOperation(
+    op: Operation,
+    targetVersion: number = this.isMaterializingLegacyState ? 4 : CURRENT_SCHEMA_VERSION,
+  ): Operation | Operation[] | null {
     const opVersion = getOperationSchemaVersion(op);
 
-    if (opVersion >= CURRENT_SCHEMA_VERSION) {
+    if (opVersion >= targetVersion) {
       return op;
     }
 
@@ -172,7 +197,7 @@ export class SchemaMigrationService {
       schemaVersion: opVersion,
     };
 
-    const result = sharedMigrateOperation(opLike, CURRENT_SCHEMA_VERSION);
+    const result = sharedMigrateOperation(opLike, targetVersion);
 
     if (!result.success) {
       throw new Error(`SchemaMigrationService: ${result.error}`);
@@ -259,7 +284,7 @@ export class SchemaMigrationService {
         payload: op.payload,
         schemaVersion,
       },
-      CURRENT_SCHEMA_VERSION,
+      this.isMaterializingLegacyState ? 4 : CURRENT_SCHEMA_VERSION,
     );
   }
 
@@ -267,7 +292,31 @@ export class SchemaMigrationService {
    * Returns the current schema version.
    */
   getCurrentVersion(): number {
-    return CURRENT_SCHEMA_VERSION;
+    return this.isMaterializingLegacyState ? 4 : CURRENT_SCHEMA_VERSION;
+  }
+
+  /** Defaults added by the current store are not legacy migration evidence. */
+  projectMaterializedLegacyState(state: Record<string, unknown>): unknown {
+    const legacyState = { ...state };
+    delete legacyState['planning'];
+    const result = migrateState(legacyState, 4, CURRENT_SCHEMA_VERSION);
+    if (!result.success) throw new Error(`Legacy cutover projection: ${result.error}`);
+    const projected = result.data as Record<string, unknown>;
+    if (isPlanningState(state['planning']) && isPlanningState(projected['planning'])) {
+      const entities = Object.fromEntries(
+        Object.entries(state['planning'].entities).filter(
+          ([, record]) => record !== undefined && record.revision.counter >= 1,
+        ),
+      );
+      return {
+        ...projected,
+        planning: mergePlanningState(projected['planning'], {
+          ids: Object.keys(entities).sort(),
+          entities,
+        }),
+      };
+    }
+    return projected;
   }
 
   /**

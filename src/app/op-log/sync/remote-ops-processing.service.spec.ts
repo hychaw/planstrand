@@ -1,3 +1,6 @@
+import { planningReducer } from '../../features/planning/store/planning.reducer';
+import { convertOpToAction } from '../apply/operation-converter.util';
+import { PlanningRecord } from '@sp/shared-schema';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
@@ -2607,5 +2610,44 @@ describe('RemoteOpsProcessingService', () => {
 
       expect(latch.hasFailed()).toBe(false);
     });
+  });
+  it('routes Planning records in both arrival orders without invoking generic conflict resolution', async () => {
+    opLogStoreSpy.getUnsyncedByEntity.and.resolveTo(new Map());
+    vectorClockServiceSpy.getSnapshotVectorClock.and.resolveTo({});
+    vectorClockServiceSpy.getSnapshotEntityKeys.and.resolveTo(new Set());
+    const make = (counter: number, tombstone: boolean): Operation => ({
+      id: 'planning-' + counter,
+      clientId: 'A',
+      timestamp: 100,
+      vectorClock: { A: counter },
+      schemaVersion: 5,
+      entityType: 'PLANNING',
+      entityId: 'X',
+      opType: 'PLANNING_V1',
+      actionType: tombstone ? ActionType.PLANNING_REMOVE : ActionType.PLANNING_SET,
+      payload: {
+        actionPayload: {
+          record: {
+            id: 'X',
+            placement: tombstone
+              ? null
+              : { target: { type: 'DAY', key: '2026-10-05' }, orderKey: 'F' },
+            revision: { counter, clientId: 'A', opId: 'planning-' + counter },
+          } satisfies PlanningRecord,
+        },
+        entityChanges: [],
+      },
+    });
+    const operations = [make(4, false), make(5, true)];
+    for (const order of [operations, [...operations].reverse()]) {
+      const result = await service.detectConflicts(order, new Map(), new Map());
+      expect(result.conflicts).toEqual([]);
+      let state = planningReducer(undefined, { type: 'init' });
+      for (const op of result.nonConflicting)
+        state = planningReducer(state, convertOpToAction(op));
+      expect(state.entities.X!.revision.counter).toBe(5);
+      expect(state.entities.X!.placement).toBeNull();
+    }
+    expect(conflictResolutionServiceSpy.checkOpForConflicts).not.toHaveBeenCalled();
   });
 });

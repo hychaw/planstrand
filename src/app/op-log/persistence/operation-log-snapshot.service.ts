@@ -119,6 +119,11 @@ export class OperationLogSnapshotService {
   async saveCurrentStateAsSnapshot(): Promise<boolean> {
     try {
       return await this.writeFlushService.flushThenRunExclusive(async () => {
+        const source = await this.opLogStore.loadStateCache();
+        if (source && (source.schemaVersion ?? 1) < 5) {
+          // Only confirmed clean-slate replacement may advance this legacy anchor.
+          return false;
+        }
         // GUARD (#8751): never snapshot live state while it may contain
         // changes with no durable op behind them (failed or still-pending
         // writes, undrained deferred actions from the hydration sync window) —
@@ -212,7 +217,10 @@ export class OperationLogSnapshotService {
    *         rolled back first; if that rollback ALSO fails, a combined error is
    *         thrown instead. State-validation failure does NOT throw (step 4).
    */
-  async migrateSnapshotWithBackup(snapshot: StateCache): Promise<StateCache> {
+  async migrateSnapshotWithBackup(
+    snapshot: StateCache,
+    targetVersion: number = CURRENT_SCHEMA_VERSION,
+  ): Promise<StateCache> {
     OpLog.normal(
       'OperationLogSnapshotService: Running schema migration with backup safety...',
     );
@@ -223,7 +231,10 @@ export class OperationLogSnapshotService {
 
     try {
       // 2. Run migration
-      const migratedSnapshot = this.schemaMigrationService.migrateStateIfNeeded(snapshot);
+      const migratedSnapshot = this.schemaMigrationService.migrateStateIfNeeded(
+        snapshot,
+        targetVersion,
+      );
 
       // 3. Validate migrated cache metadata before persisting or clearing the backup.
       if (!this.isValidSnapshot(migratedSnapshot)) {

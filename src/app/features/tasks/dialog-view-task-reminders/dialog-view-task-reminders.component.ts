@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -38,7 +39,6 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { TagListComponent } from '../../tag/tag-list/tag-list.component';
 import { Store } from '@ngrx/store';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
-import { PlannerActions } from '../../planner/store/planner.actions';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { selectTodayTaskIds } from '../../work-context/store/work-context.selectors';
 import { DateService } from '../../../core/date/date.service';
@@ -284,17 +284,15 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
   }
 
   async addToToday(task: TaskWithReminderData): Promise<void> {
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: [task.id],
-        today: this._dateService.todayStr(),
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        parentTaskMap: {
-          [task.id]: task.parentId,
-        },
-        isClearScheduledTime: true,
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: [task.id],
+      today: this._dateService.todayStr(),
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+      parentTaskMap: {
+        [task.id]: task.parentId,
+      },
+      isClearScheduledTime: true,
+    });
     if (task.isDeadlineReminder) {
       this._clearDeadlineReminder(task);
     }
@@ -356,13 +354,11 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
   }
 
   planForTomorrow(task: TaskWithReminderData): void {
-    this._store.dispatch(
-      PlannerActions.planTaskForDay({
-        task,
-        day: getDbDateStr(getTomorrow()),
-        isShowSnack: true,
-      }),
-    );
+    planningCommands(this._store).planTaskForDay({
+      task,
+      day: getDbDateStr(getTomorrow()),
+      isShowSnack: true,
+    });
     if (task.isDeadlineReminder) {
       this._clearDeadlineReminder(task);
     }
@@ -497,18 +493,16 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
     this._prepareForBulkAction();
     const selectedTasks = await this._getTasksFromList();
 
-    this._store.dispatch(
-      TaskSharedActions.planTasksForToday({
-        taskIds: selectedTasks.map((t) => t.id),
-        today: this._dateService.todayStr(),
-        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        parentTaskMap: selectedTasks.reduce((acc, next: Task) => {
-          return { ...acc, [next.id as string]: next.parentId };
-        }, {}),
-        isShowSnack: true,
-        isClearScheduledTime: true,
-      }),
-    );
+    planningCommands(this._store).planTasksForToday({
+      taskIds: selectedTasks.map((t) => t.id),
+      today: this._dateService.todayStr(),
+      startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
+      parentTaskMap: selectedTasks.reduce((acc, next: Task) => {
+        return { ...acc, [next.id as string]: next.parentId };
+      }, {}),
+      isShowSnack: true,
+      isClearScheduledTime: true,
+    });
 
     selectedTasks
       .filter((t) => t.isDeadlineReminder)

@@ -34,7 +34,7 @@
  * "Bump Policy".
  */
 export const PROJECT_DELETE_WINS_SCHEMA_VERSION = 4;
-export const CURRENT_SCHEMA_VERSION = PROJECT_DELETE_WINS_SCHEMA_VERSION;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 /**
  * Minimum schema version that this codebase can still handle.

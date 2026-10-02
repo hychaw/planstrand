@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import { inject, Injectable } from '@angular/core';
 import { createEffect, ofType } from '@ngrx/effects';
 import { LOCAL_ACTIONS } from '../../../util/local-actions.token';
@@ -322,14 +323,12 @@ export class TaskUiEffects {
                     .pipe(first())
                     .subscribe((currentTasks) => {
                       if (currentTasks.length > 0) {
-                        this._store$.dispatch(
-                          TaskSharedActions.planTasksForToday({
-                            taskIds: currentTasks.map((t) => t.id),
-                            today: this._dateService.todayStr(),
-                            startOfNextDayDiffMs:
-                              this._dateService.getStartOfNextDayDiffMs(),
-                          }),
-                        );
+                        planningCommands(this._store$).planTasksForToday({
+                          taskIds: currentTasks.map((t) => t.id),
+                          today: this._dateService.todayStr(),
+                          startOfNextDayDiffMs:
+                            this._dateService.getStartOfNextDayDiffMs(),
+                        });
                       }
                     });
                 },

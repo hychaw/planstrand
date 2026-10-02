@@ -1,3 +1,8 @@
+import {
+  configurePlanningFixture,
+  expectPlanningDay,
+  flushPlanningWrites,
+} from '../../../../test-helpers/planning-fixture';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, take } from 'rxjs';
 import { TaskUiEffects } from './task-ui.effects';
@@ -566,24 +571,20 @@ describe('TaskUiEffects', () => {
 
       effects = TestBed.inject(TaskUiEffects);
       store = TestBed.inject(MockStore);
+      configurePlanningFixture(store);
       spyOn(store, 'dispatch');
     });
 
     it('should dispatch planTasksForToday with replay date fields from banner action', (done) => {
       effects.deadlineTodayBanner$.pipe(take(1)).subscribe({
-        next: () => {
+        next: async () => {
           const bannerParams = bannerServiceMock.open.calls.mostRecent()
             .args[0] as Banner;
 
           bannerParams.action!.fn();
 
-          expect(store.dispatch).toHaveBeenCalledWith(
-            TaskSharedActions.planTasksForToday({
-              taskIds: ['deadline-1'],
-              today: '2024-06-14',
-              startOfNextDayDiffMs: 60 * 60 * 1000,
-            }),
-          );
+          await flushPlanningWrites();
+          expectPlanningDay(store.dispatch as jasmine.Spy, 'deadline-1', '2024-06-14');
           done();
         },
         error: done.fail,

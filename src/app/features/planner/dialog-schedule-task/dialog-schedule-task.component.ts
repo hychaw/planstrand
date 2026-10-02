@@ -1,3 +1,4 @@
+import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -22,7 +23,6 @@ import {
 } from '../../tasks/task.model';
 import { T } from 'src/app/t.const';
 import { Store } from '@ngrx/store';
-import { PlannerActions } from '../store/planner.actions';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { LocaleDatePipe } from 'src/app/ui/pipes/locale-date.pipe';
 import { SnackService } from '../../../core/snack/snack.service';
@@ -492,13 +492,11 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
       return;
     }
 
-    this._store.dispatch(
-      PlannerActions.planTaskForDay({
-        task: this.data.task,
-        day: newDay,
-        isShowSnack: true,
-      }),
-    );
+    planningCommands(this._store).planTaskForDay({
+      task: this.data.task,
+      day: newDay,
+      isShowSnack: true,
+    });
   }
 
   onQuickAccessClick(option: 'today' | 'tomorrow' | 'nextWeek' | 'nextMonth'): void {

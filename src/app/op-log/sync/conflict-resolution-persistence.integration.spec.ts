@@ -1,3 +1,5 @@
+import { planningReducer } from '../../features/planning/store/planning.reducer';
+import { PlanningPlacement, PLANNING_V1 } from '../../features/planning/planning.model';
 import { TestBed } from '@angular/core/testing';
 import { Action, ActionReducer, Store } from '@ngrx/store';
 import { of } from 'rxjs';
@@ -154,6 +156,7 @@ describe('ConflictResolutionService persistence (integration, real store)', () =
   ) => ({
     ...state,
     [TASK_FEATURE_NAME]: taskReducer(state[TASK_FEATURE_NAME], action),
+    planning: planningReducer(state.planning, action),
   });
   const taskReplayReducer = bulkOperationsMetaReducer(
     createCombinedTaskSharedMetaReducer(lwwUpdateMetaReducer(taskRootReducer)),
@@ -282,6 +285,95 @@ describe('ConflictResolutionService persistence (integration, real store)', () =
     await opLogStore._clearAllDataForTesting();
     liveResolutionOps = [];
   });
+
+  for (const scenario of ['week-to-day', 'move-vs-remove', 'reorder-vs-move'] as const) {
+    it(
+      'durably replays PLANNING_V1 originals without compensation: ' + scenario,
+      async () => {
+        const id = 'planned-task';
+        const placement: PlanningPlacement = {
+          id,
+          target: { type: 'DAY', key: '2026-10-05' },
+          orderKey: 'FV',
+        };
+        const localRemove = scenario === 'move-vs-remove';
+        const make = (
+          isRemove: boolean,
+          clientId: string,
+          timestamp: number,
+          position: PlanningPlacement,
+        ): Operation => ({
+          id: clientId + '-' + scenario,
+          clientId,
+          timestamp,
+          vectorClock: { [clientId]: 1 },
+          schemaVersion: CURRENT_SCHEMA_VERSION,
+          opType: PLANNING_V1,
+          entityType: 'PLANNING',
+          entityId: id,
+          actionType: isRemove ? ActionType.PLANNING_REMOVE : ActionType.PLANNING_SET,
+          payload: {
+            actionPayload: {
+              record: {
+                id,
+                placement: isRemove
+                  ? null
+                  : { target: position.target, orderKey: position.orderKey },
+                revision: {
+                  counter: timestamp,
+                  clientId,
+                  opId: clientId + '-' + scenario,
+                },
+              },
+            },
+            entityChanges: [],
+          },
+        });
+        const local = make(localRemove, LOCAL_CLIENT_ID, 2000, placement);
+        const remote = make(false, REMOTE_CLIENT_ID, 1000, {
+          ...placement,
+          target: { type: 'DAY', key: '2026-10-06' },
+          orderKey: 'dV',
+        });
+        let state = createTaskReplayState(
+          [{ ...DEFAULT_TASK, id, projectId: 'project1' }],
+          [id],
+        );
+        if (scenario === 'week-to-day')
+          state = applyTaskOperations(
+            state,
+            [
+              make(false, 'seed-client', 1, {
+                ...placement,
+                target: { type: 'WEEK', key: '2026-10-05' },
+              }),
+            ],
+            LOCAL_CLIENT_ID,
+          );
+        state = applyTaskOperations(state, [local], LOCAL_CLIENT_ID);
+        const localState = state;
+        await opLogStore.append(local, 'local');
+        await opLogStore.append(remote, 'remote');
+        const durable = await opLogStore.getOpsAfterSeq(0);
+        expect(durable.map((entry) => entry.op.id)).toEqual([local.id, remote.id]);
+        expect((await opLogStore.getUnsynced()).map((entry) => entry.op.id)).toEqual([
+          local.id,
+        ]);
+        const baseline = createTaskReplayState(
+          [{ ...DEFAULT_TASK, id, projectId: 'project1' }],
+          [id],
+        );
+        const cold = applyTaskOperations(
+          baseline,
+          durable.map((entry) => entry.op),
+          LOCAL_CLIENT_ID,
+        );
+        const peer = applyTaskOperations(baseline, [remote, local], REMOTE_CLIENT_ID);
+        expect(cold.planning).toEqual(localState.planning);
+        expect(peer.planning).toEqual(localState.planning);
+      },
+    );
+  }
 
   it('hydrates to the same winner that was applied live', async () => {
     const { localOp, conflicts } = createConflicts();

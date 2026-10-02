@@ -834,7 +834,8 @@ import { OperationDownloadService } from '../src/sync/services/operation-downloa
 import { Operation, DEFAULT_SYNC_CONFIG, SYNC_ERROR_CODES } from '../src/sync/sync.types';
 import { prisma } from '../src/db';
 import { Logger } from '../src/logger';
-import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
+import { CURRENT_SCHEMA_VERSION, projectLegacyPlanning } from '@sp/shared-schema';
+import { compareVectorClocks } from '@sp/sync-core';
 
 describe('SyncService', () => {
   const userId = 1;
@@ -848,6 +849,7 @@ describe('SyncService', () => {
     auditSpy.mock.calls.find(([entry]) => entry.event === 'OP_REJECTED')?.[0];
 
   // Factory for the repeated Operation fixture (mirrors createOp in
+  // Planstrand live uploads carry schema 5; retained legacy rows are seeded explicitly.
   // sync-fixes.spec.ts). Override only the fields a test cares about.
   const makeOp = (overrides: Partial<Operation> = {}): Operation => ({
     id: uuidv7(),
@@ -859,8 +861,157 @@ describe('SyncService', () => {
     payload: { title: 'Test Task' },
     vectorClock: {},
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: 5,
     ...overrides,
+  });
+
+  describe('Planstrand release cutover', () => {
+    it('blocks a second migration checkpoint prepared before schema-5 authority', async () => {
+      const service = getSyncService();
+      const legacy = {
+        task: { ids: ['X'], entities: { X: { id: 'X' } } },
+        planner: { days: { '2026-10-08': ['X'] } },
+      };
+      const seed = makeOp({ id: 'legacy-source-for-two-clients' });
+      const [source] = await service.uploadOps(userId, clientId, [seed]);
+      testState.operations.get(seed.id)!.schemaVersion = 4;
+      const projected = { ...legacy, planning: projectLegacyPlanning(legacy).state };
+      // Both migration clients have fully read the same stable schema-4 prefix.
+      const staleCheckpoint = makeOp({
+        id: 'second-migration-checkpoint',
+        clientId: 'second-migration-device',
+        actionType: '[SP_ALL] Load(import) all data',
+        opType: 'SYNC_IMPORT',
+        entityType: 'ALL',
+        entityId: undefined,
+        payload: projected,
+        vectorClock: { [clientId]: 1, 'second-migration-device': 1 },
+        syncImportReason: 'FORCE_UPLOAD',
+      });
+      const firstCheckpoint = makeOp({
+        ...staleCheckpoint,
+        id: 'first-migration-checkpoint',
+        clientId,
+        vectorClock: { [clientId]: 2 },
+      });
+      const [first] = await service.uploadOps(
+        userId,
+        clientId,
+        [firstCheckpoint],
+        true,
+        undefined,
+        undefined,
+        false,
+        source.serverSeq,
+      );
+      expect(first.accepted).toBe(true);
+      const tombstone = {
+        id: 'X',
+        placement: null,
+        revision: { counter: 1, clientId, opId: 'unplan-after-first-cutover' },
+      };
+      const unplan = makeOp({
+        id: tombstone.revision.opId,
+        actionType: '[Planning] Remove Placement',
+        opType: 'PLANNING_V1',
+        entityType: 'PLANNING',
+        entityId: 'X',
+        payload: { actionPayload: { record: tombstone }, entityChanges: [] },
+        vectorClock: { [clientId]: 3 },
+      });
+      const [unplanned] = await service.uploadOps(userId, clientId, [unplan]);
+      expect(unplanned.accepted).toBe(true);
+      // Snapshot upload forwards the original prepared cursor unchanged.
+      const [late] = await service.uploadOps(
+        userId,
+        staleCheckpoint.clientId,
+        [staleCheckpoint],
+        true,
+        undefined,
+        undefined,
+        false,
+        source.serverSeq,
+      );
+      expect(
+        late.accepted,
+        `legacy cursor ${source.serverSeq}; first cutover ${first.serverSeq}; unplan ${unplanned.serverSeq}`,
+      ).toBe(false);
+      expect(late.serverSeq).toBeUndefined();
+      expect(testState.operations.has(unplan.id)).toBe(true);
+      expect(testState.operations.has(firstCheckpoint.id)).toBe(true);
+      expect(testState.operations.has(staleCheckpoint.id)).toBe(false);
+      expect(await service.getLatestSeq(userId)).toBe(unplanned.serverSeq);
+    });
+    for (const opType of [
+      'CRT',
+      'UPD',
+      'SYNC_IMPORT',
+      'BACKUP_IMPORT',
+      'REPAIR',
+    ] as const)
+      it(`rejects schema-4 ${opType} without a sequence or stored row`, async () => {
+        const service = getSyncService();
+        const before = await service.getLatestSeq(userId);
+        const op = makeOp({ opType, schemaVersion: 4 });
+        const [result] = await service.uploadOps(userId, clientId, [op]);
+        expect(result.accepted).toBe(false);
+        expect(result.errorCode).toBe(SYNC_ERROR_CODES.INVALID_SCHEMA_VERSION);
+        expect(result.serverSeq).toBeUndefined();
+        expect(testState.operations.has(op.id)).toBe(false);
+        expect(await service.getLatestSeq(userId)).toBe(before);
+      });
+    it('retained history is readable and clean slate preserves sequence while replacing its base', async () => {
+      const service = getSyncService();
+      const old = makeOp({ id: 'retained-legacy-X' });
+      const [seed] = await service.uploadOps(userId, clientId, [old]);
+      expect(seed.accepted).toBe(true);
+      testState.operations.get(old.id)!.schemaVersion = 4;
+      const download = await operationDownloadService.getOpsSinceWithSeq(userId, 0);
+      expect(download.ops[0].op.schemaVersion).toBe(4);
+      const tombstone = {
+        id: 'X',
+        placement: null,
+        revision: { counter: 1, clientId, opId: 'unplan-X' },
+      };
+      const checkpoint = makeOp({
+        id: 'schema5-cutover',
+        opType: 'SYNC_IMPORT',
+        entityType: 'ALL',
+        entityId: undefined,
+        vectorClock: { [clientId]: 2 },
+        payload: {
+          task: { ids: ['X'], entities: { X: { id: 'X' } } },
+          planning: { ids: ['X'], entities: { X: tombstone } },
+        },
+      });
+      const [replacement] = await service.uploadOps(userId, clientId, [checkpoint], true);
+      expect(replacement.accepted).toBe(true);
+      expect(replacement.serverSeq).toBeGreaterThan(seed.serverSeq!);
+      expect(testState.operations.has(old.id)).toBe(false);
+      const after = await operationDownloadService.getOpsSinceWithSeq(
+        userId,
+        seed.serverSeq!,
+      );
+      expect(after.ops.map(({ op }) => op.id)).toEqual([checkpoint.id]);
+      const late = makeOp({
+        id: 'late-schema4-import',
+        opType: 'SYNC_IMPORT',
+        entityType: 'ALL',
+        schemaVersion: 4,
+        payload: {
+          task: { ids: ['X'], entities: { X: { id: 'X' } } },
+          planner: { days: { '2026-10-08': ['X'] } },
+        },
+      });
+      const [rejected] = await service.uploadOps(userId, clientId, [late], true);
+      expect(rejected.accepted).toBe(false);
+      expect(rejected.serverSeq).toBeUndefined();
+      expect(testState.operations.has(late.id)).toBe(false);
+      expect(testState.operations.get(checkpoint.id)!.payload).toEqual(
+        checkpoint.payload,
+      );
+      expect(await service.getLatestSeq(userId)).toBe(replacement.serverSeq);
+    });
   });
 
   const makeGlobalConfigOp = (overrides: Partial<Operation> = {}): Operation =>
@@ -902,6 +1053,64 @@ describe('SyncService', () => {
   });
 
   describe('filterValidOpsForQuota', () => {
+    it('accepts revisioned same-Task Planning originals in one real upload batch after clock pruning', async () => {
+      const peers = Object.fromEntries(
+        Array.from({ length: 19 }, (_, index) => ['peer-' + index, 10]),
+      );
+      const makePlanningOp = (
+        id: string,
+        vectorClock: Operation['vectorClock'],
+      ): Operation =>
+        makeOp({
+          id,
+          actionType: '[Planning] Set Placement',
+          opType: 'PLANNING_V1',
+          entityType: 'PLANNING',
+          entityId: 'X',
+          schemaVersion: 5,
+          vectorClock,
+          payload: {
+            actionPayload: {
+              record: {
+                id: 'X',
+                placement: {
+                  target: { type: 'DAY', key: '2026-10-08' },
+                  orderKey: id.endsWith('first') ? 'F' : 'T',
+                },
+                revision: { counter: 1, clientId, opId: id },
+              },
+            },
+            entityChanges: [],
+          },
+        });
+      const first = makePlanningOp('planning-batch-first', {
+        ...peers,
+        [clientId]: 1,
+        Z: 1,
+      });
+      const second = makePlanningOp('planning-batch-second', {
+        ...peers,
+        [clientId]: 2,
+        B: 1,
+      });
+      expect(compareVectorClocks(first.vectorClock, second.vectorClock)).toBe(
+        'CONCURRENT',
+      );
+      const results = await new SyncService().uploadOps(userId, clientId, [
+        first,
+        second,
+      ]);
+      const persisted = Array.from(testState.operations.values()).map(
+        (row: {
+          id: string;
+          serverSeq: number;
+          vectorClock: Operation['vectorClock'];
+        }) => ({ id: row.id, serverSeq: row.serverSeq, vectorClock: row.vectorClock }),
+      );
+      expect(results[0]).toMatchObject({ accepted: true, serverSeq: 1 });
+      expect(results[1]).toMatchObject({ accepted: true, serverSeq: 2 });
+      expect(persisted.map((row) => row.id)).toEqual([first.id, second.id]);
+    });
     it('excludes invalid schema and oversized payload siblings from quota sizing', () => {
       const service = new SyncService({ maxPayloadSizeBytes: 100 });
       const validOp = makeOp({
@@ -1632,7 +1841,7 @@ describe('SyncService', () => {
           payload: { title: 'First' },
           vectorClock: { [clientId]: 1 },
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
         {
           id: uuidv7(),
@@ -1644,7 +1853,7 @@ describe('SyncService', () => {
           payload: { title: 'Concurrent' },
           vectorClock: { 'other-client': 1 },
           timestamp: Date.now() + 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ];
 
@@ -1713,7 +1922,7 @@ describe('SyncService', () => {
       expect(testState.operations.size).toBe(1);
     });
 
-    it('atomically rejects a new mixed v1 misc upload that conflicts with v2 tasks', async () => {
+    it('rejects a legacy mixed v1 misc live upload at the schema floor', async () => {
       const currentClientId = 'current-client';
       const service = new SyncService();
       const currentResult = await service.uploadOps(userId, currentClientId, [
@@ -1751,8 +1960,7 @@ describe('SyncService', () => {
         expect.objectContaining({
           opId: sourceId,
           accepted: false,
-          errorCode: SYNC_ERROR_CODES.CONFLICT_CONCURRENT,
-          existingClock: { [currentClientId]: 1 },
+          errorCode: SYNC_ERROR_CODES.INVALID_SCHEMA_VERSION,
         }),
       ]);
       expect(testState.operations.has(`${sourceId}_misc`)).toBe(false);
@@ -1784,7 +1992,7 @@ describe('SyncService', () => {
         },
         vectorClock,
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       });
 
       const results = await service.uploadOps(userId, clientId, [
@@ -1829,7 +2037,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: { [clientId]: 1 },
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -1853,7 +2061,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: { [clientId]: 1 },
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -1887,7 +2095,7 @@ describe('SyncService', () => {
           payload: { TASK: {} },
           vectorClock: { [clientId]: 7 },
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
         {
           id: uuidv7(),
@@ -1898,7 +2106,7 @@ describe('SyncService', () => {
           payload: { TASK: {} },
           vectorClock: { [clientId]: 9 },
           timestamp: Date.now() + 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
         makeOp({
           entityId: 'task-after',
@@ -1934,7 +2142,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       // First upload should succeed
@@ -1986,7 +2194,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2007,7 +2215,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2028,7 +2236,7 @@ describe('SyncService', () => {
         payload: undefined,
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       } as unknown as Operation;
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2049,7 +2257,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2073,7 +2281,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: farFuture,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2108,7 +2316,7 @@ describe('SyncService', () => {
         payload: { title: 'Boundary Test' },
         vectorClock: {},
         timestamp: exactlyAtLimit,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2136,7 +2344,7 @@ describe('SyncService', () => {
         payload: { title: 'Just Over Boundary' },
         vectorClock: {},
         timestamp: justOverLimit,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       // Freeze the clock so the service samples the same `now` as the test.
@@ -2173,7 +2381,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: tooOld,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2199,7 +2407,7 @@ describe('SyncService', () => {
         payload: largePayload,
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await testService.uploadOps(userId, clientId, [op]);
@@ -2227,7 +2435,7 @@ describe('SyncService', () => {
         payload: createDeeplyNested(25), // Exceeds max depth of 20
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2254,7 +2462,7 @@ describe('SyncService', () => {
         payload: createDeeplyNested(25), // Exceeds max depth of 20 but allowed for SYNC_IMPORT
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2360,7 +2568,7 @@ describe('SyncService', () => {
         payload: manyKeys, // Exceeds max keys of 20000 but allowed for BACKUP_IMPORT
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2387,7 +2595,7 @@ describe('SyncService', () => {
         payload: createDeeplyNested(25), // Exceeds max depth of 20 but allowed for REPAIR
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(
@@ -2417,7 +2625,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: { client1: 0 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2437,7 +2645,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: { client1: '1' as unknown as number },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       } as Operation;
 
       // Service sanitizes by stripping invalid entries, not rejecting
@@ -2457,7 +2665,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: { client1: -1 },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       // Service sanitizes by stripping invalid entries, not rejecting
@@ -2477,7 +2685,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: { client1: null as unknown as number },
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       } as Operation;
 
       // Service sanitizes by stripping invalid entries, not rejecting
@@ -2497,7 +2705,7 @@ describe('SyncService', () => {
         payload: null,
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       } as unknown as Operation;
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2558,7 +2766,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: exactlyAtDrift,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2578,7 +2786,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2602,7 +2810,7 @@ describe('SyncService', () => {
         payload: { title: 'Test Task' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       const results = await service.uploadOps(userId, clientId, [op]);
@@ -2627,7 +2835,7 @@ describe('SyncService', () => {
           payload: { title: `Task ${i}` },
           vectorClock: {},
           timestamp: Date.now() + i,
-          schemaVersion: 1,
+          schemaVersion: 5,
         };
         await service.uploadOps(userId, clientId, [op]);
       }
@@ -2657,7 +2865,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -2673,7 +2881,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 2' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -2700,7 +2908,7 @@ describe('SyncService', () => {
             payload: { title: `Task ${i}` },
             vectorClock: {},
             timestamp: Date.now() + i,
-            schemaVersion: 1,
+            schemaVersion: 5,
           },
         ]);
       }
@@ -2734,7 +2942,7 @@ describe('SyncService', () => {
         payload: { title: 'Task 1', done: false },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       // Op 2: Update Task
@@ -2748,7 +2956,7 @@ describe('SyncService', () => {
         payload: { done: true },
         vectorClock: {},
         timestamp: Date.now() + 100,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
 
       await service.uploadOps(userId, clientId, [op1, op2]);
@@ -2781,7 +2989,7 @@ describe('SyncService', () => {
         payload: { text: 'Note 1' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [op1]);
 
@@ -2803,7 +3011,7 @@ describe('SyncService', () => {
         payload: { text: 'Note 2' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [op2]);
 
@@ -2831,7 +3039,7 @@ describe('SyncService', () => {
         payload: { title: 'Tag 1' },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [op1]);
 
@@ -2848,7 +3056,7 @@ describe('SyncService', () => {
         payload: {},
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [op2]);
 
@@ -2872,7 +3080,7 @@ describe('SyncService', () => {
         payload: { title: 'Task 1', parentId: null },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [op1]);
 
@@ -2887,7 +3095,7 @@ describe('SyncService', () => {
         payload: { parentId: 'p1' },
         vectorClock: {},
         timestamp: Date.now() + 100,
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [op2]);
 
@@ -2916,7 +3124,7 @@ describe('SyncService', () => {
         },
         vectorClock: {},
         timestamp: Date.now(),
-        schemaVersion: 1,
+        schemaVersion: 5,
       };
       await service.uploadOps(userId, clientId, [op]);
 
@@ -3022,7 +3230,7 @@ describe('SyncService', () => {
             payload: {},
             vectorClock: {},
             timestamp: Date.now(),
-            schemaVersion: 1,
+            schemaVersion: 5,
           },
         ]);
       }
@@ -4006,7 +4214,7 @@ describe('SyncService', () => {
           payload: {},
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4022,7 +4230,7 @@ describe('SyncService', () => {
           payload: {},
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4115,7 +4323,7 @@ describe('SyncService', () => {
             payload: {},
             vectorClock: {},
             timestamp: Date.now(),
-            schemaVersion: 1,
+            schemaVersion: 5,
           },
         ]);
       }
@@ -4473,7 +4681,7 @@ describe('SyncService', () => {
           payload: { title: 'Test Task' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4496,7 +4704,7 @@ describe('SyncService', () => {
           payload: { globalConfig: {}, tasks: {} },
           vectorClock: {},
           timestamp,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4522,7 +4730,7 @@ describe('SyncService', () => {
           payload: { globalConfig: {}, tasks: {} },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4549,7 +4757,7 @@ describe('SyncService', () => {
             payload: { globalConfig: {}, tasks: {} },
             vectorClock: {},
             timestamp: Date.now(),
-            schemaVersion: 1,
+            schemaVersion: 5,
             repairBaseServerSeq: 0,
           },
         ],
@@ -4580,7 +4788,7 @@ describe('SyncService', () => {
             payload: { version: i },
             vectorClock: {},
             timestamp: Date.now() + i,
-            schemaVersion: 1,
+            schemaVersion: 5,
           },
         ]);
       }
@@ -4608,7 +4816,7 @@ describe('SyncService', () => {
             payload: { version: i },
             vectorClock: {},
             timestamp: Date.now() + i,
-            schemaVersion: 1,
+            schemaVersion: 5,
           },
         ]);
       }
@@ -4635,7 +4843,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4649,7 +4857,7 @@ describe('SyncService', () => {
           payload: { globalConfig: {} },
           vectorClock: {},
           timestamp: Date.now() + 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4664,7 +4872,7 @@ describe('SyncService', () => {
           payload: { done: true },
           vectorClock: {},
           timestamp: Date.now() + 2,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4692,7 +4900,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1', done: false },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4707,7 +4915,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 2', done: false },
           vectorClock: {},
           timestamp: Date.now() + 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4722,7 +4930,7 @@ describe('SyncService', () => {
           payload: { done: true },
           vectorClock: {},
           timestamp: Date.now() + 2,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4752,7 +4960,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4775,7 +4983,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4805,7 +5013,7 @@ describe('SyncService', () => {
           payload: importPayload,
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4821,7 +5029,7 @@ describe('SyncService', () => {
           payload: { title: 'New Task' },
           vectorClock: {},
           timestamp: Date.now() + 1,
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4853,7 +5061,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4881,7 +5089,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
         {
           id: uuidv7(),
@@ -4893,7 +5101,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 2' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4925,7 +5133,7 @@ describe('SyncService', () => {
           payload: { title: 'Task 1' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4944,7 +5152,7 @@ describe('SyncService', () => {
           payload: { title: 'New Task After Reset' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4980,7 +5188,7 @@ describe('SyncService', () => {
           payload: { title: 'User 1 Task' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 
@@ -4995,7 +5203,7 @@ describe('SyncService', () => {
           payload: { title: 'User 2 Task' },
           vectorClock: {},
           timestamp: Date.now(),
-          schemaVersion: 1,
+          schemaVersion: 5,
         },
       ]);
 

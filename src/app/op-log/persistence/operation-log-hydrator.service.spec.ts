@@ -40,7 +40,7 @@ import { reportBulkReplayReducerFailure } from '../apply/bulk-replay-failure-col
 import { reportLoadAllDataReducerFailure } from '../apply/load-all-data-failure-guard.meta-reducer';
 import { Action } from '@ngrx/store';
 import { T } from '../../t.const';
-import { withDefaultModelSlices } from '../model/model-config';
+import { AppDataComplete, withDefaultModelSlices } from '../model/model-config';
 
 describe('OperationLogHydratorService', () => {
   let service: OperationLogHydratorService;
@@ -125,6 +125,7 @@ describe('OperationLogHydratorService', () => {
       'mergeRemoteOpClocks',
       'markReducersCommittedAndMergeClocks',
       'getLatestFullStateOp',
+      'getLatestFullStateOpEntry',
     ]);
     mockMigrationService = jasmine.createSpyObj('OperationLogMigrationService', [
       'checkAndMigrate',
@@ -135,9 +136,11 @@ describe('OperationLogHydratorService', () => {
       'operationNeedsMigration',
       'migrateOperation',
       'migrateOperations',
+      'materializeLegacy',
     ]);
     mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
       'getStateSnapshot',
+      'getStateSnapshotForOperationLogAsync',
     ]);
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
     mockValidateStateService = jasmine.createSpyObj('ValidateStateService', [
@@ -209,6 +212,18 @@ describe('OperationLogHydratorService', () => {
     mockSchemaMigrationService.operationNeedsMigration.and.returnValue(false);
     mockSchemaMigrationService.migrateOperation.and.callFake((op) => op);
     mockSchemaMigrationService.migrateOperations.and.callFake((ops) => ops);
+    let materializingLegacy = false;
+    Object.defineProperty(mockSchemaMigrationService, 'isMaterializingLegacyState', {
+      get: () => materializingLegacy,
+    });
+    mockSchemaMigrationService.materializeLegacy.and.callFake(async (run) => {
+      materializingLegacy = true;
+      try {
+        return await run();
+      } finally {
+        materializingLegacy = false;
+      }
+    });
     mockValidateStateService.validateAndRepair.and.resolveTo({
       isValid: true,
       wasRepaired: false,
@@ -218,6 +233,9 @@ describe('OperationLogHydratorService', () => {
       typiaErrors: [],
     });
     mockStateSnapshotService.getStateSnapshot.and.returnValue(mockState);
+    mockStateSnapshotService.getStateSnapshotForOperationLogAsync.and.resolveTo(
+      mockState,
+    );
     mockVectorClockService.getCurrentVectorClock.and.returnValue(
       Promise.resolve({ clientA: 5 }),
     );
@@ -261,6 +279,38 @@ describe('OperationLogHydratorService', () => {
   });
 
   describe('hydrateStore', () => {
+    it('reloads a serialized schema-5 tombstone without reseeding surviving legacy Planner/due evidence', async () => {
+      const tombstone = {
+        id: 'X',
+        placement: null,
+        revision: { counter: 1, clientId: 'clientA', opId: 'confirmed-unplan' },
+      };
+      const state = JSON.parse(
+        JSON.stringify({
+          ...mockState,
+          task: { ids: ['X'], entities: { X: { id: 'X', dueDay: '2026-10-08' } } },
+          planner: { days: { ['2026-10-08']: ['X'] } },
+          planning: { ids: ['X'], entities: { X: tombstone } },
+        }),
+      );
+      mockOpLogStore.loadStateCache.and.resolveTo(
+        createMockSnapshot({ state, schemaVersion: 5 }),
+      );
+      mockSchemaMigrationService.needsMigration.and.returnValue(false);
+      await service.hydrateStore();
+      const dispatched = mockStore.dispatch.calls.allArgs() as unknown as [
+        ReturnType<typeof loadAllData>,
+      ][];
+      const loaded = dispatched
+        .map(([action]) => action)
+        .find((action) => action.type === loadAllData.type);
+      expect(loaded).toBeDefined();
+      expect(
+        (loaded!.appDataComplete as AppDataComplete).planning!.entities['X'],
+      ).toEqual(tombstone);
+      expect(mockSnapshotService.migrateSnapshotWithBackup).not.toHaveBeenCalled();
+      expect(mockSchemaMigrationService.materializeLegacy).not.toHaveBeenCalled();
+    });
     describe('fresh install', () => {
       it('should handle fresh install with no data', async () => {
         mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(null));
@@ -1168,6 +1218,7 @@ describe('OperationLogHydratorService', () => {
 
         expect(mockSnapshotService.migrateSnapshotWithBackup).toHaveBeenCalledWith(
           oldSnapshot,
+          4,
         );
       });
 
@@ -1350,12 +1401,8 @@ describe('OperationLogHydratorService', () => {
           expect(mockSnapshotService.saveCurrentStateAsSnapshot).not.toHaveBeenCalled();
         });
 
-        it('does not double-save when a corrupt migrated snapshot falls through to full replay', async () => {
-          // Reachable path with NO other coverage: a migrated snapshot that fails
-          // isValidSnapshot() sets snapshot = null and drops into the full-replay
-          // branch while _migrationRanDuringHydration is already true. Guards the
-          // full-replay branch's persisted-flag assignment — dropping it there
-          // produces a second, unguarded startup write.
+        it('preserves legacy schema identity when a corrupt snapshot falls through to full replay', async () => {
+          // Replay must not stamp current schema before server confirmation.
           mockOpLogStore.loadStateCache.and.resolveTo(
             createMockSnapshot({ schemaVersion: 0 }),
           );
@@ -1372,7 +1419,10 @@ describe('OperationLogHydratorService', () => {
 
           await service.hydrateStore();
 
-          expect(mockSnapshotService.saveCurrentStateAsSnapshot).toHaveBeenCalledTimes(1);
+          expect(mockSnapshotService.saveCurrentStateAsSnapshot).not.toHaveBeenCalled();
+          expect(mockOpLogStore.saveStateCache).toHaveBeenCalledWith(
+            jasmine.objectContaining({ schemaVersion: 4 }),
+          );
         });
 
         it('still converges when the Checkpoint-C save was internally SKIPPED', async () => {
@@ -1733,6 +1783,7 @@ describe('OperationLogHydratorService', () => {
         // Should call migration for legacy (undefined version) snapshot
         expect(mockSnapshotService.migrateSnapshotWithBackup).toHaveBeenCalledWith(
           legacySnapshot,
+          4,
         );
       });
     });

@@ -1,3 +1,11 @@
+import {
+  PLANNING_FEATURE_NAME,
+  planningAdapter,
+} from '../../features/planning/store/planning.reducer';
+import {
+  selectPlanningEntities,
+  selectPlacementByTaskId,
+} from '../../features/planning/store/planning.selectors';
 /**
  * Central Entity Registry for Operation Log System
  *
@@ -173,6 +181,14 @@ import {
 export const buildEntityRegistry = (): EntityRegistry<EntityType> =>
   ({
     // ── ADAPTER ENTITIES ───────────────────────────────────────────────────────
+    PLANNING: {
+      storagePattern: 'adapter',
+      featureName: PLANNING_FEATURE_NAME,
+      payloadKey: 'placement',
+      adapter: planningAdapter,
+      selectEntities: selectPlanningEntities,
+      selectById: selectPlacementByTaskId,
+    },
     TASK: {
       storagePattern: 'adapter',
       featureName: TASK_FEATURE_NAME,
