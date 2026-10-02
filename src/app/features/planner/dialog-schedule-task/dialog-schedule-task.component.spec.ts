@@ -32,6 +32,7 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { selectAllTasksWithDueTimeSorted } from '../../tasks/store/task.selectors';
 import { ScheduleConfig } from '../../config/global-config.model';
+import { SCHEDULE_TASK_MIN_DURATION_IN_MS } from '../../schedule/schedule.const';
 
 describe('DialogScheduleTaskComponent', () => {
   let component: DialogScheduleTaskComponent;
@@ -201,6 +202,18 @@ describe('DialogScheduleTaskComponent', () => {
     expect(dialogRefSpy.close).toHaveBeenCalledWith(true);
   });
 
+  it('supplies the existing schedule minimum for a Task without an estimate', async () => {
+    component.data.task = { ...component.data.task!, timeEstimate: 0 };
+    component.selectedDate = new Date(2026, 0, 16);
+    component.selectedTime = '10:00';
+    await component.submit();
+    expect(TestBed.inject(WorkSessionService).scheduleTask).toHaveBeenCalledWith(
+      component.data.task,
+      new Date(2026, 0, 16, 10).getTime(),
+      SCHEDULE_TASK_MIN_DURATION_IN_MS,
+    );
+  });
+
   it('routes the existing time-input Enter submission to WorkSession scheduling', async () => {
     component.selectedDate = new Date(2026, 0, 16);
     component.selectedTime = '10:00';
@@ -219,6 +232,7 @@ describe('DialogScheduleTaskComponent', () => {
     expect(schedule).toHaveBeenCalledOnceWith(
       component.task!,
       new Date(2026, 0, 16, 10).getTime(),
+      SCHEDULE_TASK_MIN_DURATION_IN_MS,
     );
     expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalled();
@@ -391,6 +405,7 @@ describe('DialogScheduleTaskComponent', () => {
           subTaskIds: [],
         }),
         expectedDate.getTime(),
+        SCHEDULE_TASK_MIN_DURATION_IN_MS,
       );
     });
 

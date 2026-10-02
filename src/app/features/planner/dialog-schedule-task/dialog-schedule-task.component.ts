@@ -57,6 +57,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { selectTaskRepeatCfgByIdAllowUndefined } from '../../task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
 import { getTaskRepeatInfoText } from '../../tasks/task-detail-panel/get-task-repeat-info-text.util';
+import { SCHEDULE_TASK_MIN_DURATION_IN_MS } from '../../schedule/schedule.const';
 
 @Component({
   selector: 'dialog-schedule-task',
@@ -491,7 +492,11 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
     const newDate = new Date(
       getDateTimeFromClockString(normalizedTime, this.selectedDate as Date),
     );
-    return this._workSessionService.scheduleTask(task, newDate.getTime());
+    return this._workSessionService.scheduleTask(
+      task,
+      newDate.getTime(),
+      SCHEDULE_TASK_MIN_DURATION_IN_MS,
+    );
   }
 
   private async _planForDay(newDay: string): Promise<void> {
