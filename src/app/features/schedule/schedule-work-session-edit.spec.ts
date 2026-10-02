@@ -151,7 +151,12 @@ describe('existing WorkSession schedule edits', () => {
     startHours: 10,
     timeLeftInHours: 1,
   });
-  const release = (event = eventFor(), inside = true, preview = false): jasmine.Spy => {
+  const release = (
+    event = eventFor(),
+    inside = true,
+    preview = false,
+    touch = false,
+  ): jasmine.Spy => {
     const col = document.createElement('div');
     col.classList.add('col');
     col.setAttribute('data-day', '2026-01-15');
@@ -178,10 +183,21 @@ describe('existing WorkSession schedule edits', () => {
     }
     drag.handleDragReleased({
       source,
-      event: new MouseEvent('mouseup', {
-        clientX: inside ? 100 : 600,
-        clientY,
-      }),
+      event: touch
+        ? new TouchEvent('touchend', {
+            changedTouches: [
+              new Touch({
+                identifier: 1,
+                target: grid,
+                clientX: inside ? 100 : 600,
+                clientY,
+              }),
+            ],
+          })
+        : new MouseEvent('mouseup', {
+            clientX: inside ? 100 : 600,
+            clientY,
+          }),
     } as unknown as CdkDragRelease<ScheduleEvent>);
     return reset;
   };
@@ -303,6 +319,16 @@ describe('existing WorkSession schedule edits', () => {
     release(eventFor(second));
     assertRetained(second.id);
     expect(entities()[session.id]).toEqual(session);
+  });
+
+  it('uses the existing touch-release coordinates for one WorkSession move', () => {
+    expect(release(eventFor(), true, false, true)).toHaveBeenCalledTimes(1);
+    expect(entities()[session.id]!.start).toBe(new Date(2026, 0, 15, 12).getTime());
+    expect(entities()[session.id]!.end - entities()[session.id]!.start).toBe(hour);
+    expect(entities()[second.id]).toEqual(second);
+    assertRetained();
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(writes.calls.mostRecent().args[0].type).toBe(updateWorkSession.type);
   });
 
   it('routes a legacy timed Task release to its migrated WorkSession', () => {

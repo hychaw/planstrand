@@ -177,6 +177,30 @@ describe('DialogScheduleTaskComponent', () => {
     expect(dialogRefSpy.close).toHaveBeenCalledWith(true);
   });
 
+  it('routes the existing time-input Enter submission to WorkSession scheduling', async () => {
+    component.selectedDate = new Date(2026, 0, 16);
+    component.selectedTime = '10:00';
+    const schedule = TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy;
+    schedule.and.returnValue(true);
+    const dispatch = spyOn(store, 'dispatch');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const input: HTMLInputElement =
+      fixture.nativeElement.querySelector('input[type="time"]');
+    expect(input).not.toBeNull();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(schedule).not.toHaveBeenCalled();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(schedule).toHaveBeenCalledOnceWith(
+      component.task!,
+      new Date(2026, 0, 16, 10).getTime(),
+    );
+    expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(dialogRefSpy.close).toHaveBeenCalledWith(true);
+  });
+
   it('should reflow three intact action buttons without horizontal overflow', () => {
     component.plannedDayForTask = '2026-07-24';
     fixture.detectChanges();

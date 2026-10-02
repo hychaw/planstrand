@@ -36,6 +36,7 @@ import { PlannerService } from '../../planner/planner.service';
 import { AddSubtaskInputService } from '../add-subtask-input/add-subtask-input.service';
 import { TaskDuplicateService } from '../task-duplicate.service';
 import { TaskMultiSelectService } from '../task-multi-select.service';
+import { WorkSessionService } from '../../work-session/work-session.service';
 
 describe('TaskComponent shortcut handling', () => {
   let fixture: import('@angular/core/testing').ComponentFixture<TaskComponent>;
@@ -178,6 +179,12 @@ describe('TaskComponent shortcut handling', () => {
           ]),
         },
         { provide: Store, useValue: storeSpy },
+        {
+          provide: WorkSessionService,
+          useValue: {
+            scheduleTask: jasmine.createSpy('scheduleTask').and.returnValue(true),
+          },
+        },
         {
           provide: SnackService,
           useValue: jasmine.createSpyObj('SnackService', ['open']),
@@ -573,7 +580,7 @@ describe('TaskComponent shortcut handling', () => {
       expectPlanningDay(storeSpy.dispatch, component.task().id, '2026-07-01');
     });
 
-    it('preserves time and reminder when scheduling a timed task for tomorrow', async () => {
+    it('routes the timed tomorrow shortcut to WorkSession scheduling with the retained clock time', async () => {
       const timedTask = {
         ...component.task(),
         dueWithTime: new Date('2026-06-01T10:00:00').getTime(),
@@ -582,14 +589,11 @@ describe('TaskComponent shortcut handling', () => {
 
       await component.scheduleTaskTomorrow();
 
-      // Should call taskService.scheduleTask instead of dispatching planTaskForDay
-      // June 2nd at 10:00:00
-      expect(taskServiceSpy.scheduleTask).toHaveBeenCalledWith(
-        timedTask as any,
+      expect(TestBed.inject(WorkSessionService).scheduleTask).toHaveBeenCalledOnceWith(
+        timedTask,
         new Date('2026-06-02T10:00:00').getTime(),
-        jasmine.any(String),
-        false,
       );
+      expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
       expect(TestBed.inject(SnackService).open).toHaveBeenCalled();
       expect(storeSpy.dispatch).not.toHaveBeenCalledWith(
         PlannerActions.planTaskForDay({

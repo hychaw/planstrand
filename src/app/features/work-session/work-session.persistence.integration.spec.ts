@@ -48,6 +48,7 @@ import {
   BulkReplayReducerFailure,
   runWithBulkReplayFailureCollector,
 } from '../../op-log/apply/bulk-replay-failure-collector';
+import { projectLocalCalendarDisplayItems } from '../schedule/calendar-display-item';
 
 const session: WorkSession = {
   id: 'session-1',
@@ -373,6 +374,95 @@ describe('WorkSession persistence and API capability integration', () => {
       hydrated,
     );
     expect(data.task.entities[session.taskId]?.dueWithTime).toBe(session.start);
+  });
+
+  it('keeps an edited migrated block authoritative across both restart and explicit dismissal without losing other sessions', async () => {
+    const data = appData();
+    const task = {
+      ...data.task.entities[session.taskId]!,
+      dueWithTime: session.start,
+      timeEstimate: 100,
+    };
+    data.task.entities[task.id] = task;
+    const taskBefore = JSON.stringify(data.task);
+    // The existing unrelated session must neither suppress nor prevent migration.
+    data.workSession = backfillLegacyTaskWorkSessions(
+      data.task,
+      data.workSession,
+      'America/Vancouver',
+    );
+    const id = legacyTaskWorkSessionId(task.id, task.dueWithTime);
+    const display = (): ReturnType<typeof projectLocalCalendarDisplayItems> =>
+      projectLocalCalendarDisplayItems(
+        Object.values(data.workSession.entities).filter((s): s is WorkSession => !!s),
+        data.task.entities,
+        [task],
+        data.workSession.dismissedLegacySessionIds,
+      );
+    expect(
+      display()
+        .map((item) => item.sourceId)
+        .sort(),
+    ).toEqual([id, session.id].sort());
+    const client = new TestClient('client-local');
+    const edit = updateWorkSession({
+      id,
+      changes: { start: 300, end: 450 },
+      modified: 300,
+    });
+    const editOp = client.createOperation({
+      actionType: edit.type,
+      entityType: edit.meta.entityType,
+      entityId: id,
+      opType: edit.meta.opType,
+      payload: {
+        actionPayload: { id, changes: edit.changes, modified: edit.modified },
+        entityChanges: [],
+      },
+    });
+    await log.append(JSON.parse(JSON.stringify(editOp)), 'local');
+    data.workSession = workSessionReducer(data.workSession, convertOpToAction(editOp));
+    const restart = async (): Promise<void> => {
+      const entries = await log.getOpsAfterSeq(0);
+      await log.saveStateCache({
+        state: data,
+        lastAppliedOpSeq: entries[entries.length - 1].seq,
+        vectorClock: entries[entries.length - 1].op.vectorClock,
+        compactedAt: 500,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        snapshotEntityKeys: extractEntityKeysFromState(data),
+      });
+      const cached = await log.loadStateCache();
+      data.workSession = workSessionReducer(
+        undefined,
+        loadAllData({ appDataComplete: cached!.state as AppDataComplete }),
+      );
+      const hydrated = data.workSession;
+      expect(backfillLegacyTaskWorkSessions(data.task, hydrated, 'Asia/Tokyo')).toBe(
+        hydrated,
+      );
+      expect(JSON.stringify(data.task)).toBe(taskBefore);
+      expect(data.workSession.entities[session.id]).toEqual(session);
+      expect(display().some((item) => item.sourceType === 'legacyTask')).toBeFalse();
+    };
+    await restart();
+    expect(display().find((item) => item.sourceId === id)).toEqual(
+      jasmine.objectContaining({ start: 300, end: 450, timeZone: 'America/Vancouver' }),
+    );
+    const remove = removeWorkSession({ id });
+    const removeOp = client.createOperation({
+      actionType: remove.type,
+      entityType: remove.meta.entityType,
+      entityId: id,
+      opType: remove.meta.opType,
+      payload: { actionPayload: { id }, entityChanges: [] },
+    });
+    await log.append(JSON.parse(JSON.stringify(removeOp)), 'local');
+    data.workSession = workSessionReducer(data.workSession, convertOpToAction(removeOp));
+    await restart();
+    expect(data.workSession.dismissedLegacySessionIds).toEqual([id]);
+    expect(display().map((item) => item.sourceId)).toEqual([session.id]);
+    expect((await log.getOpsAfterSeq(0)).length).toBe(2); // Edit + removal; no backfill op.
   });
 });
 

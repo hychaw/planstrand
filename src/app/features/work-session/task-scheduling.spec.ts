@@ -222,6 +222,56 @@ describe('Task timed scheduling cutover', () => {
     expect(writes).not.toHaveBeenCalled();
   });
 
+  // Explicit instants and Intl's named zone keep DST coverage independent of the
+  // browser/Windows viewing zone. WorkSessions store elapsed time, not wall time.
+  for (const boundary of [
+    { name: 'ordinary midnight', start: '2026-01-16T07:30:00Z', hours: ['23', '00'] },
+    { name: 'spring DST gap', start: '2026-03-08T09:30:00Z', hours: ['01', '03'] },
+    { name: 'fall DST fold', start: '2026-11-01T08:30:00Z', hours: ['01', '01'] },
+  ]) {
+    it(`moves and resizes across ${boundary.name} without changing elapsed duration, zone or Task identity`, () => {
+      setup();
+      zone.set({ timeZone: 'America/Los_Angeles' });
+      const originalStart = Date.parse('2026-01-15T18:00:00Z');
+      expect(service.scheduleTask(task, originalStart)).toBeTrue();
+      const id = taskScheduledWorkSessionId(task);
+      const otherId = service.create(task.id, originalStart, originalStart + 1000)!;
+      const other = entities()[otherId];
+      const target = Date.parse(boundary.start);
+      // A changed default must not replace the stored zone during movement.
+      zone.set({ timeZone: 'Invalid/Zone' });
+      writes.calls.reset();
+      expect(service.scheduleTask(task, target)).toBeTrue();
+      const moved = entities()[id]!;
+      expect(moved.end - moved.start).toBe(task.timeEstimate);
+      const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: moved.timeZone,
+        hour: '2-digit',
+        hourCycle: 'h23',
+      });
+      expect([formatter.format(moved.start), formatter.format(moved.end)]).toEqual(
+        boundary.hours,
+      );
+      expect(service.update(id, { end: moved.end + 1800000 })).toBeTrue();
+      const resized = entities()[id]!;
+      expect(resized).toEqual(
+        jasmine.objectContaining({
+          taskId: task.id,
+          start: target,
+          end: target + task.timeEstimate + 1800000,
+          timeZone: 'America/Los_Angeles',
+        }),
+      );
+      expect(resized.completedAt).toBeUndefined();
+      expect(entities()[otherId]).toBe(other);
+      expect(store.selectSignal(selectTaskEntities)()[task.id]).toBe(task);
+      expect(writes).toHaveBeenCalledTimes(2);
+      expect(projectLocalCalendarDisplayItems([resized], { task }, [])[0].end).toBe(
+        resized.end,
+      );
+    });
+  }
+
   it('captures and wire-replays one creation intent without a follow-up scheduling write', () => {
     setup();
     service.scheduleTask(task, 100);
