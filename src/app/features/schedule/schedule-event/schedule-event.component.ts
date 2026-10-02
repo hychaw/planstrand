@@ -244,7 +244,9 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
       addClass += ' is-beyond-budget';
     }
 
-    return evt.type + '  ' + addClass;
+    // Reuse timed Task styling without entering its mutation paths (Phase 3E).
+    const styleType = evt.type === SVEType.WorkSession ? SVEType.ScheduledTask : evt.type;
+    return styleType + '  ' + addClass;
   });
 
   readonly style = computed(() => {
@@ -364,6 +366,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
       case SVEType.CalendarEvent:
         return 'CAL_PROJECTION';
       case SVEType.ScheduledTask:
+      case SVEType.WorkSession:
         return 'SCHEDULED_TASK';
       case SVEType.LunchBreak:
         return 'LUNCH_BREAK';

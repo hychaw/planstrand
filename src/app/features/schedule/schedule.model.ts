@@ -1,4 +1,5 @@
 import { SVEType } from './schedule.const';
+import { CalendarDisplayItem } from './calendar-display-item.model';
 import { TaskCopy, TaskWithDueTime } from '../tasks/task.model';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
 import { CalendarIntegrationEvent } from '../calendar-integration/calendar-integration.model';
@@ -38,6 +39,11 @@ interface SVEBase {
 export interface SVETask extends SVEBase {
   type: SVEType.Task | SVEType.TaskPlannedForDay | SVEType.ScheduledTask;
   data: TaskCopy;
+}
+
+interface SVEWorkSession extends SVEBase {
+  type: SVEType.WorkSession;
+  data: CalendarDisplayItem;
 }
 
 export interface SVESplitTaskStart extends SVEBase {
@@ -117,6 +123,7 @@ export type SVEEntryForNextDay =
   | SVERepeatProjectionSplitContinued;
 
 export type SVE =
+  | SVEWorkSession
   | SVETask
   | SVESplitTaskStart
   | SVETaskPlannedForDay
@@ -156,6 +163,7 @@ export const isAllDayCalendarEvent = (calEv: ScheduleFromCalendarEvent): boolean
 // -----------------
 // BlockedBlocks
 export enum BlockedBlockType {
+  WorkSession = 'WorkSession',
   ScheduledTask = 'ScheduledTask',
   ScheduledTaskSplit = 'ScheduledTaskSplit',
   ScheduledRepeatProjection = 'ScheduledRepeatProjection',
@@ -204,11 +212,19 @@ export interface BlockedBlockEntryLunchBreak {
 }
 
 export type BlockedBlockEntry =
+  | BlockedBlockEntryWorkSession
   | BlockedBlockEntryScheduledTask
   | BlockedBlockEntryScheduledRepeatProjection
   | BlockedBlockEntryCalendarEvent
   | BlockedBlockEntryWorkdayStartEnd
   | BlockedBlockEntryLunchBreak;
+
+interface BlockedBlockEntryWorkSession {
+  start: number;
+  end: number;
+  type: BlockedBlockType.WorkSession;
+  data: CalendarDisplayItem;
+}
 
 export interface BlockedBlock {
   start: number;

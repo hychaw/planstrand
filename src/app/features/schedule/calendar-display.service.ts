@@ -9,7 +9,7 @@ import { selectLocalCalendarDisplayItems } from './calendar-display-item.selecto
 import { projectCalendarIntegrationEvent } from './calendar-display-item';
 import { CalendarDisplayItem } from './calendar-display-item.model';
 
-/** Shared read path; the existing SVE renderer/writers remain on their legacy path. */
+/** Shared read facade; ScheduleService consumes its local selector through SVE. */
 @Injectable({ providedIn: 'root' })
 export class CalendarDisplayService {
   private readonly _localItems = inject(Store).selectSignal(

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ScheduleService } from './schedule.service';
+import { selectLocalCalendarDisplayItems } from './calendar-display-item.selectors';
 import { DateService } from '../../core/date/date.service';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { findSpringForwardSunday } from '../tasks/dst.test-helper';
@@ -27,6 +28,7 @@ describe('ScheduleService', () => {
         DateService,
         provideMockStore({
           selectors: [
+            { selector: selectLocalCalendarDisplayItems, value: [] },
             { selector: selectTimelineTasks, value: { unPlanned: [], planned: [] } },
             {
               selector: selectTaskRepeatCfgsWithAndWithoutStartTime,
@@ -842,6 +844,7 @@ describe('ScheduleService – calendar visibility filter', () => {
         DateService,
         provideMockStore({
           selectors: [
+            { selector: selectLocalCalendarDisplayItems, value: [] },
             { selector: selectTimelineTasks, value: { unPlanned: [], planned: [] } },
             {
               selector: selectTaskRepeatCfgsWithAndWithoutStartTime,

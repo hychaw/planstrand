@@ -26,6 +26,8 @@ import { TaskService } from '../tasks/task.service';
 import { startWith } from 'rxjs/operators';
 import { parseDbDateStr } from '../../util/parse-db-date-str';
 import { anchorContextNow } from './anchor-context-now';
+import { CalendarDisplayItem } from './calendar-display-item.model';
+import { selectLocalCalendarDisplayItems } from './calendar-display-item.selectors';
 
 @Injectable({
   providedIn: 'root',
@@ -38,6 +40,9 @@ export class ScheduleService {
   private _taskService = inject(TaskService);
 
   private _timelineTasks = toSignal(this._store.select(selectTimelineTasks));
+  private _calendarDisplayItems = toSignal(
+    this._store.select(selectLocalCalendarDisplayItems),
+  );
   private _taskRepeatCfgs = toSignal(
     this._store.select(selectTaskRepeatCfgsWithAndWithoutStartTime),
   );
@@ -69,6 +74,7 @@ export class ScheduleService {
       const now = days.length ? anchorContextNow(days[0], realNow) : realNow;
 
       return this.buildScheduleDays({
+        calendarDisplayItems: this._calendarDisplayItems(),
         now,
         realNow,
         daysToShow: days,
@@ -112,6 +118,7 @@ export class ScheduleService {
       timelineCfg?.isWorkStartEndEnabled ? createWorkStartEndCfg(timelineCfg) : undefined,
       timelineCfg?.isLunchBreakEnabled ? createLunchBreakCfg(timelineCfg) : undefined,
       realNow,
+      params.calendarDisplayItems,
     );
   }
 
@@ -151,6 +158,7 @@ export class ScheduleService {
       : this._calendarEvents();
 
     return this.buildScheduleDays({
+      calendarDisplayItems: this._calendarDisplayItems(),
       now: params.contextNow,
       realNow: params.realNow,
       daysToShow: params.daysToShow,
@@ -246,6 +254,9 @@ export class ScheduleService {
   }
 
   getEventDayStr(ev: ScheduleEvent): string | null {
+    if (ev.type === SVEType.WorkSession) {
+      return ev.plannedForDay ?? null;
+    }
     // Calendar events
     if (isCalendarEventData(ev)) {
       return this._dateService.todayStr(ev.data.start);
@@ -425,6 +436,7 @@ type TaskRepeatCfgBuckets = {
 };
 
 export interface BuildScheduleDaysParams {
+  calendarDisplayItems?: CalendarDisplayItem[];
   now?: number;
   realNow?: number; // Actual current time for determining "current week"
   daysToShow: string[];
