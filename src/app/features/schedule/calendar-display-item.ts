@@ -23,11 +23,12 @@ export const projectWorkSession = (
   isReadOnly: false,
 });
 
-/** Keep the existing timed-Task fallback until its exact migrated session exists. */
+/** Keep timed-Task fallback until its exact migration exists or was dismissed. */
 export const projectLocalCalendarDisplayItems = (
   sessions: WorkSession[],
   tasks: Record<string, Task | undefined>,
   scheduledTasks: TaskWithDueTime[],
+  dismissedLegacySessionIds: readonly string[] = [],
 ): CalendarDisplayItem[] => {
   const sessionOwners = new Map(sessions.map((s) => [s.id, s.taskId]));
   return [
@@ -36,7 +37,10 @@ export const projectLocalCalendarDisplayItems = (
       .filter(
         (task) =>
           sessionOwners.get(legacyTaskWorkSessionId(task.id, task.dueWithTime)) !==
-          task.id,
+            task.id &&
+          !dismissedLegacySessionIds.includes(
+            legacyTaskWorkSessionId(task.id, task.dueWithTime),
+          ),
       )
       .map(
         (task): CalendarDisplayItem => ({

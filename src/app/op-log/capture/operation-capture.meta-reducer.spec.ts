@@ -15,6 +15,9 @@ import { Action } from '@ngrx/store';
 import { PersistentAction } from '../core/persistent-action.interface';
 import { EntityType, OpType } from '../core/operation.types';
 import { RootState } from '../../root-store/root-state';
+import { removeWorkSession } from '../../features/work-session/store/work-session.actions';
+import { workSessionReducer } from '../../features/work-session/store/work-session.reducer';
+import { legacyTaskWorkSessionId } from '../../features/work-session/legacy-task-work-session-backfill';
 import {
   isReducerRejectedAction,
   reducerFailureGuardMetaReducer,
@@ -97,6 +100,32 @@ describe('operationCaptureMetaReducer', () => {
   });
 
   describe('meta-reducer behavior', () => {
+    it('captures one canonical WorkSession removal and no remote echo while retaining dismissal', () => {
+      const id = legacyTaskWorkSessionId('task-1', 100);
+      const state = {
+        ids: [id],
+        entities: {
+          [id]: {
+            id,
+            taskId: 'task-1',
+            start: 100,
+            end: 200,
+            created: 100,
+            modified: 100,
+          },
+        },
+      };
+      const wrapped = operationCaptureMetaReducer(workSessionReducer);
+      const action = removeWorkSession({ id });
+      const local = wrapped(state, action);
+      expect(mockCaptureService.incrementPending).toHaveBeenCalledOnceWith(action);
+      expect(local.ids).toEqual([]);
+      expect(local.dismissedLegacySessionIds).toEqual([id]);
+      const remote = { ...action, meta: { ...action.meta, isRemote: true } };
+      const replayed = wrapped(state, remote);
+      expect(replayed).toEqual(local);
+      expect(mockCaptureService.incrementPending).toHaveBeenCalledTimes(1);
+    });
     it('should pass action to inner reducer', () => {
       const wrappedReducer = operationCaptureMetaReducer(mockReducer);
       const action = createMockAction();

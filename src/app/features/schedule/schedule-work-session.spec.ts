@@ -98,6 +98,10 @@ describe('Schedule WorkSession read integration', () => {
         sessions,
         { [task.id]: task },
         { planned: [task], unPlanned: [] },
+        {
+          ids: sessions.map((s) => s.id),
+          entities: Object.fromEntries(sessions.map((s) => [s.id, s])),
+        },
       ),
     );
     store.refreshState();
@@ -164,6 +168,7 @@ describe('Schedule WorkSession read integration', () => {
         [session],
         { [task.id]: { ...task, title: 'Renamed Task', isDone: true } },
         { planned: [task], unPlanned: [] },
+        { ids: [session.id], entities: { [session.id]: session } },
       ),
     );
     store.refreshState();

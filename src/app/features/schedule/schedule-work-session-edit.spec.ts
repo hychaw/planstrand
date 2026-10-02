@@ -24,6 +24,7 @@ import { workSessionReducer } from '../work-session/store/work-session.reducer';
 import {
   addWorkSession,
   updateWorkSession,
+  removeWorkSession,
 } from '../work-session/store/work-session.actions';
 import { legacyTaskWorkSessionId } from '../work-session/legacy-task-work-session-backfill';
 import { ScheduleWeekDragService } from './schedule-week/schedule-week-drag.service';
@@ -192,6 +193,91 @@ describe('existing WorkSession schedule edits', () => {
     expect(store.selectSignal(selectTaskEntities)()[task.id]).toBe(task);
     expect(task.dueWithTime).toBe(start);
   };
+
+  it('opens the session menu on click and removes only its source identity with one replayable intent', async () => {
+    fixture = TestBed.createComponent(ScheduleEventComponent);
+    fixture.componentRef.setInput('event', eventFor());
+    fixture.detectChanges();
+    await fixture.componentInstance.clickHandler(new MouseEvent('click'));
+    fixture.detectChanges();
+    const button = document.querySelector('.cdk-overlay-container button');
+    expect(button).not.toBeNull();
+    (button as HTMLButtonElement).click();
+    expect(entities()[session.id]).toBeUndefined();
+    expect(entities()[second.id]).toBe(second);
+    expect(store.selectSignal(selectTaskEntities)()[task.id]).toBe(task);
+    expect(writes).toHaveBeenCalledTimes(1);
+    const action = writes.calls.mostRecent().args[0] as ReturnType<
+      typeof removeWorkSession
+    >;
+    expect(action.type).toBe(removeWorkSession.type);
+    expect(action.id).toBe(session.id);
+    expect(isPersistentAction(action)).toBeTrue();
+    const op = new TestClient('client-local').createOperation({
+      actionType: action.type,
+      opType: action.meta.opType,
+      entityType: action.meta.entityType,
+      entityId: action.id,
+      payload: {
+        actionPayload: { id: action.id },
+        entityChanges: TestBed.inject(OperationCaptureService).extractEntityChanges(
+          action,
+        ),
+      },
+    });
+    const replay = convertOpToAction(JSON.parse(JSON.stringify(op)));
+    expect(replay.meta.isRemote).toBeTrue();
+    const initial = {
+      ids: [session.id, second.id],
+      entities: { [session.id]: session, [second.id]: second },
+    };
+    const replayed = workSessionReducer(initial, replay);
+    expect(replayed.entities).toEqual(entities());
+    expect(replayed.dismissedLegacySessionIds).toEqual([session.id]);
+    writes.calls.reset();
+    store.dispatch(replay);
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(
+      projectLocalCalendarDisplayItems(
+        [second],
+        { [task.id]: task },
+        [task],
+        replayed.dismissedLegacySessionIds,
+      ),
+    ).toEqual([projectWorkSession(second, task)]);
+  });
+
+  it('routes right-click to the session menu and allows removal without a timezone', () => {
+    fixture = TestBed.createComponent(ScheduleEventComponent);
+    fixture.componentRef.setInput('event', eventFor({ ...second, timeZone: undefined }));
+    fixture.detectChanges();
+    const trigger = fixture.componentInstance.sessionMenuTrigger()!;
+    const open = spyOn(trigger, 'openMenu');
+    const event = new MouseEvent('contextmenu', { cancelable: true });
+    fixture.componentInstance.onContextMenu(event);
+    expect(event.defaultPrevented).toBeTrue();
+    expect(open).toHaveBeenCalledTimes(1);
+    fixture.componentInstance.removeWorkSession();
+    expect(entities()[session.id]).toBe(session);
+    expect(entities()[second.id]).toBeUndefined();
+  });
+
+  it('rejects removal for wrong sources, read-only blocks, denied capability and drag previews', () => {
+    fixture = TestBed.createComponent(ScheduleEventComponent);
+    for (const data of [
+      { ...projectWorkSession(session), sourceType: 'external' },
+      { ...projectWorkSession(session), isReadOnly: true },
+      { ...projectWorkSession(session), canDelete: false },
+    ]) {
+      fixture.componentRef.setInput('event', { ...eventFor(), data });
+      fixture.componentInstance.removeWorkSession();
+      expect(fixture.componentInstance.canRemoveWorkSession()).toBeFalse();
+    }
+    fixture.componentRef.setInput('event', eventFor());
+    fixture.componentRef.setInput('isDragPreview', true);
+    fixture.componentInstance.removeWorkSession();
+    expect(writes).not.toHaveBeenCalled();
+  });
 
   it('moves only the selected session, preserving duration, completion, zone and legacy fields', () => {
     drag.setShiftMode(true);

@@ -142,10 +142,10 @@ export interface ScheduleCalendarMapEntry {
   items: ScheduleFromCalendarEvent[];
 }
 
-/** Existing timezone-less sessions remain readable, but cannot be edited here. */
+/** Timing edits require a stored zone; explicit removal does not. */
 export const editableWorkSession = (
   event: ScheduleEvent | null,
-  capability: 'canMove' | 'canResize',
+  capability: 'canMove' | 'canResize' | 'canDelete',
 ): CalendarDisplayItem | null => {
   if (event?.type !== SVEType.WorkSession || !event.data) return null;
   const item = event.data as CalendarDisplayItem;
@@ -153,8 +153,8 @@ export const editableWorkSession = (
     !!item.sourceId &&
     item[capability] &&
     !item.isReadOnly &&
-    typeof item.timeZone === 'string' &&
-    isValidIanaTimeZone(item.timeZone)
+    (capability === 'canDelete' ||
+      (typeof item.timeZone === 'string' && isValidIanaTimeZone(item.timeZone)))
     ? item
     : null;
 };

@@ -5,14 +5,17 @@ import { WorkSession, WorkSessionState } from '../work-session.model';
 import * as WorkSessionActions from './work-session.actions';
 import { isValidEntityId } from '../../../op-log/validation/is-valid-entity-id';
 import { isValidIanaTimeZone } from '../../../util/iana-time-zone';
+import { isLegacyTaskWorkSessionId } from '../legacy-task-work-session-backfill';
 
 export const WORK_SESSION_FEATURE_NAME = 'workSession';
 
 export const workSessionAdapter: EntityAdapter<WorkSession> =
   createEntityAdapter<WorkSession>();
 
-export const initialWorkSessionState: WorkSessionState =
-  workSessionAdapter.getInitialState({ ids: [] as string[] });
+export const initialWorkSessionState: WorkSessionState = {
+  ...workSessionAdapter.getInitialState(),
+  ids: [],
+};
 
 const isPersistedTimestamp = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0;
@@ -78,7 +81,16 @@ export const isValidWorkSessionState = (
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const state = value as WorkSessionState;
   if (
-    Object.keys(state).some((key) => key !== 'ids' && key !== 'entities') ||
+    Object.keys(state).some(
+      (key) => !['ids', 'entities', 'dismissedLegacySessionIds'].includes(key),
+    ) ||
+    (state.dismissedLegacySessionIds !== undefined &&
+      (!Array.isArray(state.dismissedLegacySessionIds) ||
+        state.dismissedLegacySessionIds.some(
+          (id) => !isValidEntityId(id) || !isLegacyTaskWorkSessionId(id),
+        ) ||
+        new Set(state.dismissedLegacySessionIds).size !==
+          state.dismissedLegacySessionIds.length)) ||
     !Array.isArray(state.ids) ||
     state.ids.some((id) => typeof id !== 'string') ||
     new Set(state.ids).size !== state.ids.length ||
@@ -108,7 +120,9 @@ export const workSessionReducer = createReducer(
   // addMany preserves sessions edited/created while persistence was awaiting I/O.
   on(WorkSessionActions.installLegacyWorkSessionBackfill, (state, { sessions }) =>
     workSessionAdapter.addMany(
-      Object.values(sessions.entities).filter((s): s is WorkSession => !!s),
+      Object.values(sessions.entities).filter(
+        (s): s is WorkSession => !!s && !state.dismissedLegacySessionIds?.includes(s.id),
+      ),
       state,
     ),
   ),
@@ -161,9 +175,17 @@ export const workSessionReducer = createReducer(
     return workSessionAdapter.setOne(next, state);
   }),
 
-  on(WorkSessionActions.removeWorkSession, (state, { id }) =>
-    workSessionAdapter.removeOne(id, state),
-  ),
+  on(WorkSessionActions.removeWorkSession, (state, { id }) => {
+    const removed = workSessionAdapter.removeOne(id, state);
+    // Derive from the operation identity, even when replay has no entity left.
+    // One reducer pass atomically records dismissal and removes the session.
+    if (!isLegacyTaskWorkSessionId(id) || state.dismissedLegacySessionIds?.includes(id))
+      return removed;
+    return {
+      ...removed,
+      dismissedLegacySessionIds: [...(state.dismissedLegacySessionIds ?? []), id].sort(),
+    };
+  }),
 
   on(WorkSessionActions.completeWorkSession, (state, { id, completedAt, modified }) => {
     const current = state.entities[id];

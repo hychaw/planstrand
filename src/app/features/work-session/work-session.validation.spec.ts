@@ -6,6 +6,7 @@ import {
 } from '../../op-log/validation/state-validity-test-utils';
 import { validateFull } from '../../op-log/validation/validation-fn';
 import { WorkSession } from './work-session.model';
+import { legacyTaskWorkSessionId } from './legacy-task-work-session-backfill';
 import { AppDataComplete, withDefaultModelSlices } from '../../op-log/model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import {
@@ -37,6 +38,18 @@ const dataWithSession = (session: WorkSession): AppDataComplete => {
 };
 
 describe('WorkSession persisted-state validation', () => {
+  it('retains optional legacy dismissal provenance through validation, repair and hydration', () => {
+    const data = dataWithSession(validSession());
+    const id = legacyTaskWorkSessionId('task-1', 100);
+    data.workSession.dismissedLegacySessionIds = [id];
+    expect(validateFull(data).isValid).toBeTrue();
+    const repaired = dataRepair(data).data;
+    expect(repaired.workSession.dismissedLegacySessionIds).toEqual([id]);
+    expect(
+      workSessionReducer(undefined, loadAllData({ appDataComplete: repaired }))
+        .dismissedLegacySessionIds,
+    ).toEqual([id]);
+  });
   it('rejects dangling records even when a malformed Task ID list claims the Task exists', () => {
     const data = dataWithSession(validSession());
     data.task.entities = {};

@@ -77,16 +77,19 @@ describe('CalendarDisplayItem projection', () => {
     const frozenSession = Object.freeze({ ...session });
     const entities = Object.freeze({ [task.id]: Object.freeze({ ...task }) });
     const before = JSON.stringify({ frozenSession, entities });
-    const items = selectLocalCalendarDisplayItems.projector([frozenSession], entities, {
-      planned: [],
-      unPlanned: [],
-    });
+    const items = selectLocalCalendarDisplayItems.projector(
+      [frozenSession],
+      entities,
+      { planned: [], unPlanned: [] },
+      { ids: [session.id], entities: { [session.id]: frozenSession } },
+    );
     expect(items[0].title).toBe(task.title);
     expect(
       selectLocalCalendarDisplayItems.projector(
         [frozenSession],
         { [task.id]: { ...task, title: 'Renamed Task' } },
         { planned: [], unPlanned: [] },
+        { ids: [session.id], entities: { [session.id]: frozenSession } },
       )[0].title,
     ).toBe('Renamed Task');
     expect(JSON.stringify({ frozenSession, entities })).toBe(before);
@@ -98,6 +101,32 @@ describe('CalendarDisplayItem projection', () => {
     expect(result.length).toBe(1);
     expect(result[0].title).toBeUndefined();
     expect(result[0].taskId).toBe(task.id);
+  });
+
+  it('suppresses only the exact dismissed legacy schedule through the live selector', () => {
+    const id = legacyTaskWorkSessionId(task.id, task.dueWithTime);
+    const state = { ids: [], entities: {}, dismissedLegacySessionIds: [id] };
+    expect(
+      selectLocalCalendarDisplayItems.projector(
+        [],
+        { [task.id]: task },
+        { planned: [task], unPlanned: [] },
+        state,
+      ),
+    ).toEqual([]);
+    const rescheduled = { ...task, dueWithTime: task.dueWithTime + 1 };
+    expect(
+      selectLocalCalendarDisplayItems.projector(
+        [],
+        { [task.id]: rescheduled },
+        { planned: [rescheduled], unPlanned: [] },
+        state,
+      )[0].sourceType,
+    ).toBe('legacyTask');
+    // Explicit new-model scheduling can still restore this exact identity.
+    expect(
+      projectLocalCalendarDisplayItems([migrated], { [task.id]: task }, [task], [id]),
+    ).toEqual([projectWorkSession(migrated, task)]);
   });
 
   it('preserves an absent legacy session zone without resolving a fallback', () => {
@@ -171,6 +200,7 @@ describe('CalendarDisplayItem projection', () => {
             { ...untimed, subTasks: [] },
           ],
         },
+        { ids: [], entities: {} },
       ),
     ).toEqual([]);
     expect(dateOnly.dueDay).toBe('2026-10-02');

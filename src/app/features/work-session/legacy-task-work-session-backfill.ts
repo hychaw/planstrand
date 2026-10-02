@@ -6,6 +6,7 @@ import { isValidEntityId } from '../../op-log/validation/is-valid-entity-id';
 // Length-prefix the Task ID: collision-free without hashing or a dependency.
 // The ID records original scheduling provenance even if the session is edited.
 const PREFIX = 'legacy-task-schedule:';
+export const isLegacyTaskWorkSessionId = (id: string): boolean => id.startsWith(PREFIX);
 export const legacyTaskWorkSessionId = (taskId: string, start: number): string =>
   `${PREFIX}${taskId.length}:${taskId}:${start}`;
 
@@ -30,7 +31,8 @@ export const backfillLegacyTaskWorkSessions = (
     )
       continue;
     const id = legacyTaskWorkSessionId(taskId, start);
-    if (sessions.entities[id]) continue;
+    if (sessions.entities[id] || sessions.dismissedLegacySessionIds?.includes(id))
+      continue;
     const duration = task.timeEstimate;
     const end = start + duration;
     if (
@@ -49,6 +51,7 @@ export const backfillLegacyTaskWorkSessions = (
   }
   if (!additions.length) return sessions;
   return {
+    ...sessions,
     ids: [...sessions.ids, ...additions.map((session) => session.id)],
     entities: {
       ...sessions.entities,

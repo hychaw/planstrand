@@ -14,6 +14,8 @@ export interface WorkSession {
 
 export interface WorkSessionState extends EntityState<WorkSession> {
   ids: string[];
+  /** Exact legacy schedule identities intentionally removed; absent means none. */
+  dismissedLegacySessionIds?: string[];
 }
 
 export type WorkSessionEditableFields = Pick<

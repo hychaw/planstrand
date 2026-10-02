@@ -91,7 +91,7 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
   });
 
   describe('isReferenceCalendar signal', () => {
-    it('renders WorkSession title and timed styling without enabling writes', async () => {
+    it('renders WorkSession title and removal menu without entering Task/provider write paths', async () => {
       const item = projectWorkSession(
         {
           id: 'session',
@@ -123,7 +123,9 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
       expect(fixture.debugElement.injector.get(CdkDrag).disabled).toBeTrue();
       expect(fixture.nativeElement.querySelector('.resize-handle')).toBeNull();
       expect(fixture.nativeElement.querySelector('task-context-menu')).toBeNull();
-      expect(fixture.nativeElement.querySelector('.cal-menu-trigger')).toBeNull();
+      expect(component.canRemoveWorkSession()).toBeTrue();
+      expect(component.sessionMenuTrigger()).toBeDefined();
+      expect(component.calMenuTrigger()).toBeUndefined();
       await component.clickHandler(new MouseEvent('click'));
       component.onContextMenu(new MouseEvent('contextmenu'));
       component.deleteTask();

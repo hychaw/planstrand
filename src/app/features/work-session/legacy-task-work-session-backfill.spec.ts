@@ -12,12 +12,41 @@ import {
 import {
   completeWorkSession,
   installLegacyWorkSessionBackfill,
+  removeWorkSession,
 } from './store/work-session.actions';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { initialTaskState } from '../tasks/store/task.reducer';
 import { createValidAppData } from '../../op-log/validation/state-validity-test-utils';
 
 describe('legacy Task WorkSession backfill', () => {
+  it('retains intentional dismissal through restart, hydration, retry and stale installation', () => {
+    const source = tasks();
+    const original = JSON.stringify(source);
+    const migrated = migrate(source);
+    const id = migrated.ids[0];
+    const removed = workSessionReducer(migrated, removeWorkSession({ id }));
+    expect(removed.ids).toEqual([]);
+    expect(removed.dismissedLegacySessionIds).toEqual([id]);
+    const data = createValidAppData({
+      task: source,
+      workSession: JSON.parse(JSON.stringify(removed)),
+    });
+    const hydrated = workSessionReducer(
+      undefined,
+      loadAllData({ appDataComplete: data }),
+    );
+    expect(migrate(source, hydrated)).toBe(hydrated);
+    expect(migrate(source, migrate(source, hydrated), 'Asia/Tokyo')).toBe(hydrated);
+    expect(
+      workSessionReducer(
+        hydrated,
+        installLegacyWorkSessionBackfill({ sessions: migrated }),
+      ),
+    ).toBe(hydrated);
+    expect(JSON.stringify(source)).toBe(original);
+    // A different legacy timestamp remains eligible; this is not a Task-wide ban.
+    expect(migrate(tasks({ dueWithTime: start + 1 }), hydrated).ids.length).toBe(1);
+  });
   const start = 1750000000000;
   const duration = 1800000;
   const tasks = (changes: Record<string, unknown> = {}): TaskState =>

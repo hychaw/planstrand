@@ -26,7 +26,15 @@ import {
   createValidTask,
 } from '../../op-log/validation/state-validity-test-utils';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
-import { addWorkSession, updateWorkSession } from './store/work-session.actions';
+import {
+  addWorkSession,
+  updateWorkSession,
+  removeWorkSession,
+} from './store/work-session.actions';
+import {
+  legacyTaskWorkSessionId,
+  backfillLegacyTaskWorkSessions,
+} from './legacy-task-work-session-backfill';
 import {
   initialWorkSessionState,
   workSessionReducer,
@@ -313,6 +321,58 @@ describe('WorkSession persistence and API capability integration', () => {
       end: 400,
       modified: 300,
     });
+  });
+
+  it('persists one legacy removal and retains suppression across remote replay and snapshot restart', async () => {
+    const data = appData();
+    data.task.entities[session.taskId] = {
+      ...data.task.entities[session.taskId]!,
+      dueWithTime: session.start,
+      timeEstimate: 100,
+    };
+    const id = legacyTaskWorkSessionId(session.taskId, session.start);
+    data.workSession = { ids: [id], entities: { [id]: { ...session, id } } };
+    const action = removeWorkSession({ id });
+    const op = new TestClient('client-local').createOperation({
+      actionType: action.type,
+      entityType: action.meta.entityType,
+      entityId: id,
+      opType: action.meta.opType,
+      payload: { actionPayload: { id }, entityChanges: [] },
+    });
+    await log.append(op, 'local');
+    await upload.uploadPendingOps(provider);
+    expect(received.length).toBe(1);
+    const decoded = await encryption.decryptOperation(received[0], 'phase-one-test-key');
+    const remote = convertOpToAction(syncOpToOperation(decoded));
+    expect(remote.meta.isRemote).toBeTrue();
+    data.workSession = workSessionReducer(data.workSession, remote);
+    expect(data.workSession.ids).toEqual([]);
+    expect(data.workSession.dismissedLegacySessionIds).toEqual([id]);
+    expect(workSessionReducer(data.workSession, remote)).toBe(data.workSession);
+    expect(await log.getUnsynced()).toEqual([]);
+    const entries = await log.getOpsAfterSeq(0);
+    expect(entries.length).toBe(1);
+    await log.saveStateCache({
+      state: data,
+      lastAppliedOpSeq: entries[0].seq,
+      vectorClock: op.vectorClock,
+      compactedAt: 300,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      snapshotEntityKeys: extractEntityKeysFromState(data),
+    });
+    const cached = await log.loadStateCache();
+    const hydrated = workSessionReducer(
+      undefined,
+      loadAllData({
+        appDataComplete: cached!.state as AppDataComplete,
+      }),
+    );
+    expect(hydrated.dismissedLegacySessionIds).toEqual([id]);
+    expect(backfillLegacyTaskWorkSessions(data.task, hydrated, 'Asia/Singapore')).toBe(
+      hydrated,
+    );
+    expect(data.task.entities[session.taskId]?.dueWithTime).toBe(session.start);
   });
 });
 

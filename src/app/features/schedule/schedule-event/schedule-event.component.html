@@ -99,6 +99,23 @@
   ></task-context-menu>
 }
 
+@if (canRemoveWorkSession()) {
+  <div
+    [matMenuTriggerFor]="sessionContextMenu"
+    #sessionMenuTrigger="matMenuTrigger"
+    class="cal-menu-trigger"
+  ></div>
+  <mat-menu #sessionContextMenu="matMenu">
+    <button
+      mat-menu-item
+      (click)="removeWorkSession()"
+    >
+      <mat-icon>event_busy</mat-icon>
+      {{ T.F.TASK.D_SCHEDULE_TASK.UNSCHEDULE | translate }}
+    </button>
+  </mat-menu>
+}
+
 @if (se().type === SVEType.CalendarEvent) {
   <div
     [matMenuTriggerFor]="calContextMenu"

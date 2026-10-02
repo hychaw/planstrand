@@ -120,6 +120,15 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   });
 
   readonly calMenuTrigger = viewChild('calMenuTrigger', { read: MatMenuTrigger });
+  readonly sessionMenuTrigger = viewChild('sessionMenuTrigger', { read: MatMenuTrigger });
+  readonly canRemoveWorkSession = computed(
+    () => !!editableWorkSession(this.se(), 'canDelete') && !this.isDragPreview(),
+  );
+
+  removeWorkSession(): void {
+    const item = editableWorkSession(this.se(), 'canDelete');
+    if (item && !this.isDragPreview()) this._workSessionService.remove(item.sourceId);
+  }
   private readonly _calMenuItems = viewChildren(MatMenuItem);
   private readonly _titleEl = viewChild<ElementRef<HTMLElement>>('titleEl');
 
@@ -409,6 +418,8 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
           targetDate: evt.sourceOccurrenceDate ?? evt.plannedForDay,
         },
       });
+    } else if (this.canRemoveWorkSession()) {
+      this.sessionMenuTrigger()?.openMenu();
     } else if (evt.type === SVEType.CalendarEvent) {
       if (this._calMenuItems().length) {
         this.calMenuTrigger()?.openMenu();
@@ -467,6 +478,11 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   }
 
   onContextMenu(ev: MouseEvent | TouchEvent): void {
+    if (this.canRemoveWorkSession()) {
+      ev.preventDefault();
+      this.sessionMenuTrigger()?.openMenu();
+      return;
+    }
     const t = this.task();
     if (t) {
       this.openContextMenu(ev);
