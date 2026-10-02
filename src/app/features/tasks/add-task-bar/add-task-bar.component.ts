@@ -605,6 +605,12 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
         this.isAddToBottom(),
       );
 
+      // The date chip is a local Planning intent. Retained Task dates alone
+      // no longer establish membership in Today or the canonical planner.
+      if (taskData.dueDay) {
+        await this._planTaskForCurrentDay(taskId, taskData.dueDay);
+      }
+
       // Resolve remind option once for both scheduleTask and repeat config paths
       const resolvedRemindOption =
         state.remindOption ??
@@ -934,8 +940,10 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   // Private helper methods
-  private async _planTaskForCurrentDay(taskId: string): Promise<void> {
-    const planForDay = this.planForDay();
+  private async _planTaskForCurrentDay(
+    taskId: string,
+    planForDay = this.planForDay(),
+  ): Promise<void> {
     if (!planForDay) {
       return;
     }
