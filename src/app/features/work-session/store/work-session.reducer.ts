@@ -4,6 +4,7 @@ import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { WorkSession, WorkSessionState } from '../work-session.model';
 import * as WorkSessionActions from './work-session.actions';
 import { isValidEntityId } from '../../../op-log/validation/is-valid-entity-id';
+import { isValidIanaTimeZone } from '../../../util/iana-time-zone';
 
 export const WORK_SESSION_FEATURE_NAME = 'workSession';
 
@@ -21,6 +22,7 @@ const WORK_SESSION_KEYS = new Set([
   'taskId',
   'start',
   'end',
+  'timeZone',
   'completedAt',
   'created',
   'modified',
@@ -37,6 +39,9 @@ export const isValidWorkSession = (value: unknown): value is WorkSession => {
     isPersistedTimestamp(session['start']) &&
     isPersistedTimestamp(session['end']) &&
     session['end'] > session['start'] &&
+    (!Object.hasOwn(session, 'timeZone') ||
+      (typeof session['timeZone'] === 'string' &&
+        isValidIanaTimeZone(session['timeZone']))) &&
     (completedAt === undefined ||
       completedAt === null ||
       isPersistedTimestamp(completedAt)) &&
@@ -127,7 +132,13 @@ export const workSessionReducer = createReducer(
     const current = state.entities[id];
     if (!current) return state;
     assertValid(current);
-    if (Object.keys(changes).some((key) => !['taskId', 'start', 'end'].includes(key))) {
+    if (
+      Object.keys(changes).some(
+        (key) => !['taskId', 'start', 'end', 'timeZone'].includes(key),
+      ) ||
+      (Object.hasOwn(changes, 'timeZone') &&
+        (typeof changes.timeZone !== 'string' || !isValidIanaTimeZone(changes.timeZone)))
+    ) {
       throw new Error('Invalid WorkSession changes');
     }
     const next = assertValid({
@@ -135,6 +146,7 @@ export const workSessionReducer = createReducer(
       ...(changes.taskId !== undefined ? { taskId: changes.taskId } : {}),
       ...(changes.start !== undefined ? { start: changes.start } : {}),
       ...(changes.end !== undefined ? { end: changes.end } : {}),
+      ...(changes.timeZone !== undefined ? { timeZone: changes.timeZone } : {}),
       modified,
     });
     return workSessionAdapter.setOne(next, state);

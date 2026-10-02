@@ -1,6 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { nanoid } from 'nanoid';
+import { GlobalConfigService } from '../config/global-config.service';
+import { isValidIanaTimeZone, resolveIanaTimeZone } from '../../util/iana-time-zone';
 import { selectTaskEntities } from '../tasks/store/task.selectors';
 import {
   addWorkSession,
@@ -15,12 +17,22 @@ import { WorkSessionUpdate } from './work-session.model';
 @Injectable({ providedIn: 'root' })
 export class WorkSessionService {
   private readonly _store = inject(Store);
+  private readonly _config = inject(GlobalConfigService);
   private readonly _tasks = this._store.selectSignal(selectTaskEntities);
   private readonly _sessions = this._store.selectSignal(selectWorkSessionEntities);
 
-  create(taskId: string, start: number, end: number): string | null {
+  create(
+    taskId: string,
+    start: number,
+    end: number,
+    timeZone?: string | null,
+  ): string | null {
     if (this._tasks()[taskId]?.id !== taskId || !this._isValidRange(start, end))
       return null;
+    const resolvedTimeZone = resolveIanaTimeZone(
+      timeZone ?? this._config.localization()?.timeZone,
+    );
+    if (!resolvedTimeZone) return null;
     const id = nanoid();
     const now = Date.now();
     this._store.dispatch(
@@ -30,6 +42,7 @@ export class WorkSessionService {
           taskId,
           start,
           end,
+          timeZone: resolvedTimeZone,
           created: now,
           modified: now,
         },
@@ -41,6 +54,11 @@ export class WorkSessionService {
   update(id: string, changes: WorkSessionUpdate): boolean {
     const current = this._sessions()[id];
     if (!current) return false;
+    if (
+      Object.hasOwn(changes, 'timeZone') &&
+      (typeof changes.timeZone !== 'string' || !isValidIanaTimeZone(changes.timeZone))
+    )
+      return false;
     const taskId = changes.taskId ?? current.taskId;
     const start = changes.start ?? current.start;
     const end = changes.end ?? current.end;

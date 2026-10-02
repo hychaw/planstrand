@@ -289,6 +289,10 @@ Require `end > start` and a live `taskId`. V1 completion is manual: only an expl
 
 Phase 1 is an infrastructure-only foundation and does not yet create user-visible calendar sessions. Before Phase 3 enables timed scheduling writes, WorkSession is extended with a required IANA timezone (for example `America/Vancouver`) alongside its start/end instants. Reminder linkage, Trash behavior, template provenance, external-calendar export identity, notes, and other future fields are deliberately excluded from Phase 1 and introduced only in the later phase that defines each contract.
 
+Phase 3B adds `timeZone?: string` at the persisted-model boundary so Phase 1 snapshots and operations remain readable without backfill. New service-created sessions always persist a valid explicit IANA zone: an explicit choice wins, otherwise `LocalizationConfig.timeZone` resolves through the Phase 3A utility to the system zone. Invalid explicit/configured zones or an unavailable system zone reject creation; there is no UTC fallback. Updates may set a valid zone but cannot clear it. Completion, Task integrity, and start/end instant semantics remain unchanged.
+
+The existing WORK_SESSION create/update operation envelopes carry this additive field without new operation vocabulary. Pre-3B Planstrand exact-key reducers reject timezone-bearing creates/updates, preserving the operation payload rather than applying different scheduling semantics. Mixed-version peers need upgraded readers before these writes can converge; the WORK_SESSION server capability alone does not establish field-level client compatibility. Phase 3B adds no capability mechanism, schema bump, migration, background repair, legacy Task conversion, or calendar projection.
+
 ### Event
 
 Add a canonical local Event entity:

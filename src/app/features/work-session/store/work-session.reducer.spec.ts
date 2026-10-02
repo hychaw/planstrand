@@ -56,14 +56,14 @@ describe('workSessionReducer', () => {
   });
 
   it('rejects future entity fields instead of silently downgrading them', () => {
-    const future = { ...session(), timeZone: 'UTC' };
+    const future = { ...session(), source: 'future-contract' };
     expect(() =>
       workSessionReducer(
         initialWorkSessionState,
         addWorkSession({ workSession: future }),
       ),
     ).toThrowError('Invalid WorkSession');
-    expect(future.timeZone).toBe('UTC');
+    expect(future.source).toBe('future-contract');
     expect(initialWorkSessionState).toEqual({ ids: [], entities: {} });
   });
 
@@ -72,7 +72,7 @@ describe('workSessionReducer', () => {
       initialWorkSessionState,
       addWorkSession({ workSession: session() }),
     );
-    const changes = { end: 250, timeZone: 'UTC' };
+    const changes = { end: 250, source: 'future-contract' };
     expect(() =>
       workSessionReducer(
         state,
@@ -80,7 +80,47 @@ describe('workSessionReducer', () => {
       ),
     ).toThrowError('Invalid WorkSession changes');
     expect(state.entities['session-1']).toEqual(session());
-    expect(changes.timeZone).toBe('UTC');
+    expect(changes.source).toBe('future-contract');
+  });
+
+  it('accepts legacy sessions and valid zones but rejects invalid explicit zones', () => {
+    expect(isValidWorkSession(session())).toBeTrue();
+    expect(isValidWorkSession(session({ timeZone: 'America/Vancouver' }))).toBeTrue();
+    for (const timeZone of ['Invalid/Zone', '', '+01:00', null, undefined, 42]) {
+      expect(isValidWorkSession({ ...session(), timeZone })).toBeFalse();
+    }
+  });
+
+  it('changes timezone and preserves it through range edits and JSON replay', () => {
+    const initial = workSessionReducer(
+      initialWorkSessionState,
+      addWorkSession({ workSession: session({ timeZone: 'Europe/Berlin' }) }),
+    );
+    const changed = workSessionReducer(
+      initial,
+      updateWorkSession({
+        id: 'session-1',
+        changes: { timeZone: 'America/Vancouver' },
+        modified: 60,
+      }),
+    );
+    const action = updateWorkSession({
+      id: 'session-1',
+      changes: { start: 300, end: 400 },
+      modified: 70,
+    });
+    const replayed = workSessionReducer(changed, JSON.parse(JSON.stringify(action)));
+    expect(replayed.entities['session-1']).toEqual(
+      session({ start: 300, end: 400, timeZone: 'America/Vancouver', modified: 70 }),
+    );
+    for (const timeZone of ['Invalid/Zone', undefined]) {
+      expect(() =>
+        workSessionReducer(
+          changed,
+          updateWorkSession({ id: 'session-1', changes: { timeZone }, modified: 80 }),
+        ),
+      ).toThrowError('Invalid WorkSession changes');
+    }
   });
 
   it('updates only Phase 1 editable fields and preserves completion', () => {

@@ -63,7 +63,7 @@ describe('WorkSession persisted-state validation', () => {
 
   it('preserves prior state and incoming data through the existing load failure guard', () => {
     const previous = dataWithSession(validSession()).workSession;
-    const future = { ...validSession({ id: 'future' }), timeZone: 'UTC' };
+    const future = { ...validSession({ id: 'future' }), source: 'future-contract' };
     const incoming = dataWithSession(future);
     const collector = jasmine.createSpy('load failure');
     const guarded = loadAllDataFailureGuardMetaReducer(workSessionReducer);
@@ -95,6 +95,23 @@ describe('WorkSession persisted-state validation', () => {
     expect(validateFull(dataWithSession(validSession())).isValid).toBeTrue();
   });
 
+  it('validates and hydrates timezone-aware sessions without backfilling legacy data', () => {
+    const data = dataWithSession(validSession({ timeZone: 'America/Vancouver' }));
+    expect(validateFull(data).isValid).toBeTrue();
+    expect(
+      workSessionReducer(initialWorkSessionState, loadAllData({ appDataComplete: data })),
+    ).toBe(data.workSession);
+    expect(
+      validateFull(dataWithSession(validSession({ timeZone: 'Invalid/Zone' }))).isValid,
+    ).toBeFalse();
+    const legacy = dataWithSession(validSession());
+    const loaded = workSessionReducer(
+      initialWorkSessionState,
+      loadAllData({ appDataComplete: legacy }),
+    );
+    expect(Object.hasOwn(loaded.entities['session-1']!, 'timeZone')).toBeFalse();
+  });
+
   it('rejects a dangling Task reference', () => {
     const data = dataWithSession(validSession({ taskId: 'missing' }));
 
@@ -111,7 +128,7 @@ describe('WorkSession persisted-state validation', () => {
   it('rejects future persisted fields', () => {
     const session = {
       ...validSession(),
-      timeZone: 'Europe/Berlin',
+      source: 'future-contract',
     } as WorkSession;
 
     expect(validateFull(dataWithSession(session)).isValid).toBeFalse();

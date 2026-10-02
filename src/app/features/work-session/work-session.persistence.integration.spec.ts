@@ -26,7 +26,7 @@ import {
   createValidTask,
 } from '../../op-log/validation/state-validity-test-utils';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
-import { addWorkSession } from './store/work-session.actions';
+import { addWorkSession, updateWorkSession } from './store/work-session.actions';
 import {
   initialWorkSessionState,
   workSessionReducer,
@@ -46,6 +46,7 @@ const session: WorkSession = {
   taskId: 'task-1',
   start: 100,
   end: 200,
+  timeZone: 'America/Vancouver',
   completedAt: 250,
   created: 50,
   modified: 250,
@@ -180,7 +181,7 @@ describe('WorkSession persistence and API capability integration', () => {
   });
 
   it('keeps a reducer-rejected future remote operation durable without downgrading its payload', async () => {
-    const future = { ...session, timeZone: 'UTC' };
+    const future = { ...session, source: 'future-contract' };
     const action = addWorkSession({ workSession: future });
     const op = new TestClient('remote-client').createOperation({
       actionType: action.type,
@@ -212,7 +213,7 @@ describe('WorkSession persistence and API capability integration', () => {
     const stored = await log.getOpById(op.id);
     expect(stored!.reducerRejectedAt).toBeDefined();
     expect(stored!.op.payload).toEqual(op.payload);
-    expect(future.timeZone).toBe('UTC');
+    expect(future.source).toBe('future-contract');
   });
 
   it('keeps local operations durable and pending on incompatible or missing-capability servers', async () => {
@@ -275,6 +276,43 @@ describe('WorkSession persistence and API capability integration', () => {
     });
     const restored = await log.loadImportBackupById(recovery.backupId);
     expect((restored!.state as ReturnType<typeof appData>).workSession).toEqual(replayed);
+  });
+
+  it('persists and replays timezone updates through the existing operation envelope', async () => {
+    const created = await persist();
+    const action = updateWorkSession({
+      id: session.id,
+      changes: { timeZone: 'Asia/Singapore', start: 300, end: 400 },
+      modified: 300,
+    });
+    const op = new TestClient('client-local').createOperation({
+      actionType: action.type,
+      entityType: action.meta.entityType,
+      entityId: session.id,
+      opType: action.meta.opType,
+      payload: {
+        actionPayload: {
+          id: action.id,
+          changes: action.changes,
+          modified: action.modified,
+        },
+        entityChanges: [],
+      },
+    });
+    await log.append(JSON.parse(JSON.stringify(op)), 'local');
+    const stored = await log.getOpById(op.id);
+    const initial = workSessionReducer(
+      initialWorkSessionState,
+      convertOpToAction(created),
+    );
+    const replayed = workSessionReducer(initial, convertOpToAction(stored!.op));
+    expect(replayed.entities[session.id]).toEqual({
+      ...session,
+      timeZone: 'Asia/Singapore',
+      start: 300,
+      end: 400,
+      modified: 300,
+    });
   });
 });
 
