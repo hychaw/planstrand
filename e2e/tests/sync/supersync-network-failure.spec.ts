@@ -514,10 +514,17 @@ test.describe('@supersync Network Failure Recovery', () => {
           serverOpsAfterRetry.ops.filter((operation) => operation.id === operationId),
         ).toHaveLength(1);
       }
+      const retryHistory = (await (
+        await fetch(`${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        })
+      ).json()) as {
+        ops: Array<{ op: { entityId?: string; entityType: string; opType: string } }>;
+      };
       for (const taskCreate of state.committedTaskCreates) {
         expect(
-          serverOpsAfterRetry.ops.filter(
-            (op) =>
+          retryHistory.ops.filter(
+            ({ op }) =>
               op.entityType === 'TASK' &&
               op.opType === 'CRT' &&
               op.entityId === taskCreate.entityId,
