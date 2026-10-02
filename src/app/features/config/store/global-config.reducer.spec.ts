@@ -28,6 +28,44 @@ import { LOCAL_ONLY_SYNC_KEYS } from '../local-only-sync-settings.util';
 import { INBOX_PROJECT } from '../../project/project.const';
 
 describe('GlobalConfigReducer', () => {
+  describe('localization timeZone compatibility', () => {
+    ['America/Vancouver', 'Invalid/Zone', null].forEach((timeZone) => {
+      it(`preserves ${JSON.stringify(timeZone)} through update, serialization and load`, () => {
+        const updated = globalConfigReducer(
+          initialGlobalConfigState,
+          updateGlobalConfigSection({
+            sectionKey: 'localization',
+            sectionCfg: { timeZone },
+          }),
+        );
+        const loaded = globalConfigReducer(
+          initialGlobalConfigState,
+          loadAllData({
+            appDataComplete: {
+              globalConfig: JSON.parse(JSON.stringify(updated)),
+            } as AppDataComplete,
+          }),
+        );
+
+        expect(updated.localization.timeZone).toBe(timeZone);
+        expect(loaded.localization.timeZone).toBe(timeZone);
+      });
+    });
+
+    it('loads an older localization config without inserting timeZone', () => {
+      const loaded = globalConfigReducer(
+        initialGlobalConfigState,
+        loadAllData({
+          appDataComplete: {
+            globalConfig: initialGlobalConfigState,
+          } as AppDataComplete,
+        }),
+      );
+
+      expect('timeZone' in loaded.localization).toBe(false);
+    });
+  });
+
   describe('loadAllData action', () => {
     it('should return oldState when appDataComplete.globalConfig is falsy', () => {
       const result = globalConfigReducer(

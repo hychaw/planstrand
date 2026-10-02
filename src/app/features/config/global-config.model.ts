@@ -215,6 +215,8 @@ export type LocalizationConfig = Readonly<{
   lng?: LanguageCode | null;
   firstDayOfWeek?: number | null;
   dateTimeLocale?: DateTimeLocale | null;
+  /** Null/undefined uses the system zone; an invalid explicit zone must fail resolution. */
+  timeZone?: string | null;
 }>;
 
 export type SoundConfig = Readonly<{
@@ -388,6 +390,7 @@ export type GlobalConfigFormSectionKey =
   | 'focusModeLocal';
 
 export type GlobalSectionConfig =
+  | LocalizationConfig
   | MiscConfig
   | TasksConfig
   | PomodoroConfig
