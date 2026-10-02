@@ -80,7 +80,7 @@ test.describe('@supersync migrated WorkSession replay', () => {
       a = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
       await a.workView.waitForTaskList();
       await a.sync.setupSuperSync(config);
-      const title = `Migrated replay ${testRunId}`;
+      const title = `A-${testRunId}-Migrated replay ${testRunId}`;
       await a.workView.addTask(title);
       await a.sync.syncAndWait();
       b = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
