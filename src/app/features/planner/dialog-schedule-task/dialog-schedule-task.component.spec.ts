@@ -170,6 +170,30 @@ describe('DialogScheduleTaskComponent', () => {
     fixture.detectChanges();
   });
 
+  it('keeps the recurrence date-only picker outside WorkSession lookup', async () => {
+    const task = { ...component.task, id: undefined } as unknown as TaskCopy;
+    fixture.destroy();
+    const sessions = TestBed.inject(WorkSessionService);
+    const lookup = spyOn(sessions, 'scheduledTaskSession').and.callThrough();
+    fixture = TestBed.createComponent(DialogScheduleTaskComponent);
+    component = fixture.componentInstance;
+    component.data = { task, isSelectDueOnly: true };
+    component.task = task;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.scheduledSession()).toBeUndefined();
+    expect(lookup).not.toHaveBeenCalled();
+    component.selectedDate = new Date(2026, 0, 16);
+    component.selectedTime = '10:00';
+    await component.submit();
+    expect(sessions.scheduleTask).not.toHaveBeenCalled();
+    expect(dialogRefSpy.close).toHaveBeenCalledWith({
+      date: component.selectedDate,
+      time: '10:00',
+      remindOption: component.selectedReminderCfgId,
+    });
+  });
+
   it('should close dialog with form data when submit is clicked', async () => {
     const testDate = new Date(2023, 4, 15);
     component.selectedDate = testDate;

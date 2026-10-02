@@ -93,7 +93,7 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
   private _taskService = inject(TaskService);
   private readonly _workSessionService = inject(WorkSessionService);
   readonly scheduledSession = computed(() =>
-    this.data.task
+    !this.data.isSelectDueOnly && this.data.task
       ? this._workSessionService.scheduledTaskSession(this.data.task)
       : undefined,
   );
