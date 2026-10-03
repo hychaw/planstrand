@@ -1,5 +1,5 @@
 import { readFullStateBackup } from './full-state-backup-envelope';
-import { migrateLegacyProjectFolders } from '../../features/folder/legacy-project-folder-migration';
+import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
 import {
   assertFullStateReaderCompatible,
   getFullStateRequiredEntityTypes,
@@ -234,7 +234,7 @@ export class BackupService {
 
       validatedData = {
         ...validatedData,
-        folder: migrateLegacyProjectFolders(
+        folder: materializeProjectFolders(
           validatedData.project,
           validatedData.menuTree,
           validatedData.folder,

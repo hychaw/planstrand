@@ -1,5 +1,13 @@
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder } from '../../features/folder/store/folder.actions';
+import { addProject } from '../../features/project/store/project.actions';
+import { DEFAULT_PROJECT } from '../../features/project/project.const';
+import {
+  initialProjectState,
+  projectReducer,
+} from '../../features/project/store/project.reducer';
+import { folderReducer } from '../../features/folder/store/folder.reducer';
+import { projectFolderSeedMetaReducer } from '../../root-store/meta/project-folder-seed.meta-reducer';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { setPlacement as planningSet } from '../../features/planning/store/planning.actions';
 import { provideMockActions } from '@ngrx/effects/testing';
@@ -205,6 +213,48 @@ describe('OperationLogEffects', () => {
   });
 
   describe('Folder operation capture', () => {
+    it('captures only the original Project intent when its Folder is materialized', (done) => {
+      const action = addProject({
+        project: { ...DEFAULT_PROJECT, id: 'seed', title: 'Seed' },
+      });
+      const reduce = projectFolderSeedMetaReducer(
+        (
+          state = {
+            projects: initialProjectState,
+            folder: {
+              ...initialFolderState,
+              legacyProjectMigrationComplete: true as const,
+            },
+          },
+          a: Action,
+        ) => ({
+          projects: projectReducer(state.projects, a),
+          folder: folderReducer(state.folder, a),
+        }),
+      );
+      expect(
+        reduce(undefined, action).folder?.entities['PROJECT_FOLDER:seed'],
+      ).toBeDefined();
+      mockOperationCaptureService.extractEntityChanges.and.callFake((captured) =>
+        new OperationCaptureService().extractEntityChanges(captured),
+      );
+      actions$ = of(action);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+          const [operation] =
+            mockOpLogStore.appendWithVectorClockOverwrite.calls.mostRecent().args;
+          expect(operation.entityType).toBe('PROJECT');
+          expect(operation.payload).toEqual({
+            actionPayload: { project: action.project },
+            entityChanges: [],
+          });
+          expect(mockStore.dispatch).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
+    });
     it('captures one complete snapshot per user intent', (done) => {
       const action = addFolder({
         state: initialFolderState,

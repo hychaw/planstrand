@@ -32,6 +32,7 @@ import { OperationLogStoreService } from '../../op-log/persistence/operation-log
 import { CLIENT_ID_PROVIDER } from '../../op-log/util/client-id.provider';
 import { extractEntityKeysFromState } from '../../op-log/persistence/extract-entity-keys';
 import { assertFolderSuperSyncSnapshotCompatible } from '../../op-log/sync/folder-full-state-gate';
+import { materializeProjectFolders } from './ensure-project-folder-associations';
 
 const seeded = (): FolderState =>
   addFolder({ state: initialFolderState, folder: { id: 'a', title: 'A', orderKey: 'F' } })
@@ -237,6 +238,12 @@ describe('Folder IndexedDB cache and operation tail', () => {
     expect(
       migrateLegacyProjectFolders(restored.project, restored.menuTree, restored.folder),
     ).toEqual(folder);
+    expect(
+      materializeProjectFolders(restored.project, restored.menuTree, restored.folder),
+    ).toEqual(folder);
+    expect(restored.folder?.dismissedProjectFolderIds).toContain(
+      projectFolderId('INBOX'),
+    );
     expect(restored.project).toEqual(original.project);
     expect(restored.tag).toEqual(original.tag);
     expect(restored.section).toEqual(original.section);

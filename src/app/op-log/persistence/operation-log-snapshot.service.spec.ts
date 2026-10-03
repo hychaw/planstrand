@@ -1,4 +1,6 @@
 import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder, removeFolder } from '../../features/folder/store/folder.actions';
+import { projectFolderId } from '../../features/folder/legacy-project-folder-migration';
 import { TestBed } from '@angular/core/testing';
 import { OperationLogSnapshotService } from './operation-log-snapshot.service';
 import { OperationLogStoreService } from './operation-log-store.service';
@@ -174,6 +176,36 @@ describe('OperationLogSnapshotService', () => {
       expect(await service.backfillLegacyFolders(install)).toBeFalse();
       expect(install).not.toHaveBeenCalled();
       expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    });
+    it('durably seeds new active Projects in a manual domain and never repeats or resurrects', async () => {
+      const source = createValidAppData();
+      source.folder = addFolder({
+        state: { ...initialFolderState, legacyProjectMigrationComplete: true },
+        folder: { id: 'manual', title: 'Manual', orderKey: 'F' },
+      }).folderState;
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        source as AppStateSnapshot,
+      );
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeTrue();
+      const saved = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      const folder = (saved.state as AppDataComplete).folder!;
+      const association = projectFolderId('INBOX');
+      expect(folder.entities[association]?.orderKey).toBe('V');
+      expect(folder.entities['manual']).toBe(source.folder.entities['manual']);
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledBefore(install);
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        saved.state as AppStateSnapshot,
+      );
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      const deleted = removeFolder({ state: folder, id: association }).folderState;
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue({
+        ...source,
+        folder: deleted,
+      } as AppStateSnapshot);
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(install).toHaveBeenCalledTimes(1);
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledTimes(1);
     });
   });
 

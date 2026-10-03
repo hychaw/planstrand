@@ -106,8 +106,9 @@ bootstrap, so the optional literal-true marker is necessary to prevent resurrect
 An entirely empty legacy source retains bootstrap without marking a cutover.
 
 Projects, Tags, Sections, Tasks and their ownership are unchanged. Project deletion
-or creation after cutover does not update Folder. Lifecycle/association policy for
-new Projects and explicit Task-to-Folder migration belongs to the next phase.
+does not delete Folder. [Phase 4D](./folder-phase-4d.md) adds seed-only association
+materialization after creation/activation without Project-driven user Folder
+operations. Explicit Task-to-Folder migration remains deferred.
 
 ## Startup, restore and persistence
 

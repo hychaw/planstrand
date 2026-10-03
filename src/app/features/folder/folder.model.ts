@@ -14,4 +14,8 @@ export interface FolderState extends EntityState<Folder> {
   ids: string[];
   /** Optional on old snapshots; survives removal of every migrated Folder. */
   legacyProjectMigrationComplete?: true;
+  /** Sorted deterministic Folder ids explicitly removed by a Folder intent.
+   * Absent on legacy snapshots defaults to no per-Project deletion evidence.
+   */
+  dismissedProjectFolderIds?: string[];
 }

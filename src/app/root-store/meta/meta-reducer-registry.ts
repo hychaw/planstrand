@@ -11,6 +11,7 @@ import { taskSharedLifecycleMetaReducer } from './task-shared-meta-reducers/task
 import { taskSharedSchedulingMetaReducer } from './task-shared-meta-reducers/task-shared-scheduling.reducer';
 import { taskSharedDeadlineMetaReducer } from './task-shared-meta-reducers/task-shared-deadline.reducer';
 import { projectSharedMetaReducer } from './task-shared-meta-reducers/project-shared.reducer';
+import { projectFolderSeedMetaReducer } from './project-folder-seed.meta-reducer';
 import { tagSharedMetaReducer } from './task-shared-meta-reducers/tag-shared.reducer';
 import { sectionSharedMetaReducer } from './task-shared-meta-reducers/section-shared.reducer';
 import { issueProviderSharedMetaReducer } from './task-shared-meta-reducers/issue-provider-shared.reducer';
@@ -125,6 +126,9 @@ export const META_REDUCERS: MetaReducer[] = [
   // store with a dead state observable. Must wrap every reducer that handles
   // loadAllData, i.e. run before Phases 3-8. Pure pass-through otherwise.
   loadAllDataFailureGuardMetaReducer,
+  // Derived compatibility state: inside replay and the load failure guard,
+  // outside feature reducers. Leaves the captured Project action unchanged.
+  projectFolderSeedMetaReducer,
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PHASE 3: UNDO/DELETE CAPTURE

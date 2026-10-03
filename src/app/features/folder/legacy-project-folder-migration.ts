@@ -7,13 +7,13 @@ import {
   MenuTreeTreeNode,
 } from '../menu-tree/store/menu-tree.model';
 import { Folder, FolderState } from './folder.model';
-import { INBOX_FOLDER, INBOX_FOLDER_ID } from './folder.const';
+import { INBOX_FOLDER, INBOX_FOLDER_ID, PROJECT_FOLDER_PREFIX } from './folder.const';
 import { assertFolderState, initialFolderState } from './folder-state';
 import { folderOrderBetween } from './folder.util';
 
 /** Namespaces are injective and separate from reserved Inbox and menu identities. */
 export const projectFolderId = (id: string): string =>
-  id === INBOX_PROJECT.id ? INBOX_FOLDER_ID : `PROJECT_FOLDER:${id}`;
+  id === INBOX_PROJECT.id ? INBOX_FOLDER_ID : `${PROJECT_FOLDER_PREFIX}${id}`;
 export const menuFolderId = (id: string): string => `MENU_FOLDER:${id}`;
 
 /** One-time seed. Existing canonical state wins, even if only some projects migrated.

@@ -1,6 +1,6 @@
 import { createEntityAdapter } from '@ngrx/entity';
 import { Folder, FolderState } from './folder.model';
-import { INBOX_FOLDER, INBOX_FOLDER_ID } from './folder.const';
+import { INBOX_FOLDER, INBOX_FOLDER_ID, PROJECT_FOLDER_PREFIX } from './folder.const';
 import { getFolderChildren, isFolderOrderKey, isValidFolderParent } from './folder.util';
 
 export const folderAdapter = createEntityAdapter<Folder>();
@@ -16,10 +16,29 @@ export const isFolderState = (v: unknown): v is FolderState => {
   if (
     !isRecord(v) ||
     Object.keys(v).some(
-      (k) => !['ids', 'entities', 'legacyProjectMigrationComplete'].includes(k),
+      (k) =>
+        ![
+          'ids',
+          'entities',
+          'legacyProjectMigrationComplete',
+          'dismissedProjectFolderIds',
+        ].includes(k),
     ) ||
     (v['legacyProjectMigrationComplete'] !== undefined &&
       v['legacyProjectMigrationComplete'] !== true)
+  )
+    return false;
+  const dismissed = v['dismissedProjectFolderIds'];
+  if (
+    dismissed !== undefined &&
+    (!Array.isArray(dismissed) ||
+      !dismissed.every(
+        (id, index) =>
+          typeof id === 'string' &&
+          id.startsWith(PROJECT_FOLDER_PREFIX) &&
+          id.length > PROJECT_FOLDER_PREFIX.length &&
+          (index === 0 || dismissed[index - 1] < id),
+      ))
   )
     return false;
   const ids = v['ids'],
@@ -123,10 +142,18 @@ export const applyFolderIntent = (
       state,
     );
   }
-  if (intent.kind === 'remove')
-    return getFolderChildren(state, intent.id).length
-      ? state
-      : folderAdapter.removeOne(intent.id, state);
+  if (intent.kind === 'remove') {
+    if (getFolderChildren(state, intent.id).length) return state;
+    const next = folderAdapter.removeOne(intent.id, state);
+    return intent.id.startsWith(PROJECT_FOLDER_PREFIX)
+      ? {
+          ...next,
+          dismissedProjectFolderIds: [
+            ...new Set([...(state.dismissedProjectFolderIds ?? []), intent.id]),
+          ].sort(),
+        }
+      : next;
+  }
   if (
     !isFolderOrderKey(intent.orderKey) ||
     !isValidFolderParent(state, intent.id, intent.parentId) ||

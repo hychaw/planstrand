@@ -1,4 +1,5 @@
 import { protectFullStateBackup } from './full-state-backup-envelope';
+import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
 import { projectFolderId } from '../../features/folder/legacy-project-folder-migration';
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder, moveFolder } from '../../features/folder/store/folder.actions';
@@ -614,10 +615,15 @@ describe('BackupService', () => {
       );
       const action = mockStore.dispatch.calls.mostRecent()
         .args[0] as unknown as ReturnType<typeof loadAllData>;
-      expect((action.appDataComplete as typeof data).folder).toEqual({
-        ...folder,
-        legacyProjectMigrationComplete: true,
-      });
+      expect((action.appDataComplete as typeof data).folder).toEqual(
+        materializeProjectFolders(data.project, data.menuTree, folder),
+      );
+      expect((action.appDataComplete as typeof data).folder?.entities['a']).toEqual(
+        folder.entities['a'],
+      );
+      expect((action.appDataComplete as typeof data).folder?.entities['b']).toEqual(
+        folder.entities['b'],
+      );
       const replacement =
         mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0];
       expect(JSON.stringify(replacement)).toContain('FOLDER:*');

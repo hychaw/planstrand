@@ -1,4 +1,4 @@
-import { migrateLegacyProjectFolders } from '../../features/folder/legacy-project-folder-migration';
+import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
 import { FolderState } from '../../features/folder/folder.model';
 import { isFolderState } from '../../features/folder/folder-state';
 import { inject, Injectable } from '@angular/core';
@@ -188,7 +188,7 @@ export class OperationLogSnapshotService {
           ? { ...capturedState, workSession: sessions }
           : capturedState;
         if (installFolders) {
-          const folder = migrateLegacyProjectFolders(
+          const folder = materializeProjectFolders(
             capturedState.project,
             capturedState.menuTree,
             capturedState.folder,
