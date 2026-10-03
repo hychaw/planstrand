@@ -1,3 +1,4 @@
+import { assertFolderSuperSyncSnapshotCompatible } from '../../op-log/sync/folder-full-state-gate';
 import { inject, Injectable } from '@angular/core';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
@@ -127,6 +128,7 @@ export class SnapshotUploadService {
     const state = stripLocalOnlySyncSettingsFromAppData(
       await this._stateSnapshotService.getStateSnapshotForOperationLogAsync(),
     ) as AppStateSnapshot;
+    assertFolderSuperSyncSnapshotCompatible(state);
     const vectorClock = await this._vectorClockService.getCurrentVectorClock();
     const clientId = await this._clientIdProvider.getOrGenerateClientId();
 
@@ -158,6 +160,7 @@ export class SnapshotUploadService {
     vectorClock: VectorClock,
     isPayloadEncrypted: boolean,
   ): Promise<SnapshotUploadResult> {
+    if (!isPayloadEncrypted) assertFolderSuperSyncSnapshotCompatible(payload);
     const response = await syncProvider.uploadSnapshot(
       payload,
       clientId,

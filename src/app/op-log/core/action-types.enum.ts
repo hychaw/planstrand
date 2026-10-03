@@ -141,6 +141,12 @@ export enum ActionType {
   REPEAT_CFG_DELETE_INSTANCE = '[TaskRepeatCfg] Delete Single Instance',
   REPEAT_CFG_UPSERT = '[TaskRepeatCfg] Upsert TaskRepeatCfg',
 
+  // Folder actions (F)
+  FOLDER_ADD = '[Folder] Add',
+  FOLDER_UPDATE = '[Folder] Update',
+  FOLDER_MOVE = '[Folder] Move',
+  FOLDER_REMOVE = '[Folder] Remove',
+
   // Section actions (S)
   SECTION_ADD = '[Section] Add Section',
   SECTION_DELETE = '[Section] Delete Section',

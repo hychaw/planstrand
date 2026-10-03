@@ -1,3 +1,4 @@
+import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
 
@@ -12,7 +13,7 @@ const isNonEmptyRecord = (obj: unknown): obj is Record<string, unknown> =>
 
 /**
  * Returns true if the given (partial) app state contains user-created data worth
- * protecting: at least one task, a non-INBOX project, a non-system tag, or a note.
+ * protecting: at least one task, a non-INBOX project/Folder, a non-system tag, or a note.
  *
  * The default/initial app state (empty task list, only the INBOX project and the
  * built-in system tags) returns false. This is the single source of truth for the
@@ -21,7 +22,7 @@ const isNonEmptyRecord = (obj: unknown): obj is Record<string, unknown> =>
  * - the snapshot/compaction empty-overwrite guard (prevents a transient degraded
  *   NgRx state from being cached over a good snapshot — see issue #7892).
  *
- * Scope is intentionally narrow (these four collections only). Most callers consume
+ * Scope is intentionally narrow (these five collections only). Most callers consume
  * it in the "safe" direction, where a false negative merely SKIPS work (a snapshot
  * save, a compaction) and can never cache empty-over-good. `hasNothingWorthUploading`
  * consumes it in the REFUSING direction (#9256), where a false POSITIVE is the
@@ -54,6 +55,10 @@ export const hasMeaningfulStateData = (
     if (meaningfulTaskIds.length > 0) {
       return true;
     }
+  }
+
+  if (isEntityState(s.folder) && s.folder.ids.some((id) => id !== INBOX_FOLDER_ID)) {
+    return true;
   }
 
   if (isEntityState(s.project) && s.project.ids.some((id) => id !== INBOX_PROJECT.id)) {

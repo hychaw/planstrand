@@ -159,6 +159,10 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   [ActionType.REPEAT_CFG_UPSERT]: 'RX',
 
   // Section
+  [ActionType.FOLDER_ADD]: 'F1',
+  [ActionType.FOLDER_UPDATE]: 'F2',
+  [ActionType.FOLDER_MOVE]: 'F3',
+  [ActionType.FOLDER_REMOVE]: 'F4',
   [ActionType.SECTION_ADD]: 'S1',
   [ActionType.SECTION_DELETE]: 'S2',
   [ActionType.SECTION_UPDATE]: 'S3',

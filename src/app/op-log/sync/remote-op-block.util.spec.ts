@@ -14,6 +14,23 @@ import {
 } from './remote-op-block.util';
 
 describe('getUnknownOpVocabulary', () => {
+  it('gates unknown entity vocabulary independently of a known action name', () => {
+    expect(
+      getUnknownOpVocabulary({
+        entityType: 'FUTURE_FOLDER',
+        opType: OpType.Update,
+        actionType: ActionType.FOLDER_MOVE,
+      }),
+    ).toBe('entityType');
+    expect(
+      getUnknownOpVocabulary({
+        entityType: 'FOLDER',
+        opType: OpType.Update,
+        actionType: ActionType.FOLDER_MOVE,
+      }),
+    ).toBeNull();
+  });
+
   it('accepts every op type and import reason of the wire vocabulary', () => {
     for (const opType of SUPER_SYNC_OP_TYPES) {
       expect(

@@ -77,6 +77,7 @@ export const extractEntityKeysFromState = (state: AppStateSnapshot): string[] =>
 
   // Singleton states (single entity with fixed ID)
   // These always exist and are identified by their type
+  if (state.folder) keys.push('FOLDER:*');
   if (state.globalConfig) {
     keys.push('GLOBAL_CONFIG:GLOBAL_CONFIG');
   }

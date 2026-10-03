@@ -1,3 +1,5 @@
+import { FOLDER_FEATURE_NAME } from '../../features/folder/store/folder.reducer';
+import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import {
   PLANNING_FEATURE_NAME,
   planningAdapter,
@@ -301,6 +303,13 @@ export const buildEntityRegistry = (): EntityRegistry<EntityType> =>
     },
 
     // ── SINGLETON ENTITIES ─────────────────────────────────────────────────────
+    FOLDER: {
+      storagePattern: 'singleton',
+      featureName: FOLDER_FEATURE_NAME,
+      payloadKey: 'folderState',
+      selectState: selectFolderFeatureState,
+    },
+
     GLOBAL_CONFIG: {
       storagePattern: 'singleton',
       featureName: CONFIG_FEATURE_NAME,

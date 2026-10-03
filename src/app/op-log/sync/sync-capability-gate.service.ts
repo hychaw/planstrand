@@ -1,4 +1,6 @@
 import { Injectable } from '@angular/core';
+import { assertFolderSuperSyncSnapshotCompatible } from './folder-full-state-gate';
+import { extractFullStateFromPayload, isFullStateOpType } from '../core/operation.types';
 import type { Operation } from '../core/operation.types';
 import { SyncServerIncompatibleError } from '../core/errors/sync-errors';
 import type { OperationSyncCapable } from '../sync-providers/provider.interface';
@@ -11,6 +13,14 @@ export class SyncCapabilityGateService {
     operations: readonly Operation[],
     options?: { forceRefresh?: boolean },
   ): Promise<void> {
+    if (provider.providerMode === 'superSyncOps') {
+      for (const op of operations) {
+        if (isFullStateOpType(op.opType))
+          assertFolderSuperSyncSnapshotCompatible(
+            extractFullStateFromPayload(op.payload),
+          );
+      }
+    }
     if (
       operations.length === 0 ||
       provider.providerMode !== 'superSyncOps' ||

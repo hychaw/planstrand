@@ -27,6 +27,20 @@ const capabilities = (
 });
 
 describe('sync capability requirements', () => {
+  it('requires FOLDER support for operations and full-state snapshots', () => {
+    const old = capabilities(ENTITY_TYPES.filter((type) => type !== 'FOLDER'));
+    expect(
+      evaluateOperationCompatibility([op('FOLDER')], old).unsupportedEntityTypes,
+    ).toEqual(['FOLDER']);
+    expect(
+      evaluateOperationCompatibility([op('ALL')], old).unsupportedEntityTypes,
+    ).toEqual(['FOLDER']);
+    expect(
+      evaluateOperationCompatibility([op('FOLDER')], capabilities([...ENTITY_TYPES]))
+        .compatible,
+    ).toBeTrue();
+  });
+
   it('checks the live upload schema floor independently of legacy read transport', () => {
     const release = capabilities([...ENTITY_TYPES], {
       minSchemaVersion: 5,

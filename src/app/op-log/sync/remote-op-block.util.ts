@@ -1,5 +1,6 @@
 import {
   CURRENT_SCHEMA_VERSION,
+  ENTITY_TYPES,
   SUPER_SYNC_OP_TYPES,
   SUPER_SYNC_IMPORT_REASONS,
 } from '@sp/shared-schema';
@@ -23,12 +24,17 @@ const KNOWN_IMPORT_REASONS: ReadonlySet<string> = new Set<string>(
 
 /** Wire metadata is untrusted, irrespective of the local TypeScript enums. */
 interface RemoteOpVocabularyInput {
+  entityType?: unknown;
   opType?: unknown;
   actionType?: unknown;
   syncImportReason?: unknown;
 }
 
-export type UnknownOpVocabulary = 'opType' | 'actionType' | 'syncImportReason';
+export type UnknownOpVocabulary =
+  | 'opType'
+  | 'actionType'
+  | 'entityType'
+  | 'syncImportReason';
 
 /**
  * Names the vocabulary field of a remote op this client cannot interpret, or
@@ -43,6 +49,12 @@ export type UnknownOpVocabulary = 'opType' | 'actionType' | 'syncImportReason';
 export const getUnknownOpVocabulary = (
   op: RemoteOpVocabularyInput,
 ): UnknownOpVocabulary | null => {
+  if (
+    op.entityType !== undefined &&
+    (typeof op.entityType !== 'string' ||
+      !(ENTITY_TYPES as readonly string[]).includes(op.entityType))
+  )
+    return 'entityType';
   // File envelopes do not have the API transport's structural guarantees.
   // Required vocabulary must be checked even when absent.
   if (!isKnownRequiredVocabulary(op.opType, KNOWN_OP_TYPES)) {

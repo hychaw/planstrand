@@ -1,3 +1,4 @@
+import { isFolderState } from '../../features/folder/folder-state';
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from './operation-log-store.service';
 import {
@@ -66,6 +67,8 @@ export class OperationLogSnapshotService {
     if (typeof state !== 'object' || state === null) {
       return false;
     }
+
+    if (Object.hasOwn(state, 'folder') && !isFolderState(state['folder'])) return false;
 
     // Check for at least some core models (task, project, globalConfig)
     // These should always exist even if empty

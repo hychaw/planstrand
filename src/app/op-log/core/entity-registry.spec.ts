@@ -1,3 +1,4 @@
+import { ENTITY_TYPES } from '@sp/shared-schema';
 import { EntityType } from './operation.types';
 import {
   ENTITY_CONFIGS,
@@ -31,6 +32,7 @@ describe('entity-registry', () => {
     'METRIC',
     'BOARD',
     'SECTION',
+    'FOLDER',
     'WORK_SESSION',
     'REMINDER',
     'PLUGIN_USER_DATA',
@@ -56,6 +58,7 @@ describe('entity-registry', () => {
   ];
 
   const SINGLETON_ENTITIES: EntityType[] = [
+    'FOLDER',
     'GLOBAL_CONFIG',
     'TIME_TRACKING',
     'MENU_TREE',
@@ -460,7 +463,7 @@ describe('entity-registry', () => {
 
       // Update this count when adding new entity types to EntityType union
       // Current: 20 regular + 3 special = 23 total
-      expect(ALL_TESTED.length).toBe(23);
+      expect(ALL_TESTED.length).toBe(ENTITY_TYPES.length);
 
       // Verify no duplicates
       const uniqueTypes = new Set(ALL_TESTED);

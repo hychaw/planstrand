@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { hasAnyUserData, hasMeaningfulStateData } from './has-meaningful-state-data.util';
+import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder } from '../../features/folder/store/folder.actions';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 
 // The default app ships with only the INBOX project and the built-in system
@@ -45,6 +47,18 @@ describe('hasMeaningfulStateData', () => {
 
   it('returns false for the default/initial app state', () => {
     expect(hasMeaningfulStateData(initialState())).toBe(false);
+  });
+
+  it('protects Folder-only user data while ignoring canonical Inbox bootstrap', () => {
+    const state = { ...initialState(), folder: initialFolderState };
+    expect(hasMeaningfulStateData(state)).toBeFalse();
+    expect(hasAnyUserData(state)).toBeFalse();
+    state.folder = addFolder({
+      state: initialFolderState,
+      folder: { id: 'user-folder', title: 'Folder' },
+    }).folderState;
+    expect(hasMeaningfulStateData(state)).toBeTrue();
+    expect(hasAnyUserData(state)).toBeTrue();
   });
 
   it('returns true when there is at least one task', () => {

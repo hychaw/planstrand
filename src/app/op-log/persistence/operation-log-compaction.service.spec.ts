@@ -1091,6 +1091,7 @@ describe('OperationLogCompactionService', () => {
 
       // Define expected entity types for each model key
       const modelToEntityType: Record<string, string> = {
+        folder: 'FOLDER',
         task: 'TASK',
         project: 'PROJECT',
         tag: 'TAG',

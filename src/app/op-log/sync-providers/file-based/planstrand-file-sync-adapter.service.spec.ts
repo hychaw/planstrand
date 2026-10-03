@@ -1,3 +1,5 @@
+import { initialFolderState } from '../../../features/folder/folder-state';
+import { addFolder } from '../../../features/folder/store/folder.actions';
 import { TestBed } from '@angular/core/testing';
 import { CURRENT_SCHEMA_VERSION, SUPER_SYNC_BASELINE_OP_TYPES } from '@sp/shared-schema';
 import { PlanstrandFileSyncAdapterService } from './planstrand-file-sync-adapter.service';
@@ -9,6 +11,7 @@ import {
   LEGACY_SP_FILE_NAMESPACE as L,
   PLANSTRAND_FILE_NAMESPACE as P,
   PLANSTRAND_REQUIRED_FILE_OP_TYPES,
+  KNOWN_FILE_SEMANTICS,
   PlanstrandFileIncompatibleError,
   LegacyFileImportRequiredError,
   planstrandPath,
@@ -146,7 +149,9 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
         jasmine.objectContaining({
           version: 4,
           product: 'planstrand',
-          compatibility: { requiredOpTypes: ['PLANNING_V1'] },
+          compatibility: {
+            requiredOpTypes: [...PLANSTRAND_REQUIRED_FILE_OP_TYPES].sort(),
+          },
         }),
       );
       const writes = provider
@@ -421,15 +426,15 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
   }
 
   it('keeps an automatic future requirement after trim, force/repair/backup import and cold restart', async () => {
-    const known = KNOWN_OP_TYPES as Set<string>;
+    const known = KNOWN_FILE_SEMANTICS as Set<string>;
     known.add(future);
+    (KNOWN_OP_TYPES as Set<string>).add(future);
     try {
       const adapter = service.createAdapter(provider, cfg, undefined);
       await adapter.uploadOps([op(future)], 'new', 0, state);
-      expect((await read()).compatibility.requiredOpTypes).toEqual([
-        'PLANNING_V1',
-        future,
-      ]);
+      expect((await read()).compatibility.requiredOpTypes).toEqual(
+        [...PLANSTRAND_REQUIRED_FILE_OP_TYPES, future].sort(),
+      );
       for (const type of ['SYNC_IMPORT', 'REPAIR', 'BACKUP_IMPORT'] as const) {
         await adapter.uploadSnapshot(
           state,
@@ -443,10 +448,9 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
           type,
         );
         expect((await read()).recentOps).toEqual([]);
-        expect((await read()).compatibility.requiredOpTypes).toEqual([
-          'PLANNING_V1',
-          future,
-        ]);
+        expect((await read()).compatibility.requiredOpTypes).toEqual(
+          [...PLANSTRAND_REQUIRED_FILE_OP_TYPES, future].sort(),
+        );
       }
       localStorage.clear();
       service.invalidateAllTargets();
@@ -456,10 +460,66 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
       expect((await cold.downloadOps(0)).snapshotState).toEqual(state);
     } finally {
       known.delete(future);
+      (KNOWN_OP_TYPES as Set<string>).delete(future);
     }
     await expectAsync(
       service.createAdapter(provider, cfg, undefined).downloadOps(0),
     ).toBeRejectedWithError(PlanstrandFileIncompatibleError);
+  });
+
+  it('retains Folder state and its entity requirement after an encrypted full-state commit and cold reload', async () => {
+    const folder = addFolder({
+      state: initialFolderState,
+      folder: { id: 'folder-file', title: 'Folder' },
+    }).folderState;
+    const encryptedCfg = { isCompress: true, isEncrypt: true };
+    const adapter = service.createAdapter(provider, encryptedCfg, 'folder-file-password');
+    await adapter.uploadSnapshot(
+      { ...state, folder },
+      'new',
+      'recovery',
+      {},
+      CURRENT_SCHEMA_VERSION,
+      false,
+      'folder-snapshot',
+      false,
+      'BACKUP_IMPORT',
+    );
+    service.invalidateAllTargets();
+    localStorage.clear();
+    const cold = service.createAdapter(provider, encryptedCfg, 'folder-file-password');
+    expect((await cold.downloadOps(0)).snapshotState).toEqual({ ...state, folder });
+    const decoded = await codec.decompressAndDecryptData<PlanstrandFileEnvelope>(
+      encryptedCfg,
+      'folder-file-password',
+      (await provider.downloadFile(P.syncFile)).dataStr,
+    );
+    expect(decoded.compatibility.requiredOpTypes).toContain('ENTITY:FOLDER');
+    const older = new Set(KNOWN_FILE_SEMANTICS);
+    older.delete('ENTITY:FOLDER');
+    await expectAsync(
+      service
+        .createAdapter(provider, encryptedCfg, 'folder-file-password', {
+          supportedOpTypes: older,
+        })
+        .downloadOps(0),
+    ).toBeRejectedWithError(PlanstrandFileIncompatibleError);
+    await expectAsync(
+      service
+        .createAdapter(provider, encryptedCfg, 'folder-file-password', {
+          supportedOpTypes: older,
+        })
+        .uploadSnapshot(
+          state,
+          'old',
+          'recovery',
+          {},
+          CURRENT_SCHEMA_VERSION,
+          false,
+          'old-snapshot',
+        ),
+    ).toBeRejectedWithError(PlanstrandFileIncompatibleError);
+    expect((await cold.downloadOps(0)).snapshotState).toEqual({ ...state, folder });
   });
 
   it('cannot opt out of PLANNING_V1 and preserves it after all full-state writers and cold reload', async () => {
@@ -488,7 +548,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
       ).createAdapter(provider, cfg, undefined);
       expect((await cold.downloadOps(0)).snapshotState).toEqual(state);
     }
-    const known = KNOWN_OP_TYPES as Set<string>;
+    const known = KNOWN_FILE_SEMANTICS as Set<string>;
     known.delete('PLANNING_V1');
     try {
       await expectAsync(
@@ -501,7 +561,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
   it('persists a build requirement without a retained future operation', async () => {
     const adapter = service.createAdapter(provider, cfg, undefined, {
       requiredOpTypes: [future],
-      supportedOpTypes: new Set([...KNOWN_OP_TYPES, future]),
+      supportedOpTypes: new Set([...KNOWN_FILE_SEMANTICS, future]),
     });
     await adapter.uploadSnapshot(
       state,
@@ -512,14 +572,17 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
       false,
       'id',
     );
-    expect((await read()).compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
+    expect((await read()).compatibility.requiredOpTypes).toEqual(
+      [...PLANSTRAND_REQUIRED_FILE_OP_TYPES, future].sort(),
+    );
   });
 
   for (const useSplit of [false, true]) {
     it(`retains the requirement when compaction removes the originating op (split=${useSplit})`, async () => {
       split = useSplit;
-      const known = KNOWN_OP_TYPES as Set<string>;
+      const known = KNOWN_FILE_SEMANTICS as Set<string>;
       known.add(future);
+      (KNOWN_OP_TYPES as Set<string>).add(future);
       try {
         const adapter = service.createAdapter(provider, cfg, undefined);
         await adapter.uploadOps([op(future)], 'new', 0, state);
@@ -531,7 +594,9 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
         }));
         await adapter.uploadOps(batch, 'new', response.latestSeq, state);
         const commit = await read(useSplit ? P.opsFile : P.syncFile);
-        expect(commit.compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
+        expect(commit.compatibility.requiredOpTypes).toEqual(
+          [...PLANSTRAND_REQUIRED_FILE_OP_TYPES, future].sort(),
+        );
         expect(
           commit.recentOps.some((value) => (value as { id: string }).id === 'test-op'),
         ).toBeFalse();
@@ -543,6 +608,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
         expect((await cold.downloadOps(0)).snapshotState).toEqual(state);
       } finally {
         known.delete(future);
+        (KNOWN_OP_TYPES as Set<string>).delete(future);
       }
       await expectAsync(
         service.createAdapter(provider, cfg, undefined).downloadOps(0),
@@ -626,7 +692,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
 
   it('preserves the manifest across password rotation using the old read key', async () => {
     const encrypted = { isEncrypt: true, isCompress: false };
-    const supported = new Set([...KNOWN_OP_TYPES, future]);
+    const supported = new Set([...KNOWN_FILE_SEMANTICS, future]);
     const original = service.createAdapter(provider, encrypted, 'old-password', {
       requiredOpTypes: [future],
       supportedOpTypes: supported,
@@ -659,7 +725,9 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
       'new-password',
       (await provider.downloadFile(P.syncFile)).dataStr,
     );
-    expect(raw.compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
+    expect(raw.compatibility.requiredOpTypes).toEqual(
+      [...PLANSTRAND_REQUIRED_FILE_OP_TYPES, future].sort(),
+    );
   });
 
   it('recovers compatible Planstrand backup but rejects an incompatible backup', async () => {
@@ -680,14 +748,16 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     split = true;
     const adapter = service.createAdapter(provider, cfg, undefined, {
       requiredOpTypes: [future],
-      supportedOpTypes: new Set([...KNOWN_OP_TYPES, future]),
+      supportedOpTypes: new Set([...KNOWN_FILE_SEMANTICS, future]),
     });
     await adapter.uploadOps([op()], 'new', 0, state);
     const commit = await read(P.opsFile);
-    expect(commit.compatibility.requiredOpTypes).toEqual(['PLANNING_V1', future]);
+    expect(commit.compatibility.requiredOpTypes).toEqual(
+      [...PLANSTRAND_REQUIRED_FILE_OP_TYPES, future].sort(),
+    );
     expect(commit.snapshotRef?.file).toMatch(/^planstrand-sync-state__/);
     expect((await read(commit.snapshotRef!.file!)).compatibility.requiredOpTypes).toEqual(
-      ['PLANNING_V1', future],
+      [...PLANSTRAND_REQUIRED_FILE_OP_TYPES, future].sort(),
     );
   });
 
@@ -731,7 +801,7 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     });
     const makeTransport = (required: readonly string[]): PlanstrandFileTransport =>
       new PlanstrandFileTransport(provider, cfg, undefined, {
-        supportedOpTypes: new Set([...KNOWN_OP_TYPES, future]),
+        supportedOpTypes: new Set([...KNOWN_FILE_SEMANTICS, future]),
         requiredOpTypes: required,
         assertTargetCurrent: () => undefined,
       });

@@ -1,3 +1,5 @@
+import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder } from '../../features/folder/store/folder.actions';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { setPlacement as planningSet } from '../../features/planning/store/planning.actions';
 import { provideMockActions } from '@ngrx/effects/testing';
@@ -199,6 +201,49 @@ describe('OperationLogEffects', () => {
       effects.notifyStuckDeferredBuffer$.subscribe();
 
       expect(mockSnackService.open).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Folder operation capture', () => {
+    it('captures one complete snapshot per user intent', (done) => {
+      const action = addFolder({
+        state: initialFolderState,
+        folder: { id: 'folder-capture', title: 'Folder', orderKey: 'F' },
+      });
+      actions$ = of(action);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+          const [op] =
+            mockOpLogStore.appendWithVectorClockOverwrite.calls.mostRecent().args;
+          expect(op.entityType).toBe('FOLDER');
+          expect(op.entityId).toBe('*');
+          expect(op.payload).toEqual({
+            actionPayload: { folderState: action.folderState },
+            entityChanges: [],
+          });
+          done();
+        },
+        error: done.fail,
+      });
+    });
+    it('does not recapture converted remote Folder snapshots or reserved no-ops', (done) => {
+      const local = addFolder({
+        state: initialFolderState,
+        folder: { id: 'folder-capture', title: 'Folder' },
+      });
+      const noop = addFolder({
+        state: initialFolderState,
+        folder: { id: 'INBOX_FOLDER', title: 'Fake' },
+      });
+      actions$ = of({ ...local, meta: { ...local.meta, isRemote: true } }, noop);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
     });
   });
 

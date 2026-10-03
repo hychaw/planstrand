@@ -9,6 +9,10 @@ import { isDBDateStr } from '../../util/get-db-date-str';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 import { TaskRepeatCfgCopy } from '../../features/task-repeat-cfg/task-repeat-cfg.model';
 import { IssueProvider } from '../../features/issue/issue.model';
+import {
+  assertFolderState,
+  initialFolderState,
+} from '../../features/folder/folder-state';
 import { AppDataComplete } from '../model/model-config';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { autoFixTypiaErrors } from './auto-fix-typia-errors';
@@ -66,6 +70,12 @@ export const dataRepair = (
   // `loadAllData` is dispatched (#8333). Only runs after a rare validation
   // failure, so the unconditional clone is cheap.
   let dataOut: AppDataComplete = structuredClone(data);
+
+  // Only absent legacy Folder domains default. Present invalid ancestry is
+  // preserved by refusing repair, never replaced with an invented hierarchy.
+  if (!Object.hasOwn(dataOut, 'folder'))
+    dataOut.folder = structuredClone(initialFolderState);
+  assertFolderState(dataOut.folder);
 
   // Ensure archive structures exist
   if (!dataOut.archiveYoung) {

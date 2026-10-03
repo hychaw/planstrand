@@ -238,22 +238,23 @@ Add a normalized Folder entity rather than embedding recursive child arrays:
 
 ```ts
 interface Folder {
-  id: string;
-  title: string;
-  parentId: string | null;
-  childFolderOrder: string[];
-  taskOrder: string[];
-  systemKind?: 'INBOX' | null;
-  color?: string | null;
-  deletedAt?: number | null;
-  created: number;
-  modified: number;
+  readonly id: string;
+  readonly title: string;
+  readonly parentId?: string | null;
+  readonly orderKey?: string;
+}
+interface FolderState extends EntityState<Folder> {
+  ids: string[];
 }
 ```
 
-`parentId` supplies stable recursive identity; ordered ID arrays supply manual ordering. Enforce no cycles, no missing parent, and no duplicate order membership in validation/repair. Arbitrary practical depth should be supported, but selector/render traversal must be iterative or depth-guarded to avoid stack and pathological-sync payload failures. Expanded/collapsed state is device-local view state keyed by Folder ID; it is not part of the synchronized Folder entity and may differ by device or view.
+Phase 4B persists the normalized Folder domain `{ ids, entities }`. A Folder is `{ id, title, parentId?, orderKey? }`: missing parent is a root (`null`), and a missing dense order key defaults to `V`. Siblings sort by absolute order key, then lexical Folder ID, using the existing shared dense-key algorithm. `ids` is sorted identity enumeration, never sibling order. Ancestry remains a single parent reference; children/descendants are derived. Validation is iterative and rejects duplicate IDs, inconsistent identity/order, unknown fields, missing parents, self/descendant cycles and invalid Inbox state. Removal remains leaf-only.
 
-The Inbox should be a stable system Folder mapped from `INBOX_PROJECT`. Tasks without an explicit Folder should resolve to Inbox for capture and migration. Existing menu-tree folders can inform initial Folder placement only where their contained Project nodes establish an unambiguous mapping; they must not be mistaken for existing task containers.
+The reserved `INBOX_FOLDER` is the sole bootstrap source of truth: exactly one root titled Inbox in the default state, with no startup Create operation. Domain intents, snapshot hydration and generic LWW recovery cannot duplicate, rename, reparent or delete it. An ordinary Folder titled Inbox is not the system identity. Absent legacy Folder slices initialize this default without Project or MenuTree migration; present malformed slices fail validation and are not repaired into an invented hierarchy.
+
+**Phase 4B sync contract:** every create, rename, move/reorder or leaf removal captures one complete resulting Folder state as a baseline `UPD` operation on the singleton conflict identity `FOLDER:*`. Replay installs that validated state without re-evaluating the intent against receiver data. The shared `ENTITY_TYPES` owns `FOLDER`, and the server validation/advertisement derives from it. Generic LWW selects the complete snapshot by timestamp and its existing client-ID tie-break; disjoint merges are disabled for this boundary. This deliberately coarse boundary discards all edits in a losing concurrent Folder snapshot, including independent moves and renames, and avoids mixed-parent cycles. Moves carry explicit parent and order; no derived child arrays are synchronized.
+
+Folder is activated in model persistence, IndexedDB state cache/tail replay, snapshots, backup export/import and full-state validation. The slice and new entity fields are optional with runtime defaults; schema version is unchanged. File v4's durable semantic manifest now includes `ENTITY:<type>` requirements derived from the shared entity vocabulary, including `ENTITY:FOLDER`, so pre-4B readers reject Folder-bearing targets before hydration or overwrite even after operation trimming. These requirements also fence cold full-state writers and password rotation. SuperSync's capability advertisement proves server support, not every peer's reader support: normal Folder operations use the existing vocabulary gate, but nondefault Folder-bearing SuperSync full-state uploads are blocked until enforced snapshot reader capabilities exist. Default/legacy snapshots remain allowed; current local backups round-trip. This upload gate cannot fence an older SuperSync writer that omits Folder, so mixed-version SuperSync accounts are unsupported: every participating client must upgrade before sharing the domain. There is no dual-write bridge, Folder UI, Project/MenuTree migration or Task ownership change in 4B.
 
 ### Planning membership without Task duplication
 

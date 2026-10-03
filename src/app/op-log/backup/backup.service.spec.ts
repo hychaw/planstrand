@@ -1,3 +1,5 @@
+import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder, moveFolder } from '../../features/folder/store/folder.actions';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { BackupService } from './backup.service';
@@ -578,6 +580,60 @@ describe('BackupService', () => {
 
     expect(mockOpLogStore.runDestructiveStateReplacement).not.toHaveBeenCalled();
     expect(mockStore.dispatch).not.toHaveBeenCalled();
+  });
+
+  describe('Folder backups', () => {
+    it('exports/imports a nested hierarchy with absolute order through the durable backup path', async () => {
+      const data = createValidAppData();
+      let folder = addFolder({
+        state: initialFolderState,
+        folder: { id: 'a', title: 'A' },
+      }).folderState;
+      folder = addFolder({
+        state: folder,
+        folder: { id: 'b', title: 'B', parentId: 'a', orderKey: 'F' },
+      }).folderState;
+      folder = moveFolder({
+        state: folder,
+        id: 'a',
+        parentId: 'INBOX_FOLDER',
+        orderKey: 'z',
+      }).folderState;
+      data.folder = folder;
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
+      const exported = await service.loadCompleteBackup(true);
+      expect(exported.data.folder).toEqual(folder);
+      await service.importCompleteBackup(
+        JSON.parse(JSON.stringify(exported)),
+        true,
+        true,
+      );
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect((action.appDataComplete as typeof data).folder).toEqual(folder);
+      const replacement =
+        mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0];
+      expect(JSON.stringify(replacement)).toContain('FOLDER:*');
+    });
+    it('imports an absent legacy Folder slice as Inbox without changing Project identities', async () => {
+      const data = createValidAppData();
+      delete data.folder;
+      await service.importCompleteBackup(data, true, true);
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect((action.appDataComplete as typeof data).folder).toEqual(initialFolderState);
+      expect(action.appDataComplete.project.ids).toEqual(data.project.ids);
+    });
+    it('captures recovery when Folders are the only user data', async () => {
+      const data = createValidAppData();
+      data.folder = addFolder({
+        state: initialFolderState,
+        folder: { id: 'a', title: 'A' },
+      }).folderState;
+      mockStateSnapshotService.getStateSnapshotAsync.and.resolveTo(data);
+      await service.captureRecoveryPointIfMeaningful('REMOTE_IMPORT');
+      expect(mockOpLogStore.saveImportBackup).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('importCompleteBackup', () => {

@@ -29,6 +29,7 @@ export const ENTITY_TYPES = [
   'METRIC',
   'BOARD',
   'SECTION',
+  'FOLDER',
   'WORK_SESSION',
   'REMINDER',
   'PLUGIN_USER_DATA',

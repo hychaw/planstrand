@@ -1,3 +1,4 @@
+import { initialFolderState } from '../../features/folder/folder-state';
 import { TestBed } from '@angular/core/testing';
 import { OperationLogSnapshotService } from './operation-log-snapshot.service';
 import { OperationLogStoreService } from './operation-log-store.service';
@@ -237,6 +238,33 @@ describe('OperationLogSnapshotService', () => {
       ...overrides,
     });
 
+    it('accepts absent/default Folder slices and rejects malformed present cache data', () => {
+      expect(service.isValidSnapshot(createValidSnapshot())).toBeTrue();
+      expect(
+        service.isValidSnapshot(
+          createValidSnapshot({
+            state: {
+              task: {},
+              project: {},
+              globalConfig: {},
+              folder: initialFolderState,
+            },
+          }),
+        ),
+      ).toBeTrue();
+      expect(
+        service.isValidSnapshot(
+          createValidSnapshot({
+            state: {
+              task: {},
+              project: {},
+              globalConfig: {},
+              folder: { ids: [], entities: {} },
+            },
+          }),
+        ),
+      ).toBeFalse();
+    });
     it('should return true for valid snapshot with all core models', () => {
       const snapshot = createValidSnapshot();
       expect(service.isValidSnapshot(snapshot)).toBe(true);
