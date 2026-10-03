@@ -1,3 +1,4 @@
+import { buildReplacementOperation } from './build-replacement-operation';
 import { syncOpToOperation } from './operation-sync.util';
 import {
   CURRENT_SCHEMA_VERSION,
@@ -40,6 +41,23 @@ const op: Operation = {
   requiredEntityTypes: ['FOLDER'],
 };
 describe('Semantic ownership reader requirements', () => {
+  it('retains ownership semantics in a current Task replacement operation', () => {
+    const replacement = buildReplacementOperation(
+      'TASK',
+      't',
+      { id: 't', folderId: 'manual' },
+      'client',
+      { client: 1 },
+      1,
+    );
+    expect(replacement.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+    expect(replacement.requiredEntityTypes).toEqual(['FOLDER']);
+    expect(
+      getRemoteOpBlockReason(replacement, CURRENT_SCHEMA_VERSION, ENTITY_TYPES, []),
+    ).toBe('ENTITY_SUPPORT_REQUIRED');
+    expect(getRemoteOpBlockReason(replacement, CURRENT_SCHEMA_VERSION)).toBeNull();
+  });
+
   const required = [TASK_FOLDER_OWNERSHIP_V1];
   const taskOp: Operation = {
     ...op,
@@ -50,11 +68,11 @@ describe('Semantic ownership reader requirements', () => {
     requiredCapabilities: required,
   };
   it('blocks Folder-capable pre-4E replay and the pre-processing prefix', () => {
-    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual([]);
-    expect(getRemoteOpBlockReason(taskOp, CURRENT_SCHEMA_VERSION)).toBe(
+    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual(required);
+    expect(getRemoteOpBlockReason(taskOp, CURRENT_SCHEMA_VERSION, ENTITY_TYPES, [])).toBe(
       'ENTITY_SUPPORT_REQUIRED',
     );
-    expect(takeInterpretableOpPrefix([taskOp, op])).toEqual([]);
+    expect(takeInterpretableOpPrefix([taskOp, op])).toEqual([taskOp, op]);
     expect(
       getRemoteOpBlockReason(taskOp, CURRENT_SCHEMA_VERSION, ENTITY_TYPES, required),
     ).toBeNull();
@@ -83,10 +101,12 @@ describe('Semantic ownership reader requirements', () => {
           payload: { appDataComplete: op.payload, requiredCapabilities: required },
         },
         CURRENT_SCHEMA_VERSION,
+        ENTITY_TYPES,
+        [],
       ),
     ).toBe('ENTITY_SUPPORT_REQUIRED');
     expect(() =>
-      assertFullStateReaderCompatible(op.payload, ['FOLDER'], ENTITY_TYPES, required),
+      assertFullStateReaderCompatible(op.payload, ['FOLDER'], ENTITY_TYPES, required, []),
     ).toThrow();
     expect(() =>
       assertFullStateReaderCompatible(

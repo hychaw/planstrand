@@ -1,4 +1,8 @@
 import {
+  getFullStateRequiredCapabilities,
+  supportsRequiredCapabilities,
+} from '@sp/shared-schema';
+import {
   assertFolderSuperSyncSnapshotCompatible,
   getFullStateRequiredEntityTypes,
 } from '../../op-log/sync/folder-full-state-gate';
@@ -137,6 +141,20 @@ export class SnapshotUploadService {
       capability?.kind === 'available' &&
         capability.capabilities.fullStateReaderRequirements === true,
     );
+    const semanticRequirements = getFullStateRequiredCapabilities(state);
+    if (
+      (semanticRequirements.length > 0 &&
+        (capability?.kind !== 'available' ||
+          capability.capabilities.fullStateReaderRequirements !== true)) ||
+      !supportsRequiredCapabilities(
+        semanticRequirements,
+        capability?.kind === 'available'
+          ? capability.capabilities.supportedCapabilities
+          : [],
+      )
+    ) {
+      throw new Error('Server does not enforce Task Folder ownership requirements');
+    }
     const vectorClock = await this._vectorClockService.getCurrentVectorClock();
     const clientId = await this._clientIdProvider.getOrGenerateClientId();
 
@@ -168,15 +186,23 @@ export class SnapshotUploadService {
     vectorClock: VectorClock,
     isPayloadEncrypted: boolean,
     requiredEntityTypes: string[] = [],
+    requiredCapabilities: string[] = [],
   ): Promise<SnapshotUploadResult> {
     const requirements = isPayloadEncrypted
       ? requiredEntityTypes
       : getFullStateRequiredEntityTypes(payload);
-    if (requirements.length) {
+    const semanticRequirements = isPayloadEncrypted
+      ? requiredCapabilities
+      : getFullStateRequiredCapabilities(payload);
+    if (requirements.length || semanticRequirements.length) {
       const capability = await syncProvider.getServerSyncCapabilities?.();
       if (
         capability?.kind !== 'available' ||
-        capability.capabilities.fullStateReaderRequirements !== true
+        capability.capabilities.fullStateReaderRequirements !== true ||
+        !supportsRequiredCapabilities(
+          semanticRequirements,
+          capability.capabilities.supportedCapabilities,
+        )
       ) {
         throw new Error('Server does not enforce full-state reader requirements');
       }
@@ -195,6 +221,7 @@ export class SnapshotUploadService {
       undefined,
       undefined,
       requirements,
+      semanticRequirements,
     );
 
     return {
@@ -319,6 +346,7 @@ export class SnapshotUploadService {
       isPayloadEncrypted: isEncryptionEnabled && !!encryptKey,
       logPrefix,
       requiredEntityTypes: getFullStateRequiredEntityTypes(state),
+      requiredCapabilities: getFullStateRequiredCapabilities(state),
     });
 
     if (!result.accepted) {
@@ -351,6 +379,7 @@ export class SnapshotUploadService {
     isPayloadEncrypted: boolean;
     logPrefix: string;
     requiredEntityTypes: string[];
+    requiredCapabilities: string[];
   }): Promise<SnapshotUploadResult> {
     const {
       syncProvider,
@@ -375,6 +404,7 @@ export class SnapshotUploadService {
           vectorClock,
           isPayloadEncrypted,
           options.requiredEntityTypes,
+          options.requiredCapabilities,
         );
       } catch (error) {
         const delayMs = this._parseRateLimitDelayMs(error);

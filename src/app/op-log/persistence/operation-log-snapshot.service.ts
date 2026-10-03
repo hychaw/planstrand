@@ -1,3 +1,4 @@
+import { materializeTaskFolders } from '../../features/tasks/task-folder-ownership';
 import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
 import { FolderState } from '../../features/folder/folder.model';
 import { isFolderState } from '../../features/folder/folder-state';
@@ -193,8 +194,23 @@ export class OperationLogSnapshotService {
             capturedState.menuTree,
             capturedState.folder,
           );
-          if (folder === capturedState.folder) return false;
-          currentState = { ...capturedState, folder };
+          const task = materializeTaskFolders(
+            capturedState.task,
+            capturedState.project,
+            folder,
+          );
+          const sourceTask = (source?.state as Partial<AppDataComplete> | undefined)
+            ?.task;
+          const hasUnpersistedOwners = sourceTask?.ids.some(
+            (id) => sourceTask.entities[id]?.folderId === undefined,
+          );
+          if (
+            folder === capturedState.folder &&
+            task === capturedState.task &&
+            !hasUnpersistedOwners
+          )
+            return false;
+          currentState = { ...capturedState, folder, task };
         }
         const lastSeq = await this.opLogStore.getLastSeq();
 

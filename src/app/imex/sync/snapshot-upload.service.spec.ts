@@ -1,3 +1,4 @@
+import { AppStateSnapshot } from '../../op-log/backup/state-snapshot.service';
 import { TestBed } from '@angular/core/testing';
 import { SnapshotUploadService } from './snapshot-upload.service';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
@@ -296,6 +297,20 @@ describe('SnapshotUploadService', () => {
     });
   });
 
+  it('rejects ownership snapshots before server deletion when semantic enforcement is absent', async () => {
+    mockStateSnapshotService.getStateSnapshotForOperationLogAsync.and.resolveTo({
+      task: { ids: ['t'], entities: { t: { folderId: 'INBOX_FOLDER' } } },
+    } as unknown as AppStateSnapshot);
+    await expectAsync(
+      service.deleteAndReuploadWithNewEncryption({
+        encryptKey: 'key',
+        isEncryptionEnabled: true,
+        logPrefix: 'Test',
+      }),
+    ).toBeRejectedWithError(/Task Folder ownership/);
+    expect(mockSyncProvider.deleteAllData).not.toHaveBeenCalled();
+    expect(mockSyncProvider.uploadSnapshot).not.toHaveBeenCalled();
+  });
   describe('deleteAndReuploadWithNewEncryption', () => {
     it('should gather data, delete, update config, and upload when disabling encryption', async () => {
       const mockState = { task: [] };
@@ -472,6 +487,7 @@ describe('SnapshotUploadService', () => {
         undefined,
         undefined,
         [],
+        [], // semantic requirements
       );
     });
 

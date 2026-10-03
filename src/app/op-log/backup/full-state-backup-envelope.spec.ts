@@ -14,11 +14,13 @@ import {
 } from '../../imex/local-backup/backup-ring.util';
 
 describe('Folder backup envelope compatibility', () => {
-  it('carries semantic requirements and blocks the current import reader', () => {
+  it('carries semantic requirements and permits the current ownership reader', () => {
     const data = createValidAppData();
     const encoded = protectFullStateBackup(data, [TASK_FOLDER_OWNERSHIP_V1]);
     expect(isDataRepairPossible(encoded as typeof data)).toBeFalse();
-    expect(() => readFullStateBackup(JSON.parse(JSON.stringify(encoded)))).toThrow();
+    expect(readFullStateBackup(JSON.parse(JSON.stringify(encoded)))).toEqual(
+      JSON.parse(JSON.stringify(data)),
+    );
   });
   const meaningful = (): ReturnType<typeof createValidAppData> => ({
     ...createValidAppData(),

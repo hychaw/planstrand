@@ -9,6 +9,7 @@ import {
   supportsRequiredCapabilities,
   CLIENT_SYNC_READER_CAPABILITIES,
   getFullStateRequiredEntityTypes,
+  getFullStateRequiredCapabilities,
 } from '@sp/shared-schema';
 import { extractFullStateFromPayload, isFullStateOpType } from '../core/operation.types';
 import { KNOWN_ACTION_TYPES } from '../core/action-types.enum';
@@ -138,6 +139,12 @@ export const getRemoteOpBlockReason = (
   if (
     !supportsRequiredEntityTypes(op.requiredEntityTypes, supportedEntityTypes) ||
     !supportsRequiredCapabilities(op.requiredCapabilities, supportedCapabilities) ||
+    (typeof op.opType === 'string' &&
+      isFullStateOpType(op.opType) &&
+      !supportsRequiredCapabilities(
+        getFullStateRequiredCapabilities(extractFullStateFromPayload(op.payload)),
+        supportedCapabilities,
+      )) ||
     (typeof op.opType === 'string' &&
       isFullStateOpType(op.opType) &&
       !supportsRequiredCapabilities(

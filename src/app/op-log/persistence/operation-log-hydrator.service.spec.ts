@@ -654,6 +654,7 @@ describe('OperationLogHydratorService', () => {
         // Tail ops are replayed via bulk dispatch for performance
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: tailOps.map((e) => e.op),
             localClientId: 'test-client',
           }),
@@ -714,6 +715,7 @@ describe('OperationLogHydratorService', () => {
         // sanitized version stamp (payload untouched).
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: [
               { ...malformedOp, schemaVersion: CURRENT_SCHEMA_VERSION },
               tailOps[1].op,
@@ -906,6 +908,7 @@ describe('OperationLogHydratorService', () => {
 
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: [pendingOp, syncImportOp],
             localClientId: 'test-client',
           }),
@@ -937,6 +940,7 @@ describe('OperationLogHydratorService', () => {
 
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: [syncImportOp],
             localClientId: 'test-client',
           }),
@@ -1640,6 +1644,7 @@ describe('OperationLogHydratorService', () => {
 
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: migratedOps,
             localClientId: 'test-client',
             atomicReplayGroups: [migratedOps.map((op) => op.id)],
@@ -1716,6 +1721,7 @@ describe('OperationLogHydratorService', () => {
         // Operations should be applied via bulk dispatch
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: migratedOps,
             localClientId: 'test-client',
           }),
@@ -1891,6 +1897,7 @@ describe('OperationLogHydratorService', () => {
         expect(mockOpLogStore.getOpsAfterSeq).toHaveBeenCalledWith(0);
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: allOps.map((e) => e.op),
             localClientId: 'test-client',
             isReplayFromEmptyBaseline: true,
@@ -1931,6 +1938,7 @@ describe('OperationLogHydratorService', () => {
         expect(mockRecoveryService.attemptRecovery).not.toHaveBeenCalled();
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: [genesisOp, postMigrationOp],
             localClientId,
             isReplayFromEmptyBaseline: true,
@@ -1980,6 +1988,7 @@ describe('OperationLogHydratorService', () => {
         expect(mockOpLogStore.getOpsAfterSeq).toHaveBeenCalledWith(0);
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: allOps.map((e) => e.op),
             localClientId: 'test-client',
             isReplayFromEmptyBaseline: true,
@@ -2127,6 +2136,7 @@ describe('OperationLogHydratorService', () => {
         expect(mockOpLogStore.getOpsAfterSeq).toHaveBeenCalledWith(0);
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: allOps.map((e) => e.op),
             localClientId: 'test-client',
             isReplayFromEmptyBaseline: true,
@@ -2169,6 +2179,7 @@ describe('OperationLogHydratorService', () => {
         // Replay all ops via bulk dispatch for performance
         expect(mockStore.dispatch).toHaveBeenCalledWith(
           bulkApplyHydrationOperations({
+            deferTaskFolderMaterialization: true,
             operations: allOps.map((e) => e.op),
             localClientId: 'test-client',
             isReplayFromEmptyBaseline: true,

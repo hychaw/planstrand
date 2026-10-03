@@ -12,6 +12,7 @@ import { taskSharedSchedulingMetaReducer } from './task-shared-meta-reducers/tas
 import { taskSharedDeadlineMetaReducer } from './task-shared-meta-reducers/task-shared-deadline.reducer';
 import { projectSharedMetaReducer } from './task-shared-meta-reducers/project-shared.reducer';
 import { projectFolderSeedMetaReducer } from './project-folder-seed.meta-reducer';
+import { taskFolderOwnershipMetaReducer } from './task-folder-ownership.meta-reducer';
 import { tagSharedMetaReducer } from './task-shared-meta-reducers/tag-shared.reducer';
 import { sectionSharedMetaReducer } from './task-shared-meta-reducers/section-shared.reducer';
 import { issueProviderSharedMetaReducer } from './task-shared-meta-reducers/issue-provider-shared.reducer';
@@ -128,6 +129,7 @@ export const META_REDUCERS: MetaReducer[] = [
   loadAllDataFailureGuardMetaReducer,
   // Derived compatibility state: inside replay and the load failure guard,
   // outside feature reducers. Leaves the captured Project action unchanged.
+  taskFolderOwnershipMetaReducer,
   projectFolderSeedMetaReducer,
 
   // ═══════════════════════════════════════════════════════════════════════════

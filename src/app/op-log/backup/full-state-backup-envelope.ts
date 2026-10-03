@@ -1,4 +1,7 @@
-import { getFullStateRequiredEntityTypes } from '@sp/shared-schema';
+import {
+  getFullStateRequiredEntityTypes,
+  getFullStateRequiredCapabilities,
+} from '@sp/shared-schema';
 import { extractFullStateFromPayload } from '../core/operation.types';
 import { assertFullStateReaderCompatible } from '../sync/folder-full-state-gate';
 
@@ -17,6 +20,9 @@ export const protectFullStateBackup = <T extends object>(
       appDataComplete: T;
     } => {
   const requiredEntityTypes = getFullStateRequiredEntityTypes(state);
+  requiredCapabilities = [
+    ...new Set([...requiredCapabilities, ...getFullStateRequiredCapabilities(state)]),
+  ];
   return requiredEntityTypes.length || requiredCapabilities.length
     ? {
         requiredEntityTypes,

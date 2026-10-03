@@ -1,5 +1,6 @@
 import {
   getFullStateRequiredEntityTypes,
+  getFullStateRequiredCapabilities,
   supportsRequiredCapabilities,
 } from '@sp/shared-schema';
 import { extractFullStateFromPayload } from '../core/operation.types';
@@ -141,6 +142,9 @@ export const getOperationRequiredCapabilities = (
 ): string[] => [
   ...new Set([
     ...(operation.requiredCapabilities ?? []),
+    ...(operation.entityType === 'ALL'
+      ? getFullStateRequiredCapabilities(extractFullStateFromPayload(operation.payload))
+      : []),
     ...(operation.entityType === 'ALL'
       ? ((operation.payload as { requiredCapabilities?: string[] } | null)
           ?.requiredCapabilities ?? [])

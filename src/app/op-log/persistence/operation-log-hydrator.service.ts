@@ -873,6 +873,7 @@ export class OperationLogHydratorService {
             bulkApplyOperations({
               operations,
               localClientId,
+              deferTaskFolderMaterialization: true,
               ...(atomicReplayGroups.length > 0 ? { atomicReplayGroups } : {}),
               ...(options.isReplayFromEmptyBaseline
                 ? { isReplayFromEmptyBaseline: true }

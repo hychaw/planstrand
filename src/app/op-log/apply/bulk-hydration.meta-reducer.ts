@@ -1,3 +1,5 @@
+import { materializeTaskFolderState } from '../../features/tasks/task-folder-ownership';
+import { TaskFolderState } from '../../root-store/meta/task-folder-ownership.meta-reducer';
 import { Action, ActionReducer } from '@ngrx/store';
 import { bulkApplyOperations } from './bulk-hydration.action';
 import { convertOpToAction } from './operation-converter.util';
@@ -270,7 +272,14 @@ export const bulkOperationsMetaReducer = <T>(
           }
         }
       });
-      return finalState as T;
+      const hasTaskStateOperations = operations.some(
+        (op) =>
+          op.entityType === 'TASK' || op.entityType === 'ALL' || op.opType === 'BATCH',
+      );
+      return !hasTaskStateOperations ||
+        (action as ReturnType<typeof bulkApplyOperations>).deferTaskFolderMaterialization
+        ? (finalState as T)
+        : (materializeTaskFolderState(finalState as TaskFolderState) as T);
     }
     return reducer(state, action);
   };

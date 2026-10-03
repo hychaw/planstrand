@@ -4,6 +4,7 @@ import {
   supportsRequiredEntityTypes,
   supportsRequiredCapabilities,
   CLIENT_SYNC_READER_CAPABILITIES,
+  getFullStateRequiredCapabilities,
 } from '@sp/shared-schema';
 export {
   hasMeaningfulFolderState,
@@ -21,6 +22,10 @@ export const assertFullStateReaderCompatible = (
   if (
     !supportsRequiredEntityTypes(declared, supported) ||
     !supportsRequiredCapabilities(requiredCapabilities, supportedCapabilities) ||
+    !supportsRequiredCapabilities(
+      getFullStateRequiredCapabilities(state),
+      supportedCapabilities,
+    ) ||
     !supportsRequiredCapabilities(
       (state as { requiredCapabilities?: unknown } | null)?.requiredCapabilities,
       supportedCapabilities,

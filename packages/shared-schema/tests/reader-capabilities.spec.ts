@@ -5,6 +5,7 @@ import {
   CLIENT_SYNC_READER_CAPABILITIES,
   TASK_FOLDER_OWNERSHIP_V1,
   supportsRequiredCapabilities,
+  getFullStateRequiredCapabilities,
 } from '../src/reader-capabilities';
 import {
   SuperSyncOperationResponseSchema,
@@ -14,13 +15,8 @@ import {
 describe('semantic sync reader capabilities', () => {
   it('does not grant ownership semantics to existing Folder readers', () => {
     expect(supportsRequiredEntityTypes(['FOLDER'], ENTITY_TYPES)).toBe(true);
-    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual([]);
-    expect(
-      supportsRequiredCapabilities(
-        [TASK_FOLDER_OWNERSHIP_V1],
-        CLIENT_SYNC_READER_CAPABILITIES,
-      ),
-    ).toBe(false);
+    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+    expect(supportsRequiredCapabilities([TASK_FOLDER_OWNERSHIP_V1], [])).toBe(false);
   });
   it('accepts a simulated future reader with ownership support', () => {
     expect(
@@ -29,6 +25,28 @@ describe('semantic sync reader capabilities', () => {
         [TASK_FOLDER_OWNERSHIP_V1],
       ),
     ).toBe(true);
+  });
+  it('advertises ownership support on the current client', () => {
+    expect(
+      supportsRequiredCapabilities(
+        [TASK_FOLDER_OWNERSHIP_V1],
+        CLIENT_SYNC_READER_CAPABILITIES,
+      ),
+    ).toBe(true);
+  });
+  it('infers requirements from active and archived Task ownership, excluding unrelated settings', () => {
+    for (const state of [
+      { task: { entities: { t: { folderId: 'INBOX_FOLDER' } } } },
+      { archiveYoung: { task: { entities: { t: { folderId: 'stale' } } } } },
+      { archiveOld: { task: { entities: { t: { folderId: 'manual' } } } } },
+    ])
+      expect(getFullStateRequiredCapabilities(state)).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+    expect(
+      getFullStateRequiredCapabilities({
+        task: { entities: { t: {} } },
+        pluginUserData: { folderId: 'unrelated' },
+      }),
+    ).toEqual([]);
   });
   it('defaults a missing advertisement to no semantic support', () => {
     expect(supportsRequiredCapabilities([TASK_FOLDER_OWNERSHIP_V1])).toBe(false);

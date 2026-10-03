@@ -1,3 +1,6 @@
+import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
+import { getTaskFolderCaptureAction } from '../../root-store/meta/task-folder-ownership.meta-reducer';
+import { TASK_FOLDER_OWNERSHIP_V1, hasTaskFolderOwnership } from '@sp/shared-schema';
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
 import type { DeferredLocalActionsPort } from '@sp/sync-core';
@@ -261,7 +264,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
 
     // Extract payload (everything except type and meta)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { type, meta, ...rawActionPayload } = action;
+    const { type, meta, ...rawActionPayload } = getTaskFolderCaptureAction(action);
 
     // Use the action's declared opType from meta. We don't derive from entity changes because
     // some operations have different semantic meaning than their state changes suggest.
@@ -354,6 +357,16 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           vectorClock: newClock,
           timestamp: operationTimestamp,
           schemaVersion: CURRENT_SCHEMA_VERSION,
+          ...((hasTaskFolderOwnership(rawActionPayload) &&
+            (action.meta.entityType === 'TASK' ||
+              action.type === TaskSharedActions.batchUpdateForProject.type)) ||
+          action.type === TaskSharedActions.convertToSubTask.type ||
+          action.type === '[Task] Move sub task'
+            ? {
+                requiredEntityTypes: ['FOLDER'],
+                requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+              }
+            : {}),
         };
 
         // CHECKPOINT A: Validate payload before persisting

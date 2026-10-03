@@ -141,7 +141,11 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     const response = await futureReader.downloadOps(0);
     expect(response.ops[0].op.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
     expect(response.ops[0].op.requiredEntityTypes).toEqual(['FOLDER']);
-    const old = service.createAdapter(provider, encryptedCfg, 'password');
+    const old = service.createAdapter(provider, encryptedCfg, 'password', {
+      supportedOpTypes: new Set(
+        [...KNOWN_FILE_SEMANTICS].filter((token) => token !== TASK_FOLDER_OWNERSHIP_V1),
+      ),
+    });
     await expectAsync(old.downloadOps(0)).toBeRejectedWithError(
       PlanstrandFileIncompatibleError,
     );
@@ -173,7 +177,11 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     expect((await read()).compatibility.requiredOpTypes).toContain(
       TASK_FOLDER_OWNERSHIP_V1,
     );
-    const old = service.createAdapter(provider, cfg, undefined);
+    const old = service.createAdapter(provider, cfg, undefined, {
+      supportedOpTypes: new Set(
+        [...KNOWN_FILE_SEMANTICS].filter((token) => token !== TASK_FOLDER_OWNERSHIP_V1),
+      ),
+    });
     await expectAsync(old.downloadOps(0)).toBeRejectedWithError(
       PlanstrandFileIncompatibleError,
     );

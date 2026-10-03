@@ -1,3 +1,4 @@
+import { initialFolderState } from '../../features/folder/folder-state';
 import { createAppDataCompleteMock } from '../../util/app-data-mock';
 import { dataRepair } from './data-repair';
 import { fakeEntityStateFromArray } from '../../util/fake-entity-state-from-array';
@@ -23,6 +24,7 @@ describe('dataRepair()', () => {
   let mock: AppDataComplete;
   beforeEach(() => {
     mock = createAppDataCompleteMock();
+    mock.folder = structuredClone(initialFolderState);
     mock.project = {
       ...fakeEntityStateFromArray([
         INBOX_PROJECT,
@@ -45,6 +47,13 @@ describe('dataRepair()', () => {
     };
     // to prevent side effects
     mock = dirtyDeepCopy(mock);
+  });
+
+  it('defaults an absent legacy Folder slice without changing the legacy input', () => {
+    const legacy = { ...mock };
+    delete legacy.folder;
+    expect(dataRepair(legacy).data.folder).toEqual(initialFolderState);
+    expect(legacy.folder).toBeUndefined();
   });
 
   // Regression for #8333: production builds disable NgRx runtime freezing, so

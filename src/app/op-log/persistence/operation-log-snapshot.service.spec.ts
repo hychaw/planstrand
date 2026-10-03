@@ -1,3 +1,6 @@
+import { INBOX_PROJECT } from '../../features/project/project.const';
+import { DEFAULT_TASK } from '../../features/tasks/task.model';
+import { materializeTaskFolders } from '../../features/tasks/task-folder-ownership';
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder, removeFolder } from '../../features/folder/store/folder.actions';
 import { projectFolderId } from '../../features/folder/legacy-project-folder-migration';
@@ -141,6 +144,60 @@ describe('OperationLogSnapshotService', () => {
       mockOpLogStore.getLastSeq.and.resolveTo(10);
       mockVectorClockService.getCurrentVectorClock.and.resolveTo({ local: 3 });
       mockOpLogStore.saveStateCache.and.resolveTo();
+    });
+    it('persists ownership already materialized during hydration without a new operation', async () => {
+      const data = createValidAppData({
+        project: {
+          ids: [INBOX_PROJECT.id],
+          entities: { [INBOX_PROJECT.id]: { ...INBOX_PROJECT, taskIds: ['legacy'] } },
+        },
+      });
+      const folder = {
+        ...initialFolderState,
+        legacyProjectMigrationComplete: true as const,
+      };
+      const legacy = {
+        ...data,
+        folder,
+        task: {
+          ...data.task,
+          ids: ['legacy'],
+          entities: {
+            legacy: {
+              ...DEFAULT_TASK,
+              id: 'legacy',
+              title: 'Legacy',
+              projectId: 'INBOX',
+            },
+          },
+        },
+      };
+      const hydrated = {
+        ...legacy,
+        task: materializeTaskFolders(legacy.task, legacy.project, folder),
+      };
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        hydrated as AppStateSnapshot,
+      );
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        state: legacy,
+        lastAppliedOpSeq: 8,
+        vectorClock: { local: 2 },
+        compactedAt: 1,
+        schemaVersion: 4,
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeTrue();
+      const saved = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      expect((saved.state as AppDataComplete).task.entities.legacy?.folderId).toBe(
+        'INBOX_FOLDER',
+      );
+      expect(saved.schemaVersion).toBe(4);
+      expect(saved.lastAppliedOpSeq).toBe(10);
+      expect(saved.vectorClock).toEqual({ local: 3 });
+      mockOpLogStore.loadStateCache.and.resolveTo(saved);
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledTimes(1);
     });
     it('persists under the snapshot transaction before noncapturing installation', async () => {
       mockOpLogStore.loadStateCache.and.resolveTo({

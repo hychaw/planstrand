@@ -1,4 +1,6 @@
 import { readFullStateBackup } from './full-state-backup-envelope';
+import { materializeTaskFolders } from '../../features/tasks/task-folder-ownership';
+import { getFullStateRequiredCapabilities } from '@sp/shared-schema';
 import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
 import {
   assertFullStateReaderCompatible,
@@ -87,6 +89,7 @@ export class BackupService {
       lastUpdate: Date.now(),
       crossModelVersion: CROSS_MODEL_VERSION,
       requiredEntityTypes: getFullStateRequiredEntityTypes(data),
+      requiredCapabilities: getFullStateRequiredCapabilities(data),
       data: {
         ...(data as AppDataComplete),
         planning: (data as AppDataComplete).planning ?? { ids: [], entities: {} },
@@ -240,6 +243,15 @@ export class BackupService {
           validatedData.project,
           validatedData.menuTree,
           validatedData.folder,
+        ),
+      };
+
+      validatedData = {
+        ...validatedData,
+        task: materializeTaskFolders(
+          validatedData.task,
+          validatedData.project,
+          validatedData.folder!,
         ),
       };
 
@@ -476,6 +488,8 @@ export class BackupService {
       entityType: 'ALL',
       entityId: opId,
       payload: importedData,
+      requiredEntityTypes: getFullStateRequiredEntityTypes(importedData),
+      requiredCapabilities: getFullStateRequiredCapabilities(importedData),
       clientId,
       vectorClock: newClock,
       timestamp: Date.now(),

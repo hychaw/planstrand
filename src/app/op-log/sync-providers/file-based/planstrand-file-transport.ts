@@ -1,4 +1,7 @@
-import { getFullStateRequiredEntityTypes } from '@sp/shared-schema';
+import {
+  getFullStateRequiredEntityTypes,
+  getFullStateRequiredCapabilities,
+} from '@sp/shared-schema';
 import { FileSyncProvider } from '../provider.interface';
 import { SyncProviderId } from '../provider.const';
 import { EncryptAndCompressCfg } from '../../core/types/sync.types';
@@ -238,10 +241,10 @@ export class PlanstrandFileTransport {
     );
     // Reuse the semantic manifest so pre-extension file readers reject the
     // requirement too. Keep it through backups, compaction and force writes.
-    this._requirements = requiredFileOpTypes(
-      this._requirements,
-      (data.requiredCapabilities as string[] | undefined) ?? [],
-    );
+    this._requirements = requiredFileOpTypes(this._requirements, [
+      ...((data.requiredCapabilities as string[] | undefined) ?? []),
+      ...getFullStateRequiredCapabilities(data.state),
+    ]);
     const ref = data.snapshotRef as { file?: string } | undefined;
     if (ref?.file) data.snapshotRef = { ...ref, file: planstrandPath(ref.file) };
     data.product = 'planstrand';

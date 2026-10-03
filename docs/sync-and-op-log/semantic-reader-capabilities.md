@@ -8,10 +8,10 @@ Missing advertisements support no semantic capabilities. Missing requirements
 retain ordinary legacy compatibility; unknown requirements block safely.
 `CURRENT_SCHEMA_VERSION` remains unchanged.
 
-The current client intentionally advertises `CLIENT_SYNC_READER_CAPABILITIES = []`.
-It understands the requirement infrastructure, but does not implement or claim
-Task Folder ownership. Phase 4E must enable that capability atomically with the
-ownership implementation. A pre-4E reader advertising `FOLDER` therefore still
+Phase 4E enables `CLIENT_SYNC_READER_CAPABILITIES = [TASK_FOLDER_OWNERSHIP_V1]`
+atomically with canonical Task ownership. Authoritative Task writes and Task
+replacement operations declare that requirement; ownership-bearing full-state
+snapshots and backups retain it through compaction and encryption. A pre-4E reader advertising `FOLDER` therefore still
 fails a `TASK_FOLDER_OWNERSHIP_V1` requirement. Supporting the semantic capability
 does not satisfy a separate `FOLDER` entity requirement.
 
@@ -56,10 +56,10 @@ check the server's advertised semantic support before upload.
   previously shipped manual importers; SuperSync protection requires the
   enforcing server, and file protection uses the existing semantic manifest.
 
-No current Task field, migration, reducer, Project bridge, Folder UI, conflict
-machinery, dependency, or automatic Task ownership requirement is introduced.
-Future Phase 4E writers must declare ownership requirements on authoritative Task
-operations and full-state snapshots, including replacements that compact a tail.
+[Phase 4E](folder-phase-4e.md) adds optional persisted `Task.folderId`, deterministic
+legacy materialization, and the current Project compatibility bridges. Folder UI,
+independent subtask placement, and heterogeneous conflict redesign remain outside
+this increment. Legacy Task operations without ownership metadata remain valid.
 
 The server subset query and migration defaults are also verified against real PostgreSQL semantics in PGlite.
 

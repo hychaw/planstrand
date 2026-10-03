@@ -1,3 +1,4 @@
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 import { protectFullStateBackup } from './full-state-backup-envelope';
 import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
 import { projectFolderId } from '../../features/folder/legacy-project-folder-migration';
@@ -686,6 +687,29 @@ describe('BackupService', () => {
   });
 
   describe('importCompleteBackup', () => {
+    it('materializes legacy ownership and retains explicit ownership through durable backup restore', async () => {
+      const data = addTaskToAppData(
+        addTaskToAppData(createValidAppData(), createValidTask('legacy')),
+        createValidTask('explicit', { folderId: 'manual' }),
+      );
+      data.folder = addFolder({
+        state: initialFolderState,
+        folder: { id: 'manual', title: 'Manual' },
+      }).folderState;
+      await service.importCompleteBackup(JSON.parse(JSON.stringify(data)), true, true);
+      const replacement =
+        mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0];
+      const restored = replacement.syncImportOp.payload as typeof data;
+      expect(restored.task.entities.legacy?.folderId).toBe(projectFolderId('INBOX'));
+      expect(restored.task.entities.explicit?.folderId).toBe('manual');
+      expect(replacement.syncImportOp.requiredCapabilities).toEqual([
+        TASK_FOLDER_OWNERSHIP_V1,
+      ]);
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect((action.appDataComplete as typeof data).task).toEqual(restored.task);
+    });
+
     it('refuses a future-shaped WorkSession backup without downgrading its payload', async () => {
       const data = addTaskToAppData(createValidAppData(), createValidTask('task-1'));
       const future = {

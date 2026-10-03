@@ -90,6 +90,8 @@ export interface TaskCopy
     IssueFieldsForTask {
   // Override required fields that are optional in plugin type
   projectId: string;
+  /** Canonical ownership; absent on legacy state until runtime materialization. */
+  folderId?: string;
   timeSpentOnDay: TimeSpentOnDay;
 
   // Additional app-specific fields
