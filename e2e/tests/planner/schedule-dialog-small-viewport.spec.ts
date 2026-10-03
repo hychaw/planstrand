@@ -31,13 +31,13 @@ test.describe('schedule dialog on a small viewport', () => {
     const task = page.locator(`task:has-text("${title}")`).first();
     await task.waitFor({ state: 'visible' });
 
-    // Schedule the task with a time so the dialog shows all three action
-    // buttons (Cancel / Unschedule / Schedule) when reopened.
+    // Reopen a scheduled WorkSession to check the normal scheduling action row.
     await openTaskDetailPanel(page, task);
     const scheduleItem = page.locator(DETAIL_PANEL_SCHEDULE_ITEM).first();
     await scheduleItem.click();
     const dialog = page.locator(SCHEDULE_DIALOG);
     await dialog.waitFor({ state: 'visible' });
+    await dialog.locator('.mat-calendar-body-today').click();
     const timeInput = page.locator(`${SCHEDULE_DIALOG} input[type="time"]`);
     await timeInput.fill('23:00');
     await page.locator('[data-test-id="schedule-submit-btn"]').click();
@@ -71,8 +71,8 @@ test.describe('schedule dialog on a small viewport', () => {
     expect(metrics.calRight).toBeLessThanOrEqual(metrics.windowW);
     // The 6-row month height reservation is still in place (see #6556, #9452)
     expect(metrics.calHeight).toBeGreaterThanOrEqual(416);
-    // All three action buttons stay on a single row
-    expect(metrics.btnTops.length).toBe(3);
+    // WorkSession removal uses its session menu; this dialog has Cancel / Schedule.
+    expect(metrics.btnTops.length).toBe(2);
     expect(Math.max(...metrics.btnTops) - Math.min(...metrics.btnTops)).toBeLessThan(2);
   });
 });
