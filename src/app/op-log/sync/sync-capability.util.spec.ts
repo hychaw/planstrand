@@ -33,7 +33,10 @@ describe('sync capability requirements', () => {
       evaluateOperationCompatibility([op('FOLDER')], old).unsupportedEntityTypes,
     ).toEqual(['FOLDER']);
     expect(
-      evaluateOperationCompatibility([op('ALL')], old).unsupportedEntityTypes,
+      evaluateOperationCompatibility(
+        [op('ALL', 4, { folder: { ids: ['user'], entities: {} } })],
+        old,
+      ).unsupportedEntityTypes,
     ).toEqual(['FOLDER']);
     expect(
       evaluateOperationCompatibility([op('FOLDER')], capabilities([...ENTITY_TYPES]))

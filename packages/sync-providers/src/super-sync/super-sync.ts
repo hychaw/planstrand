@@ -113,6 +113,7 @@ export interface SuperSyncDeps {
    * browser client needs no new CORS allowance. Omitted → not sent.
    */
   appVersion?: string;
+  supportedEntityTypes?: readonly string[];
 }
 
 /**
@@ -284,6 +285,7 @@ export class SuperSyncProvider
     ops: SyncOperation[],
     clientId: string,
     lastKnownServerSeq?: number,
+    requiredEntityTypes?: string[],
   ): Promise<OpUploadResponse> {
     this._deps.logger.debug(`${this._logLabel}: uploadOps`, {
       opsCount: ops.length,
@@ -389,6 +391,7 @@ export class SuperSyncProvider
     syncImportReason?: string,
     repairBaseServerSeq?: number,
     lastKnownServerSeq?: number,
+    requiredEntityTypes?: string[],
   ): Promise<SnapshotUploadResponse> {
     this._deps.logger.normal(`${this._logLabel}: uploadSnapshot: Starting...`, {
       clientId,
@@ -415,6 +418,7 @@ export class SuperSyncProvider
       snapshotOpType,
       ...(syncImportReason ? { syncImportReason } : {}),
       ...(repairBaseServerSeq !== undefined ? { repairBaseServerSeq } : {}),
+      ...(requiredEntityTypes?.length ? { requiredEntityTypes } : {}),
       ...(lastKnownServerSeq !== undefined ? { lastKnownServerSeq } : {}),
       requestId,
     });
@@ -885,7 +889,10 @@ export class SuperSyncProvider
     options: RequestInit & { noRetry?: boolean; body?: string },
   ): Promise<T> {
     const baseUrl = this._resolveBaseUrl(cfg);
-    const url = `${baseUrl}${path}`;
+    const readerQuery = this._deps.supportedEntityTypes?.length
+      ? `${path.includes('?') ? '&' : '?'}supportedEntityTypes=${encodeURIComponent(this._deps.supportedEntityTypes.join(','))}`
+      : '';
+    const url = `${baseUrl}${path}${readerQuery}`;
     const sanitizedToken = this._sanitizeToken(cfg.accessToken);
 
     if (this.isNativePlatform) {
@@ -919,7 +926,10 @@ export class SuperSyncProvider
     compressedBody: Uint8Array,
   ): Promise<T> {
     const baseUrl = this._resolveBaseUrl(cfg);
-    const url = `${baseUrl}${path}`;
+    const readerQuery = this._deps.supportedEntityTypes?.length
+      ? `${path.includes('?') ? '&' : '?'}supportedEntityTypes=${encodeURIComponent(this._deps.supportedEntityTypes.join(','))}`
+      : '';
+    const url = `${baseUrl}${path}${readerQuery}`;
     const sanitizedToken = this._sanitizeToken(cfg.accessToken);
 
     const headers = new Headers();
@@ -1102,7 +1112,10 @@ export class SuperSyncProvider
   ): Promise<T> {
     const startTime = Date.now();
     const baseUrl = this._resolveBaseUrl(cfg);
-    const url = `${baseUrl}${path}`;
+    const readerQuery = this._deps.supportedEntityTypes?.length
+      ? `${path.includes('?') ? '&' : '?'}supportedEntityTypes=${encodeURIComponent(this._deps.supportedEntityTypes.join(','))}`
+      : '';
+    const url = `${baseUrl}${path}${readerQuery}`;
     const sanitizedToken = this._sanitizeToken(cfg.accessToken);
 
     const headers: Record<string, string> = {

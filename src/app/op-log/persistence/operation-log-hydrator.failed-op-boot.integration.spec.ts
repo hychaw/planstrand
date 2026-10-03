@@ -208,6 +208,7 @@ describe('OperationLogHydratorService boot after a mid-batch archive failure (in
             migrateSnapshotWithBackup: (snapshot: unknown) => Promise.resolve(snapshot),
             saveCurrentStateAsSnapshot: () => Promise.resolve(false),
             backfillLegacyTaskSchedules: () => Promise.resolve(false),
+            backfillLegacyFolders: () => Promise.resolve(false),
           },
         },
         { provide: OperationLogRecoveryService, useValue: recovery },

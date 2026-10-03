@@ -1,4 +1,7 @@
-import { assertFolderSuperSyncSnapshotCompatible } from '../../op-log/sync/folder-full-state-gate';
+import {
+  assertFolderSuperSyncSnapshotCompatible,
+  getFullStateRequiredEntityTypes,
+} from '../../op-log/sync/folder-full-state-gate';
 import { inject, Injectable } from '@angular/core';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
@@ -128,7 +131,12 @@ export class SnapshotUploadService {
     const state = stripLocalOnlySyncSettingsFromAppData(
       await this._stateSnapshotService.getStateSnapshotForOperationLogAsync(),
     ) as AppStateSnapshot;
-    assertFolderSuperSyncSnapshotCompatible(state);
+    const capability = await syncProvider.getServerSyncCapabilities?.();
+    assertFolderSuperSyncSnapshotCompatible(
+      state,
+      capability?.kind === 'available' &&
+        capability.capabilities.fullStateReaderRequirements === true,
+    );
     const vectorClock = await this._vectorClockService.getCurrentVectorClock();
     const clientId = await this._clientIdProvider.getOrGenerateClientId();
 
@@ -159,8 +167,20 @@ export class SnapshotUploadService {
     clientId: string,
     vectorClock: VectorClock,
     isPayloadEncrypted: boolean,
+    requiredEntityTypes: string[] = [],
   ): Promise<SnapshotUploadResult> {
-    if (!isPayloadEncrypted) assertFolderSuperSyncSnapshotCompatible(payload);
+    const requirements = isPayloadEncrypted
+      ? requiredEntityTypes
+      : getFullStateRequiredEntityTypes(payload);
+    if (requirements.length) {
+      const capability = await syncProvider.getServerSyncCapabilities?.();
+      if (
+        capability?.kind !== 'available' ||
+        capability.capabilities.fullStateReaderRequirements !== true
+      ) {
+        throw new Error('Server does not enforce full-state reader requirements');
+      }
+    }
     const response = await syncProvider.uploadSnapshot(
       payload,
       clientId,
@@ -169,6 +189,12 @@ export class SnapshotUploadService {
       CURRENT_SCHEMA_VERSION,
       isPayloadEncrypted,
       uuidv7(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      requirements,
     );
 
     return {
@@ -292,6 +318,7 @@ export class SnapshotUploadService {
       vectorClock,
       isPayloadEncrypted: isEncryptionEnabled && !!encryptKey,
       logPrefix,
+      requiredEntityTypes: getFullStateRequiredEntityTypes(state),
     });
 
     if (!result.accepted) {
@@ -323,6 +350,7 @@ export class SnapshotUploadService {
     vectorClock: VectorClock;
     isPayloadEncrypted: boolean;
     logPrefix: string;
+    requiredEntityTypes: string[];
   }): Promise<SnapshotUploadResult> {
     const {
       syncProvider,
@@ -346,6 +374,7 @@ export class SnapshotUploadService {
           clientId,
           vectorClock,
           isPayloadEncrypted,
+          options.requiredEntityTypes,
         );
       } catch (error) {
         const delayMs = this._parseRateLimitDelayMs(error);

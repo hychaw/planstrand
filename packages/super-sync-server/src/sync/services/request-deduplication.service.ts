@@ -189,6 +189,7 @@ export interface SnapshotRequestFingerprintInput {
   reason: string;
   vectorClock: Record<string, number>;
   schemaVersion?: number;
+  requiredEntityTypes?: string[];
   isPayloadEncrypted?: boolean;
   syncImportReason?: string;
   opId?: string;

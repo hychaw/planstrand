@@ -114,6 +114,16 @@ export class LegacyFullStateAfterCutoverError extends Error {
   }
 }
 
+/** Generic entity replay cannot reproduce the hierarchy-wide Folder LWW contract. */
+export class FolderReplayUnsupportedError extends Error {
+  constructor() {
+    super(
+      'FOLDER_REPLAY_UNSUPPORTED: Folder history requires client replay or an uploaded full snapshot.',
+    );
+    this.name = 'FolderReplayUnsupportedError';
+  }
+}
+
 export type ReplayOperationRow = {
   id: string;
   serverSeq: number;
@@ -174,6 +184,8 @@ export const replayOpsToState = (
     ) {
       throw new LegacyFullStateAfterCutoverError();
     }
+
+    if (row.entityType === 'FOLDER') throw new FolderReplayUnsupportedError();
 
     // Server cannot decrypt E2E payloads. Snapshot callers reject encrypted
     // ranges upfront; this guard prevents accidental partial replays.

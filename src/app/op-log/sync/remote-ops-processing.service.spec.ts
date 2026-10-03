@@ -77,6 +77,26 @@ describe('RemoteOpsProcessingService', () => {
     return { appliedOps: ops };
   };
 
+  it('blocks incompatible full-state requirements before any partial application', async () => {
+    const operation = {
+      id: 'folder-boundary',
+      actionType: ActionType.LOAD_ALL_DATA,
+      opType: OpType.SyncImport,
+      entityType: 'ALL',
+      schemaVersion: 5,
+      requiredEntityTypes: ['FUTURE_FOLDER'],
+      payload: { folder: { ids: [], entities: {} } },
+      clientId: 'remote',
+      vectorClock: { remote: 1 },
+      timestamp: 100,
+    } as Operation;
+    const result = await service.processRemoteOps([operation]);
+    expect(result.blockedByIncompatibleOp).toBeTrue();
+    expect(schemaMigrationServiceSpy.migrateOperation).not.toHaveBeenCalled();
+    expect(opLogStoreSpy.appendBatchSkipDuplicates).not.toHaveBeenCalled();
+    expect(operationApplierServiceSpy.applyOperations).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     storeSpy = jasmine.createSpyObj('Store', ['select']);
     storeSpy.select.and.returnValue(

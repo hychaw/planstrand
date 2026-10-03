@@ -1,3 +1,9 @@
+import { readFullStateBackup } from './full-state-backup-envelope';
+import { migrateLegacyProjectFolders } from '../../features/folder/legacy-project-folder-migration';
+import {
+  assertFullStateReaderCompatible,
+  getFullStateRequiredEntityTypes,
+} from '../sync/folder-full-state-gate';
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
@@ -80,6 +86,7 @@ export class BackupService {
       timestamp: Date.now(),
       lastUpdate: Date.now(),
       crossModelVersion: CROSS_MODEL_VERSION,
+      requiredEntityTypes: getFullStateRequiredEntityTypes(data),
       data: {
         ...(data as AppDataComplete),
         planning: (data as AppDataComplete).planning ?? { ids: [], entities: {} },
@@ -127,6 +134,12 @@ export class BackupService {
       } else {
         backupData = data as AppDataComplete;
       }
+
+      backupData = readFullStateBackup(backupData) as unknown as AppDataComplete;
+      assertFullStateReaderCompatible(
+        backupData,
+        (data as { requiredEntityTypes?: unknown }).requiredEntityTypes,
+      );
 
       // 2. Migrate legacy backups (pre-v14) that have the old data shape
       const { isLegacyBackupData, migrateLegacyBackup } =
@@ -218,6 +231,15 @@ export class BackupService {
           throw new BackupRepairFailedError();
         }
       }
+
+      validatedData = {
+        ...validatedData,
+        folder: migrateLegacyProjectFolders(
+          validatedData.project,
+          validatedData.menuTree,
+          validatedData.folder,
+        ),
+      };
 
       // 4. Persist to operation log
       await this._operationWriteFlushService.flushPendingWrites();

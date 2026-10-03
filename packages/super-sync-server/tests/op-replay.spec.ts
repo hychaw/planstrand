@@ -9,6 +9,7 @@ import {
   assertContiguousReplayBatch,
   assertReplayStateSize,
   EncryptedOpsNotSupportedError,
+  FolderReplayUnsupportedError,
   LegacyRepairReplayUnsupportedError,
   LegacyFullStateAfterCutoverError,
   MAX_REPLAY_STATE_SIZE_BYTES,
@@ -29,6 +30,39 @@ const row = (overrides: Partial<ReplayOperationRow>): ReplayOperationRow => ({
 });
 
 describe('op replay', () => {
+  it('preserves Folder in full-state round trips but refuses generic Folder tail reconstruction', () => {
+    const folder = {
+      ids: ['INBOX_FOLDER', 'user'],
+      entities: {
+        INBOX_FOLDER: { id: 'INBOX_FOLDER', title: 'Inbox' },
+        user: { id: 'user', title: 'User' },
+      },
+      legacyProjectMigrationComplete: true,
+    };
+    const imported = row({
+      opType: 'SYNC_IMPORT',
+      entityType: 'ALL',
+      payload: { appDataComplete: { folder } },
+    });
+    const state = replayOpsToState([imported]);
+    expect(state.folder).toEqual(folder);
+    expect(() =>
+      replayOpsToState(
+        [
+          row({
+            entityType: 'FOLDER',
+            entityId: '*',
+            opType: 'UPD',
+            payload: { folderState: folder },
+          }),
+        ],
+        state,
+      ),
+    ).toThrow(FolderReplayUnsupportedError);
+    expect(state.folder).toEqual(folder);
+    expect(state.FOLDER).toBeUndefined();
+  });
+
   it('fails closed on a late legacy import that would resurrect an unplanned Task', () => {
     const tombstone = {
       id: 'X',
@@ -371,6 +405,7 @@ describe('op replay', () => {
   it('rejects encrypted operations', () => {
     expect(() => replayOpsToState([row({ isPayloadEncrypted: true })])).toThrowError(
       EncryptedOpsNotSupportedError,
+      FolderReplayUnsupportedError,
     );
   });
 

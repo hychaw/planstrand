@@ -131,6 +131,52 @@ describe('OperationLogSnapshotService', () => {
     clearDeferredActions();
   });
 
+  describe('startup legacy Folder bridge', () => {
+    beforeEach(() => {
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        createValidAppData() as AppStateSnapshot,
+      );
+      mockOpLogStore.getLastSeq.and.resolveTo(10);
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo({ local: 3 });
+      mockOpLogStore.saveStateCache.and.resolveTo();
+    });
+    it('persists under the snapshot transaction before noncapturing installation', async () => {
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        state: createValidAppData(),
+        lastAppliedOpSeq: 8,
+        vectorClock: { local: 2 },
+        compactedAt: 1,
+        schemaVersion: 4,
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeTrue();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledBefore(install);
+      const saved = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      expect(saved.schemaVersion).toBe(4);
+      expect(saved.lastAppliedOpSeq).toBe(10);
+      expect(saved.vectorClock).toEqual({ local: 3 });
+      expect(
+        (saved.state as AppDataComplete).folder?.legacyProjectMigrationComplete,
+      ).toBeTrue();
+    });
+    it('never installs when persistence fails', async () => {
+      mockOpLogStore.saveStateCache.and.rejectWith(new Error('disk full'));
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(install).not.toHaveBeenCalled();
+    });
+    it('never installs invalid state', async () => {
+      mockValidateStateService.validateState.and.resolveTo({
+        isValid: false,
+        typiaErrors: [],
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(install).not.toHaveBeenCalled();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    });
+  });
+
   describe('startup legacy scheduling backfill', () => {
     const data = (): AppDataComplete => {
       const base = createValidAppData();

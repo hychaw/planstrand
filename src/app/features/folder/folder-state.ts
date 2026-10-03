@@ -6,14 +6,21 @@ import { getFolderChildren, isFolderOrderKey, isValidFolderParent } from './fold
 export const folderAdapter = createEntityAdapter<Folder>();
 export const initialFolderState: FolderState = folderAdapter.addOne(
   INBOX_FOLDER,
-  folderAdapter.getInitialState({ ids: [] as string[] }),
+  folderAdapter.getInitialState<FolderState>({}),
 );
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** Exact current-client shape. Never repair ambiguous ancestry or Inbox mutations. */
 export const isFolderState = (v: unknown): v is FolderState => {
-  if (!isRecord(v) || Object.keys(v).some((k) => k !== 'ids' && k !== 'entities'))
+  if (
+    !isRecord(v) ||
+    Object.keys(v).some(
+      (k) => !['ids', 'entities', 'legacyProjectMigrationComplete'].includes(k),
+    ) ||
+    (v['legacyProjectMigrationComplete'] !== undefined &&
+      v['legacyProjectMigrationComplete'] !== true)
+  )
     return false;
   const ids = v['ids'],
     entities = v['entities'];

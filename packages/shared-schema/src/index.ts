@@ -93,3 +93,9 @@ export type {
   SuperSyncRestoreSnapshotResponse,
   SuperSyncDeleteAllDataResponse,
 } from './supersync-http-contract';
+
+export {
+  hasMeaningfulFolderState,
+  getFullStateRequiredEntityTypes,
+  supportsRequiredEntityTypes,
+} from './full-state-capabilities';

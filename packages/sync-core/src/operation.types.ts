@@ -108,6 +108,8 @@ export interface Operation<TOpType extends string = OpType> {
    * Allows the system to migrate or transform payloads if the data structure changes in the future.
    */
   schemaVersion: number;
+  /** Full-state reader capabilities, preserved outside payload encryption. */
+  requiredEntityTypes?: string[];
 }
 
 export interface OperationLogEntry<TOperation extends Operation<string> = Operation> {

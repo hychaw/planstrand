@@ -1,3 +1,4 @@
+import { SUPER_SYNC_OPERATION_CAPABILITIES } from '@sp/shared-schema';
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder } from '../../features/folder/store/folder.actions';
 import { OpType } from '../core/operation.types';
@@ -26,8 +27,14 @@ const apiProvider = (
 describe('SyncCapabilityGateService', () => {
   const service = new SyncCapabilityGateService();
 
-  it('blocks Folder-bearing API full-state replacement before any network capability lookup', async () => {
-    const lookup = jasmine.createSpy('capabilities');
+  it('blocks Folder-bearing API full-state replacement on a server without reader enforcement', async () => {
+    const lookup = jasmine.createSpy('capabilities').and.resolveTo({
+      kind: 'available',
+      capabilities: {
+        ...SUPER_SYNC_OPERATION_CAPABILITIES,
+        fullStateReaderRequirements: undefined,
+      },
+    });
     const folder = addFolder({
       state: initialFolderState,
       folder: { id: 'a', title: 'A' },
@@ -42,7 +49,7 @@ describe('SyncCapabilityGateService', () => {
         },
       ]),
     ).toBeRejectedWithError(/Folder-bearing SuperSync snapshots/);
-    expect(lookup).not.toHaveBeenCalled();
+    expect(lookup).toHaveBeenCalled();
   });
 
   it('treats missing capability metadata as a known incompatibility', async () => {

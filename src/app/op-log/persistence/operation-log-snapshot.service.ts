@@ -1,3 +1,5 @@
+import { migrateLegacyProjectFolders } from '../../features/folder/legacy-project-folder-migration';
+import { FolderState } from '../../features/folder/folder.model';
 import { isFolderState } from '../../features/folder/folder-state';
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from './operation-log-store.service';
@@ -133,13 +135,23 @@ export class OperationLogSnapshotService {
     return this._saveCurrentStateAsSnapshot(install);
   }
 
+  async backfillLegacyFolders(install: (folder: FolderState) => void): Promise<boolean> {
+    return this._saveCurrentStateAsSnapshot(undefined, install);
+  }
+
   private async _saveCurrentStateAsSnapshot(
     installLegacyBackfill?: (sessions: WorkSessionState) => void,
+    installFolders?: (folder: FolderState) => void,
   ): Promise<boolean> {
     try {
       return await this.writeFlushService.flushThenRunExclusive(async () => {
         const source = await this.opLogStore.loadStateCache();
-        if (source && (source.schemaVersion ?? 1) < 5 && !installLegacyBackfill) {
+        if (
+          source &&
+          (source.schemaVersion ?? 1) < 5 &&
+          !installLegacyBackfill &&
+          !installFolders
+        ) {
           // Only confirmed clean-slate replacement may advance this legacy anchor.
           return false;
         }
@@ -172,9 +184,18 @@ export class OperationLogSnapshotService {
             )
           : capturedState.workSession;
         if (installLegacyBackfill && sessions === capturedState.workSession) return false;
-        const currentState = installLegacyBackfill
+        let currentState = installLegacyBackfill
           ? { ...capturedState, workSession: sessions }
           : capturedState;
+        if (installFolders) {
+          const folder = migrateLegacyProjectFolders(
+            capturedState.project,
+            capturedState.menuTree,
+            capturedState.folder,
+          );
+          if (folder === capturedState.folder) return false;
+          currentState = { ...capturedState, folder };
+        }
         const lastSeq = await this.opLogStore.getLastSeq();
 
         // GUARD (#9438): lastSeq is the global max across the SHARED store,
@@ -208,7 +229,7 @@ export class OperationLogSnapshotService {
           return false;
         }
 
-        if (installLegacyBackfill) {
+        if (installLegacyBackfill || installFolders) {
           const validation = await this.validateStateService.validateState(
             currentState as unknown as Record<string, unknown>,
           );
@@ -229,11 +250,12 @@ export class OperationLogSnapshotService {
           vectorClock,
           compactedAt: Date.now(),
           // Compatibility backfill never confirms/advances a legacy Planning anchor.
-          schemaVersion: installLegacyBackfill
-            ? source
-              ? (source.schemaVersion ?? 1)
-              : CURRENT_SCHEMA_VERSION
-            : CURRENT_SCHEMA_VERSION,
+          schemaVersion:
+            installLegacyBackfill || installFolders
+              ? source
+                ? (source.schemaVersion ?? 1)
+                : CURRENT_SCHEMA_VERSION
+              : CURRENT_SCHEMA_VERSION,
           snapshotEntityKeys,
         });
 
@@ -247,6 +269,7 @@ export class OperationLogSnapshotService {
           });
         }
 
+        if (installFolders && currentState.folder) installFolders(currentState.folder);
         OpLog.normal('OperationLogSnapshotService: Saved new snapshot');
         return true;
       });

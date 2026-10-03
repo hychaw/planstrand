@@ -1,22 +1,36 @@
-import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
-import { isFolderState } from '../../features/folder/folder-state';
+import {
+  ENTITY_TYPES,
+  getFullStateRequiredEntityTypes,
+  supportsRequiredEntityTypes,
+} from '@sp/shared-schema';
+export {
+  hasMeaningfulFolderState,
+  getFullStateRequiredEntityTypes,
+} from '@sp/shared-schema';
 
-/** SuperSync advertises server vocabulary, not the capabilities of every peer.
- * Until snapshots carry an enforced reader manifest, only the canonical default
- * Folder domain is safe in a SuperSync full-state replacement. File v4 is gated
- * by its durable semantic manifest; local backups remain current-reader artifacts.
- */
-export const assertFolderSuperSyncSnapshotCompatible = (state: unknown): void => {
-  if (!state || typeof state !== 'object' || !Object.hasOwn(state, 'folder')) return;
-  const folder = (state as { folder?: unknown }).folder;
+/** Evaluate raw state BEFORE conversion/defaulting/repair can discard an entity. */
+export const assertFullStateReaderCompatible = (
+  state: unknown,
+  declared: unknown = undefined,
+  supported: readonly string[] = ENTITY_TYPES,
+): void => {
   if (
-    isFolderState(folder) &&
-    folder.ids.length === 1 &&
-    folder.ids[0] === INBOX_FOLDER_ID &&
-    (folder.entities[INBOX_FOLDER_ID]!.orderKey ?? 'V') === 'V'
-  )
-    return;
-  throw new Error(
-    'Folder-bearing SuperSync snapshots are not supported until all readers can enforce the Folder capability. Use operation sync or a current-client file provider.',
-  );
+    !supportsRequiredEntityTypes(declared, supported) ||
+    !supportsRequiredEntityTypes(getFullStateRequiredEntityTypes(state), supported)
+  ) {
+    throw new Error('Full state requires unsupported entity capabilities');
+  }
+};
+export const assertFolderSuperSyncSnapshotCompatible = (
+  state: unknown,
+  serverEnforcesReaderRequirements = false,
+): void => {
+  if (
+    getFullStateRequiredEntityTypes(state).length &&
+    !serverEnforcesReaderRequirements
+  ) {
+    throw new Error(
+      'Folder-bearing SuperSync snapshots require server-enforced full-state reader capabilities',
+    );
+  }
 };

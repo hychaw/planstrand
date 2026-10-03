@@ -466,6 +466,12 @@ describe('SnapshotUploadService', () => {
         jasmine.anything(),
         true,
         jasmine.anything(),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        [],
       );
     });
 

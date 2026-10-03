@@ -12,4 +12,6 @@ export interface Folder {
 /** ids is canonical identity enumeration; sibling order belongs to each Folder. */
 export interface FolderState extends EntityState<Folder> {
   ids: string[];
+  /** Optional on old snapshots; survives removal of every migrated Folder. */
+  legacyProjectMigrationComplete?: true;
 }

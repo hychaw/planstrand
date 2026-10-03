@@ -39,6 +39,7 @@ export const encodeOperation = (op: Operation): CompactOperation => {
     compact.b = op.repairBaseServerSeq;
   }
 
+  if (op.requiredEntityTypes !== undefined) compact.q = op.requiredEntityTypes;
   return compact;
 };
 
@@ -73,6 +74,7 @@ export const decodeOperation = (compact: CompactOperation): Operation => {
     op.repairBaseServerSeq = compact.b;
   }
 
+  if (compact.q !== undefined) op.requiredEntityTypes = compact.q;
   return op;
 };
 

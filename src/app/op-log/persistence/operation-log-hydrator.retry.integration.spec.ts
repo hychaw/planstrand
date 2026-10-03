@@ -108,6 +108,7 @@ describe('OperationLogHydratorService retryFailedRemoteOps (integration, real st
             migrateSnapshotWithBackup: (snapshot: unknown) => Promise.resolve(snapshot),
             saveCurrentStateAsSnapshot: () => Promise.resolve(),
             backfillLegacyTaskSchedules: () => Promise.resolve(false),
+            backfillLegacyFolders: () => Promise.resolve(false),
           },
         },
         { provide: OperationLogRecoveryService, useValue: recovery },

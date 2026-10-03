@@ -13,19 +13,18 @@ export class SyncCapabilityGateService {
     operations: readonly Operation[],
     options?: { forceRefresh?: boolean },
   ): Promise<void> {
-    if (provider.providerMode === 'superSyncOps') {
-      for (const op of operations) {
-        if (isFullStateOpType(op.opType))
-          assertFolderSuperSyncSnapshotCompatible(
-            extractFullStateFromPayload(op.payload),
-          );
-      }
-    }
     if (
       operations.length === 0 ||
       provider.providerMode !== 'superSyncOps' ||
       provider.requiresServerCapabilities !== true
     ) {
+      if (provider.providerMode === 'superSyncOps')
+        for (const op of operations) {
+          if (isFullStateOpType(op.opType))
+            assertFolderSuperSyncSnapshotCompatible(
+              extractFullStateFromPayload(op.payload),
+            );
+        }
       return;
     }
 
@@ -38,6 +37,13 @@ export class SyncCapabilityGateService {
       throw new SyncServerIncompatibleError(result.kind);
     }
 
+    for (const op of operations) {
+      if (isFullStateOpType(op.opType))
+        assertFolderSuperSyncSnapshotCompatible(
+          extractFullStateFromPayload(op.payload),
+          result.capabilities.fullStateReaderRequirements === true,
+        );
+    }
     const compatibility = evaluateOperationCompatibility(operations, result.capabilities);
     if (!compatibility.compatible) {
       throw new SyncServerIncompatibleError('unsupported', compatibility);

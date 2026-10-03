@@ -467,6 +467,31 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     ).toBeRejectedWithError(PlanstrandFileIncompatibleError);
   });
 
+  it('keeps default Folder full-state compatible with a reader lacking Folder support', async () => {
+    const adapter = service.createAdapter(provider, cfg, undefined);
+    await adapter.uploadSnapshot(
+      { ...state, folder: initialFolderState },
+      'new',
+      'recovery',
+      {},
+      CURRENT_SCHEMA_VERSION,
+      false,
+      'default-folder',
+    );
+    service.invalidateAllTargets();
+    localStorage.clear();
+    const supported = new Set(KNOWN_FILE_SEMANTICS);
+    supported.delete('ENTITY:FOLDER');
+    const old = service.createAdapter(provider, cfg, undefined, {
+      supportedOpTypes: supported,
+      requiredOpTypes: PLANSTRAND_REQUIRED_FILE_OP_TYPES,
+    });
+    expect((await old.downloadOps(0)).snapshotState).toEqual({
+      ...state,
+      folder: initialFolderState,
+    });
+  });
+
   it('retains Folder state and its entity requirement after an encrypted full-state commit and cold reload', async () => {
     const folder = addFolder({
       state: initialFolderState,

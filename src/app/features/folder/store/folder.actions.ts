@@ -1,3 +1,4 @@
+import { props } from '@ngrx/store';
 import { createAction } from '@ngrx/store';
 import { Folder, FolderState } from '../folder.model';
 import { applyFolderIntent, FolderIntent } from '../folder-state';
@@ -48,4 +49,10 @@ export const removeFolder = createAction(
   '[Folder] Remove',
   (p: { state: FolderState; id: string }) =>
     snapshotIntent(p.state, { kind: 'remove', id: p.id }),
+);
+
+/** Startup installs only a durably saved, validated projection; never captured. */
+export const installLegacyFolderMigration = createAction(
+  '[Folder] Install persisted legacy migration',
+  props<{ folderState: FolderState }>(),
 );

@@ -500,6 +500,7 @@ export class OperationUploadService {
           payloadBytes: BigInt(sized.bytes),
           vectorClock: op.vectorClock as Prisma.InputJsonValue,
           schemaVersion: op.schemaVersion,
+          requiredEntityTypes: op.requiredEntityTypes ?? [],
           clientTimestamp: BigInt(op.timestamp),
           receivedAt: BigInt(now),
           isPayloadEncrypted: op.isPayloadEncrypted ?? false,

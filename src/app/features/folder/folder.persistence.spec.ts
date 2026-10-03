@@ -1,3 +1,8 @@
+import {
+  migrateLegacyProjectFolders,
+  projectFolderId,
+} from './legacy-project-folder-migration';
+import { removeFolder } from './store/folder.actions';
 import { TestBed } from '@angular/core/testing';
 import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
 import { FolderState } from './folder.model';
@@ -195,6 +200,48 @@ describe('Folder IndexedDB cache and operation tail', () => {
     db = TestBed.inject(OperationLogStoreService);
     await db.init();
     await db._clearAllDataForTesting();
+  });
+  it('persists a legacy bridge and its deletion evidence across fresh IndexedDB readers', async () => {
+    const legacy = createValidAppData();
+    delete legacy.folder;
+    const original = structuredClone(legacy);
+    await db.saveStateCache({
+      state: legacy,
+      lastAppliedOpSeq: 0,
+      vectorClock: { legacy: 1 },
+      compactedAt: 1,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    });
+    const fresh = TestBed.runInInjectionContext(() => new OperationLogStoreService());
+    const cache = (await fresh.loadStateCache())!;
+    const source = cache.state as AppDataComplete;
+    let folder = migrateLegacyProjectFolders(
+      source.project,
+      source.menuTree,
+      source.folder,
+    );
+    expect(folder.entities[projectFolderId('INBOX')]).toBeDefined();
+    expect(source).toEqual(original);
+    await fresh.saveStateCache({
+      ...cache,
+      schemaVersion: cache.schemaVersion ?? CURRENT_SCHEMA_VERSION,
+      state: { ...source, folder },
+    });
+    folder = removeFolder({ state: folder, id: projectFolderId('INBOX') }).folderState;
+    await fresh.saveStateCache({
+      ...cache,
+      schemaVersion: cache.schemaVersion ?? CURRENT_SCHEMA_VERSION,
+      state: { ...source, folder },
+    });
+    const restored = (await db.loadStateCache())!.state as AppDataComplete;
+    expect(
+      migrateLegacyProjectFolders(restored.project, restored.menuTree, restored.folder),
+    ).toEqual(folder);
+    expect(restored.project).toEqual(original.project);
+    expect(restored.tag).toEqual(original.tag);
+    expect(restored.section).toEqual(original.section);
+    expect(restored.task).toEqual(original.task);
+    expect(await db.getLastSeq()).toBe(0);
   });
   it('restores a snapshot plus tail using a fresh persistence service', async () => {
     const data = { ...createValidAppData(), folder: seeded() };

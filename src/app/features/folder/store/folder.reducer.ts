@@ -18,6 +18,10 @@ export const folderReducer = createReducer(
       return folderState;
     },
   ),
+  on(FolderActions.installLegacyFolderMigration, (_state, { folderState }) => {
+    assertFolderState(folderState);
+    return folderState;
+  }),
   on(loadAllData, (_state, { appDataComplete }) => {
     if (!Object.hasOwn(appDataComplete, 'folder')) return initialFolderState;
     const folder = (appDataComplete as { folder?: unknown }).folder;

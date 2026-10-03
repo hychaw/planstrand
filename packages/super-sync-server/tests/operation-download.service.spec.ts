@@ -40,6 +40,7 @@ const EXPECTED_OPERATION_DOWNLOAD_SELECT = {
   payload: true,
   vectorClock: true,
   schemaVersion: true,
+  requiredEntityTypes: true,
   clientTimestamp: true,
   receivedAt: true,
   isPayloadEncrypted: true,

@@ -170,6 +170,7 @@ describe('OperationLogHydratorService', () => {
       'isValidSnapshot',
       'migrateSnapshotWithBackup',
       'backfillLegacyTaskSchedules',
+      'backfillLegacyFolders',
       'saveCurrentStateAsSnapshot',
     ]);
     mockCompactionService = jasmine.createSpyObj('OperationLogCompactionService', [

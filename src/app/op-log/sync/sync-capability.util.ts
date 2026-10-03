@@ -1,3 +1,5 @@
+import { getFullStateRequiredEntityTypes } from '@sp/shared-schema';
+import { extractFullStateFromPayload } from '../core/operation.types';
 import {
   ENTITY_TYPES,
   SUPER_SYNC_CAPABILITY_CONTRACT_VERSION,
@@ -42,7 +44,13 @@ export const getOperationCapabilityRequirement = (
   const entityTypes = new Set<string>();
   if (operation.entityType === 'ALL') {
     for (const entityType of ENTITY_TYPES) {
-      entityTypes.add(entityType);
+      if (
+        entityType !== 'FOLDER' ||
+        getFullStateRequiredEntityTypes(
+          extractFullStateFromPayload(operation.payload),
+        ).includes('FOLDER')
+      )
+        entityTypes.add(entityType);
     }
   } else {
     entityTypes.add(operation.entityType);

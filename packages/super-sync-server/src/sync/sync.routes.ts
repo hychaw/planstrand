@@ -4,6 +4,12 @@ import {
   SuperSyncDownloadOpsQuerySchema,
 } from '@sp/shared-schema';
 import { authenticate, getAuthUser } from '../middleware';
+import { FolderReplayUnsupportedError } from './op-replay';
+import { assertFullStateReader } from './full-state-reader-gate';
+import {
+  supportsRequiredEntityTypes,
+  getFullStateRequiredEntityTypes,
+} from '@sp/shared-schema';
 import { getSyncService } from './sync.service';
 import { parseAppVersion } from './checkpoint-gate';
 import { Logger } from '../logger';
@@ -73,6 +79,46 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
 
   // All sync routes require authentication
   fastify.addHook('preHandler', authenticate);
+  fastify.addHook('preHandler', async (req, reply) => {
+    const query = req.query as { supportedEntityTypes?: unknown };
+    if (
+      !(await assertFullStateReader(getAuthUser(req).userId, query.supportedEntityTypes))
+    ) {
+      return reply.code(409).send({
+        error: 'Full state requires unsupported entity capabilities',
+        errorCode: 'FULL_STATE_READER_UNSUPPORTED',
+      });
+    }
+  });
+  // Close the read race: a replacement can commit after preHandler's lookup.
+  // Never return ciphertext-bearing operations (including piggybacks) to an
+  // unsupported reader, nor a latestSeq from a rejected download.
+  fastify.addHook('preSerialization', async (req, reply, payload) => {
+    const data = payload as {
+      state?: unknown;
+      ops?: { op: { requiredEntityTypes?: string[] } }[];
+      newOps?: { op: { requiredEntityTypes?: string[] } }[];
+    };
+    const advertised = (req.query as { supportedEntityTypes?: unknown })
+      .supportedEntityTypes;
+    const supported = typeof advertised === 'string' ? advertised.split(',') : [];
+    if (
+      !supportsRequiredEntityTypes(
+        getFullStateRequiredEntityTypes(data?.state),
+        supported,
+      ) ||
+      [...(data?.ops ?? []), ...(data?.newOps ?? [])].some(
+        ({ op }) => !supportsRequiredEntityTypes(op.requiredEntityTypes, supported),
+      )
+    ) {
+      reply.code(409);
+      return {
+        error: 'Full state requires unsupported entity capabilities',
+        errorCode: 'FULL_STATE_READER_UNSUPPORTED',
+      };
+    }
+    return payload;
+  });
 
   // POST /api/sync/ops - Upload operations
   // Route-level limiting is a pre-auth per-IP backstop for upload floods before
@@ -407,6 +453,11 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
 
         return reply.send(snapshot);
       } catch (err) {
+        if (err instanceof FolderReplayUnsupportedError) {
+          return reply
+            .status(400)
+            .send({ error: err.message, errorCode: 'FOLDER_REPLAY_UNSUPPORTED' });
+        }
         // Handle encrypted ops error - this is a known limitation, not a server error
         if (err instanceof EncryptedOpsNotSupportedError) {
           Logger.info(

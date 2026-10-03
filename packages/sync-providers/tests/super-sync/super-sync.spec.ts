@@ -2448,3 +2448,46 @@ describe('SuperSyncProvider', () => {
 beforeEach(() => {
   vi.clearAllMocks();
 });
+
+describe('Full-state reader advertisement transport', () => {
+  it('advertises reader entity support on download and preserves encrypted snapshot requirements', async () => {
+    const built = buildProvider();
+    built.cfgStore.load.mockResolvedValue(testConfig);
+    built.deps.supportedEntityTypes = ['FOLDER', 'TASK'];
+    built.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ops: [], latestSeq: 0, hasMore: false }), {
+        status: 200,
+      }),
+    );
+    await built.provider.downloadOps(0);
+    expect(String(built.fetchMock.mock.calls[0][0])).toContain(
+      'supportedEntityTypes=FOLDER%2CTASK',
+    );
+    built.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ accepted: true, serverSeq: 8 }), { status: 200 }),
+    );
+    await built.provider.uploadSnapshot(
+      'ciphertext',
+      'current',
+      'recovery',
+      {},
+      5,
+      true,
+      '00000000-0000-7000-8000-000000000001',
+      false,
+      'SYNC_IMPORT',
+      undefined,
+      undefined,
+      undefined,
+      ['FOLDER'],
+    );
+    const request = built.fetchMock.mock.calls[1][1] as RequestInit;
+    const stream = new Blob([request.body as BlobPart])
+      .stream()
+      .pipeThrough(new DecompressionStream('gzip'));
+    const body = JSON.parse(await new Response(stream).text());
+    expect(body.requiredEntityTypes).toEqual(['FOLDER']);
+    expect(body.state).toBe('ciphertext');
+    expect(built.storage.setLastServerSeq).not.toHaveBeenCalled();
+  });
+});

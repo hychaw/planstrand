@@ -1,3 +1,4 @@
+import { installLegacyFolderMigration } from '../../features/folder/store/folder.actions';
 import {
   buildHydrationReplayBatch,
   HydrationReplayBatch,
@@ -335,6 +336,9 @@ export class OperationLogHydratorService {
       // Reuse the quiesced snapshot transaction, preserving its version/clock/seq.
       // Failed/degraded hydration must not overwrite an intact recovery anchor.
       if (!hydrationFallbackRan) {
+        await this.snapshotService.backfillLegacyFolders((folderState) =>
+          this.store.dispatch(installLegacyFolderMigration({ folderState })),
+        );
         await this.snapshotService.backfillLegacyTaskSchedules((sessions) =>
           this.store.dispatch(installLegacyWorkSessionBackfill({ sessions })),
         );
