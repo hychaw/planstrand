@@ -169,6 +169,7 @@ describe('OperationLogHydratorService', () => {
     mockSnapshotService = jasmine.createSpyObj('OperationLogSnapshotService', [
       'isValidSnapshot',
       'migrateSnapshotWithBackup',
+      'backfillLegacyTaskSchedules',
       'saveCurrentStateAsSnapshot',
     ]);
     mockCompactionService = jasmine.createSpyObj('OperationLogCompactionService', [
@@ -332,6 +333,25 @@ describe('OperationLogHydratorService', () => {
     });
 
     describe('snapshot loading', () => {
+      it('backfills only after tail replay and failed-operation retries without appending ops', async () => {
+        mockOpLogStore.loadStateCache.and.resolveTo(createMockSnapshot());
+        mockOpLogStore.getOpsAfterSeq.and.resolveTo([
+          createMockEntry(11, createMockOperation('tail')),
+        ]);
+        const retry = spyOn(service, 'retryFailedRemoteOps').and.resolveTo();
+        mockSnapshotService.backfillLegacyTaskSchedules.and.callFake(async (install) => {
+          expect(mockStore.dispatch).toHaveBeenCalledWith(
+            jasmine.objectContaining({ type: bulkApplyHydrationOperations.type }),
+          );
+          expect(retry).toHaveBeenCalled();
+          install({ ids: [], entities: {} });
+          return true;
+        });
+        await service.hydrateStore();
+        expect(mockSnapshotService.backfillLegacyTaskSchedules).toHaveBeenCalledTimes(1);
+        expect(mockOpLogStore.append).not.toHaveBeenCalled();
+      });
+
       it('should load snapshot and dispatch to store', async () => {
         const snapshot = createMockSnapshot();
         mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));

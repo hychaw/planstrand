@@ -591,6 +591,7 @@ describe('BackupService', () => {
         created: 50,
         modified: 50,
         timeZone: 'UTC',
+        futureField: 'retain-unsupported-payload',
       };
       data.workSession = { ids: [future.id], entities: { [future.id]: future } };
       await expectAsync(

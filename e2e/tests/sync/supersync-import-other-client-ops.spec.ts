@@ -53,6 +53,9 @@ interface StoredServerOperation {
 
 interface MutableUploadOperation {
   id: string;
+  entityType: string;
+  entityId?: string;
+  opType: string;
   vectorClock: Record<string, number>;
 }
 
@@ -197,6 +200,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
 
       const uploadedClockSizes: number[] = [];
       const uploadedOperationIds: string[] = [];
+      const taskCreateIds: string[] = [];
       await routeSuperSyncOps(clientB.page, async (route) => {
         if (route.request().method() !== 'POST') {
           await route.continue();
@@ -210,6 +214,9 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
           }
           uploadedClockSizes.push(Object.keys(operation.vectorClock).length);
           uploadedOperationIds.push(operation.id);
+          if (operation.entityType === 'TASK' && operation.opType === 'CRT') {
+            taskCreateIds.push(operation.id);
+          }
         }
 
         // Send the modified body as plain JSON even when the original browser
@@ -248,13 +255,15 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       await clientB.sync.syncAndWait();
       console.log('[Other-Client Import] Client B synced (ops uploaded)');
 
-      expect(uploadedClockSizes).toHaveLength(2);
+      expect(taskCreateIds).toHaveLength(2);
+      expect(new Set(taskCreateIds).size).toBe(2);
+      expect(uploadedClockSizes).toHaveLength(uploadedOperationIds.length);
       expect(uploadedClockSizes.every((size) => size > 20)).toBe(true);
       await unrouteSuperSyncOps(clientB.page);
 
       const storedCreateOperations = (
         await getStoredOperations(user.userId, 'CRT', 10)
-      ).filter((operation) => uploadedOperationIds.includes(operation.id));
+      ).filter((operation) => taskCreateIds.includes(operation.id));
       expect(storedCreateOperations).toHaveLength(2);
       for (const operation of storedCreateOperations) {
         expect(Object.keys(operation.vectorClock)).toHaveLength(20);

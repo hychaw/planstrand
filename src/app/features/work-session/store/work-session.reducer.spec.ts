@@ -1,4 +1,5 @@
 import { WorkSession } from '../work-session.model';
+import { legacyTaskWorkSessionId } from '../legacy-task-work-session-backfill';
 import {
   addWorkSession,
   completeWorkSession,
@@ -23,6 +24,128 @@ const session = (overrides: Partial<WorkSession> = {}): WorkSession => ({
 });
 
 describe('workSessionReducer', () => {
+  describe('authoritative migrated mutation seed', () => {
+    const id = legacyTaskWorkSessionId('task-1', 100);
+    const seed = (): WorkSession => session({ id, timeZone: 'America/Vancouver' });
+    it('keeps arbitrary, malformed-identity and old seedless missing mutations as no-ops', () => {
+      for (const target of ['session-1', 'legacy-task-schedule:not-deterministic', id]) {
+        const legacySession = target === id ? undefined : seed();
+        for (const action of [
+          updateWorkSession({
+            id: target,
+            changes: { end: 450 },
+            modified: 300,
+            legacySession,
+          }),
+          completeWorkSession({
+            id: target,
+            completedAt: 250,
+            modified: 300,
+            legacySession,
+          }),
+          uncompleteWorkSession({ id: target, modified: 300, legacySession }),
+        ])
+          expect(workSessionReducer(initialWorkSessionState, action)).toBe(
+            initialWorkSessionState,
+          );
+      }
+    });
+    it('ignores stale seeds for existing entities and applies only the delta', () => {
+      const current = seed();
+      const initial = workSessionReducer(
+        undefined,
+        addWorkSession({
+          workSession: {
+            ...current,
+            start: 300,
+            end: 450,
+            timeZone: 'Asia/Tokyo',
+            completedAt: 250,
+          },
+        }),
+      );
+      const resized = workSessionReducer(
+        initial,
+        updateWorkSession({
+          id,
+          changes: { end: 500 },
+          modified: 400,
+          legacySession: current,
+        }),
+      );
+      expect(resized.entities[id]).toEqual({
+        ...current,
+        start: 300,
+        end: 500,
+        timeZone: 'Asia/Tokyo',
+        completedAt: 250,
+        modified: 400,
+      });
+      expect(
+        workSessionReducer(
+          resized,
+          completeWorkSession({
+            id,
+            completedAt: 600,
+            modified: 600,
+            legacySession: current,
+          }),
+        ).entities[id],
+      ).toEqual({ ...resized.entities[id]!, completedAt: 600, modified: 600 });
+    });
+    it('preserves creation and completion when a seeded end-only edit establishes the entity', () => {
+      const current = { ...seed(), completedAt: 175 };
+      const next = workSessionReducer(
+        undefined,
+        updateWorkSession({
+          id,
+          changes: { end: 450 },
+          modified: 300,
+          legacySession: current,
+        }),
+      );
+      expect(next.entities[id]).toEqual({ ...current, end: 450, modified: 300 });
+      expect(Object.keys(next.entities[id]!)).not.toContain('legacySession');
+    });
+    it('rejects mismatched identities, malformed zones, ranges and future seed fields atomically', () => {
+      for (const legacySession of [
+        session(),
+        { ...seed(), timeZone: 'Invalid/Zone' },
+        { ...seed(), end: 50 },
+        { ...seed(), future: true },
+      ]) {
+        const action = updateWorkSession({
+          id,
+          changes: { end: 450 },
+          modified: 300,
+          legacySession,
+        });
+        expect(() => workSessionReducer(undefined, action)).toThrowError(
+          'Invalid migrated WorkSession seed',
+        );
+      }
+      expect(initialWorkSessionState.ids).toEqual([]);
+    });
+    it('does not resurrect dismissal through any seeded mutation', () => {
+      const state = workSessionReducer(undefined, removeWorkSession({ id }));
+      for (const action of [
+        updateWorkSession({
+          id,
+          changes: { end: 450 },
+          modified: 300,
+          legacySession: seed(),
+        }),
+        completeWorkSession({
+          id,
+          completedAt: 250,
+          modified: 300,
+          legacySession: seed(),
+        }),
+        uncompleteWorkSession({ id, modified: 300, legacySession: seed() }),
+      ])
+        expect(workSessionReducer(state, action)).toBe(state);
+    });
+  });
   it('starts with an empty normalized state', () => {
     expect(initialWorkSessionState).toEqual({ ids: [], entities: {} });
   });
@@ -56,14 +179,14 @@ describe('workSessionReducer', () => {
   });
 
   it('rejects future entity fields instead of silently downgrading them', () => {
-    const future = { ...session(), timeZone: 'UTC' };
+    const future = { ...session(), source: 'future-contract' };
     expect(() =>
       workSessionReducer(
         initialWorkSessionState,
         addWorkSession({ workSession: future }),
       ),
     ).toThrowError('Invalid WorkSession');
-    expect(future.timeZone).toBe('UTC');
+    expect(future.source).toBe('future-contract');
     expect(initialWorkSessionState).toEqual({ ids: [], entities: {} });
   });
 
@@ -72,7 +195,7 @@ describe('workSessionReducer', () => {
       initialWorkSessionState,
       addWorkSession({ workSession: session() }),
     );
-    const changes = { end: 250, timeZone: 'UTC' };
+    const changes = { end: 250, source: 'future-contract' };
     expect(() =>
       workSessionReducer(
         state,
@@ -80,7 +203,47 @@ describe('workSessionReducer', () => {
       ),
     ).toThrowError('Invalid WorkSession changes');
     expect(state.entities['session-1']).toEqual(session());
-    expect(changes.timeZone).toBe('UTC');
+    expect(changes.source).toBe('future-contract');
+  });
+
+  it('accepts legacy sessions and valid zones but rejects invalid explicit zones', () => {
+    expect(isValidWorkSession(session())).toBeTrue();
+    expect(isValidWorkSession(session({ timeZone: 'America/Vancouver' }))).toBeTrue();
+    for (const timeZone of ['Invalid/Zone', '', '+01:00', null, undefined, 42]) {
+      expect(isValidWorkSession({ ...session(), timeZone })).toBeFalse();
+    }
+  });
+
+  it('changes timezone and preserves it through range edits and JSON replay', () => {
+    const initial = workSessionReducer(
+      initialWorkSessionState,
+      addWorkSession({ workSession: session({ timeZone: 'Europe/Berlin' }) }),
+    );
+    const changed = workSessionReducer(
+      initial,
+      updateWorkSession({
+        id: 'session-1',
+        changes: { timeZone: 'America/Vancouver' },
+        modified: 60,
+      }),
+    );
+    const action = updateWorkSession({
+      id: 'session-1',
+      changes: { start: 300, end: 400 },
+      modified: 70,
+    });
+    const replayed = workSessionReducer(changed, JSON.parse(JSON.stringify(action)));
+    expect(replayed.entities['session-1']).toEqual(
+      session({ start: 300, end: 400, timeZone: 'America/Vancouver', modified: 70 }),
+    );
+    for (const timeZone of ['Invalid/Zone', undefined]) {
+      expect(() =>
+        workSessionReducer(
+          changed,
+          updateWorkSession({ id: 'session-1', changes: { timeZone }, modified: 80 }),
+        ),
+      ).toThrowError('Invalid WorkSession changes');
+    }
   });
 
   it('updates only Phase 1 editable fields and preserves completion', () => {

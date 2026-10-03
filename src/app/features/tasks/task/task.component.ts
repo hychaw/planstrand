@@ -1,3 +1,5 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
+import { TaskService } from '../task.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
@@ -16,7 +18,6 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { TaskService } from '../task.service';
 import { TaskDuplicateService } from '../task-duplicate.service';
 import { TaskMultiSelectService } from '../task-multi-select.service';
 import { TaskMoveToProjectService } from '../task-move-to-project.service';
@@ -73,7 +74,6 @@ import { DateAdapter } from '@angular/material/core';
 import { getDbDateStr, isDBDateStr } from '../../../util/get-db-date-str';
 import { combineDateAndTime } from '../../../util/combine-date-and-time';
 import { getNextWeekDayOffset } from '../../../util/get-next-week-day-offset';
-import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
 import { DateService } from '../../../core/date/date.service';
 import { isTouchActive } from '../../../util/input-intent';
 import { IS_HYBRID_DEVICE } from '../../../util/is-mouse-primary';
@@ -114,7 +114,6 @@ import { GlobalTrackingIntervalService } from '../../../core/global-tracking-int
 import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { TaskFocusService } from '../task-focus.service';
 import { MatTooltip } from '@angular/material/tooltip';
-import { millisecondsDiffToRemindOption } from '../util/remind-option-to-milliseconds';
 import { MenuTreeService } from '../../menu-tree/menu-tree.service';
 import { SelectOptionRowComponent } from '../../../ui/select-option-row/select-option-row.component';
 import { SnackService } from '../../../core/snack/snack.service';
@@ -181,6 +180,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
   ],
 })
 export class TaskComponent implements OnDestroy, AfterViewInit {
+  private readonly _workSessionService = inject(WorkSessionService);
   private readonly _taskService = inject(TaskService);
   private readonly _taskDuplicateService = inject(TaskDuplicateService);
   private readonly _matDialog = inject(MatDialog);
@@ -698,12 +698,8 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     const task = this.task();
     if (task.dueWithTime) {
       const newDate = combineDateAndTime(dayDate, new Date(task.dueWithTime));
-      const remindCfg = task.reminderId
-        ? millisecondsDiffToRemindOption(task.dueWithTime, task.remindAt)
-        : (this._configService.cfg()?.reminder.defaultTaskRemindOption ??
-          DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!);
 
-      this._taskService.scheduleTask(task, newDate.getTime(), remindCfg, false);
+      if (!this._workSessionService.scheduleTask(task, newDate.getTime())) return;
       this._snackService.open({
         type: 'SUCCESS',
         msg: T.F.PLANNER.S.TASK_PLANNED_FOR,

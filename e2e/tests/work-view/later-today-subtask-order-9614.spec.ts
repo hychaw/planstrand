@@ -19,18 +19,6 @@ import { expect, test } from '../../fixtures/test.fixture';
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
-const getFutureTimeToday = (): string => {
-  const now = new Date();
-  const future = new Date(now.getTime() + TWO_HOURS_MS);
-  if (future.getDate() !== now.getDate()) {
-    // Close to midnight: clamp to the last minutes of today.
-    return '23:59';
-  }
-  const hh = String(future.getHours()).padStart(2, '0');
-  const mm = String(future.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
-};
-
 test.describe('Later Today: subtask order (#9614)', () => {
   test('reordering subtasks is reflected in the Later Today panel', async ({
     page,
@@ -50,24 +38,42 @@ test.describe('Later Today: subtask order (#9614)', () => {
     await workViewPage.addSubTask(parent, `${testPrefix}-Sub3`);
     await expect(taskPage.getSubTasks(parent)).toHaveCount(3);
 
-    // Schedule the parent for later today via the schedule dialog ('s').
-    await parent.focus();
-    await expect(parent).toBeFocused();
-    await page.keyboard.press('s');
-
-    const scheduleDialog = page.locator('dialog-schedule-task');
-    await expect(scheduleDialog).toBeVisible({ timeout: 10000 });
-
-    const todayCell = scheduleDialog.locator('.mat-calendar-body-today').first();
-    await expect(todayCell).toBeVisible();
-    await todayCell.click();
-
-    const timeInput = scheduleDialog.locator('input[type="time"]');
-    await timeInput.waitFor({ state: 'visible', timeout: 10000 });
-    await timeInput.fill(getFutureTimeToday());
-
-    await scheduleDialog.locator('[data-test-id="schedule-submit-btn"]').click();
-    await scheduleDialog.waitFor({ state: 'hidden', timeout: 10000 });
+    // This selector serves legacy timed repeat instances. The normal schedule
+    // dialog now creates independent WorkSessions, so seed the legacy action.
+    const parentId = await parent.getAttribute('data-task-id');
+    expect(parentId).toBeTruthy();
+    await page.evaluate(
+      ({ id, delta }) => {
+        type Task = { id: string };
+        type State = { tasks: { entities: Record<string, Task> } };
+        const store = (
+          window as unknown as {
+            __e2eTestHelpers: {
+              store: {
+                subscribe: (fn: (state: State) => void) => { unsubscribe: () => void };
+                dispatch: (action: unknown) => void;
+              };
+            };
+          }
+        ).__e2eTestHelpers.store;
+        let state!: State;
+        store
+          .subscribe((s) => {
+            state = s;
+          })
+          .unsubscribe();
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 0, 0);
+        store.dispatch({
+          type: '[Task Shared] scheduleTaskWithTime',
+          task: state.tasks.entities[id!],
+          dueWithTime: Math.min(Date.now() + delta, endOfToday.getTime()),
+          isMoveToBacklog: false,
+          meta: { isPersistent: true, entityType: 'TASK', entityId: id, opType: 'UPD' },
+        });
+      },
+      { id: parentId, delta: TWO_HOURS_MS },
+    );
 
     // The parent now lives in the "Later Today" panel.
     const laterTodayList = page.locator('task-list[listModelId="LATER_TODAY"]');

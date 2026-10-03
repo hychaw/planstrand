@@ -5,6 +5,9 @@ import {
   createSimulatedClient,
   createTestUser,
   getSuperSyncConfig,
+  isSuperSyncCutoverProbe,
+  parseSuperSyncRequestBody,
+  routeSuperSyncOps,
   SUPERSYNC_BASE_URL,
   waitForTask,
   type SimulatedE2EClient,
@@ -87,13 +90,33 @@ test.describe('@supersync Realtime Push', () => {
       expect(baselineSeq).toBeGreaterThan(0);
 
       const requests = { A: { GET: 0, POST: 0 }, B: { GET: 0, POST: 0 } };
+      const cutoverProbes: string[] = [];
       const uploads: Response[] = [];
+      const uploadedOps: Array<{
+        id: string;
+        entityId?: string;
+        entityType: string;
+        opType: string;
+      }> = [];
+      await routeSuperSyncOps(clientA.page, async (route) => {
+        if (route.request().method() === 'POST') {
+          uploadedOps.push(
+            ...parseSuperSyncRequestBody<{ ops: typeof uploadedOps }>(route.request())
+              .ops,
+          );
+        }
+        await route.continue();
+      });
       for (const [client, counts] of [
         [clientA, requests.A],
         [clientB, requests.B],
       ] as const) {
         client.page.on('request', (request) => {
           if (new URL(request.url()).pathname !== '/api/sync/ops') return;
+          if (isSuperSyncCutoverProbe(request)) {
+            cutoverProbes.push(client.clientName);
+            return;
+          }
           const method = request.method();
           if (method === 'GET' || method === 'POST') counts[method]++;
         });
@@ -121,11 +144,19 @@ test.describe('@supersync Realtime Push', () => {
       expect(await clientB.sync.hasSyncError()).toBe(false);
       await expect.poll(() => uploads.length).toBe(1);
       const upload = (await uploads[0].json()) as {
-        results: { accepted: boolean; serverSeq?: number }[];
+        results: { opId: string; accepted: boolean; serverSeq?: number }[];
       };
-      expect(upload.results).toHaveLength(1);
-      expect(upload.results[0].accepted).toBe(true);
-      const uploadedSeq = upload.results[0].serverSeq!;
+      const taskCreates = uploadedOps.filter(
+        (op) => op.entityType === 'TASK' && op.opType === 'CRT',
+      );
+      expect(taskCreates).toHaveLength(1);
+      expect(upload.results).toHaveLength(uploadedOps.length);
+      for (const op of uploadedOps) {
+        const results = upload.results.filter((result) => result.opId === op.id);
+        expect(results).toHaveLength(1);
+        expect(results[0].accepted).toBe(true);
+      }
+      const uploadedSeq = Math.max(...upload.results.map((result) => result.serverSeq!));
       expect(uploadedSeq).toBeGreaterThan(baselineSeq);
       await expect.poll(() => notifiedSeq).toBeGreaterThanOrEqual(uploadedSeq);
       await expect
@@ -154,6 +185,7 @@ test.describe('@supersync Realtime Push', () => {
       await test.info().attach('realtime-push-metrics', {
         body: JSON.stringify({
           requests: appendRequests,
+          cutoverProbes,
           propagationMs,
           uploadedSeq,
           reloadedSeq,

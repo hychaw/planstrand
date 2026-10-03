@@ -24,7 +24,7 @@ import { first } from 'rxjs/operators';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { signal, Signal } from '@angular/core';
 import { AddTaskSuggestion } from './add-task-suggestions.model';
-import { TaskCopy, TaskReminderOptionId } from '../task.model';
+import { DEFAULT_TASK, TaskCopy, TaskReminderOptionId } from '../task.model';
 import { DateTimeFormatService } from 'src/app/core/date-time-format/date-time-format.service';
 import { DEFAULT_LOCALE } from 'src/app/core/locale.constants';
 import { DateService } from '../../../core/date/date.service';
@@ -196,6 +196,9 @@ describe('AddTaskBarComponent', () => {
       'scheduleTask',
       'moveToCurrentWorkContext',
     ]);
+    mockTaskService.getByIdOnce$.and.callFake((id) =>
+      of({ ...DEFAULT_TASK, id, projectId: 'INBOX_PROJECT' }),
+    );
     mockWorkContextService = jasmine.createSpyObj('WorkContextService', [], {
       activeWorkContext$: new BehaviorSubject<WorkContext | null>(null),
     });
@@ -494,6 +497,26 @@ describe('AddTaskBarComponent', () => {
   });
 
   describe('addTask', () => {
+    it('plans a newly created date-only task in canonical Planning', async () => {
+      mockTaskService.add.and.returnValue('task-1');
+      const task: TaskCopy = {
+        ...DEFAULT_TASK,
+        projectId: 'INBOX_PROJECT',
+        id: 'task-1',
+        title: 'Ordinary task',
+      };
+      mockTaskService.getByIdOnce$.and.returnValue(of(task));
+      component.stateService.updateInputTxt('Ordinary task');
+      component.stateService.updateCleanText('Ordinary task');
+      component.stateService.updateDate('2026-10-02');
+
+      await component.addTask();
+      await flushPlanningWrites();
+
+      expectPlanningDay(mockStore.dispatch, 'task-1', '2026-10-02');
+      expect(mockTaskService.scheduleTask).not.toHaveBeenCalled();
+    });
+
     it('should not add a task when the visible input is empty', async () => {
       component.stateService.updateCleanText('Stale task');
       component.stateService.updateInputTxt('   ');

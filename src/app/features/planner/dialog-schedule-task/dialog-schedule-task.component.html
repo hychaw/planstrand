@@ -5,6 +5,7 @@
       [selectedTime]="selectedTime"
       [selectedReminderCfgId]="selectedReminderCfgId"
       [reminderOptions]="remindAvailableOptions"
+      [showReminder]="!!data.isSelectDueOnly"
       [minDate]="minDate"
       [showQuickAccess]="data.showQuickAccess !== false"
       [timeLabel]="T.F.TASK.D_SELECT_DATE_AND_TIME.TIME | translate"
@@ -66,7 +67,10 @@
         <span class="action-label">{{ T.G.CANCEL | translate }}</span>
       </button>
       @if (
-        !data.isSelectDueOnly && data.task && (data.task.dueWithTime || plannedDayForTask)
+        !data.isSelectDueOnly &&
+        !scheduledSession() &&
+        data.task &&
+        (data.task.dueWithTime || plannedDayForTask)
       ) {
         <button
           (click)="remove()"

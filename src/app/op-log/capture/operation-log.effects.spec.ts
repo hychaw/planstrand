@@ -27,7 +27,10 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { T } from '../../t.const';
 import { SnackParams } from '../../core/snack/snack.model';
 import { updateGlobalConfigSection } from '../../features/config/store/global-config.actions';
-import { addWorkSession } from '../../features/work-session/store/work-session.actions';
+import {
+  addWorkSession,
+  updateWorkSession,
+} from '../../features/work-session/store/work-session.actions';
 
 describe('OperationLogEffects', () => {
   let effects: OperationLogEffects;
@@ -1011,6 +1014,7 @@ describe('OperationLogEffects', () => {
         taskId: 'task-1',
         start: 100,
         end: 200,
+        timeZone: 'America/Vancouver',
         created: 50,
         modified: 50,
       };
@@ -1025,6 +1029,70 @@ describe('OperationLogEffects', () => {
           entityId: workSession.id,
           opType: OpType.Create,
           payload: { actionPayload: { workSession }, entityChanges: [] },
+        }),
+        'local',
+      );
+    });
+    it('captures a timezone update without changing the operation envelope', async () => {
+      const action = updateWorkSession({
+        id: 'session-1',
+        changes: { timeZone: 'Asia/Singapore' },
+        modified: 100,
+      });
+      bufferDeferredAction(action);
+      await effects.processDeferredActions();
+      expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: updateWorkSession.type,
+          entityType: 'WORK_SESSION',
+          entityId: action.id,
+          opType: OpType.Update,
+          payload: {
+            actionPayload: {
+              id: action.id,
+              changes: action.changes,
+              modified: action.modified,
+            },
+            entityChanges: [],
+          },
+        }),
+        'local',
+      );
+    });
+    it('captures one migrated update with its authoritative seed in the action payload', async () => {
+      const legacySession = {
+        id: 'legacy-task-schedule:6:task-1:100',
+        taskId: 'task-1',
+        start: 100,
+        end: 200,
+        timeZone: 'America/Vancouver',
+        created: 100,
+        modified: 100,
+      };
+      const action = updateWorkSession({
+        id: legacySession.id,
+        changes: { start: 300, end: 450 },
+        modified: 300,
+        legacySession,
+      });
+      bufferDeferredAction(action);
+      await effects.processDeferredActions();
+      expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+      expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: updateWorkSession.type,
+          entityType: 'WORK_SESSION',
+          entityId: action.id,
+          opType: OpType.Update,
+          payload: {
+            actionPayload: {
+              id: action.id,
+              changes: action.changes,
+              modified: action.modified,
+              legacySession,
+            },
+            entityChanges: [],
+          },
         }),
         'local',
       );

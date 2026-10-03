@@ -1,8 +1,10 @@
 import { SVEType } from './schedule.const';
+import { CalendarDisplayItem } from './calendar-display-item.model';
 import { TaskCopy, TaskWithDueTime } from '../tasks/task.model';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
 import { CalendarIntegrationEvent } from '../calendar-integration/calendar-integration.model';
 import { oneDayInMilliseconds } from '../../util/month-time-conversion';
+import { isValidIanaTimeZone } from '../../util/iana-time-zone';
 
 export interface ScheduleEvent {
   id: string;
@@ -38,6 +40,11 @@ interface SVEBase {
 export interface SVETask extends SVEBase {
   type: SVEType.Task | SVEType.TaskPlannedForDay | SVEType.ScheduledTask;
   data: TaskCopy;
+}
+
+interface SVEWorkSession extends SVEBase {
+  type: SVEType.WorkSession;
+  data: CalendarDisplayItem;
 }
 
 export interface SVESplitTaskStart extends SVEBase {
@@ -117,6 +124,7 @@ export type SVEEntryForNextDay =
   | SVERepeatProjectionSplitContinued;
 
 export type SVE =
+  | SVEWorkSession
   | SVETask
   | SVESplitTaskStart
   | SVETaskPlannedForDay
@@ -133,6 +141,23 @@ export type SVE =
 export interface ScheduleCalendarMapEntry {
   items: ScheduleFromCalendarEvent[];
 }
+
+/** Timing edits require a stored zone; explicit removal does not. */
+export const editableWorkSession = (
+  event: ScheduleEvent | null,
+  capability: 'canMove' | 'canResize' | 'canDelete',
+): CalendarDisplayItem | null => {
+  if (event?.type !== SVEType.WorkSession || !event.data) return null;
+  const item = event.data as CalendarDisplayItem;
+  return item.sourceType === 'workSession' &&
+    !!item.sourceId &&
+    item[capability] &&
+    !item.isReadOnly &&
+    (capability === 'canDelete' ||
+      (typeof item.timeZone === 'string' && isValidIanaTimeZone(item.timeZone)))
+    ? item
+    : null;
+};
 
 export const isScheduleCalendarEvent = (
   event: ScheduleEvent | null,
@@ -156,6 +181,7 @@ export const isAllDayCalendarEvent = (calEv: ScheduleFromCalendarEvent): boolean
 // -----------------
 // BlockedBlocks
 export enum BlockedBlockType {
+  WorkSession = 'WorkSession',
   ScheduledTask = 'ScheduledTask',
   ScheduledTaskSplit = 'ScheduledTaskSplit',
   ScheduledRepeatProjection = 'ScheduledRepeatProjection',
@@ -204,11 +230,19 @@ export interface BlockedBlockEntryLunchBreak {
 }
 
 export type BlockedBlockEntry =
+  | BlockedBlockEntryWorkSession
   | BlockedBlockEntryScheduledTask
   | BlockedBlockEntryScheduledRepeatProjection
   | BlockedBlockEntryCalendarEvent
   | BlockedBlockEntryWorkdayStartEnd
   | BlockedBlockEntryLunchBreak;
+
+interface BlockedBlockEntryWorkSession {
+  start: number;
+  end: number;
+  type: BlockedBlockType.WorkSession;
+  data: CalendarDisplayItem;
+}
 
 export interface BlockedBlock {
   start: number;

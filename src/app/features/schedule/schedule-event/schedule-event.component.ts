@@ -14,7 +14,12 @@ import {
 } from '@angular/core';
 import { hasLinkHints, RenderLinksPipe } from '../../../ui/pipes/render-links.pipe';
 import { CdkDrag } from '@angular/cdk/drag-drop';
-import { ScheduleEvent, ScheduleFromCalendarEvent } from '../schedule.model';
+import {
+  editableWorkSession,
+  ScheduleEvent,
+  ScheduleFromCalendarEvent,
+} from '../schedule.model';
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -92,6 +97,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   private _taskService = inject(TaskService);
   private _calEventActions = inject(CalendarEventActionsService);
   private _ngZone = inject(NgZone);
+  private readonly _workSessionService = inject(WorkSessionService);
   readonly titleHasLinks = computed(() => {
     const t = this.title();
     return !!t && hasLinkHints(t);
@@ -114,6 +120,15 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   });
 
   readonly calMenuTrigger = viewChild('calMenuTrigger', { read: MatMenuTrigger });
+  readonly sessionMenuTrigger = viewChild('sessionMenuTrigger', { read: MatMenuTrigger });
+  readonly canRemoveWorkSession = computed(
+    () => !!editableWorkSession(this.se(), 'canDelete') && !this.isDragPreview(),
+  );
+
+  removeWorkSession(): void {
+    const item = editableWorkSession(this.se(), 'canDelete');
+    if (item && !this.isDragPreview()) this._workSessionService.remove(item.sourceId);
+  }
   private readonly _calMenuItems = viewChildren(MatMenuItem);
   private readonly _titleEl = viewChild<ElementRef<HTMLElement>>('titleEl');
 
@@ -244,7 +259,9 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
       addClass += ' is-beyond-budget';
     }
 
-    return evt.type + '  ' + addClass;
+    // Reuse timed Task styling without entering its mutation paths (Phase 3E).
+    const styleType = evt.type === SVEType.WorkSession ? SVEType.ScheduledTask : evt.type;
+    return styleType + '  ' + addClass;
   });
 
   readonly style = computed(() => {
@@ -364,6 +381,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
       case SVEType.CalendarEvent:
         return 'CAL_PROJECTION';
       case SVEType.ScheduledTask:
+      case SVEType.WorkSession:
         return 'SCHEDULED_TASK';
       case SVEType.LunchBreak:
         return 'LUNCH_BREAK';
@@ -400,6 +418,8 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
           targetDate: evt.sourceOccurrenceDate ?? evt.plannedForDay,
         },
       });
+    } else if (this.canRemoveWorkSession()) {
+      this.sessionMenuTrigger()?.openMenu();
     } else if (evt.type === SVEType.CalendarEvent) {
       if (this._calMenuItems().length) {
         this.calMenuTrigger()?.openMenu();
@@ -458,6 +478,11 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   }
 
   onContextMenu(ev: MouseEvent | TouchEvent): void {
+    if (this.canRemoveWorkSession()) {
+      ev.preventDefault();
+      this.sessionMenuTrigger()?.openMenu();
+      return;
+    }
     const t = this.task();
     if (t) {
       this.openContextMenu(ev);
@@ -558,6 +583,9 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     // and SplitTaskContinuedLast is not reliably the final segment — every day
     // slice of a multi-day scheduled task carries that type (see
     // create-view-entries-for-block.ts), so the middle ones cannot grow at all.
+    if (evt.type === SVEType.WorkSession) {
+      return !!editableWorkSession(evt, 'canResize');
+    }
     return (
       !!t &&
       (evt.type === SVEType.ScheduledTask ||
@@ -636,6 +664,15 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     // Convert height change to time change (based on grid row height)
     // Each row represents a time slice (FH rows per hour)
     const timeChangeInMs = this._calculateTimeFromHeightDelta(this._heightDelta);
+
+    const session = editableWorkSession(this.se(), 'canResize');
+    if (session && Math.abs(timeChangeInMs) > 30000) {
+      // The existing bottom-edge gesture changes only the end instant.
+      // Domain validation rejects invalid ranges; clearing preview restores persisted UI.
+      this._workSessionService.update(session.sourceId, {
+        end: session.end + timeChangeInMs,
+      });
+    }
 
     const t = this.task();
     if (t && Math.abs(timeChangeInMs) > 30000) {

@@ -15,6 +15,7 @@ import {
 import { getTaskRepeatCfgsForExactDayCached } from '../../task-repeat-cfg/store/get-task-repeat-cfgs-for-exact-day-cached.util';
 import { isSameDay } from '../../../util/is-same-day';
 import { getDbDateStr } from '../../../util/get-db-date-str';
+import { CalendarDisplayItem } from '../calendar-display-item.model';
 const PROJECTION_DAYS: number = 30;
 
 export const createSortedBlockerBlocks = (
@@ -26,12 +27,41 @@ export const createSortedBlockerBlocks = (
   now: number = Date.now(),
   nrOfDays: number = PROJECTION_DAYS,
   realNow?: number,
+  calendarDisplayItems?: CalendarDisplayItem[],
 ): BlockedBlock[] => {
   if (typeof now !== 'number') {
     throw new Error('No valid now given');
   }
+  // Retain all scheduledTasks below as concrete repeat-instance evidence.
+  const legacyIds =
+    calendarDisplayItems &&
+    new Set(
+      calendarDisplayItems
+        .filter((item) => item.sourceType === 'legacyTask')
+        .map((item) => item.sourceId),
+    );
   let blockedBlocks: BlockedBlock[] = [
-    ...createBlockerBlocksForScheduledTasks(scheduledTasks),
+    ...createBlockerBlocksForScheduledTasks(
+      legacyIds
+        ? scheduledTasks.filter((task) => legacyIds.has(task.id))
+        : scheduledTasks,
+    ),
+    ...(calendarDisplayItems ?? [])
+      .filter((item) => item.sourceType === 'workSession')
+      .map(
+        (item): BlockedBlock => ({
+          start: item.start,
+          end: item.end,
+          entries: [
+            {
+              start: item.start,
+              end: item.end,
+              type: BlockedBlockType.WorkSession,
+              data: item,
+            },
+          ],
+        }),
+      ),
     ...createBlockerBlocksForCalendarEvents(icalEventMap),
     ...createBlockerBlocksForScheduledRepeatProjections(
       now,

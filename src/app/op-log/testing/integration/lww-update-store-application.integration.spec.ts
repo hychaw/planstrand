@@ -18,6 +18,16 @@ import { convertOpToAction } from '../../apply/operation-converter.util';
 import { ActionType, Operation, OpType, EntityType } from '../../core/operation.types';
 import { appStateFeatureKey } from '../../../root-store/app-state/app-state.reducer';
 import { getDbDateStr } from '../../../util/get-db-date-str';
+import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
+import { buildReplacementOperation } from '../../sync/build-replacement-operation';
+import {
+  getRemoteOpBlockReason,
+  takeInterpretableOpPrefix,
+} from '../../sync/remote-op-block.util';
+import {
+  encodeOperation,
+  decodeOperation,
+} from '../../persistence/compact/operation-codec.service';
 
 describe('LWW Update Store Application Integration', () => {
   // Feature names matching actual NgRx feature names
@@ -123,6 +133,46 @@ describe('LWW Update Store Application Integration', () => {
   };
 
   describe('LWW Update action handling via meta-reducer', () => {
+    it('admits a generated conflict replacement through wire, compact storage, remote screening and reducer replay', () => {
+      const originalTask = {
+        id: 'task1',
+        title: 'Original',
+        notes: '',
+        done: false,
+        modified: 1000,
+      };
+      const initialState = createMockRootState({ task1: originalTask });
+      const op = buildReplacementOperation(
+        'TASK',
+        'task1',
+        { ...originalTask, title: 'Winning title', notes: 'Merged notes' },
+        'resolver-client',
+        { localClient: 2, remoteClient: 3 },
+        2000,
+      );
+      expect(op.actionType).toBe('[TASK] LWW Update');
+      // Synthetic actions deliberately retain their full string in compact storage.
+      const wireOp = JSON.parse(JSON.stringify(op)) as Operation;
+      const compact = encodeOperation(wireOp);
+      expect(compact.a).toBe(op.actionType);
+      const persistedOp = decodeOperation(JSON.parse(JSON.stringify(compact)));
+      expect(persistedOp).toEqual(op);
+      expect(getRemoteOpBlockReason(persistedOp, CURRENT_SCHEMA_VERSION)).toBeNull();
+      const accepted = takeInterpretableOpPrefix([persistedOp]);
+      expect(accepted.length).toBe(1);
+      const reducer = lwwUpdateMetaReducer(passthroughReducer) as ActionReducer<
+        MockRootState,
+        Action
+      >;
+      const result = accepted.reduce(
+        (state, remoteOp) => reducer(state, convertOpToAction(remoteOp)),
+        initialState,
+      );
+      expect(result.tasks.entities['task1'].title).toBe('Winning title');
+      expect(result.tasks.entities['task1'].notes).toBe('Merged notes');
+      expect(originalTask.title).toBe('Original');
+    });
+
     it('should update task entity when [TASK] LWW Update action is dispatched', () => {
       const composedReducer = lwwUpdateMetaReducer(passthroughReducer) as ActionReducer<
         MockRootState,

@@ -97,6 +97,7 @@ export class DateTimePickerComponent implements AfterViewInit {
   selectedTime = input<string | null>(null);
   selectedReminderCfgId = input<TaskReminderOptionId>(TaskReminderOptionId.DoNotRemind);
   reminderOptions = input<TaskReminderOption[]>(TASK_REMINDER_OPTIONS);
+  showReminder = input(true);
   minDate = input<Date | null>(null);
   timeLabel = input<string>('Time');
   reminderLabel = input<string>(T.F.TASK.D_SCHEDULE_TASK.REMIND_AT);

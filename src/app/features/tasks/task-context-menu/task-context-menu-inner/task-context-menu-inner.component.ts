@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../../work-session/work-session.service';
 import { planningCommands } from '../../../planning/planning-commands';
 import { TaskPriorityIndicatorComponent } from '../../task-priority-indicator/task-priority-indicator.component';
 import { TASK_PRIORITY_LABEL_KEY, TASK_PRIORITY_LEVELS } from '../../task-priority.const';
@@ -77,7 +78,6 @@ import { MenuTouchFixDirective } from '../menu-touch-fix.directive';
 import { TaskLog } from '../../../../core/log';
 import { isTouchEventInstance } from '../../../../util/is-touch-event.util';
 import { TaskFocusService } from '../../task-focus.service';
-import { DEFAULT_GLOBAL_CONFIG } from 'src/app/features/config/default-global-config.const';
 import { MenuTreeService } from '../../../menu-tree/menu-tree.service';
 import { SelectOptionRowComponent } from '../../../../ui/select-option-row/select-option-row.component';
 import { AddSubtaskInputService } from '../../add-subtask-input/add-subtask-input.service';
@@ -116,6 +116,7 @@ import { PluginTaskContextMenuTarget } from '@super-productivity/plugin-api';
 export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
   private readonly _datePipe = inject(LocaleDatePipe);
   private readonly _taskService = inject(TaskService);
+  private readonly _workSessionService = inject(WorkSessionService);
   private readonly _matDialog = inject(MatDialog);
   private readonly _issueService = inject(IssueService);
   private readonly _elementRef = inject(ElementRef);
@@ -764,13 +765,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
     } else if (this.task.dueWithTime) {
       const task = this.task;
       const newDate = combineDateAndTime(newDayDate, new Date(this.task.dueWithTime));
-      this._taskService.scheduleTask(
-        task,
-        newDate.getTime(),
-        this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
-          DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!,
-        false,
-      );
+      this._workSessionService.scheduleTask(task, newDate.getTime());
     } else {
       if (newDay === this._dateService.todayStr()) {
         this.addToMyDay();

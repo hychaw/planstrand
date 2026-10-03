@@ -10,6 +10,7 @@ import {
 } from '../schedule.model';
 import { createScheduleDays } from './create-schedule-days';
 import { createBlockedBlocksByDayMap } from './create-blocked-blocks-by-day-map';
+import { CalendarDisplayItem } from '../calendar-display-item.model';
 
 export const mapToScheduleDays = (
   now: number,
@@ -28,6 +29,7 @@ export const mapToScheduleDays = (
   },
   lunchBreakCfg?: ScheduleLunchBreakCfg,
   realNow?: number,
+  calendarDisplayItems?: CalendarDisplayItem[],
 ): ScheduleDay[] => {
   // NOTE to use for failing test cases
   // const params = {
@@ -56,6 +58,7 @@ export const mapToScheduleDays = (
   //   .flat();
 
   if (
+    !calendarDisplayItems?.length &&
     !tasks.length &&
     !scheduledTasks.length &&
     !scheduledTaskRepeatCfgs.length &&
@@ -90,6 +93,7 @@ export const mapToScheduleDays = (
     now,
     dayDates.length,
     realNow,
+    calendarDisplayItems,
   );
 
   const v = createScheduleDays(

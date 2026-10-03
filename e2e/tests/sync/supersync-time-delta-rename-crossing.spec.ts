@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
+  isSuperSyncCutoverProbe,
   createSimulatedClient,
   closeClient,
   waitForTask,
@@ -75,6 +76,7 @@ const recordForcedDownloads = (clients: SimulatedE2EClient[]): string[] => {
     client.page.on('request', (request) => {
       if (
         request.method() === 'GET' &&
+        !isSuperSyncCutoverProbe(request) &&
         request.url().includes('/api/sync/ops?') &&
         new URL(request.url()).searchParams.get('sinceSeq') === '0'
       ) {

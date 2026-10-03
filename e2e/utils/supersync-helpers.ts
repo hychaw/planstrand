@@ -45,6 +45,19 @@ export const SUPERSYNC_BASE_URL =
  */
 const SUPERSYNC_OPS_ROUTE = '**/api/sync/ops*';
 
+/** LegacyCutoverService reads one protocol-base op; ordinary/recovery pages use
+ * the provider's normal page size. Classify before a test rewrites page limits. */
+export const isSuperSyncCutoverProbe = (request: Request): boolean => {
+  const url = new URL(request.url());
+  return (
+    request.method() === 'GET' &&
+    url.pathname === '/api/sync/ops' &&
+    url.searchParams.get('sinceSeq') === '0' &&
+    url.searchParams.get('limit') === '1' &&
+    !url.searchParams.has('excludeClient')
+  );
+};
+
 export const routeSuperSyncOps = async (
   page: Page,
   handler: (route: Route) => Promise<void>,

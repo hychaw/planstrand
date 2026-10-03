@@ -9,14 +9,12 @@ import {
   SVEType,
   T_ID_PREFIX,
 } from '../schedule.const';
-import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-milliseconds';
-import { TaskCopy, TaskReminderOptionId } from '../../tasks/task.model';
-import { GlobalConfigService } from '../../config/global-config.service';
-import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
+import { TaskCopy } from '../../tasks/task.model';
 import { calculateTimeFromYPosition } from '../schedule-utils';
 import { isTouchActive } from '../../../util/input-intent';
 import type { DragPreviewContext } from './schedule-week-drag.types';
 import {
+  editableWorkSession,
   isScheduleCalendarEvent,
   type ScheduleEvent,
   type ScheduleFromCalendarEvent,
@@ -26,6 +24,7 @@ import { first } from 'rxjs/operators';
 import { getTimeLeftForTask } from '../../../util/get-time-left-for-task';
 import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 import { DateService } from '../../../core/date/date.service';
+import { WorkSessionService } from '../../work-session/work-session.service';
 
 interface PointerPosition {
   x: number;
@@ -48,9 +47,9 @@ const HOUR_IN_MS = 60 * 60 * 1000;
 export class ScheduleWeekDragService {
   // Central drag state handler so the component can remain mostly declarative.
   private readonly _store = inject(Store);
-  private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _calendarEventActions = inject(CalendarEventActionsService);
   private readonly _dateService = inject(DateService);
+  private readonly _workSessionService = inject(WorkSessionService);
 
   private readonly _isShiftMode = signal(false);
   readonly isShiftMode: Signal<boolean> = this._isShiftMode.asReadonly();
@@ -195,7 +194,11 @@ export class ScheduleWeekDragService {
     const draggedCalendarEvent = this._pluckMovableCalendarEvent(
       this._currentDragEvent(),
     );
-    if (this.isShiftMode() && !draggedCalendarEvent) {
+    if (
+      this.isShiftMode() &&
+      !draggedCalendarEvent &&
+      this._currentDragEvent()?.type !== SVEType.WorkSession
+    ) {
       this._handleShiftDragMove(targetEl, pointer, gridRect, targetDay, isWithinGrid);
     } else {
       this._handleTimeDragMove(pointer, gridRect, targetDay, isWithinGrid);
@@ -229,6 +232,32 @@ export class ScheduleWeekDragService {
     nativeEl.style.pointerEvents = '';
 
     const sourceEvent = ev.source.data;
+    // Source identity, never the timed-Task CSS class or referenced Task id.
+    if (sourceEvent.type === SVEType.WorkSession) {
+      const session = editableWorkSession(sourceEvent, 'canMove');
+      const targetDay = columnTarget?.getAttribute('data-day');
+      const start =
+        this._lastCalculatedTimestamp ??
+        (dropPoint && targetDay
+          ? this._calculateTimeFromDrop(dropPoint, targetDay)
+          : null);
+      if (
+        session &&
+        columnTarget &&
+        start !== null &&
+        (!dropPoint || !this._isOutsideGrid(dropPoint))
+      ) {
+        this._workSessionService.update(session.sourceId, {
+          start,
+          end: start + (session.end - session.start),
+        });
+      }
+      this._currentDragEvent.set(null);
+      this._resetDragRelatedVars();
+      nativeEl.style.transform = 'translate3d(0, 0, 0)';
+      ev.source.reset();
+      return;
+    }
     const task = this._pluckTaskFromEvent(sourceEvent);
     const calEv = this._pluckMovableCalendarEvent(sourceEvent);
     const sourceTaskId = nativeEl.id.replace(T_ID_PREFIX, '');
@@ -355,7 +384,11 @@ export class ScheduleWeekDragService {
     const draggedCalendarEvent = this._pluckMovableCalendarEvent(
       this._currentDragEvent(),
     );
-    if (this.isShiftMode() && !draggedCalendarEvent) {
+    if (
+      this.isShiftMode() &&
+      !draggedCalendarEvent &&
+      this._currentDragEvent()?.type !== SVEType.WorkSession
+    ) {
       if (targetEl) {
         this._handleShiftDragMove(targetEl, pointer, gridRect, targetDay, isWithinGrid);
       } else {
@@ -553,7 +586,10 @@ export class ScheduleWeekDragService {
         this._dragPreviewContext.set(null);
       }
     } else {
-      if (this._pluckMovableCalendarEvent(this._currentDragEvent())) {
+      if (
+        this._pluckMovableCalendarEvent(this._currentDragEvent()) ||
+        this._currentDragEvent()?.type === SVEType.WorkSession
+      ) {
         this._dragPreviewContext.set(null);
         this._lastCalculatedTimestamp = null;
         return;
@@ -722,52 +758,11 @@ export class ScheduleWeekDragService {
     );
   }
 
-  private _scheduleTask(task: TaskCopy, scheduleTime: number): void {
-    const hasExistingSchedule = !!task?.dueWithTime;
-    const hasReminder = !!(task?.remindAt ?? task?.reminderId);
-    const defaultReminderOption = this._getDefaultReminderOption();
-    // Smart reminder logic: if task is brand new to scheduling, add a reminder based on user's default setting.
-    // If it already has a reminder, update it. Otherwise, leave reminders unchanged.
-    const remindAt =
-      !hasExistingSchedule && !hasReminder
-        ? remindOptionToMilliseconds(scheduleTime, defaultReminderOption)
-        : hasReminder
-          ? scheduleTime
-          : undefined;
-
-    const payload = {
+  private _scheduleTask(task: TaskCopy, scheduleTime: number): boolean {
+    return this._workSessionService.scheduleTask(
       task,
-      dueWithTime: scheduleTime,
-      ...(typeof remindAt === 'number' ? { remindAt } : {}),
-      isMoveToBacklog: false,
-    };
-
-    this._store.dispatch(
-      hasExistingSchedule
-        ? TaskSharedActions.reScheduleTaskWithTime(payload)
-        : TaskSharedActions.scheduleTaskWithTime(payload),
-    );
-
-    // Ensure task has a minimum duration so it's visible on the schedule.
-    // Without this, zero-duration tasks would be invisible or hard to interact with.
-    if (!task.timeEstimate || task.timeEstimate <= 0) {
-      const fallbackDuration = Math.max(SCHEDULE_TASK_MIN_DURATION_IN_MS, 15 * 60 * 1000);
-      this._store.dispatch(
-        TaskSharedActions.updateTask({
-          task: {
-            id: task.id,
-            changes: { timeEstimate: fallbackDuration },
-          },
-        }),
-      );
-    }
-  }
-
-  private _getDefaultReminderOption(): TaskReminderOptionId {
-    return (
-      (this._globalConfigService.cfg()?.reminder
-        ?.defaultTaskRemindOption as TaskReminderOptionId) ??
-      DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!
+      scheduleTime,
+      Math.max(SCHEDULE_TASK_MIN_DURATION_IN_MS, 15 * 60 * 1000),
     );
   }
 
@@ -850,8 +845,7 @@ export class ScheduleWeekDragService {
       (dropPoint ? this._calculateTimeFromDrop(dropPoint, targetDay) : null);
 
     if (scheduleTime != null) {
-      this._scheduleTask(task, scheduleTime);
-      return true;
+      return this._scheduleTask(task, scheduleTime);
     }
 
     planningCommands(this._store).planTaskForDay({

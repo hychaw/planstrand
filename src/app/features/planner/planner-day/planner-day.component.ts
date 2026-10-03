@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
   ChangeDetectionStrategy,
@@ -11,10 +12,8 @@ import { T } from '../../../t.const';
 import { PlannerDay, ScheduleItem, ScheduleItemType } from '../planner.model';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { TaskCopy } from '../../tasks/task.model';
-import { millisecondsDiffToRemindOption } from '../../tasks/util/remind-option-to-milliseconds';
 import { Store } from '@ngrx/store';
 import { MatDialog } from '@angular/material/dialog';
-import { TaskService } from '../../tasks/task.service';
 import { DateService } from '../../../core/date/date.service';
 import { DialogScheduleTaskComponent } from '../dialog-schedule-task/dialog-schedule-task.component';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
@@ -63,7 +62,7 @@ import { safeFormatDate } from '../../../util/safe-format-date';
 export class PlannerDayComponent {
   private _store = inject(Store);
   private _matDialog = inject(MatDialog);
-  private _taskService = inject(TaskService);
+  private readonly _workSessionService = inject(WorkSessionService);
   private _dateService = inject(DateService);
   private _layoutService = inject(LayoutService);
   private _dateTimeFormatService = inject(DateTimeFormatService);
@@ -179,10 +178,6 @@ export class PlannerDayComponent {
   private _rescheduleTask(task: TaskCopy, newDate: Date): void {
     const taskPlannedAtDate = new Date(task.dueWithTime as number);
     newDate.setHours(taskPlannedAtDate.getHours(), taskPlannedAtDate.getMinutes(), 0, 0);
-    const selectedReminderCfgId = millisecondsDiffToRemindOption(
-      task.dueWithTime as number,
-      task.remindAt,
-    );
-    this._taskService.scheduleTask(task, newDate.getTime(), selectedReminderCfgId, false);
+    this._workSessionService.scheduleTask(task, newDate.getTime());
   }
 }

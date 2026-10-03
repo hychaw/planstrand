@@ -11,6 +11,7 @@ import {
 import { createSortedBlockerBlocks } from './create-sorted-blocker-blocks';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { getDiffInDays } from '../../../util/get-diff-in-days';
+import { CalendarDisplayItem } from '../calendar-display-item.model';
 
 // TODO improve to even better algo for createSortedBlockerBlocks
 const NR_OF_DAYS = 10;
@@ -24,6 +25,7 @@ export const createBlockedBlocksByDayMap = (
   now?: number,
   nrOfDays: number = NR_OF_DAYS,
   realNow?: number,
+  calendarDisplayItems?: CalendarDisplayItem[],
 ): BlockedBlockByDayMap => {
   const allBlockedBlocks = createSortedBlockerBlocks(
     scheduledTasks,
@@ -34,6 +36,7 @@ export const createBlockedBlocksByDayMap = (
     now,
     nrOfDays,
     realNow,
+    calendarDisplayItems,
   );
   // Log.log(allBlockedBlocks);
 
@@ -143,6 +146,8 @@ const splitEntry = (
         return BlockedBlockType.ScheduledRepeatProjectionSplit;
       case BlockedBlockType.CalendarEvent:
         return BlockedBlockType.CalendarEvent;
+      case BlockedBlockType.WorkSession:
+        return BlockedBlockType.WorkSession;
       default: {
         throw new Error('Unknown entry type');
       }

@@ -40,10 +40,11 @@ test.describe('Schedule overlap', () => {
         // Regardless of how the elements representing tasks overlap, the top
         // left corner should always be visible to click on
         .click({ position: { x: 0, y: 0 } });
-      // Clicking on the task should bring up its details panel
+      // A timed block opens the menu for that exact WorkSession.
       await expect(
-        page.locator('task-detail-panel').filter({ hasText: taskDescription }),
+        page.getByRole('menuitem', { name: 'Unschedule', exact: true }),
       ).toBeVisible();
+      await page.keyboard.press('Escape');
     };
 
     await checkTaskAccessible('task1');

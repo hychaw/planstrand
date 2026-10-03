@@ -26,7 +26,15 @@ import {
   createValidTask,
 } from '../../op-log/validation/state-validity-test-utils';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
-import { addWorkSession } from './store/work-session.actions';
+import {
+  addWorkSession,
+  updateWorkSession,
+  removeWorkSession,
+} from './store/work-session.actions';
+import {
+  legacyTaskWorkSessionId,
+  backfillLegacyTaskWorkSessions,
+} from './legacy-task-work-session-backfill';
 import {
   initialWorkSessionState,
   workSessionReducer,
@@ -40,12 +48,14 @@ import {
   BulkReplayReducerFailure,
   runWithBulkReplayFailureCollector,
 } from '../../op-log/apply/bulk-replay-failure-collector';
+import { projectLocalCalendarDisplayItems } from '../schedule/calendar-display-item';
 
 const session: WorkSession = {
   id: 'session-1',
   taskId: 'task-1',
   start: 100,
   end: 200,
+  timeZone: 'America/Vancouver',
   completedAt: 250,
   created: 50,
   modified: 250,
@@ -179,8 +189,51 @@ describe('WorkSession persistence and API capability integration', () => {
     expect(await log.getUnsynced()).toEqual([]);
   });
 
+  it('retains an authoritative migrated seed through encrypted upload and replay', async () => {
+    const legacySession = {
+      ...session,
+      id: legacyTaskWorkSessionId(session.taskId, session.start),
+    };
+    const action = updateWorkSession({
+      id: legacySession.id,
+      changes: { start: 300, end: 450 },
+      modified: 500,
+      legacySession,
+    });
+    const { type, meta, ...actionPayload } = action;
+    const op = new TestClient('client-local').createOperation({
+      actionType: type,
+      entityType: meta.entityType,
+      entityId: legacySession.id,
+      opType: meta.opType,
+      payload: { actionPayload, entityChanges: [] },
+    });
+    await log.append(op, 'local');
+    await upload.uploadPendingOps(provider);
+    expect(received.length).toBe(1);
+    expect(received[0].isPayloadEncrypted).toBeTrue();
+    const downloaded = await provider.downloadOps(0);
+    const decoded = await encryption.decryptOperation(
+      downloaded.ops[0].op,
+      'phase-one-test-key',
+    );
+    const replayOp = syncOpToOperation(decoded);
+    expect(replayOp.payload).toEqual(op.payload);
+    const replayed = bulkOperationsMetaReducer(workSessionReducer)(
+      initialWorkSessionState,
+      bulkApplyOperations({ operations: [replayOp], localClientId: 'receiver' }),
+    );
+    expect(replayed.entities[legacySession.id]).toEqual({
+      ...legacySession,
+      start: 300,
+      end: 450,
+      modified: 500,
+    });
+    expect(await log.getUnsynced()).toEqual([]);
+  });
+
   it('keeps a reducer-rejected future remote operation durable without downgrading its payload', async () => {
-    const future = { ...session, timeZone: 'UTC' };
+    const future = { ...session, source: 'future-contract' };
     const action = addWorkSession({ workSession: future });
     const op = new TestClient('remote-client').createOperation({
       actionType: action.type,
@@ -212,7 +265,7 @@ describe('WorkSession persistence and API capability integration', () => {
     const stored = await log.getOpById(op.id);
     expect(stored!.reducerRejectedAt).toBeDefined();
     expect(stored!.op.payload).toEqual(op.payload);
-    expect(future.timeZone).toBe('UTC');
+    expect(future.source).toBe('future-contract');
   });
 
   it('keeps local operations durable and pending on incompatible or missing-capability servers', async () => {
@@ -275,6 +328,184 @@ describe('WorkSession persistence and API capability integration', () => {
     });
     const restored = await log.loadImportBackupById(recovery.backupId);
     expect((restored!.state as ReturnType<typeof appData>).workSession).toEqual(replayed);
+  });
+
+  it('persists and replays timezone updates through the existing operation envelope', async () => {
+    const created = await persist();
+    const action = updateWorkSession({
+      id: session.id,
+      changes: { timeZone: 'Asia/Singapore', start: 300, end: 400 },
+      modified: 300,
+    });
+    const op = new TestClient('client-local').createOperation({
+      actionType: action.type,
+      entityType: action.meta.entityType,
+      entityId: session.id,
+      opType: action.meta.opType,
+      payload: {
+        actionPayload: {
+          id: action.id,
+          changes: action.changes,
+          modified: action.modified,
+        },
+        entityChanges: [],
+      },
+    });
+    await log.append(JSON.parse(JSON.stringify(op)), 'local');
+    const stored = await log.getOpById(op.id);
+    const initial = workSessionReducer(
+      initialWorkSessionState,
+      convertOpToAction(created),
+    );
+    const replayed = workSessionReducer(initial, convertOpToAction(stored!.op));
+    expect(replayed.entities[session.id]).toEqual({
+      ...session,
+      timeZone: 'Asia/Singapore',
+      start: 300,
+      end: 400,
+      modified: 300,
+    });
+  });
+
+  it('persists one legacy removal and retains suppression across remote replay and snapshot restart', async () => {
+    const data = appData();
+    data.task.entities[session.taskId] = {
+      ...data.task.entities[session.taskId]!,
+      dueWithTime: session.start,
+      timeEstimate: 100,
+    };
+    const id = legacyTaskWorkSessionId(session.taskId, session.start);
+    data.workSession = { ids: [id], entities: { [id]: { ...session, id } } };
+    const action = removeWorkSession({ id });
+    const op = new TestClient('client-local').createOperation({
+      actionType: action.type,
+      entityType: action.meta.entityType,
+      entityId: id,
+      opType: action.meta.opType,
+      payload: { actionPayload: { id }, entityChanges: [] },
+    });
+    await log.append(op, 'local');
+    await upload.uploadPendingOps(provider);
+    expect(received.length).toBe(1);
+    const decoded = await encryption.decryptOperation(received[0], 'phase-one-test-key');
+    const remote = convertOpToAction(syncOpToOperation(decoded));
+    expect(remote.meta.isRemote).toBeTrue();
+    data.workSession = workSessionReducer(data.workSession, remote);
+    expect(data.workSession.ids).toEqual([]);
+    expect(data.workSession.dismissedLegacySessionIds).toEqual([id]);
+    expect(workSessionReducer(data.workSession, remote)).toBe(data.workSession);
+    expect(await log.getUnsynced()).toEqual([]);
+    const entries = await log.getOpsAfterSeq(0);
+    expect(entries.length).toBe(1);
+    await log.saveStateCache({
+      state: data,
+      lastAppliedOpSeq: entries[0].seq,
+      vectorClock: op.vectorClock,
+      compactedAt: 300,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      snapshotEntityKeys: extractEntityKeysFromState(data),
+    });
+    const cached = await log.loadStateCache();
+    const hydrated = workSessionReducer(
+      undefined,
+      loadAllData({
+        appDataComplete: cached!.state as AppDataComplete,
+      }),
+    );
+    expect(hydrated.dismissedLegacySessionIds).toEqual([id]);
+    expect(backfillLegacyTaskWorkSessions(data.task, hydrated, 'Asia/Singapore')).toBe(
+      hydrated,
+    );
+    expect(data.task.entities[session.taskId]?.dueWithTime).toBe(session.start);
+  });
+
+  it('keeps an edited migrated block authoritative across both restart and explicit dismissal without losing other sessions', async () => {
+    const data = appData();
+    const task = {
+      ...data.task.entities[session.taskId]!,
+      dueWithTime: session.start,
+      timeEstimate: 100,
+    };
+    data.task.entities[task.id] = task;
+    const taskBefore = JSON.stringify(data.task);
+    // The existing unrelated session must neither suppress nor prevent migration.
+    data.workSession = backfillLegacyTaskWorkSessions(
+      data.task,
+      data.workSession,
+      'America/Vancouver',
+    );
+    const id = legacyTaskWorkSessionId(task.id, task.dueWithTime);
+    const display = (): ReturnType<typeof projectLocalCalendarDisplayItems> =>
+      projectLocalCalendarDisplayItems(
+        Object.values(data.workSession.entities).filter((s): s is WorkSession => !!s),
+        data.task.entities,
+        [task],
+        data.workSession.dismissedLegacySessionIds,
+      );
+    expect(
+      display()
+        .map((item) => item.sourceId)
+        .sort(),
+    ).toEqual([id, session.id].sort());
+    const client = new TestClient('client-local');
+    const edit = updateWorkSession({
+      id,
+      changes: { start: 300, end: 450 },
+      modified: 300,
+    });
+    const editOp = client.createOperation({
+      actionType: edit.type,
+      entityType: edit.meta.entityType,
+      entityId: id,
+      opType: edit.meta.opType,
+      payload: {
+        actionPayload: { id, changes: edit.changes, modified: edit.modified },
+        entityChanges: [],
+      },
+    });
+    await log.append(JSON.parse(JSON.stringify(editOp)), 'local');
+    data.workSession = workSessionReducer(data.workSession, convertOpToAction(editOp));
+    const restart = async (): Promise<void> => {
+      const entries = await log.getOpsAfterSeq(0);
+      await log.saveStateCache({
+        state: data,
+        lastAppliedOpSeq: entries[entries.length - 1].seq,
+        vectorClock: entries[entries.length - 1].op.vectorClock,
+        compactedAt: 500,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        snapshotEntityKeys: extractEntityKeysFromState(data),
+      });
+      const cached = await log.loadStateCache();
+      data.workSession = workSessionReducer(
+        undefined,
+        loadAllData({ appDataComplete: cached!.state as AppDataComplete }),
+      );
+      const hydrated = data.workSession;
+      expect(backfillLegacyTaskWorkSessions(data.task, hydrated, 'Asia/Tokyo')).toBe(
+        hydrated,
+      );
+      expect(JSON.stringify(data.task)).toBe(taskBefore);
+      expect(data.workSession.entities[session.id]).toEqual(session);
+      expect(display().some((item) => item.sourceType === 'legacyTask')).toBeFalse();
+    };
+    await restart();
+    expect(display().find((item) => item.sourceId === id)).toEqual(
+      jasmine.objectContaining({ start: 300, end: 450, timeZone: 'America/Vancouver' }),
+    );
+    const remove = removeWorkSession({ id });
+    const removeOp = client.createOperation({
+      actionType: remove.type,
+      entityType: remove.meta.entityType,
+      entityId: id,
+      opType: remove.meta.opType,
+      payload: { actionPayload: { id }, entityChanges: [] },
+    });
+    await log.append(JSON.parse(JSON.stringify(removeOp)), 'local');
+    data.workSession = workSessionReducer(data.workSession, convertOpToAction(removeOp));
+    await restart();
+    expect(data.workSession.dismissedLegacySessionIds).toEqual([id]);
+    expect(display().map((item) => item.sourceId)).toEqual([session.id]);
+    expect((await log.getOpsAfterSeq(0)).length).toBe(2); // Edit + removal; no backfill op.
   });
 });
 

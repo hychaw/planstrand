@@ -14,6 +14,10 @@ import { selectTaskByIdWithSubTaskData } from '../../tasks/store/task.selectors'
 import { TaskRepeatCfg } from '../../task-repeat-cfg/task-repeat-cfg.model';
 import { isTouchActive } from '../../../util/input-intent';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
+import { projectWorkSession } from '../calendar-display-item';
+import { CdkDrag } from '@angular/cdk/drag-drop';
+import { isDraggableSE } from '../map-schedule-data/is-schedule-types-type';
+import { WorkSessionService } from '../../work-session/work-session.service';
 
 const makeCalendarScheduleEvent = (isReferenceCalendar: boolean): ScheduleEvent => ({
   id: 'cal-1',
@@ -51,6 +55,10 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
       imports: [ScheduleEventComponent, DragDropModule, TranslateModule.forRoot()],
       providers: [
         provideMockStore(),
+        {
+          provide: WorkSessionService,
+          useValue: { update: jasmine.createSpy('update') },
+        },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         {
           provide: TaskService,
@@ -83,6 +91,59 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
   });
 
   describe('isReferenceCalendar signal', () => {
+    it('renders WorkSession title and removal menu without entering Task/provider write paths', async () => {
+      const item = projectWorkSession(
+        {
+          id: 'session',
+          taskId: 'task-1',
+          start: 1000,
+          end: 3601000,
+          created: 1000,
+          modified: 1000,
+        },
+        { title: 'Current Task title' },
+      );
+      const event: ScheduleEvent = {
+        id: item.id,
+        type: SVEType.WorkSession,
+        data: item,
+        style: '',
+        startHours: 10,
+        timeLeftInHours: 1,
+      };
+      fixture.componentRef.setInput('event', event);
+      // This is the week renderer's non-draggable branch binding.
+      fixture.componentRef.setInput('cdkDragDisabled', !isDraggableSE(event));
+      fixture.detectChanges();
+      const dispatch = spyOn(TestBed.inject(MockStore), 'dispatch');
+      expect(fixture.nativeElement.textContent).toContain(item.title);
+      expect(component.cssClass()).toContain(SVEType.ScheduledTask);
+      expect(component.task()).toBeUndefined();
+      expect(component.isResizable()).toBeFalse();
+      expect(fixture.debugElement.injector.get(CdkDrag).disabled).toBeTrue();
+      expect(fixture.nativeElement.querySelector('.resize-handle')).toBeNull();
+      expect(fixture.nativeElement.querySelector('task-context-menu')).toBeNull();
+      expect(component.canRemoveWorkSession()).toBeTrue();
+      expect(component.sessionMenuTrigger()).toBeDefined();
+      expect(component.calMenuTrigger()).toBeUndefined();
+      await component.clickHandler(new MouseEvent('click'));
+      component.onContextMenu(new MouseEvent('contextmenu'));
+      component.deleteTask();
+      component.markAsDone();
+      component.markAsUnDone();
+      component.estimateTime();
+      component.onResizeStart(new MouseEvent('mousedown'));
+      await component.rescheduleCalendarEvent();
+      await component.deleteCalendarEvent();
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(TestBed.inject(TaskService).remove).not.toHaveBeenCalled();
+      expect(TestBed.inject(TaskService).setSelectedId).not.toHaveBeenCalled();
+      expect(TestBed.inject(MatDialog).open).not.toHaveBeenCalled();
+      expect(item.canMove).toBeTrue();
+      expect(item.canResize).toBeTrue();
+      expect(item.canDelete).toBeTrue();
+      expect(item.isReadOnly).toBeFalse();
+    });
     it('should return true for a CalendarEvent whose data has isReferenceCalendar: true', () => {
       fixture.componentRef.setInput('event', makeCalendarScheduleEvent(true));
       fixture.detectChanges();
@@ -477,6 +538,10 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
         imports: [ScheduleEventComponent, DragDropModule, TranslateModule.forRoot()],
         providers: [
           provideMockStore(),
+          {
+            provide: WorkSessionService,
+            useValue: { update: jasmine.createSpy('update') },
+          },
           { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
           {
             provide: TaskService,
@@ -549,6 +614,10 @@ describe('ScheduleEventComponent – clickable affordance', () => {
       imports: [AffordanceHostComponent, DragDropModule, TranslateModule.forRoot()],
       providers: [
         provideMockStore(),
+        {
+          provide: WorkSessionService,
+          useValue: { update: jasmine.createSpy('update') },
+        },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         {
           provide: TaskService,

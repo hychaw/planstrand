@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import {
   configurePlanningFixture,
   expectPlanningDay,
@@ -31,6 +32,7 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { selectAllTasksWithDueTimeSorted } from '../../tasks/store/task.selectors';
 import { ScheduleConfig } from '../../config/global-config.model';
+import { SCHEDULE_TASK_MIN_DURATION_IN_MS } from '../../schedule/schedule.const';
 
 describe('DialogScheduleTaskComponent', () => {
   let component: DialogScheduleTaskComponent;
@@ -109,6 +111,13 @@ describe('DialogScheduleTaskComponent', () => {
         TranslateModule.forRoot(),
       ],
       providers: [
+        {
+          provide: WorkSessionService,
+          useValue: {
+            scheduleTask: jasmine.createSpy('scheduleTask').and.returnValue(true),
+            scheduledTaskSession: () => undefined,
+          },
+        },
         provideMockStore<Partial<RootState>>({
           initialState: {
             [CONFIG_FEATURE_NAME]: {
@@ -162,10 +171,71 @@ describe('DialogScheduleTaskComponent', () => {
     fixture.detectChanges();
   });
 
+  it('keeps the recurrence date-only picker outside WorkSession lookup', async () => {
+    const task = { ...component.task, id: undefined } as unknown as TaskCopy;
+    fixture.destroy();
+    const sessions = TestBed.inject(WorkSessionService);
+    const lookup = spyOn(sessions, 'scheduledTaskSession').and.callThrough();
+    fixture = TestBed.createComponent(DialogScheduleTaskComponent);
+    component = fixture.componentInstance;
+    component.data = { task, isSelectDueOnly: true };
+    component.task = task;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.scheduledSession()).toBeUndefined();
+    expect(lookup).not.toHaveBeenCalled();
+    component.selectedDate = new Date(2026, 0, 16);
+    component.selectedTime = '10:00';
+    await component.submit();
+    expect(sessions.scheduleTask).not.toHaveBeenCalled();
+    expect(dialogRefSpy.close).toHaveBeenCalledWith({
+      date: component.selectedDate,
+      time: '10:00',
+      remindOption: component.selectedReminderCfgId,
+    });
+  });
+
   it('should close dialog with form data when submit is clicked', async () => {
     const testDate = new Date(2023, 4, 15);
     component.selectedDate = testDate;
     await component.submit();
+    expect(dialogRefSpy.close).toHaveBeenCalledWith(true);
+  });
+
+  it('supplies the existing schedule minimum for a Task without an estimate', async () => {
+    component.data.task = { ...component.data.task!, timeEstimate: 0 };
+    component.selectedDate = new Date(2026, 0, 16);
+    component.selectedTime = '10:00';
+    await component.submit();
+    expect(TestBed.inject(WorkSessionService).scheduleTask).toHaveBeenCalledWith(
+      component.data.task,
+      new Date(2026, 0, 16, 10).getTime(),
+      SCHEDULE_TASK_MIN_DURATION_IN_MS,
+    );
+  });
+
+  it('routes the existing time-input Enter submission to WorkSession scheduling', async () => {
+    component.selectedDate = new Date(2026, 0, 16);
+    component.selectedTime = '10:00';
+    const schedule = TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy;
+    schedule.and.returnValue(true);
+    const dispatch = spyOn(store, 'dispatch');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const input: HTMLInputElement =
+      fixture.nativeElement.querySelector('input[type="time"]');
+    expect(input).not.toBeNull();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(schedule).not.toHaveBeenCalled();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(schedule).toHaveBeenCalledOnceWith(
+      component.task!,
+      new Date(2026, 0, 16, 10).getTime(),
+      SCHEDULE_TASK_MIN_DURATION_IN_MS,
+    );
+    expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
     expect(dialogRefSpy.close).toHaveBeenCalledWith(true);
   });
 
@@ -282,6 +352,20 @@ describe('DialogScheduleTaskComponent', () => {
   });
 
   describe('submit()', () => {
+    it('keeps the dialog open on rejected scheduling without clearing legacy reminders', async () => {
+      const sessionService = TestBed.inject(WorkSessionService);
+      (sessionService.scheduleTask as jasmine.Spy).and.returnValue(false);
+      component.data.task = { ...component.data.task!, remindAt: 100 };
+      component.selectedDate = new Date(2026, 0, 15);
+      component.selectedTime = '10:00';
+      component.selectedReminderCfgId = TaskReminderOptionId.DoNotRemind;
+      const dispatch = spyOn(store, 'dispatch');
+      await component.submit();
+      expect(sessionService.scheduleTask).toHaveBeenCalled();
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(dialogRefSpy.close).not.toHaveBeenCalled();
+      expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
+    });
     it('should call taskService.scheduleTask with correct parameters when submit is called', async () => {
       const testDate = new Date(2023, 5, 1);
       const expectedDate = new Date(testDate);
@@ -307,7 +391,7 @@ describe('DialogScheduleTaskComponent', () => {
       component.task = mockTask;
       await component.submit();
 
-      expect(taskServiceSpy.scheduleTask).toHaveBeenCalledWith(
+      expect(TestBed.inject(WorkSessionService).scheduleTask).toHaveBeenCalledWith(
         jasmine.objectContaining({
           id: 'task123',
           title: 'Test Task',
@@ -321,8 +405,7 @@ describe('DialogScheduleTaskComponent', () => {
           subTaskIds: [],
         }),
         expectedDate.getTime(),
-        TaskReminderOptionId.AtStart,
-        false,
+        SCHEDULE_TASK_MIN_DURATION_IN_MS,
       );
     });
 
@@ -330,7 +413,7 @@ describe('DialogScheduleTaskComponent', () => {
       component.selectedDate = undefined as any;
       component.selectedTime = undefined as any;
       await component.submit();
-      expect(taskServiceSpy.scheduleTask).not.toHaveBeenCalled();
+      expect(TestBed.inject(WorkSessionService).scheduleTask).not.toHaveBeenCalled();
       expect(dialogRefSpy.close).not.toHaveBeenCalled();
     });
 
@@ -352,7 +435,9 @@ describe('DialogScheduleTaskComponent', () => {
         created: 1640995200000, // Fixed timestamp
         subTaskIds: [],
       } as TaskCopy;
-      taskServiceSpy.scheduleTask.and.throwError('Schedule failed');
+      (TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy).and.throwError(
+        'Schedule failed',
+      );
       try {
         await component.submit();
       } catch {}
@@ -400,7 +485,9 @@ describe('DialogScheduleTaskComponent', () => {
         created: 1640995200000, // Fixed timestamp
         subTaskIds: [],
       } as TaskCopy;
-      taskServiceSpy.scheduleTask.and.throwError('Error');
+      (TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy).and.throwError(
+        'Error',
+      );
       try {
         await component.submit();
       } catch {}

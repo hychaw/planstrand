@@ -1,7 +1,13 @@
-import { createAction } from '@ngrx/store';
+import { createAction, props } from '@ngrx/store';
 import { PersistentActionMeta } from '../../../op-log/core/persistent-action.interface';
 import { OpType } from '../../../op-log/core/operation.types';
-import { WorkSession, WorkSessionUpdate } from '../work-session.model';
+import { WorkSession, WorkSessionState, WorkSessionUpdate } from '../work-session.model';
+
+/** Install only after the startup compatibility snapshot has durably committed. */
+export const installLegacyWorkSessionBackfill = createAction(
+  '[WorkSession] Install persisted legacy backfill',
+  props<{ sessions: WorkSessionState }>(),
+);
 
 export const addWorkSession = createAction(
   '[WorkSession] Add WorkSession',
@@ -18,7 +24,13 @@ export const addWorkSession = createAction(
 
 export const updateWorkSession = createAction(
   '[WorkSession] Update WorkSession',
-  (payload: { id: string; changes: WorkSessionUpdate; modified: number }) => ({
+  (payload: {
+    id: string;
+    changes: WorkSessionUpdate;
+    modified: number;
+    /** Authoritative pre-mutation base for a migrated entity absent on a peer. */
+    legacySession?: WorkSession;
+  }) => ({
     ...payload,
     meta: {
       isPersistent: true,
@@ -44,7 +56,12 @@ export const removeWorkSession = createAction(
 
 export const completeWorkSession = createAction(
   '[WorkSession] Complete WorkSession',
-  (payload: { id: string; completedAt: number; modified: number }) => ({
+  (payload: {
+    id: string;
+    completedAt: number;
+    modified: number;
+    legacySession?: WorkSession;
+  }) => ({
     ...payload,
     meta: {
       isPersistent: true,
@@ -57,7 +74,7 @@ export const completeWorkSession = createAction(
 
 export const uncompleteWorkSession = createAction(
   '[WorkSession] Uncomplete WorkSession',
-  (payload: { id: string; modified: number }) => ({
+  (payload: { id: string; modified: number; legacySession?: WorkSession }) => ({
     ...payload,
     meta: {
       isPersistent: true,

@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../work-session/work-session.service';
 import {
   configurePlanningFixture,
   expectPlanningDay,
@@ -17,7 +18,7 @@ import { SnackService } from '../../core/snack/snack.service';
 import { DateService } from '../../core/date/date.service';
 import { GlobalConfigService } from '../config/global-config.service';
 import { WorkContextService } from '../work-context/work-context.service';
-import { DEFAULT_TASK, Task, TaskReminderOptionId } from './task.model';
+import { DEFAULT_TASK, Task } from './task.model';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { T } from '../../t.const';
 import { TranslateService, TranslateStore } from '@ngx-translate/core';
@@ -135,6 +136,12 @@ describe('TaskBulkActionService', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        {
+          provide: WorkSessionService,
+          useValue: {
+            scheduleTask: jasmine.createSpy('scheduleTask').and.returnValue(true),
+          },
+        },
         TaskBulkActionService,
         { provide: Store, useValue: store },
         { provide: TaskService, useValue: taskService },
@@ -667,11 +674,9 @@ describe('TaskBulkActionService', () => {
       expect(plan[0].record.id).toBe('a');
       expect(plan[0].record.placement.target).toEqual({ type: 'DAY', key: '2026-09-10' });
       // timed task keeps its time on the new day
-      expect(taskService.scheduleTask).toHaveBeenCalledWith(
+      expect(TestBed.inject(WorkSessionService).scheduleTask).toHaveBeenCalledWith(
         jasmine.objectContaining({ id: 'b' }),
         jasmine.any(Number),
-        TaskReminderOptionId.DoNotRemind,
-        false,
       );
       expect(snackService.open).toHaveBeenCalledWith(
         jasmine.objectContaining({
@@ -700,7 +705,7 @@ describe('TaskBulkActionService', () => {
         time: '09:30',
         remindOption: null,
       });
-      expect(taskService.scheduleTask).toHaveBeenCalledTimes(2);
+      expect(TestBed.inject(WorkSessionService).scheduleTask).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -1,6 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { nanoid } from 'nanoid';
+import { GlobalConfigService } from '../config/global-config.service';
+import { isValidIanaTimeZone, resolveIanaTimeZone } from '../../util/iana-time-zone';
 import { selectTaskEntities } from '../tasks/store/task.selectors';
 import {
   addWorkSession,
@@ -10,18 +12,73 @@ import {
   updateWorkSession,
 } from './store/work-session.actions';
 import { selectWorkSessionEntities } from './store/work-session.selectors';
-import { WorkSessionUpdate } from './work-session.model';
+import { WorkSession, WorkSessionUpdate } from './work-session.model';
+import { Task } from '../tasks/task.model';
+import {
+  isDeterministicLegacyTaskWorkSessionId,
+  legacyTaskWorkSessionId,
+} from './legacy-task-work-session-backfill';
+
+// Generic Task commands own one stable block; other sessions are never selected by taskId.
+export const taskScheduledWorkSessionId = (
+  task: Pick<Task, 'id' | 'dueWithTime'>,
+): string =>
+  typeof task.dueWithTime === 'number'
+    ? legacyTaskWorkSessionId(task.id, task.dueWithTime)
+    : `task-schedule:${task.id.length}:${task.id}`;
 
 @Injectable({ providedIn: 'root' })
 export class WorkSessionService {
   private readonly _store = inject(Store);
+  private readonly _config = inject(GlobalConfigService);
   private readonly _tasks = this._store.selectSignal(selectTaskEntities);
   private readonly _sessions = this._store.selectSignal(selectWorkSessionEntities);
 
-  create(taskId: string, start: number, end: number): string | null {
+  scheduledTaskSession(task: Pick<Task, 'id' | 'dueWithTime'>): WorkSession | undefined {
+    const session = this._sessions()[taskScheduledWorkSessionId(task)];
+    return session?.taskId === task.id ? session : undefined;
+  }
+
+  scheduleTask(
+    task: Pick<Task, 'id' | 'dueWithTime' | 'timeEstimate'>,
+    start: number,
+    fallbackDuration?: number,
+  ): boolean {
+    const current = this.scheduledTaskSession(task);
+    if (current) {
+      // Moving a block preserves its own duration, completion and stored zone.
+      if (!current.timeZone || !isValidIanaTimeZone(current.timeZone)) return false;
+      return this.update(current.id, { start, end: start + current.end - current.start });
+    }
+    const duration =
+      Number.isFinite(task.timeEstimate) && task.timeEstimate > 0
+        ? task.timeEstimate
+        : fallbackDuration;
+    if (duration === undefined || !Number.isFinite(duration) || duration <= 0)
+      return false;
+    return !!this.create(
+      task.id,
+      start,
+      start + duration,
+      undefined,
+      taskScheduledWorkSessionId(task),
+    );
+  }
+
+  create(
+    taskId: string,
+    start: number,
+    end: number,
+    timeZone?: string | null,
+    id = nanoid(),
+  ): string | null {
     if (this._tasks()[taskId]?.id !== taskId || !this._isValidRange(start, end))
       return null;
-    const id = nanoid();
+    const resolvedTimeZone = resolveIanaTimeZone(
+      timeZone ?? this._config.localization()?.timeZone,
+    );
+    if (!resolvedTimeZone) return null;
+    if (this._sessions()[id]) return null;
     const now = Date.now();
     this._store.dispatch(
       addWorkSession({
@@ -30,6 +87,7 @@ export class WorkSessionService {
           taskId,
           start,
           end,
+          timeZone: resolvedTimeZone,
           created: now,
           modified: now,
         },
@@ -41,12 +99,24 @@ export class WorkSessionService {
   update(id: string, changes: WorkSessionUpdate): boolean {
     const current = this._sessions()[id];
     if (!current) return false;
+    if (
+      Object.hasOwn(changes, 'timeZone') &&
+      (typeof changes.timeZone !== 'string' || !isValidIanaTimeZone(changes.timeZone))
+    )
+      return false;
     const taskId = changes.taskId ?? current.taskId;
     const start = changes.start ?? current.start;
     const end = changes.end ?? current.end;
     if (this._tasks()[taskId]?.id !== taskId || !this._isValidRange(start, end))
       return false;
-    this._store.dispatch(updateWorkSession({ id, changes, modified: Date.now() }));
+    this._store.dispatch(
+      updateWorkSession({
+        id,
+        changes,
+        modified: Date.now(),
+        ...this._legacySessionSeed(current),
+      }),
+    );
     return true;
   }
 
@@ -57,15 +127,36 @@ export class WorkSessionService {
   }
 
   complete(id: string, completedAt = Date.now()): boolean {
-    if (!this._sessions()[id] || !this._isTimestamp(completedAt)) return false;
-    this._store.dispatch(completeWorkSession({ id, completedAt, modified: Date.now() }));
+    const current = this._sessions()[id];
+    if (!current || !this._isTimestamp(completedAt)) return false;
+    this._store.dispatch(
+      completeWorkSession({
+        id,
+        completedAt,
+        modified: Date.now(),
+        ...this._legacySessionSeed(current),
+      }),
+    );
     return true;
   }
 
   uncomplete(id: string): boolean {
-    if (!this._sessions()[id]) return false;
-    this._store.dispatch(uncompleteWorkSession({ id, modified: Date.now() }));
+    const current = this._sessions()[id];
+    if (!current) return false;
+    this._store.dispatch(
+      uncompleteWorkSession({
+        id,
+        modified: Date.now(),
+        ...this._legacySessionSeed(current),
+      }),
+    );
     return true;
+  }
+
+  private _legacySessionSeed(current: WorkSession): { legacySession?: WorkSession } {
+    return isDeterministicLegacyTaskWorkSessionId(current.id)
+      ? { legacySession: current }
+      : {};
   }
 
   private _isValidRange(start: number, end: number): boolean {

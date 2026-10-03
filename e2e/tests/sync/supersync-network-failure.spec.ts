@@ -391,6 +391,7 @@ test.describe('@supersync Network Failure Recovery', () => {
       responseDropped: false,
       acceptedOperationCount: 0,
       committedOperationIds: [] as string[],
+      committedTaskCreates: [] as Array<{ id: string; entityId?: string }>,
       recoveryUploadIds: [] as string[][],
     };
 
@@ -422,12 +423,21 @@ test.describe('@supersync Network Failure Recovery', () => {
       // response from the client. Later attempts remain offline until reload.
       await routeSuperSyncOps(clientA.page, async (route) => {
         if (route.request().method() === 'POST') {
-          const upload = parseSuperSyncRequestBody<{ ops: Array<{ id: string }> }>(
-            route.request(),
-          );
+          const upload = parseSuperSyncRequestBody<{
+            ops: Array<{
+              id: string;
+              entityId?: string;
+              entityType: string;
+              opType: string;
+            }>;
+          }>(route.request());
           if (state.phase === 'fault') {
             if (!state.committedUpload) {
               state.committedOperationIds = upload.ops.map((operation) => operation.id);
+              state.committedTaskCreates = upload.ops.filter(
+                (operation) =>
+                  operation.entityType === 'TASK' && operation.opType === 'CRT',
+              );
               const response = await route.fetch();
               const body = (await response.json()) as {
                 results?: Array<{ accepted?: boolean }>;
@@ -456,12 +466,20 @@ test.describe('@supersync Network Failure Recovery', () => {
 
       expect(state.responseDropped).toBe(true);
       expect(state.committedUpload).toBe(true);
-      expect(state.committedOperationIds).toHaveLength(taskCount);
-      expect(state.acceptedOperationCount).toBe(taskCount);
+      expect(state.committedTaskCreates).toHaveLength(taskCount);
+      expect(new Set(state.committedTaskCreates.map((op) => op.entityId)).size).toBe(
+        taskCount,
+      );
+      expect(new Set(state.committedOperationIds).size).toBe(
+        state.committedOperationIds.length,
+      );
+      expect(state.acceptedOperationCount).toBe(state.committedOperationIds.length);
 
       const serverOpsAfterCommit = (await (
         await fetch(`${SUPERSYNC_BASE_URL}/api/test/user/${user.userId}/ops?limit=100`)
-      ).json()) as { ops: Array<{ id: string }> };
+      ).json()) as {
+        ops: Array<{ id: string; entityId?: string; entityType: string; opType: string }>;
+      };
       for (const operationId of state.committedOperationIds) {
         expect(
           serverOpsAfterCommit.ops.filter((operation) => operation.id === operationId),
@@ -488,10 +506,29 @@ test.describe('@supersync Network Failure Recovery', () => {
       ).toBe(true);
       const serverOpsAfterRetry = (await (
         await fetch(`${SUPERSYNC_BASE_URL}/api/test/user/${user.userId}/ops?limit=100`)
-      ).json()) as { ops: Array<{ id: string }> };
+      ).json()) as {
+        ops: Array<{ id: string; entityId?: string; entityType: string; opType: string }>;
+      };
       for (const operationId of state.committedOperationIds) {
         expect(
           serverOpsAfterRetry.ops.filter((operation) => operation.id === operationId),
+        ).toHaveLength(1);
+      }
+      const retryHistory = (await (
+        await fetch(`${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        })
+      ).json()) as {
+        ops: Array<{ op: { entityId?: string; entityType: string; opType: string } }>;
+      };
+      for (const taskCreate of state.committedTaskCreates) {
+        expect(
+          retryHistory.ops.filter(
+            ({ op }) =>
+              op.entityType === 'TASK' &&
+              op.opType === 'CRT' &&
+              op.entityId === taskCreate.entityId,
+          ),
         ).toHaveLength(1);
       }
 

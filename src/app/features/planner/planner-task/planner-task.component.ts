@@ -1,3 +1,5 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
+import { TaskService } from '../../tasks/task.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
@@ -17,7 +19,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TaskCopy } from '../../tasks/task.model';
-import { TaskService } from '../../tasks/task.service';
 import { isTouchActive } from '../../../util/input-intent';
 import { IS_HYBRID_DEVICE } from '../../../util/is-mouse-primary';
 import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
@@ -47,7 +48,6 @@ import { DateAdapter } from '@angular/material/core';
 import { getNextWeekDayOffset } from '../../../util/get-next-week-day-offset';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { combineDateAndTime } from '../../../util/combine-date-and-time';
-import { millisecondsDiffToRemindOption } from '../../tasks/util/remind-option-to-milliseconds';
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { first } from 'rxjs/operators';
 import { isInputElement, isLinkTarget } from '../../../util/dom-element';
@@ -96,7 +96,8 @@ import { getNextPlannerAddButton } from '../get-next-planner-add-button';
   /* eslint-enable @typescript-eslint/naming-convention */
 })
 export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
-  private _taskService = inject(TaskService);
+  private readonly _workSessionService = inject(WorkSessionService);
+  private readonly _taskService = inject(TaskService);
   private _cd = inject(ChangeDetectorRef);
   private _destroyRef = inject(DestroyRef);
   private _elementRef = inject(ElementRef);
@@ -557,8 +558,7 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
     const task = this.task();
     if (task.dueWithTime) {
       const timestamp = combineDateAndTime(date, new Date(task.dueWithTime)).getTime();
-      const remindCfg = millisecondsDiffToRemindOption(task.dueWithTime, task.remindAt);
-      this._taskService.scheduleTask(task, timestamp, remindCfg, false);
+      this._workSessionService.scheduleTask(task, timestamp);
       return;
     }
     planningCommands(this._store).planTaskForDay({

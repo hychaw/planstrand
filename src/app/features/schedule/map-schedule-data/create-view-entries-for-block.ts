@@ -8,7 +8,16 @@ export const createViewEntriesForBlock = (
 ): SVE[] => {
   const viewEntriesForBock: SVE[] = [];
   blockedBlock.entries.forEach((entry) => {
-    if (entry.type === BlockedBlockType.ScheduledTask) {
+    if (entry.type === BlockedBlockType.WorkSession) {
+      viewEntriesForBock.push({
+        id: entry.data.id,
+        start: entry.start,
+        duration: entry.end - entry.start,
+        type: SVEType.WorkSession,
+        data: entry.data,
+        plannedForDay: dayDate,
+      });
+    } else if (entry.type === BlockedBlockType.ScheduledTask) {
       const scheduledTask = entry.data;
       viewEntriesForBock.push({
         // NOTE: first should be unique

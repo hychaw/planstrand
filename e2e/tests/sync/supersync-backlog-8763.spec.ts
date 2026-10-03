@@ -13,6 +13,7 @@ import {
   createTestUser,
   deleteTestUser,
   getSuperSyncConfig,
+  isSuperSyncCutoverProbe,
   routeSuperSyncOps,
   type SimulatedE2EClient,
   waitForTask,
@@ -191,22 +192,33 @@ test.describe('@supersync #8763 backlog beyond one download pass', () => {
           0,
         );
 
-        const finalOp = resetServer
-          ? SuperSyncOperationSchema.parse(
-              (await getServerHistory(user.token, initialCursor + PAGE_CAP)).ops.find(
-                ({ op }) => op.entityType === 'TASK' && op.opType === 'CRT',
-              )?.op,
-            )
-          : undefined;
-        if (resetServer && !finalOp)
-          throw new Error('No genuine final task op to restore');
+        // Preserve the reachable Task + Planning history, not a Task-only
+        // reconstruction whose legacy fields cannot establish Today membership.
+        const finalOps = resetServer
+          ? (await getServerHistory(user.token, initialCursor + PAGE_CAP)).ops
+              .map(({ op }) => SuperSyncOperationSchema.parse(op))
+              .filter(
+                (op) =>
+                  (op.entityType === 'TASK' && op.opType === 'CRT') ||
+                  op.opType === 'PLANNING_V1',
+              )
+          : [];
+        if (resetServer) {
+          expect(
+            finalOps.filter((op) => op.entityType === 'TASK' && op.opType === 'CRT'),
+          ).toHaveLength(1);
+          expect(finalOps.some((op) => op.opType === 'PLANNING_V1')).toBe(true);
+        }
         let didReset = false;
         let resetHeadSeq = 0;
 
         const requestedSinceSeqs: number[] = [];
         const resetSinceSeqs: number[] = [];
         await routeSuperSyncOps(clientB.page, async (route) => {
-          if (route.request().method() !== 'GET') {
+          if (
+            route.request().method() !== 'GET' ||
+            isSuperSyncCutoverProbe(route.request())
+          ) {
             await route.continue();
             return;
           }
@@ -230,7 +242,7 @@ test.describe('@supersync #8763 backlog beyond one download pass', () => {
               },
               PAGE_CAP,
             );
-            if (finalOp) await uploadSavedOp(user.token, finalOp);
+            for (const op of finalOps) await uploadSavedOp(user.token, op);
             resetHeadSeq = (await getServerHistory(user.token)).latestSeq;
             expect(resetHeadSeq).toBeLessThan(sinceSeq);
           } else if (didReset) {

@@ -62,7 +62,7 @@
     }
   </mat-form-field>
 
-  @if (selectedTime()) {
+  @if (selectedTime() && showReminder()) {
     <mat-form-field
       [@expandFade]
       class="reminder-form-field"

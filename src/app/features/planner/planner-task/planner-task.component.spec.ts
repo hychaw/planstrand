@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import {
   configurePlanningFixture,
   expectPlanningDay,
@@ -9,7 +10,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
 import { PlannerTaskComponent } from './planner-task.component';
 import { TaskService } from '../../tasks/task.service';
-import { DEFAULT_TASK, TaskCopy, TaskReminderOptionId } from '../../tasks/task.model';
+import { DEFAULT_TASK, TaskCopy } from '../../tasks/task.model';
 import { DoneToggleComponent } from '../../../ui/done-toggle/done-toggle.component';
 import { MsToStringPipe } from '../../../ui/duration/ms-to-string.pipe';
 import { RenderLinksPipe } from '../../../ui/pipes/render-links.pipe';
@@ -113,6 +114,12 @@ describe('PlannerTaskComponent', () => {
       imports: [PlannerTaskComponent, TranslateModule.forRoot()],
       schemas: [NO_ERRORS_SCHEMA],
       providers: [
+        {
+          provide: WorkSessionService,
+          useValue: {
+            scheduleTask: jasmine.createSpy('scheduleTask').and.returnValue(true),
+          },
+        },
         { provide: TaskService, useValue: taskServiceMock },
         {
           provide: GlobalConfigService,
@@ -217,12 +224,9 @@ describe('PlannerTaskComponent', () => {
 
       component.onKeydown(moveDayEvent(component, 'ArrowRight'));
 
-      expect(taskServiceMock['scheduleTask']).toHaveBeenCalledWith(
-        task,
-        new Date(2026, 0, 1, 23, 15).getTime(),
-        'm30',
-        false,
-      );
+      expect(
+        TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy,
+      ).toHaveBeenCalledWith(task, new Date(2026, 0, 1, 23, 15).getTime());
     });
 
     for (const [key, expectedDate] of [
@@ -236,12 +240,9 @@ describe('PlannerTaskComponent', () => {
 
         component.onKeydown(moveDayEvent(component, key));
 
-        expect(taskServiceMock['scheduleTask']).toHaveBeenCalledWith(
-          task,
-          expectedDate,
-          TaskReminderOptionId.DoNotRemind,
-          false,
-        );
+        expect(
+          TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy,
+        ).toHaveBeenCalledWith(task, expectedDate);
       });
     }
 
@@ -337,12 +338,9 @@ describe('PlannerTaskComponent', () => {
 
       component.onTaskShortcut(shortcutEvent('m'));
 
-      expect(taskServiceMock['scheduleTask']).toHaveBeenCalledWith(
-        task,
-        new Date(2026, 8, 13, 14, 45).getTime(),
-        'm30',
-        false,
-      );
+      expect(
+        TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy,
+      ).toHaveBeenCalledWith(task, new Date(2026, 8, 13, 14, 45).getTime());
     });
 
     it('preserves a modern timed task reminder without a legacy reminder id', () => {
@@ -361,12 +359,9 @@ describe('PlannerTaskComponent', () => {
 
       component.onTaskShortcut(shortcutEvent('m'));
 
-      expect(taskServiceMock['scheduleTask']).toHaveBeenCalledWith(
-        task,
-        new Date(2026, 8, 13, 14, 45).getTime(),
-        TaskReminderOptionId.m30,
-        false,
-      );
+      expect(
+        TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy,
+      ).toHaveBeenCalledWith(task, new Date(2026, 8, 13, 14, 45).getTime());
     });
 
     it('keeps reminders disabled when moving a modern timed task', () => {
@@ -380,12 +375,9 @@ describe('PlannerTaskComponent', () => {
 
       component.onTaskShortcut(shortcutEvent('m'));
 
-      expect(taskServiceMock['scheduleTask']).toHaveBeenCalledWith(
-        task,
-        new Date(2026, 8, 13, 14, 45).getTime(),
-        TaskReminderOptionId.DoNotRemind,
-        false,
-      );
+      expect(
+        TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy,
+      ).toHaveBeenCalledWith(task, new Date(2026, 8, 13, 14, 45).getTime());
     });
 
     it('moves focus after delayed completion removes the focused card', fakeAsync(() => {
@@ -577,10 +569,12 @@ describe('PlannerTaskComponent', () => {
       spyOn(next, 'focus');
       spyOn(moved, 'focus');
       host.focus();
-      taskServiceMock['scheduleTask'].and.callFake(() => {
-        component.ngOnDestroy();
-        host.remove();
-      });
+      (TestBed.inject(WorkSessionService).scheduleTask as jasmine.Spy).and.callFake(
+        () => {
+          component.ngOnDestroy();
+          host.remove();
+        },
+      );
 
       component.onTaskShortcut(shortcutEvent('d'));
       component.onKeydown(moveDayEvent(component, 'ArrowRight'));

@@ -7,7 +7,7 @@ import {
   updateWorkSession,
 } from '../../features/work-session/store/work-session.actions';
 import { WORK_SESSION_FEATURE_NAME } from '../../features/work-session/store/work-session.reducer';
-import { TASK_FEATURE_NAME } from '../../features/tasks/store/task.reducer';
+import { TASK_FEATURE_NAME, taskReducer } from '../../features/tasks/store/task.reducer';
 import { RootState } from '../root-state';
 import { TaskSharedActions } from './task-shared.actions';
 import { workSessionIntegrityMetaReducer } from './work-session-integrity.meta-reducer';
@@ -107,6 +107,7 @@ describe('workSessionIntegrityMetaReducer', () => {
 
   const domainReducer: ActionReducer<RootState> = (state, action) => ({
     ...state!,
+    tasks: taskReducer(state!.tasks, action),
     workSession: workSessionReducer(state!.workSession, action),
   });
   const integrated = workSessionIntegrityMetaReducer(
@@ -126,6 +127,53 @@ describe('workSessionIntegrityMetaReducer', () => {
     data.workSession = rootState(true).workSession;
     return appDataToRootState(data);
   };
+
+  it('rejects a seeded migrated mutation whose resulting Task reference is not live', () => {
+    const state = completeState();
+    const legacySession = {
+      id: 'legacy-task-schedule:7:missing:100',
+      taskId: 'missing',
+      start: 100,
+      end: 200,
+      timeZone: 'America/Vancouver',
+      created: 100,
+      modified: 100,
+    };
+    expect(() =>
+      integrated(
+        state,
+        updateWorkSession({
+          id: legacySession.id,
+          changes: { end: 300 },
+          modified: 200,
+          legacySession,
+        }),
+      ),
+    ).toThrowError('WorkSession taskId must reference a live Task');
+    expect(state.workSession.entities[legacySession.id]).toBeUndefined();
+  });
+
+  it('permits deletion and archive only after all referencing sessions are explicitly removed', () => {
+    const initial = completeState();
+    const second = { ...initial.workSession.entities['session-1']!, id: 'second' };
+    const two = integrated(initial, addWorkSession({ workSession: second }));
+    const one = integrated(two, removeWorkSession({ id: 'session-1' }));
+    const deleteAction = TaskSharedActions.deleteTasks({ taskIds: ['task-1'] });
+    const archiveAction = TaskSharedActions.moveToArchive({
+      tasks: [{ ...one.tasks.entities['task-1']!, subTasks: [] }],
+    });
+    for (const action of [deleteAction, archiveAction]) {
+      expect(() => integrated(one, action)).toThrowError(
+        'Remove WorkSessions before deleting or archiving their Task',
+      );
+    }
+    const none = integrated(one, removeWorkSession({ id: 'second' }));
+    expect(none.tasks).toBe(initial.tasks);
+    expect(none.planning).toBe(initial.planning);
+    for (const action of [deleteAction, archiveAction]) {
+      expect(integrated(none, action).tasks.entities['task-1']).toBeUndefined();
+    }
+  });
 
   it('creation, editing and removal preserve Task scheduling and Planner/Today membership', () => {
     const initial = completeState();

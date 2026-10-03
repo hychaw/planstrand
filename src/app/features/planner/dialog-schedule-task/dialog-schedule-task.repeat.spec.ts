@@ -1,3 +1,4 @@
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { TestBed } from '@angular/core/testing';
 import { DialogScheduleTaskComponent } from './dialog-schedule-task.component';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -74,6 +75,13 @@ describe('DialogScheduleTaskComponent — repeat button', () => {
         TranslateModule.forRoot(),
       ],
       providers: [
+        {
+          provide: WorkSessionService,
+          useValue: {
+            scheduleTask: jasmine.createSpy('scheduleTask').and.returnValue(true),
+            scheduledTaskSession: () => undefined,
+          },
+        },
         provideMockStore({
           initialState: {},
           selectors: [
