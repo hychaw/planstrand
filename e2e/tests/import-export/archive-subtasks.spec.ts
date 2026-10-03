@@ -3,6 +3,12 @@ import { type Page, type Download } from '@playwright/test';
 import { ImportPage } from '../../pages/import.page';
 import * as fs from 'fs';
 
+/** Read the protected current backup envelope while retaining legacy raw exports. */
+const parseExportedBackup = (content: string): ReturnType<typeof JSON.parse> => {
+  const backup = JSON.parse(content);
+  return { ...backup, data: backup.data.appDataComplete ?? backup.data };
+};
+
 /**
  * E2E Tests for Legacy Data Import/Export with Archive Subtasks
  *
@@ -230,7 +236,7 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     await importPage.navigateToImportPage();
     const download = await captureDownload(page);
     const exportedContent = await readDownloadedFile(download);
-    const exportedData = JSON.parse(exportedContent);
+    const exportedData = parseExportedBackup(exportedContent);
 
     // Step 7: Verify archived tasks
     console.log('[Legacy Archive Test] Step 7: Verifying exported data...');
@@ -308,7 +314,7 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     await importPage.navigateToImportPage();
     const download = await captureDownload(page);
     const exportedContent = await readDownloadedFile(download);
-    const exportedData = JSON.parse(exportedContent);
+    const exportedData = parseExportedBackup(exportedContent);
 
     // Count archived tasks
     const archiveYoungTaskIds = exportedData.data.archiveYoung.task.ids;
@@ -359,7 +365,7 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     await importPage.navigateToImportPage();
     const download = await captureDownload(page);
     const exportedContent = await readDownloadedFile(download);
-    const exportedData = JSON.parse(exportedContent);
+    const exportedData = parseExportedBackup(exportedContent);
 
     // Get subtask entities
     const subtask1 = exportedData.data.archiveYoung.task.entities['subtask-1'];
