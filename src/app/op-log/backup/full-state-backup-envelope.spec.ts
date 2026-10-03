@@ -2,6 +2,7 @@ import {
   protectFullStateBackup,
   readFullStateBackup,
 } from './full-state-backup-envelope';
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 import { createValidAppData } from '../validation/state-validity-test-utils';
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder } from '../../features/folder/store/folder.actions';
@@ -13,6 +14,12 @@ import {
 } from '../../imex/local-backup/backup-ring.util';
 
 describe('Folder backup envelope compatibility', () => {
+  it('carries semantic requirements and blocks the current import reader', () => {
+    const data = createValidAppData();
+    const encoded = protectFullStateBackup(data, [TASK_FOLDER_OWNERSHIP_V1]);
+    expect(isDataRepairPossible(encoded as typeof data)).toBeFalse();
+    expect(() => readFullStateBackup(JSON.parse(JSON.stringify(encoded)))).toThrow();
+  });
   const meaningful = (): ReturnType<typeof createValidAppData> => ({
     ...createValidAppData(),
     folder: addFolder({

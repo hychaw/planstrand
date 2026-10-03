@@ -41,6 +41,8 @@ import {
   type SuperSyncStorage,
 } from '../../src/super-sync';
 import type { SyncCredentialStorePort } from '../../src/credential-store';
+// Provider transport is schema-independent; exercise an opaque semantic token.
+const TEST_READER_CAPABILITY = 'TEST_READER_CAPABILITY';
 
 // Helpers reused across native-platform decompression assertions.
 const blobToUint8Array = async (blob: Blob): Promise<Uint8Array> => {
@@ -2454,12 +2456,16 @@ describe('Full-state reader advertisement transport', () => {
     const built = buildProvider();
     built.cfgStore.load.mockResolvedValue(testConfig);
     built.deps.supportedEntityTypes = ['FOLDER', 'TASK'];
+    built.deps.supportedCapabilities = [TEST_READER_CAPABILITY];
     built.fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ ops: [], latestSeq: 0, hasMore: false }), {
         status: 200,
       }),
     );
     await built.provider.downloadOps(0);
+    expect(String(built.fetchMock.mock.calls[0][0])).toContain(
+      `supportedCapabilities=${TEST_READER_CAPABILITY}`,
+    );
     expect(String(built.fetchMock.mock.calls[0][0])).toContain(
       'supportedEntityTypes=FOLDER%2CTASK',
     );
@@ -2480,6 +2486,7 @@ describe('Full-state reader advertisement transport', () => {
       undefined,
       undefined,
       ['FOLDER'],
+      [TEST_READER_CAPABILITY],
     );
     const request = built.fetchMock.mock.calls[1][1] as RequestInit;
     const stream = new Blob([request.body as BlobPart])
@@ -2487,6 +2494,7 @@ describe('Full-state reader advertisement transport', () => {
       .pipeThrough(new DecompressionStream('gzip'));
     const body = JSON.parse(await new Response(stream).text());
     expect(body.requiredEntityTypes).toEqual(['FOLDER']);
+    expect(body.requiredCapabilities).toEqual([TEST_READER_CAPABILITY]);
     expect(body.state).toBe('ciphertext');
     expect(built.storage.setLastServerSeq).not.toHaveBeenCalled();
   });

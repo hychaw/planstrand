@@ -110,6 +110,14 @@ export class PlanstrandFileSyncAdapterService {
           }
           if (prop === 'uploadOps')
             transport.requireOperations(args[0] as { opType: string }[]);
+          if (prop === 'uploadSnapshot')
+            transport.requireOperations([
+              {
+                opType: (args[8] as string | undefined) ?? 'SYNC_IMPORT',
+                requiredEntityTypes: args[12] as string[] | undefined,
+                requiredCapabilities: args[13] as string[] | undefined,
+              },
+            ]);
           if (prop === 'deleteAllData') await transport.readRequirements();
           return value.apply(target, args);
         };

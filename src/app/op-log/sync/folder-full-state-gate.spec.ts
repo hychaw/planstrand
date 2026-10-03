@@ -1,7 +1,10 @@
+import { syncOpToOperation } from './operation-sync.util';
 import {
   CURRENT_SCHEMA_VERSION,
   ENTITY_TYPES,
   SUPER_SYNC_OPERATION_CAPABILITIES,
+  TASK_FOLDER_OWNERSHIP_V1,
+  CLIENT_SYNC_READER_CAPABILITIES,
 } from '@sp/shared-schema';
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder } from '../../features/folder/store/folder.actions';
@@ -36,6 +39,66 @@ const op: Operation = {
   timestamp: 100,
   requiredEntityTypes: ['FOLDER'],
 };
+describe('Semantic ownership reader requirements', () => {
+  const required = [TASK_FOLDER_OWNERSHIP_V1];
+  const taskOp: Operation = {
+    ...op,
+    entityType: 'TASK',
+    opType: OpType.Update,
+    actionType: ActionType.TASK_UPDATE_UI,
+    payload: { task: { id: 't', changes: {} } },
+    requiredCapabilities: required,
+  };
+  it('blocks Folder-capable pre-4E replay and the pre-processing prefix', () => {
+    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual([]);
+    expect(getRemoteOpBlockReason(taskOp, CURRENT_SCHEMA_VERSION)).toBe(
+      'ENTITY_SUPPORT_REQUIRED',
+    );
+    expect(takeInterpretableOpPrefix([taskOp, op])).toEqual([]);
+    expect(
+      getRemoteOpBlockReason(taskOp, CURRENT_SCHEMA_VERSION, ENTITY_TYPES, required),
+    ).toBeNull();
+    expect(
+      getRemoteOpBlockReason(
+        { ...taskOp, requiredCapabilities: ['FUTURE'] },
+        CURRENT_SCHEMA_VERSION,
+        ENTITY_TYPES,
+        required,
+      ),
+    ).toBe('ENTITY_SUPPORT_REQUIRED');
+  });
+  it('preserves both requirements through JSON, compact storage and wire conversion', () => {
+    expect(
+      syncOpToOperation(JSON.parse(JSON.stringify(taskOp))).requiredCapabilities,
+    ).toEqual(required);
+    expect(decodeOperation(JSON.parse(JSON.stringify(encodeOperation(taskOp))))).toEqual(
+      taskOp,
+    );
+  });
+  it('blocks declared full-state requirements before conversion', () => {
+    expect(
+      getRemoteOpBlockReason(
+        {
+          ...op,
+          payload: { appDataComplete: op.payload, requiredCapabilities: required },
+        },
+        CURRENT_SCHEMA_VERSION,
+      ),
+    ).toBe('ENTITY_SUPPORT_REQUIRED');
+    expect(() =>
+      assertFullStateReaderCompatible(op.payload, ['FOLDER'], ENTITY_TYPES, required),
+    ).toThrow();
+    expect(() =>
+      assertFullStateReaderCompatible(
+        op.payload,
+        ['FOLDER'],
+        ENTITY_TYPES,
+        required,
+        required,
+      ),
+    ).not.toThrow();
+  });
+});
 const unsupported = ENTITY_TYPES.filter((type) => type !== 'FOLDER');
 describe('Folder full-state compatibility', () => {
   it('accepts current readers and blocks unsupported readers before conversion', () => {

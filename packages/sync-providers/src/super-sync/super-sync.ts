@@ -114,6 +114,7 @@ export interface SuperSyncDeps {
    */
   appVersion?: string;
   supportedEntityTypes?: readonly string[];
+  supportedCapabilities?: readonly string[];
 }
 
 /**
@@ -392,6 +393,7 @@ export class SuperSyncProvider
     repairBaseServerSeq?: number,
     lastKnownServerSeq?: number,
     requiredEntityTypes?: string[],
+    requiredCapabilities?: string[],
   ): Promise<SnapshotUploadResponse> {
     this._deps.logger.normal(`${this._logLabel}: uploadSnapshot: Starting...`, {
       clientId,
@@ -419,6 +421,7 @@ export class SuperSyncProvider
       ...(syncImportReason ? { syncImportReason } : {}),
       ...(repairBaseServerSeq !== undefined ? { repairBaseServerSeq } : {}),
       ...(requiredEntityTypes?.length ? { requiredEntityTypes } : {}),
+      ...(requiredCapabilities?.length ? { requiredCapabilities } : {}),
       ...(lastKnownServerSeq !== undefined ? { lastKnownServerSeq } : {}),
       requestId,
     });
@@ -889,8 +892,16 @@ export class SuperSyncProvider
     options: RequestInit & { noRetry?: boolean; body?: string },
   ): Promise<T> {
     const baseUrl = this._resolveBaseUrl(cfg);
-    const readerQuery = this._deps.supportedEntityTypes?.length
-      ? `${path.includes('?') ? '&' : '?'}supportedEntityTypes=${encodeURIComponent(this._deps.supportedEntityTypes.join(','))}`
+    const readerParams = new URLSearchParams();
+    if (this._deps.supportedEntityTypes?.length)
+      readerParams.set('supportedEntityTypes', this._deps.supportedEntityTypes.join(','));
+    if (this._deps.supportedCapabilities?.length)
+      readerParams.set(
+        'supportedCapabilities',
+        this._deps.supportedCapabilities.join(','),
+      );
+    const readerQuery = readerParams.toString()
+      ? `${path.includes('?') ? '&' : '?'}${readerParams}`
       : '';
     const url = `${baseUrl}${path}${readerQuery}`;
     const sanitizedToken = this._sanitizeToken(cfg.accessToken);
@@ -926,8 +937,16 @@ export class SuperSyncProvider
     compressedBody: Uint8Array,
   ): Promise<T> {
     const baseUrl = this._resolveBaseUrl(cfg);
-    const readerQuery = this._deps.supportedEntityTypes?.length
-      ? `${path.includes('?') ? '&' : '?'}supportedEntityTypes=${encodeURIComponent(this._deps.supportedEntityTypes.join(','))}`
+    const readerParams = new URLSearchParams();
+    if (this._deps.supportedEntityTypes?.length)
+      readerParams.set('supportedEntityTypes', this._deps.supportedEntityTypes.join(','));
+    if (this._deps.supportedCapabilities?.length)
+      readerParams.set(
+        'supportedCapabilities',
+        this._deps.supportedCapabilities.join(','),
+      );
+    const readerQuery = readerParams.toString()
+      ? `${path.includes('?') ? '&' : '?'}${readerParams}`
       : '';
     const url = `${baseUrl}${path}${readerQuery}`;
     const sanitizedToken = this._sanitizeToken(cfg.accessToken);
@@ -1112,8 +1131,16 @@ export class SuperSyncProvider
   ): Promise<T> {
     const startTime = Date.now();
     const baseUrl = this._resolveBaseUrl(cfg);
-    const readerQuery = this._deps.supportedEntityTypes?.length
-      ? `${path.includes('?') ? '&' : '?'}supportedEntityTypes=${encodeURIComponent(this._deps.supportedEntityTypes.join(','))}`
+    const readerParams = new URLSearchParams();
+    if (this._deps.supportedEntityTypes?.length)
+      readerParams.set('supportedEntityTypes', this._deps.supportedEntityTypes.join(','));
+    if (this._deps.supportedCapabilities?.length)
+      readerParams.set(
+        'supportedCapabilities',
+        this._deps.supportedCapabilities.join(','),
+      );
+    const readerQuery = readerParams.toString()
+      ? `${path.includes('?') ? '&' : '?'}${readerParams}`
       : '';
     const url = `${baseUrl}${path}${readerQuery}`;
     const sanitizedToken = this._sanitizeToken(cfg.accessToken);

@@ -555,6 +555,10 @@ export const isSameDuplicateOperation = (
       existingOp.requiredEntityTypes ?? [],
       op.requiredEntityTypes ?? [],
     ) &&
+    areJsonValuesEqual(
+      existingOp.requiredCapabilities ?? [],
+      op.requiredCapabilities ?? [],
+    ) &&
     isSameDuplicateTimestamp(
       existingOp.clientTimestamp,
       existingOp.receivedAt,
@@ -593,6 +597,10 @@ export const isSameIncomingOperation = (
     areJsonValuesEqual(
       first.requiredEntityTypes ?? [],
       second.requiredEntityTypes ?? [],
+    ) &&
+    areJsonValuesEqual(
+      first.requiredCapabilities ?? [],
+      second.requiredCapabilities ?? [],
     ) &&
     firstOriginalTimestamp === secondOriginalTimestamp &&
     (first.isPayloadEncrypted ?? false) === (second.isPayloadEncrypted ?? false) &&

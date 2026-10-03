@@ -6,6 +6,8 @@ import {
 } from '@sp/shared-schema';
 import {
   supportsRequiredEntityTypes,
+  supportsRequiredCapabilities,
+  CLIENT_SYNC_READER_CAPABILITIES,
   getFullStateRequiredEntityTypes,
 } from '@sp/shared-schema';
 import { extractFullStateFromPayload, isFullStateOpType } from '../core/operation.types';
@@ -34,6 +36,7 @@ interface RemoteOpVocabularyInput {
   actionType?: unknown;
   syncImportReason?: unknown;
   requiredEntityTypes?: unknown;
+  requiredCapabilities?: unknown;
   payload?: unknown;
 }
 
@@ -107,6 +110,7 @@ export const getRemoteOpBlockReason = (
   op: RemoteOpVocabularyInput & { schemaVersion?: unknown },
   currentVersion: number,
   supportedEntityTypes: readonly string[] = ENTITY_TYPES,
+  supportedCapabilities: readonly string[] = CLIENT_SYNC_READER_CAPABILITIES,
 ): Exclude<RemoteOpBlockReason, 'MIGRATION_FAILED'> | null => {
   let opVersion: number;
   try {
@@ -133,6 +137,13 @@ export const getRemoteOpBlockReason = (
   }
   if (
     !supportsRequiredEntityTypes(op.requiredEntityTypes, supportedEntityTypes) ||
+    !supportsRequiredCapabilities(op.requiredCapabilities, supportedCapabilities) ||
+    (typeof op.opType === 'string' &&
+      isFullStateOpType(op.opType) &&
+      !supportsRequiredCapabilities(
+        (op.payload as { requiredCapabilities?: unknown } | null)?.requiredCapabilities,
+        supportedCapabilities,
+      )) ||
     (typeof op.opType === 'string' &&
       isFullStateOpType(op.opType) &&
       !supportsRequiredEntityTypes(

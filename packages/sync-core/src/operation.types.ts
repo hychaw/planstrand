@@ -110,6 +110,7 @@ export interface Operation<TOpType extends string = OpType> {
   schemaVersion: number;
   /** Full-state reader capabilities, preserved outside payload encryption. */
   requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
 }
 
 export interface OperationLogEntry<TOperation extends Operation<string> = Operation> {

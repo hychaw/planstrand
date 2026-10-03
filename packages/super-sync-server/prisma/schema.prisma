@@ -96,6 +96,7 @@ model Operation {
   // unrecoverable — they were never persisted).
   entityIds           String[] @default([]) @map("entity_ids")
   requiredEntityTypes String[] @default([]) @map("required_entity_types")
+  requiredCapabilities String[] @default([]) @map("required_capabilities")
   payload             Json
   payloadBytes        BigInt   @default(0) @map("payload_bytes")
   vectorClock         Json     @map("vector_clock")

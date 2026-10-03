@@ -32,6 +32,12 @@ export const syncOpToCompact = (op: SyncOperation): CompactOperation => {
     vectorClock: op.vectorClock,
     timestamp: op.timestamp,
     schemaVersion: op.schemaVersion,
+    ...(op.requiredEntityTypes !== undefined
+      ? { requiredEntityTypes: op.requiredEntityTypes }
+      : {}),
+    ...(op.requiredCapabilities !== undefined
+      ? { requiredCapabilities: op.requiredCapabilities }
+      : {}),
     ...(op.syncImportReason
       ? { syncImportReason: op.syncImportReason as SyncImportReason }
       : {}),
@@ -59,6 +65,12 @@ export const compactToSyncOp = (compact: CompactOperation): SyncOperation => {
     vectorClock: fullOp.vectorClock,
     timestamp: fullOp.timestamp,
     schemaVersion: fullOp.schemaVersion,
+    ...(fullOp.requiredEntityTypes !== undefined
+      ? { requiredEntityTypes: fullOp.requiredEntityTypes }
+      : {}),
+    ...(fullOp.requiredCapabilities !== undefined
+      ? { requiredCapabilities: fullOp.requiredCapabilities }
+      : {}),
     ...(fullOp.syncImportReason ? { syncImportReason: fullOp.syncImportReason } : {}),
     ...(fullOp.repairBaseServerSeq !== undefined
       ? { repairBaseServerSeq: fullOp.repairBaseServerSeq }

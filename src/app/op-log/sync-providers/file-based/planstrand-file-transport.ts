@@ -116,6 +116,7 @@ export class PlanstrandFileTransport {
       opType: string;
       entityType?: string;
       requiredEntityTypes?: string[];
+      requiredCapabilities?: string[];
     }[],
   ): void {
     const entities = ops.flatMap((op) => [
@@ -126,6 +127,10 @@ export class PlanstrandFileTransport {
       this._requirements,
       entities.map((type) => `ENTITY:${type}`),
       ops,
+    );
+    this._requirements = requiredFileOpTypes(
+      this._requirements,
+      ops.flatMap((op) => op.requiredCapabilities ?? []),
     );
   }
 
@@ -230,6 +235,12 @@ export class PlanstrandFileTransport {
     this._requirements = requiredFileOpTypes(
       this._requirements,
       getFullStateRequiredEntityTypes(data.state).map((type) => `ENTITY:${type}`),
+    );
+    // Reuse the semantic manifest so pre-extension file readers reject the
+    // requirement too. Keep it through backups, compaction and force writes.
+    this._requirements = requiredFileOpTypes(
+      this._requirements,
+      (data.requiredCapabilities as string[] | undefined) ?? [],
     );
     const ref = data.snapshotRef as { file?: string } | undefined;
     if (ref?.file) data.snapshotRef = { ...ref, file: planstrandPath(ref.file) };

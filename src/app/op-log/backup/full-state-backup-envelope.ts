@@ -8,10 +8,21 @@ import { assertFullStateReaderCompatible } from '../sync/folder-full-state-gate'
  */
 export const protectFullStateBackup = <T extends object>(
   state: T,
-): T | { requiredEntityTypes: string[]; appDataComplete: T } => {
+  requiredCapabilities: string[] = [],
+):
+  | T
+  | {
+      requiredEntityTypes: string[];
+      requiredCapabilities?: string[];
+      appDataComplete: T;
+    } => {
   const requiredEntityTypes = getFullStateRequiredEntityTypes(state);
-  return requiredEntityTypes.length
-    ? { requiredEntityTypes, appDataComplete: state }
+  return requiredEntityTypes.length || requiredCapabilities.length
+    ? {
+        requiredEntityTypes,
+        ...(requiredCapabilities.length ? { requiredCapabilities } : {}),
+        appDataComplete: state,
+      }
     : state;
 };
 export const readFullStateBackup = (payload: unknown): Record<string, unknown> => {
@@ -19,6 +30,8 @@ export const readFullStateBackup = (payload: unknown): Record<string, unknown> =
   assertFullStateReaderCompatible(
     state,
     (payload as { requiredEntityTypes?: unknown })?.requiredEntityTypes,
+    undefined,
+    (payload as { requiredCapabilities?: unknown })?.requiredCapabilities,
   );
   return state;
 };

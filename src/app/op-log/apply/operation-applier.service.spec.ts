@@ -1,3 +1,4 @@
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import type {
@@ -80,6 +81,19 @@ describe('OperationApplierService', () => {
     service = TestBed.inject(OperationApplierService);
   });
 
+  for (const isLocalHydration of [false, true])
+    it('blocks unsupported semantic operations before direct/restart replay', async () => {
+      const ordinary = createMockOperation('ordinary');
+      const required = {
+        ...createMockOperation('required'),
+        requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+      };
+      await expectAsync(
+        service.applyOperations([ordinary, required], { isLocalHydration }),
+      ).toBeRejectedWithError(/unsupported semantic/);
+      expect(mockStore.dispatch).not.toHaveBeenCalled();
+      expect(mockArchiveOperationHandler.handleOperation).not.toHaveBeenCalled();
+    });
   describe('port contracts', () => {
     it('should expose operation application through OperationApplyPort', async () => {
       const applyPort: OperationApplyPort<Operation> = service;

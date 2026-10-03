@@ -1,4 +1,4 @@
-import { ENTITY_TYPES } from '@sp/shared-schema';
+import { ENTITY_TYPES, TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 import {
   evaluateOperationCompatibility,
   getOperationCapabilityRequirement,
@@ -27,6 +27,23 @@ const capabilities = (
 });
 
 describe('sync capability requirements', () => {
+  it('requires semantic enforcement from servers independently of entity support', () => {
+    const task = { ...op('TASK'), requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1] };
+    const old = capabilities([...ENTITY_TYPES]);
+    expect(evaluateOperationCompatibility([task], old).compatible).toBeFalse();
+    expect(
+      evaluateOperationCompatibility([task], {
+        ...old,
+        supportedCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+      }).compatible,
+    ).toBeTrue();
+    expect(
+      evaluateOperationCompatibility([{ ...task, requiredCapabilities: ['FUTURE'] }], {
+        ...old,
+        supportedCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+      }).compatible,
+    ).toBeFalse();
+  });
   it('requires FOLDER support for operations and full-state snapshots', () => {
     const old = capabilities(ENTITY_TYPES.filter((type) => type !== 'FOLDER'));
     expect(
@@ -133,6 +150,7 @@ describe('sync capability requirements', () => {
         unsupportedEntityTypes: ['WORK_SESSION'],
         unsupportedSchemaVersions: [],
         contractVersionSupported: true,
+        unsupportedCapabilities: [],
       },
     );
   });
@@ -168,6 +186,7 @@ describe('sync capability requirements', () => {
       unsupportedEntityTypes: [],
       unsupportedSchemaVersions: [5],
       contractVersionSupported: false,
+      unsupportedCapabilities: [],
     });
   });
 });

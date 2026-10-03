@@ -1,3 +1,7 @@
+import {
+  CLIENT_SYNC_READER_CAPABILITIES,
+  supportsRequiredCapabilities,
+} from '@sp/shared-schema';
 import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { replayOperationBatch } from '@sp/sync-core';
@@ -7,7 +11,7 @@ import type {
   RemoteApplyWindowPort,
   SyncActionLike,
 } from '@sp/sync-core';
-import { Operation } from '../core/operation.types';
+import { Operation, isFullStateOpType } from '../core/operation.types';
 import { convertOpToAction } from './operation-converter.util';
 import { OpLog } from '../../core/log';
 import {
@@ -87,6 +91,25 @@ export class OperationApplierService implements OperationApplyPort<Operation> {
       return { appliedOps: [] };
     }
 
+    // Download screening normally handles this. Restart/direct replay must not
+    // apply a semantic operation that this build cannot interpret either.
+    if (
+      ops.some(
+        (op) =>
+          !supportsRequiredCapabilities(
+            op.requiredCapabilities,
+            CLIENT_SYNC_READER_CAPABILITIES,
+          ) ||
+          (isFullStateOpType(op.opType) &&
+            !supportsRequiredCapabilities(
+              (op.payload as { requiredCapabilities?: unknown } | null)
+                ?.requiredCapabilities,
+              CLIENT_SYNC_READER_CAPABILITIES,
+            )),
+      )
+    ) {
+      throw new Error('Operations require unsupported semantic reader capabilities');
+    }
     const isLocalHydration = options.isLocalHydration ?? false;
 
     if (isLocalHydration) {

@@ -40,6 +40,7 @@ export const encodeOperation = (op: Operation): CompactOperation => {
   }
 
   if (op.requiredEntityTypes !== undefined) compact.q = op.requiredEntityTypes;
+  if (op.requiredCapabilities !== undefined) compact.k = op.requiredCapabilities;
   return compact;
 };
 
@@ -75,6 +76,7 @@ export const decodeOperation = (compact: CompactOperation): Operation => {
   }
 
   if (compact.q !== undefined) op.requiredEntityTypes = compact.q;
+  if (compact.k !== undefined) op.requiredCapabilities = compact.k;
   return op;
 };
 

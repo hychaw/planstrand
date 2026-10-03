@@ -1,7 +1,11 @@
 import { initialFolderState } from '../../../features/folder/folder-state';
 import { addFolder } from '../../../features/folder/store/folder.actions';
 import { TestBed } from '@angular/core/testing';
-import { CURRENT_SCHEMA_VERSION, SUPER_SYNC_BASELINE_OP_TYPES } from '@sp/shared-schema';
+import {
+  CURRENT_SCHEMA_VERSION,
+  SUPER_SYNC_BASELINE_OP_TYPES,
+  TASK_FOLDER_OWNERSHIP_V1,
+} from '@sp/shared-schema';
 import { PlanstrandFileSyncAdapterService } from './planstrand-file-sync-adapter.service';
 import {
   discoverPlanstrandNamespace,
@@ -118,6 +122,61 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     });
     provider = new MockFileProvider();
     service = TestBed.inject(PlanstrandFileSyncAdapterService);
+  });
+  it('fences pre-4E file readers with semantic requirements on ordinary encrypted Task operations', async () => {
+    const encryptedCfg = { isEncrypt: true, isCompress: true };
+    const futureSemantics = new Set([...KNOWN_FILE_SEMANTICS, TASK_FOLDER_OWNERSHIP_V1]);
+    const writer = service.createAdapter(provider, encryptedCfg, 'password', {
+      supportedOpTypes: futureSemantics,
+    });
+    const task = {
+      ...op(),
+      requiredEntityTypes: ['FOLDER'],
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    };
+    await writer.uploadOps([task], 'new');
+    const futureReader = service.createAdapter(provider, encryptedCfg, 'password', {
+      supportedOpTypes: futureSemantics,
+    });
+    const response = await futureReader.downloadOps(0);
+    expect(response.ops[0].op.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+    expect(response.ops[0].op.requiredEntityTypes).toEqual(['FOLDER']);
+    const old = service.createAdapter(provider, encryptedCfg, 'password');
+    await expectAsync(old.downloadOps(0)).toBeRejectedWithError(
+      PlanstrandFileIncompatibleError,
+    );
+    const before = await provider.downloadFile(P.syncFile);
+    await expectAsync(old.uploadOps([op()], 'old')).toBeRejected();
+    expect(await provider.downloadFile(P.syncFile)).toEqual(before);
+  });
+  it('keeps snapshot semantic requirements through restart and rejects Folder-only readers', async () => {
+    const futureSemantics = new Set([...KNOWN_FILE_SEMANTICS, TASK_FOLDER_OWNERSHIP_V1]);
+    const writer = service.createAdapter(provider, cfg, undefined, {
+      supportedOpTypes: futureSemantics,
+    });
+    await writer.uploadSnapshot(
+      state,
+      'new',
+      'initial',
+      {},
+      CURRENT_SCHEMA_VERSION,
+      false,
+      'snapshot',
+      false,
+      'SYNC_IMPORT',
+      undefined,
+      undefined,
+      undefined,
+      ['FOLDER'],
+      [TASK_FOLDER_OWNERSHIP_V1],
+    );
+    expect((await read()).compatibility.requiredOpTypes).toContain(
+      TASK_FOLDER_OWNERSHIP_V1,
+    );
+    const old = service.createAdapter(provider, cfg, undefined);
+    await expectAsync(old.downloadOps(0)).toBeRejectedWithError(
+      PlanstrandFileIncompatibleError,
+    );
   });
 
   it('has disjoint explicit paths, rejects traversal and freezes the production activation hook', () => {

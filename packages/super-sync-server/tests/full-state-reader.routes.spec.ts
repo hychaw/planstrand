@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 const mocks = vi.hoisted(() => ({
-  prisma: { userSyncState: { findUnique: vi.fn() }, operation: { findUnique: vi.fn() } },
+  prisma: {
+    $queryRaw: vi.fn(),
+    userSyncState: { findUnique: vi.fn() },
+    operation: { findUnique: vi.fn() },
+  },
   service: {
     getOpsSinceWithSeq: vi.fn(),
     touchDevice: vi.fn(),
@@ -37,6 +42,7 @@ describe('Server full-state reader fence through HTTP', () => {
   let app: FastifyInstance;
   beforeEach(async () => {
     vi.clearAllMocks();
+    mocks.prisma.$queryRaw.mockResolvedValue([]);
     mocks.prisma.userSyncState.findUnique.mockResolvedValue({ latestFullStateSeq: 8 });
     mocks.prisma.operation.findUnique.mockResolvedValue({
       requiredEntityTypes: ['FOLDER'],
@@ -52,6 +58,88 @@ describe('Server full-state reader fence through HTTP', () => {
   });
   afterEach(async () => {
     await app.close();
+  });
+  it('blocks a Folder-only reader before delivery when the tail requires ownership semantics', async () => {
+    mocks.prisma.$queryRaw.mockImplementation(async (query) =>
+      query.values.includes(TASK_FOLDER_OWNERSHIP_V1) ? [] : [{ id: 'task-op' }],
+    );
+    for (const advertisement of ['', '&supportedCapabilities=FUTURE']) {
+      const blocked = await app.inject(
+        `/api/sync/ops?sinceSeq=0&supportedEntityTypes=FOLDER${advertisement}`,
+      );
+      expect(blocked.statusCode).toBe(409);
+      expect(blocked.json().ops).toBeUndefined();
+      expect(blocked.json().latestSeq).toBeUndefined();
+      expect(mocks.service.getOpsSinceWithSeq).not.toHaveBeenCalled();
+    }
+    const future = await app.inject(
+      `/api/sync/ops?sinceSeq=0&supportedEntityTypes=FOLDER&supportedCapabilities=${TASK_FOLDER_OWNERSHIP_V1}`,
+    );
+    expect(future.statusCode).toBe(200);
+  });
+  it('fences unaware writes even when no full-state boundary exists', async () => {
+    mocks.prisma.userSyncState.findUnique.mockResolvedValue(null);
+    mocks.prisma.$queryRaw.mockResolvedValue([{ id: 'task-op' }]);
+    const blocked = await app.inject({
+      method: 'POST',
+      url: '/api/sync/ops?supportedEntityTypes=FOLDER',
+      payload: {},
+    });
+    expect(blocked.statusCode).toBe(409);
+    expect(mocks.service.uploadOps).not.toHaveBeenCalled();
+    expect(mocks.prisma.$queryRaw.mock.calls[0][0].values[1]).toBe(0);
+  });
+  it('blocks an ordinary encrypted Task operation in the response race', async () => {
+    mocks.prisma.userSyncState.findUnique.mockResolvedValue(null);
+    mocks.service.getOpsSinceWithSeq.mockResolvedValue({
+      ops: [
+        {
+          ...encrypted,
+          op: {
+            ...encrypted.op,
+            entityType: 'TASK',
+            opType: 'UPD',
+            requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+          },
+        },
+      ],
+      latestSeq: 8,
+      gapDetected: false,
+    });
+    const blocked = await app.inject(
+      '/api/sync/ops?sinceSeq=0&supportedEntityTypes=FOLDER',
+    );
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json().ops).toBeUndefined();
+    expect(blocked.json().latestSeq).toBeUndefined();
+    const future = await app.inject(
+      `/api/sync/ops?sinceSeq=0&supportedEntityTypes=FOLDER&supportedCapabilities=${TASK_FOLDER_OWNERSHIP_V1}`,
+    );
+    expect(future.statusCode).toBe(200);
+    expect(future.json().ops[0].op.requiredCapabilities).toEqual([
+      TASK_FOLDER_OWNERSHIP_V1,
+    ]);
+    expect(
+      (
+        await app.inject(
+          `/api/sync/ops?sinceSeq=0&supportedCapabilities=${TASK_FOLDER_OWNERSHIP_V1}`,
+        )
+      ).statusCode,
+    ).toBe(409);
+  });
+  it('rejects unknown future semantic requirements even for an ownership-capable reader', async () => {
+    mocks.service.getOpsSinceWithSeq.mockResolvedValue({
+      ops: [{ ...encrypted, op: { ...encrypted.op, requiredCapabilities: ['FUTURE'] } }],
+      latestSeq: 8,
+      gapDetected: false,
+    });
+    const blocked = await app.inject(
+      '/api/sync/ops?sinceSeq=0&supportedEntityTypes=FOLDER&supportedCapabilities=' +
+        TASK_FOLDER_OWNERSHIP_V1,
+    );
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json().latestSeq).toBeUndefined();
+    expect(blocked.json().ops).toBeUndefined();
   });
   it('serves ciphertext and requirements to an advertising reader', async () => {
     const response = await app.inject(

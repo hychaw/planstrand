@@ -1,4 +1,7 @@
-import { getFullStateRequiredEntityTypes } from '@sp/shared-schema';
+import {
+  getFullStateRequiredEntityTypes,
+  supportsRequiredCapabilities,
+} from '@sp/shared-schema';
 import { extractFullStateFromPayload } from '../core/operation.types';
 import {
   ENTITY_TYPES,
@@ -13,6 +16,8 @@ export interface OperationCapabilityInput {
   entityType: string;
   schemaVersion: number;
   payload: unknown;
+  requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
 }
 
 export interface OperationCapabilityRequirement {
@@ -27,6 +32,7 @@ export interface CapabilityCompatibilityResult {
   unsupportedEntityTypes: string[];
   unsupportedSchemaVersions: number[];
   contractVersionSupported: boolean;
+  unsupportedCapabilities: string[];
 }
 
 /**
@@ -42,6 +48,7 @@ export const getOperationCapabilityRequirement = (
   operation: OperationCapabilityInput,
 ): OperationCapabilityRequirement => {
   const entityTypes = new Set<string>();
+  for (const type of operation.requiredEntityTypes ?? []) entityTypes.add(type);
   if (operation.entityType === 'ALL') {
     for (const entityType of ENTITY_TYPES) {
       if (
@@ -81,10 +88,20 @@ export const evaluateOperationCompatibility = (
   const unsupportedOpTypes = new Set<string>();
   const supportedEntityTypes = new Set(capabilities.supportedEntityTypes);
   const unsupportedEntityTypes = new Set<string>();
+  const unsupportedCapabilities = new Set<string>();
   const unsupportedSchemaVersions = new Set<number>();
 
   for (const operation of operations) {
     const requirement = getOperationCapabilityRequirement(operation);
+    for (const capability of getOperationRequiredCapabilities(operation)) {
+      if (
+        !supportsRequiredCapabilities(
+          [capability],
+          capabilities.supportedCapabilities ?? [],
+        )
+      )
+        unsupportedCapabilities.add(capability);
+    }
     if (!supportedOpTypes.has(requirement.opType)) {
       unsupportedOpTypes.add(requirement.opType);
     }
@@ -108,10 +125,25 @@ export const evaluateOperationCompatibility = (
       contractVersionSupported &&
       unsupportedOpTypes.size === 0 &&
       unsupportedEntityTypes.size === 0 &&
+      unsupportedCapabilities.size === 0 &&
       unsupportedSchemaVersions.size === 0,
     unsupportedOpTypes: [...unsupportedOpTypes].sort(),
     unsupportedEntityTypes: [...unsupportedEntityTypes].sort(),
+    unsupportedCapabilities: [...unsupportedCapabilities].sort(),
     unsupportedSchemaVersions: [...unsupportedSchemaVersions].sort((a, b) => a - b),
     contractVersionSupported,
   };
 };
+
+/** Full-state wrappers may carry requirements before conversion to snapshot metadata. */
+export const getOperationRequiredCapabilities = (
+  operation: OperationCapabilityInput,
+): string[] => [
+  ...new Set([
+    ...(operation.requiredCapabilities ?? []),
+    ...(operation.entityType === 'ALL'
+      ? ((operation.payload as { requiredCapabilities?: string[] } | null)
+          ?.requiredCapabilities ?? [])
+      : []),
+  ]),
+];

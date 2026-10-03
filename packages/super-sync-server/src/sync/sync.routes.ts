@@ -8,6 +8,7 @@ import { FolderReplayUnsupportedError } from './op-replay';
 import { assertFullStateReader } from './full-state-reader-gate';
 import {
   supportsRequiredEntityTypes,
+  supportsRequiredCapabilities,
   getFullStateRequiredEntityTypes,
 } from '@sp/shared-schema';
 import { getSyncService } from './sync.service';
@@ -80,9 +81,16 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
   // All sync routes require authentication
   fastify.addHook('preHandler', authenticate);
   fastify.addHook('preHandler', async (req, reply) => {
-    const query = req.query as { supportedEntityTypes?: unknown };
+    const query = req.query as {
+      supportedEntityTypes?: unknown;
+      supportedCapabilities?: unknown;
+    };
     if (
-      !(await assertFullStateReader(getAuthUser(req).userId, query.supportedEntityTypes))
+      !(await assertFullStateReader(
+        getAuthUser(req).userId,
+        query.supportedEntityTypes,
+        query.supportedCapabilities,
+      ))
     ) {
       return reply.code(409).send({
         error: 'Full state requires unsupported entity capabilities',
@@ -96,19 +104,29 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
   fastify.addHook('preSerialization', async (req, reply, payload) => {
     const data = payload as {
       state?: unknown;
-      ops?: { op: { requiredEntityTypes?: string[] } }[];
-      newOps?: { op: { requiredEntityTypes?: string[] } }[];
+      requiredCapabilities?: string[];
+      ops?: { op: { requiredEntityTypes?: string[]; requiredCapabilities?: string[] } }[];
+      newOps?: {
+        op: { requiredEntityTypes?: string[]; requiredCapabilities?: string[] };
+      }[];
     };
     const advertised = (req.query as { supportedEntityTypes?: unknown })
       .supportedEntityTypes;
     const supported = typeof advertised === 'string' ? advertised.split(',') : [];
+    const semanticAdvertisement = (req.query as { supportedCapabilities?: unknown })
+      .supportedCapabilities;
+    const supportedCapabilities =
+      typeof semanticAdvertisement === 'string' ? semanticAdvertisement.split(',') : [];
     if (
+      !supportsRequiredCapabilities(data?.requiredCapabilities, supportedCapabilities) ||
       !supportsRequiredEntityTypes(
         getFullStateRequiredEntityTypes(data?.state),
         supported,
       ) ||
       [...(data?.ops ?? []), ...(data?.newOps ?? [])].some(
-        ({ op }) => !supportsRequiredEntityTypes(op.requiredEntityTypes, supported),
+        ({ op }) =>
+          !supportsRequiredEntityTypes(op.requiredEntityTypes, supported) ||
+          !supportsRequiredCapabilities(op.requiredCapabilities, supportedCapabilities),
       )
     ) {
       reply.code(409);

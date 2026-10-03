@@ -4,7 +4,10 @@ import { extractFullStateFromPayload, isFullStateOpType } from '../core/operatio
 import type { Operation } from '../core/operation.types';
 import { SyncServerIncompatibleError } from '../core/errors/sync-errors';
 import type { OperationSyncCapable } from '../sync-providers/provider.interface';
-import { evaluateOperationCompatibility } from './sync-capability.util';
+import {
+  evaluateOperationCompatibility,
+  getOperationRequiredCapabilities,
+} from './sync-capability.util';
 
 @Injectable({ providedIn: 'root' })
 export class SyncCapabilityGateService {
@@ -18,6 +21,11 @@ export class SyncCapabilityGateService {
       provider.providerMode !== 'superSyncOps' ||
       provider.requiresServerCapabilities !== true
     ) {
+      if (
+        provider.providerMode === 'superSyncOps' &&
+        operations.some((op) => getOperationRequiredCapabilities(op).length)
+      )
+        throw new SyncServerIncompatibleError('missing');
       if (provider.providerMode === 'superSyncOps')
         for (const op of operations) {
           if (isFullStateOpType(op.opType))

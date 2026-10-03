@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     uploadCountsByUser,
     notifyNewOps: vi.fn(),
     prisma: {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       userSyncState: { findUnique: vi.fn().mockResolvedValue(null) },
       operation: {
         findMany: vi.fn(),

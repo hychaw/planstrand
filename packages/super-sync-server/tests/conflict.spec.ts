@@ -1,3 +1,4 @@
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -54,6 +55,26 @@ const duplicateCandidate = (
 });
 
 describe('conflict helpers', () => {
+  it('does not deduplicate an operation that drops its semantic requirement', () => {
+    const requiredCapabilities = [TASK_FOLDER_OWNERSHIP_V1];
+    expect(isSameIncomingOperation(op({ requiredCapabilities }), op())).toBe(false);
+    expect(
+      isSameDuplicateOperation(
+        duplicateCandidate({ requiredCapabilities }),
+        1,
+        op(),
+        60_000,
+      ),
+    ).toBe(false);
+    expect(
+      isSameDuplicateOperation(
+        duplicateCandidate({ requiredCapabilities }),
+        1,
+        op({ requiredCapabilities }),
+        60_000,
+      ),
+    ).toBe(true);
+  });
   it('matches causal REPAIR retries with the same base cursor', () => {
     const repair = op({
       opType: 'REPAIR',

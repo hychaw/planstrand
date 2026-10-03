@@ -1,3 +1,4 @@
+import { CLIENT_SYNC_READER_CAPABILITIES } from '@sp/shared-schema';
 import { CapacitorHttp } from '@capacitor/core';
 import {
   PROVIDER_ID_SUPER_SYNC,
@@ -104,6 +105,7 @@ export const createSuperSyncProvider = (): PackageSuperSyncProvider => {
     defaultBaseUrl: SUPER_SYNC_DEFAULT_BASE_URL,
     appVersion: getAppSemver(),
     supportedEntityTypes: ENTITY_TYPES,
+    supportedCapabilities: CLIENT_SYNC_READER_CAPABILITIES,
   };
   return new PackageSuperSyncProvider(deps);
 };

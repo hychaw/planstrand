@@ -248,6 +248,7 @@ export interface Operation {
   schemaVersion: number;
   /** Full-state reader capabilities, preserved outside payload encryption. */
   requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
   isPayloadEncrypted?: boolean; // True if payload is E2E encrypted
   syncImportReason?: string;
   repairBaseServerSeq?: number;
@@ -274,6 +275,7 @@ export interface DuplicateOperationCandidate {
   schemaVersion: number;
   /** Full-state reader capabilities, preserved outside payload encryption. */
   requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
   clientTimestamp: bigint | number | string;
   receivedAt: bigint | number | string;
   isPayloadEncrypted: boolean;
@@ -300,6 +302,7 @@ export const DUPLICATE_OP_SELECT = {
   vectorClock: true,
   schemaVersion: true,
   requiredEntityTypes: true,
+  requiredCapabilities: true,
   clientTimestamp: true,
   receivedAt: true,
   isPayloadEncrypted: true,
@@ -452,6 +455,7 @@ export interface SnapshotResult {
   schemaVersion: number;
   /** Full-state reader capabilities, preserved outside payload encryption. */
   requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
 }
 
 // Payload validation result

@@ -478,7 +478,13 @@ export const assertDecryptedFullStateOpIntegrity = async (
 
   const validateAllData = await _loadValidateAllData();
   const fullState = extractFullStateFromPayload(decryptedPayload);
-  assertFullStateReaderCompatible(fullState, op.requiredEntityTypes);
+  assertFullStateReaderCompatible(decryptedPayload);
+  assertFullStateReaderCompatible(
+    fullState,
+    op.requiredEntityTypes,
+    undefined,
+    op.requiredCapabilities,
+  );
   const migratedState = _migrateFullStateForValidation(op, fullState);
   const stateToValidate = _restoreKnownFullStateOmissionsForValidation(migratedState);
   const validationResult = validateAllData(stateToValidate);

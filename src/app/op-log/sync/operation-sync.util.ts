@@ -83,6 +83,9 @@ export const syncOpToOperation = (syncOp: SyncOperation): Operation => {
     vectorClock: syncOp.vectorClock,
     timestamp: syncOp.timestamp,
     schemaVersion: syncOp.schemaVersion,
+    ...(syncOp.requiredCapabilities !== undefined
+      ? { requiredCapabilities: syncOp.requiredCapabilities }
+      : {}),
     ...(syncOp.requiredEntityTypes !== undefined
       ? { requiredEntityTypes: syncOp.requiredEntityTypes }
       : {}),

@@ -139,6 +139,8 @@ export class BackupService {
       assertFullStateReaderCompatible(
         backupData,
         (data as { requiredEntityTypes?: unknown }).requiredEntityTypes,
+        undefined,
+        (data as { requiredCapabilities?: unknown }).requiredCapabilities,
       );
 
       // 2. Migrate legacy backups (pre-v14) that have the old data shape

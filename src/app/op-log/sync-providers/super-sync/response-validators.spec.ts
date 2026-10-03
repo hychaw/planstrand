@@ -1,3 +1,4 @@
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 import {
   validateOpUploadResponse,
   validateOpDownloadResponse,
@@ -11,6 +12,17 @@ import {
 } from './response-validators';
 
 describe('response-validators', () => {
+  for (const capability of [TASK_FOLDER_OWNERSHIP_V1, 'FUTURE'])
+    it('blocks semantic requirements on raw full-state responses before returning state', () => {
+      expect(() =>
+        validateRestoreSnapshotResponse({
+          state: {},
+          serverSeq: 100,
+          generatedAt: 1,
+          requiredCapabilities: [capability],
+        }),
+      ).toThrowError(/unsupported semantic/);
+    });
   describe('validateOpUploadResponse', () => {
     it('should accept valid response', () => {
       const response = {

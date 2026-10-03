@@ -99,3 +99,5 @@ export {
   getFullStateRequiredEntityTypes,
   supportsRequiredEntityTypes,
 } from './full-state-capabilities';
+
+export * from './reader-capabilities';

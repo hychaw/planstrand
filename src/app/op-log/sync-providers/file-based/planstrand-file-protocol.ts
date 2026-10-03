@@ -1,5 +1,7 @@
 import {
   ENTITY_TYPES,
+  CLIENT_SYNC_READER_CAPABILITIES,
+  supportsRequiredCapabilities,
   PLANNING_V1,
   SUPER_SYNC_BASELINE_OP_TYPES,
   SUPER_SYNC_OP_TYPES,
@@ -18,6 +20,7 @@ export const PLANSTRAND_REQUIRED_FILE_OP_TYPES: readonly string[] = Object.freez
 export const KNOWN_FILE_SEMANTICS: ReadonlySet<string> = new Set([
   ...SUPER_SYNC_OP_TYPES,
   ...ENTITY_TYPES.map((type) => `ENTITY:${type}`),
+  ...CLIENT_SYNC_READER_CAPABILITIES,
 ]);
 
 export interface FileSyncNamespace {
@@ -98,6 +101,10 @@ export const assertPlanstrandFileEnvelope: (
   const d = data as Partial<PlanstrandFileEnvelope>;
   const required = d.compatibility?.requiredOpTypes;
   if (
+    !supportsRequiredCapabilities(
+      (data as { requiredCapabilities?: unknown }).requiredCapabilities,
+      [...supported],
+    ) ||
     d.product !== 'planstrand' ||
     d.version !== PLANSTRAND_FILE_VERSION ||
     !Array.isArray(required) ||

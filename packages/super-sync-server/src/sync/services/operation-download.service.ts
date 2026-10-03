@@ -29,6 +29,7 @@ const OPERATION_DOWNLOAD_SELECT = {
   vectorClock: true,
   schemaVersion: true,
   requiredEntityTypes: true,
+  requiredCapabilities: true,
   clientTimestamp: true,
   receivedAt: true,
   isPayloadEncrypted: true,
@@ -65,6 +66,7 @@ type OperationDownloadRow = {
   vectorClock: unknown;
   schemaVersion: number;
   requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
   clientTimestamp: bigint;
   receivedAt: bigint;
   isPayloadEncrypted: boolean;
@@ -85,6 +87,9 @@ const mapOperationRow = (row: OperationDownloadRow): ServerOperation => ({
     payload: row.payload,
     vectorClock: row.vectorClock as VectorClock,
     schemaVersion: row.schemaVersion,
+    ...(row.requiredCapabilities?.length
+      ? { requiredCapabilities: row.requiredCapabilities }
+      : {}),
     ...(row.requiredEntityTypes?.length
       ? { requiredEntityTypes: row.requiredEntityTypes }
       : {}),
