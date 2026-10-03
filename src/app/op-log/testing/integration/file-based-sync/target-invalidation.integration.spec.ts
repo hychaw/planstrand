@@ -29,7 +29,7 @@ describe('File-Based Sync Integration - target invalidation cost (Task 2)', () =
     title: string,
   ): Promise<FileSnapshotOpDownloadResponse> => {
     const op = clientA.createOp(
-      'Task',
+      'TASK',
       `task-${title}`,
       'CRT',
       ActionType.TASK_SHARED_ADD,

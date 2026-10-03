@@ -1,3 +1,6 @@
+import { TestBed } from '@angular/core/testing';
+import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
+import { CLIENT_ID_PROVIDER } from '../../op-log/util/client-id.provider';
 import { shortSyntaxSharedMetaReducer } from '../../root-store/meta/task-shared-meta-reducers/short-syntax-shared.reducer';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { taskBatchUpdateMetaReducer } from '../../root-store/meta/task-shared-meta-reducers/task-batch-update.reducer';
@@ -30,6 +33,7 @@ import {
 import {
   createValidAppData,
   appDataToRootState,
+  rootStateToAppData,
 } from '../../op-log/validation/state-validity-test-utils';
 import { RootState } from '../../root-store/root-state';
 import { addSubTask, moveSubTask } from './store/task.actions';
@@ -103,6 +107,99 @@ const add = (entry: Task): ReturnType<typeof TaskSharedActions.addTask> =>
   });
 
 describe('canonical Task Folder ownership', () => {
+  it('persists Project creation, canonical Task ownership and deletion fallback across fresh IndexedDB readers', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        OperationLogStoreService,
+        {
+          provide: CLIENT_ID_PROVIDER,
+          useValue: {
+            loadClientId: async () => 'ownership-smoke',
+            getOrGenerateClientId: async () => 'ownership-smoke',
+            clearCache: () => {},
+          },
+        },
+      ],
+    });
+    const db = TestBed.inject(OperationLogStoreService);
+    await db.init();
+    await db._clearAllDataForTesting();
+    const data = createValidAppData({
+      project: initialProjectState,
+      task: initialTaskState,
+    });
+    const folder = materializeProjectFolders(
+      data.project,
+      data.menuTree,
+      initialFolderState,
+    );
+    let current: RootState = { ...appDataToRootState(data), folder };
+    expect(current.folder?.entities[INBOX_FOLDER_ID]).toBeDefined();
+    current = local(
+      current,
+      ProjectActions.addProject({
+        project: { ...DEFAULT_PROJECT, id: 'smoke-project', title: 'Smoke' },
+      }),
+    );
+    const owner = projectFolderId('smoke-project');
+    expect(current.folder?.entities[owner]?.title).toBe('Smoke');
+    current = local(current, add(task('smoke-task', { projectId: 'smoke-project' })));
+    expect(current.tasks.entities['smoke-task']?.folderId).toBe(owner);
+    const persist = async (value: RootState): Promise<void> => {
+      await db.saveStateCache({
+        state: { ...rootStateToAppData(value), folder: value.folder },
+        lastAppliedOpSeq: 0,
+        vectorClock: {},
+        compactedAt: 1,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+      });
+    };
+    const restart = async (): Promise<RootState> => {
+      const fresh = TestBed.runInInjectionContext(() => new OperationLogStoreService());
+      const restored = (await fresh.loadStateCache())!.state as ReturnType<
+        typeof createValidAppData
+      >;
+      const restoredFolder = materializeProjectFolders(
+        restored.project,
+        restored.menuTree,
+        restored.folder,
+      );
+      const restoredTasks = materializeTaskFolders(
+        restored.task,
+        restored.project,
+        restoredFolder,
+      );
+      return {
+        ...appDataToRootState({ ...restored, task: restoredTasks }),
+        folder: restoredFolder,
+      };
+    };
+    await persist(current);
+    current = await restart();
+    expect(current.folder?.entities[owner]).toBeDefined();
+    expect(current.tasks.entities['smoke-task']?.folderId).toBe(owner);
+    const beforeDelete = current.tasks;
+    current = local(
+      current,
+      FolderActions.removeFolder({ state: current.folder!, id: owner }),
+    );
+    expect(current.tasks).toBe(beforeDelete);
+    expect(current.tasks.entities['smoke-task']?.folderId).toBe(owner);
+    expect(
+      resolveTaskFolderId(current.tasks.entities['smoke-task']!, current.folder!),
+    ).toBe(INBOX_FOLDER_ID);
+    await persist(current);
+    current = await restart();
+    expect(current.folder?.entities[owner]).toBeUndefined();
+    expect(current.folder?.dismissedProjectFolderIds).toContain(owner);
+    expect(current.tasks.entities['smoke-task']?.folderId).toBe(owner);
+    expect(
+      resolveTaskFolderId(current.tasks.entities['smoke-task']!, current.folder!),
+    ).toBe(INBOX_FOLDER_ID);
+    await persist(current);
+    expect(await restart()).toEqual(current);
+    expect(await db.getLastSeq()).toBe(0);
+  });
   for (const [name, projectId, expected] of [
     ['Inbox', INBOX_PROJECT.id, INBOX_FOLDER_ID],
     ['ordinary Project', 'p', projectFolderId('p')],

@@ -86,7 +86,7 @@ describe('OperationApplierService', () => {
       const ordinary = createMockOperation('ordinary');
       const required = {
         ...createMockOperation('required'),
-        requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+        requiredCapabilities: ['FUTURE'],
       };
       await expectAsync(
         service.applyOperations([ordinary, required], { isLocalHydration }),
@@ -94,6 +94,17 @@ describe('OperationApplierService', () => {
       expect(mockStore.dispatch).not.toHaveBeenCalled();
       expect(mockArchiveOperationHandler.handleOperation).not.toHaveBeenCalled();
     });
+  it('accepts current Task Folder ownership semantics before replay', async () => {
+    const required = {
+      ...createMockOperation('required'),
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    };
+    const result = await service.applyOperations([required]);
+    expect(result.appliedOps).toEqual([required]);
+    expect(mockStore.dispatch).toHaveBeenCalledOnceWith(
+      bulkApplyOperations({ operations: [required], localClientId: 'testClient' }),
+    );
+  });
   describe('port contracts', () => {
     it('should expose operation application through OperationApplyPort', async () => {
       const applyPort: OperationApplyPort<Operation> = service;

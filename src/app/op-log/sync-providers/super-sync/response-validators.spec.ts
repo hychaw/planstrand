@@ -12,7 +12,7 @@ import {
 } from './response-validators';
 
 describe('response-validators', () => {
-  for (const capability of [TASK_FOLDER_OWNERSHIP_V1, 'FUTURE'])
+  for (const capability of ['FUTURE'])
     it('blocks semantic requirements on raw full-state responses before returning state', () => {
       expect(() =>
         validateRestoreSnapshotResponse({
@@ -23,6 +23,15 @@ describe('response-validators', () => {
         }),
       ).toThrowError(/unsupported semantic/);
     });
+  it('accepts current Task Folder ownership semantics on raw full-state responses', () => {
+    const response = {
+      state: {},
+      serverSeq: 100,
+      generatedAt: 1,
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    };
+    expect(() => validateRestoreSnapshotResponse(response)).not.toThrow();
+  });
   describe('validateOpUploadResponse', () => {
     it('should accept valid response', () => {
       const response = {

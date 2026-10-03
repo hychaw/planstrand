@@ -734,7 +734,7 @@ describe('FileBasedSyncAdapterService', () => {
             c: 'other-client',
             a: ActionType.TASK_SHARED_ADD,
             o: OpType.Create,
-            e: 'Task',
+            e: 'TASK',
             d: 'entity1',
             p: { title: 'Test Task' },
             v: { otherClient: 1 },

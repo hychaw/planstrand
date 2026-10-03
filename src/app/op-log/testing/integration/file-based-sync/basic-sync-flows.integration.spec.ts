@@ -21,7 +21,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       const clientA = harness.createClient('client-a-test');
 
       // Create an operation
-      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const op = clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test Task',
       });
 
@@ -51,7 +51,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       const clientB = harness.createClient('client-b-test');
 
       // Client A uploads first
-      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const op = clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test Task',
       });
       await clientA.uploadOps([op]);
@@ -77,7 +77,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       harness.setMockState(testState);
 
       // Client A uploads
-      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const op = clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Test',
       });
       await clientA.uploadOps([op]);
@@ -101,7 +101,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
 
       // Establish initial sync file
       const initialOp = clientA.createOp(
-        'Task',
+        'TASK',
         'task-0',
         'CRT',
         ActionType.TASK_SHARED_ADD,
@@ -113,7 +113,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
     });
 
     it('should upload new local ops', async () => {
-      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const op = clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'New Task',
       });
 
@@ -125,7 +125,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
 
     it('should download new remote ops', async () => {
       // Client A uploads a new op
-      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const op = clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'New Task',
       });
       await clientA.uploadOps([op]);
@@ -144,7 +144,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       const downloaded = await clientB.downloadOps(0);
       await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
       const opFromB = clientB.createOp(
-        'Task',
+        'TASK',
         'task-b-1',
         'CRT',
         ActionType.TASK_SHARED_ADD,
@@ -181,7 +181,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       const clientB = harness.createClient('client-b-test');
 
       // Client A creates and uploads
-      const op = clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const op = clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Task from A',
       });
       await clientA.uploadOps([op]);
@@ -199,7 +199,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
 
       // Establish initial state
       const initialOp = clientA.createOp(
-        'Task',
+        'TASK',
         'task-0',
         'CRT',
         ActionType.TASK_SHARED_ADD,
@@ -214,7 +214,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       await clientB.adapter.setLastServerSeq(downloaded.latestSeq);
 
       // Client B creates and uploads
-      const op = clientB.createOp('Task', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const op = clientB.createOp('TASK', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'Task from B',
       });
       await clientB.uploadOps([op]);
@@ -234,7 +234,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       const clientB = harness.createClient('client-b-test');
 
       // Client A creates op
-      const opA = clientA.createOp('Task', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const opA = clientA.createOp('TASK', 'task-a', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'A',
       });
       await clientA.uploadOps([opA]);
@@ -246,7 +246,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       }
 
       // Client B creates op (should have knowledge of A's op)
-      const opB = clientB.createOp('Task', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
+      const opB = clientB.createOp('TASK', 'task-b', 'CRT', ActionType.TASK_SHARED_ADD, {
         title: 'B',
       });
 
@@ -262,7 +262,7 @@ describe('File-Based Sync Integration - Basic Flows', () => {
 
       // Create initial sync file
       const initialOp = clientA.createOp(
-        'Task',
+        'TASK',
         'task-0',
         'CRT',
         ActionType.TASK_SHARED_ADD,
@@ -300,13 +300,13 @@ describe('File-Based Sync Integration - Basic Flows', () => {
       const clientA = harness.createClient('client-a-test');
 
       const ops = [
-        clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+        clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 1',
         }),
-        clientA.createOp('Task', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
+        clientA.createOp('TASK', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 2',
         }),
-        clientA.createOp('Task', 'task-3', 'CRT', ActionType.TASK_SHARED_ADD, {
+        clientA.createOp('TASK', 'task-3', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: 'Task 3',
         }),
       ];
@@ -323,13 +323,13 @@ describe('File-Based Sync Integration - Basic Flows', () => {
 
       // Upload multiple ops
       const ops = [
-        clientA.createOp('Task', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
+        clientA.createOp('TASK', 'task-1', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: '1',
         }),
-        clientA.createOp('Task', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
+        clientA.createOp('TASK', 'task-2', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: '2',
         }),
-        clientA.createOp('Task', 'task-3', 'CRT', ActionType.TASK_SHARED_ADD, {
+        clientA.createOp('TASK', 'task-3', 'CRT', ActionType.TASK_SHARED_ADD, {
           title: '3',
         }),
       ];
