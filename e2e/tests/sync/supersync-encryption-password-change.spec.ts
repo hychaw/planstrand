@@ -7,6 +7,7 @@ import {
   renameTask,
   waitForTask,
   type SimulatedE2EClient,
+  withCurrentSuperSyncReader,
 } from '../../utils/supersync-helpers';
 import {
   expectTaskNotVisible,
@@ -36,7 +37,7 @@ const getSyncStatus = async (
   baseUrl: string,
   accessToken: string,
 ): Promise<SyncStatusResponse> => {
-  const response = await fetch(`${baseUrl}/api/sync/status`, {
+  const response = await fetch(withCurrentSuperSyncReader(`${baseUrl}/api/sync/status`), {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -58,11 +59,14 @@ const getServerOperations = async (
   baseUrl: string,
   accessToken: string,
 ): Promise<SuperSyncServerOperation[]> => {
-  const response = await fetch(`${baseUrl}/api/sync/ops?sinceSeq=0&limit=1000`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
+  const response = await fetch(
+    withCurrentSuperSyncReader(`${baseUrl}/api/sync/ops?sinceSeq=0&limit=1000`),
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     throw new Error(

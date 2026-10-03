@@ -553,7 +553,7 @@ test.describe('@supersync REPAIR lifecycle', () => {
         markReplacementAccepted = resolve;
       });
 
-      await clientA.page.route('**/api/sync/snapshot', async (route) => {
+      await clientA.page.route('**/api/sync/snapshot*', async (route) => {
         const request = parseSuperSyncRequestBody<SnapshotUploadRequest>(route.request());
         if (request.snapshotOpType !== 'REPAIR' || !request.opId) {
           await route.continue();
@@ -703,7 +703,7 @@ test.describe('@supersync REPAIR lifecycle', () => {
       let clientCRepairUploads = 0;
       clientC = await createSimulatedClient(browser, appUrl, 'C', testRunId);
       await clientC.workView.waitForTaskList();
-      await clientC.page.route('**/api/sync/snapshot', async (route) => {
+      await clientC.page.route('**/api/sync/snapshot*', async (route) => {
         const request = parseSuperSyncRequestBody<SnapshotUploadRequest>(route.request());
         if (request.snapshotOpType === 'REPAIR') {
           clientCRepairUploads++;

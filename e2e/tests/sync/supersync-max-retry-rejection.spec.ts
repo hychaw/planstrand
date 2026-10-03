@@ -80,7 +80,7 @@ test.describe('@supersync Max Retry Rejection', () => {
       await waitForTask(clientA.page, taskName2);
 
       // Intercept ALL uploads — return CONFLICT_CONCURRENT for every op
-      await clientA.page.route('**/api/sync/ops', async (route) => {
+      await clientA.page.route('**/api/sync/ops*', async (route) => {
         if (route.request().method() === 'POST') {
           interceptCount++;
           console.log(
@@ -124,7 +124,7 @@ test.describe('@supersync Max Retry Rejection', () => {
       }
 
       // Remove interception
-      await clientA.page.unroute('**/api/sync/ops');
+      await clientA.page.unroute('**/api/sync/ops*');
 
       // Verify multiple upload attempts happened (confirms retry cycles occurred)
       // The app silently drops permanently-rejected ops without showing an error icon.
@@ -143,7 +143,7 @@ test.describe('@supersync Max Retry Rejection', () => {
       );
     } finally {
       if (clientA) {
-        await clientA.page.unroute('**/api/sync/ops').catch(() => {});
+        await clientA.page.unroute('**/api/sync/ops*').catch(() => {});
         await closeClient(clientA);
       }
     }

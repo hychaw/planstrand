@@ -294,7 +294,7 @@ for (const { pendingOrder, incomingNewer, retry } of scenarios) {
       };
       let lostResponse = false;
       if (retry) {
-        await a.page.route('**/api/sync/ops', async (route) => {
+        await a.page.route('**/api/sync/ops*', async (route) => {
           if (route.request().method() === 'POST' && !lostResponse) {
             const accepted = await route.fetch();
             expect(accepted.ok()).toBe(true);

@@ -10,6 +10,7 @@ import {
   unrouteSuperSyncOps,
   waitForTask,
   type SimulatedE2EClient,
+  withCurrentSuperSyncReader,
 } from '../../utils/supersync-helpers';
 
 /**
@@ -515,9 +516,14 @@ test.describe('@supersync Network Failure Recovery', () => {
         ).toHaveLength(1);
       }
       const retryHistory = (await (
-        await fetch(`${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`, {
-          headers: { Authorization: `Bearer ${user.token}` },
-        })
+        await fetch(
+          withCurrentSuperSyncReader(
+            `${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`,
+          ),
+          {
+            headers: { Authorization: `Bearer ${user.token}` },
+          },
+        )
       ).json()) as {
         ops: Array<{ op: { entityId?: string; entityType: string; opType: string } }>;
       };
@@ -706,7 +712,7 @@ test.describe('@supersync Network Failure Recovery', () => {
 
       // Intercept and return storage quota exceeded BEFORE creating task
       // so the immediate upload service gets the error
-      await clientA.page.route('**/api/sync/ops', async (route) => {
+      await clientA.page.route('**/api/sync/ops*', async (route) => {
         if (route.request().method() === 'POST') {
           console.log('[Test] Simulating storage quota exceeded');
           await route.fulfill({
@@ -760,7 +766,7 @@ test.describe('@supersync Network Failure Recovery', () => {
       console.log('[StorageQuota] ✓ Server quota exceeded handling test PASSED');
     } finally {
       if (clientA) {
-        await clientA.page.unroute('**/api/sync/ops').catch(() => {});
+        await clientA.page.unroute('**/api/sync/ops*').catch(() => {});
       }
       if (clientA) await closeClient(clientA);
     }
