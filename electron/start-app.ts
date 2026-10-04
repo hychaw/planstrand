@@ -41,7 +41,7 @@ const APP_DISPLAY_NAME = 'Planstrand';
 // this value straight to `g_desktop_app_info_new()`, which wants a desktop-file
 // id, while the window identity strips the suffix itself. Coupled to the
 // desktop entry by `tools/verify-linux-wm-class.test.js`.
-const LINUX_DESKTOP_NAME = 'superproductivity.desktop';
+const LINUX_DESKTOP_NAME = 'planstrand.desktop';
 const IS_MAC = process.platform === 'darwin';
 // const DESKTOP_ENV = process.env.DESKTOP_SESSION;
 // const IS_GNOME = DESKTOP_ENV === 'gnome' || DESKTOP_ENV === 'gnome-xorg';
@@ -175,13 +175,13 @@ export const startApp = (): void => {
     // `GetXdgAppId().value_or(Browser::GetName())`, so the app id wins and
     // `setName` below no longer reaches the window identity. Electron's own
     // inference (`lib/browser/init.ts`) slugifies the app name, which happens to
-    // produce the same value today but would become `super-productivity` the
+    // produce the same value today but would change the inferred desktop id the
     // moment a `productName` is added to package.json, detaching every window
-    // from `superproductivity.desktop`. Must run before the first window is
+    // from `planstrand.desktop`. Must run before the first window is
     // created. #9674, #9450.
     app.setDesktopName(LINUX_DESKTOP_NAME);
 
-    // Preserve the historical userData path based on package.json `name`, while
+    // Preserve the isolated profile selected by app-identity.ts, while
     // exposing a human-readable app name to Linux desktop environments (#8640).
     // Safe for the window identity because of the pin above.
     const userDataPath = app.getPath('userData');

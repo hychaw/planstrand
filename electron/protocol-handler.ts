@@ -5,13 +5,13 @@ import { IPC } from './shared-with-frontend/ipc-events.const';
 import { getIsAppReady } from './main-window';
 import { showOrFocus, toggleWindowVisibility } from './various-shared';
 
-export const PROTOCOL_NAME = 'superproductivity';
+export const PROTOCOL_NAME = 'planstrand';
 export const PROTOCOL_PREFIX = `${PROTOCOL_NAME}://`;
 
 // Store pending URLs to process after window is ready
 let pendingUrls: string[] = [];
 
-// When the app is COLD-LAUNCHED by `superproductivity://toggle-visibility` (it was not
+// When the app is COLD-LAUNCHED by `planstrand://toggle-visibility` (it was not
 // already running), the freshly-created window must just be SHOWN — never toggled, which
 // would immediately hide the window the launch was meant to reveal (#7114). The cold-start
 // argv scan sets this one-shot flag instead of routing that URL through the toggle, and the
@@ -19,7 +19,7 @@ let pendingUrls: string[] = [];
 let coldStartShowPending = false;
 
 /**
- * Parse the action (host) of a `superproductivity://` URL, or `null` if it is
+ * Parse the action (host) of a `planstrand://` URL, or `null` if it is
  * missing/unparseable. Used by the `second-instance` handler to special-case actions
  * whose behavior the generic pre-focus would otherwise break.
  */
@@ -147,7 +147,7 @@ export const processProtocolUrl = (url: string, mainWin: BrowserWindow | null): 
         break;
       // The following three mirror the `globalShowHide` / `globalAddNote` / `globalAddTask`
       // global shortcuts. On Wayland the compositor owns global hotkeys, so users bind keys
-      // to `xdg-open superproductivity://<action>` instead (#7114).
+      // to `xdg-open planstrand://<action>` instead (#7114).
       case 'toggle-visibility':
         toggleWindowVisibility(mainWin);
         break;

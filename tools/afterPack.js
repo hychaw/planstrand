@@ -2,7 +2,7 @@
 //
 // macOS: verifies the actual icon copied into every packaged .app.
 //
-// Linux: renames the main Electron binary to `superproductivity-bin` and installs
+// Linux: renames the main Electron binary to `planstrand-bin` and installs
 // a shell wrapper at the original name. The wrapper's only job is forcing
 // --ozone-platform=x11 when running in our Snap sandbox on a Wayland session;
 // non-Snap launches (AppImage, .deb, .rpm) and X11 sessions pass straight
@@ -27,8 +27,8 @@
 const { promises: fs } = require('fs');
 const { join } = require('path');
 
-const BIN_NAME = 'superproductivity'; // must match linux.executableName
-const RENAMED = 'superproductivity-bin';
+const BIN_NAME = 'planstrand'; // must match linux.executableName
+const RENAMED = 'planstrand-bin';
 const WRAPPER_SRC = join(__dirname, '..', 'build', 'linux', 'snap-wrapper.sh');
 const WAYLAND_IDLE_HELPER_SRC = join(
   __dirname,

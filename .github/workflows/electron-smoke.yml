@@ -116,7 +116,7 @@ jobs:
             --auto-servernum \
             --server-args="-screen 0 1280x720x24" \
             node e2e/electron/packaged-app-smoke.cjs \
-              '.tmp/app-builds/# packaged app/superproductivity' \
+              '.tmp/app-builds/# packaged app/planstrand' \
             2>&1 | tee .tmp/smoke/launch.log
 
       - name: Upload logs on failure

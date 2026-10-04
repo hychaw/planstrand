@@ -79,7 +79,7 @@ const IS_WINDOWS = process.platform === 'win32';
 //   portable f7c06d50-4d3e-4f8d-b9a0-2c8e7f5a1b3d, store 19b9d3fe-aa50-4792-917e-60ada97f3088
 // See https://www.electronjs.org/docs/latest/api/tray (guid) and
 //   https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-notifyicondataa
-const WINDOWS_TRAY_NSIS_GUID = 'a2512177-8bee-4b70-a0a8-f3d18e0eab90';
+const WINDOWS_TRAY_NSIS_GUID = 'ad3fbe2e-958d-4ae3-9562-e31d3a9ec85c';
 
 const getWindowsTrayGuid = (): string | undefined =>
   getDistChannel() === 'win-nsis' ? WINDOWS_TRAY_NSIS_GUID : undefined;

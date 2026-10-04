@@ -18,15 +18,15 @@ import { saveSimpleStore } from '../simple-store';
 import { SimpleStoreKey } from '../shared-with-frontend/simple-store.const';
 import { updateLocalRestApiConfig } from '../local-rest-api';
 
-// On Linux, packaged builds ship a shell wrapper (`superproductivity`) next
-// to the Electron ELF (`superproductivity-bin`) that injects
+// On Linux, packaged builds ship a shell wrapper (`planstrand`) next
+// to the Electron ELF (`planstrand-bin`) that injects
 // `--ozone-platform=x11` on Snap+Wayland — see tools/afterPack.js. A raw
 // app.relaunch() re-runs process.execPath, which is the renamed ELF, so
 // the wrapper is bypassed and Snap+Wayland launches would re-crash after
 // relaunch. Point execPath at the sibling wrapper when it's present.
 const getRelaunchExecPath = (): string | undefined => {
   if (process.platform !== 'linux') return undefined;
-  const wrapperPath = join(dirname(process.execPath), 'superproductivity');
+  const wrapperPath = join(dirname(process.execPath), 'planstrand');
   return existsSync(wrapperPath) ? wrapperPath : undefined;
 };
 

@@ -85,7 +85,10 @@ test('macOS icon verification rejects the full-bleed generic small artwork', (t)
   const temporaryDirectory = mkdtempSync(join(tmpdir(), 'sp-mac-iconset-test-'));
   const actualIconset = join(temporaryDirectory, 'icon.iconset');
   cpSync(ICONSET_PATH, actualIconset, { recursive: true });
-  copyFileSync(GENERIC_SMALL_ICON, join(actualIconset, 'icon_16x16.png'));
+  writeFileSync(
+    join(actualIconset, 'icon_16x16.png'),
+    encodePng(16, Buffer.alloc(16 * 16 * 4, 255)),
+  );
   t.after(() => rmSync(temporaryDirectory, { recursive: true, force: true }));
 
   assert.throws(
