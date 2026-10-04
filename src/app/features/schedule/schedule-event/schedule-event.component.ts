@@ -1,3 +1,6 @@
+import { EventService } from '../../event/event.service';
+import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
+import { editableLocalEvent } from '../schedule.model';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -97,6 +100,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   private _taskService = inject(TaskService);
   private _calEventActions = inject(CalendarEventActionsService);
   private _ngZone = inject(NgZone);
+  private readonly _events = inject(EventService);
   private readonly _workSessionService = inject(WorkSessionService);
   readonly titleHasLinks = computed(() => {
     const t = this.title();
@@ -365,6 +369,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     | 'CAL_PROJECTION'
     | 'SPLIT_CONTINUE'
     | 'LUNCH_BREAK'
+    | 'LOCAL_EVENT'
   >(() => {
     const evt = this.se();
     switch (evt.type) {
@@ -378,6 +383,8 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
       case SVEType.Task:
       case SVEType.SplitTask:
         return 'FLOW';
+      case SVEType.LocalEvent:
+        return 'LOCAL_EVENT';
       case SVEType.CalendarEvent:
         return 'CAL_PROJECTION';
       case SVEType.ScheduledTask:
@@ -400,6 +407,12 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
 
     const t = this.task();
     const evt = this.se();
+    if (editableLocalEvent(evt, 'canDelete') && !this.isDragPreview()) {
+      this._matDialog.open(DialogEventComponent, {
+        data: { id: (evt.data as { sourceId: string }).sourceId },
+      });
+      return;
+    }
 
     if (t) {
       // Use bottom panel on mobile, sidebar on desktop
@@ -583,6 +596,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     // and SplitTaskContinuedLast is not reliably the final segment — every day
     // slice of a multi-day scheduled task carries that type (see
     // create-view-entries-for-block.ts), so the middle ones cannot grow at all.
+    if (evt.type === SVEType.LocalEvent) return !!editableLocalEvent(evt, 'canResize');
     if (evt.type === SVEType.WorkSession) {
       return !!editableWorkSession(evt, 'canResize');
     }
@@ -665,6 +679,9 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     // Each row represents a time slice (FH rows per hour)
     const timeChangeInMs = this._calculateTimeFromHeightDelta(this._heightDelta);
 
+    const local = editableLocalEvent(this.se(), 'canResize');
+    if (local && Math.abs(timeChangeInMs) > 30000)
+      this._events.resize(local.sourceId, local.end + timeChangeInMs);
     const session = editableWorkSession(this.se(), 'canResize');
     if (session && Math.abs(timeChangeInMs) > 30000) {
       // The existing bottom-edge gesture changes only the end instant.

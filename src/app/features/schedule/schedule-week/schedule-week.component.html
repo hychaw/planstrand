@@ -11,6 +11,13 @@
         }
         <div class="day-num">{{ dayHeaderLabels()[day].num }}</div>
         <div class="day-day">{{ dayHeaderLabels()[day].day }}</div>
+        @for (event of allDayEvents(day); track event.id) {
+          <schedule-event
+            [event]="event"
+            [isMonthView]="true"
+            [cdkDragDisabled]="true"
+          ></schedule-event>
+        }
         @if (beyondBudgetStats()[$index].count > 0) {
           <span
             class="over-budget-badge"
@@ -120,7 +127,7 @@
   }
 
   <!-- Events -->
-  @for (ev of safeEvents(); track trackEventKey(ev)) {
+  @for (ev of timedEvents(); track trackEventKey(ev)) {
     @if (canDragEvent(ev)) {
       <schedule-event
         class="draggable"

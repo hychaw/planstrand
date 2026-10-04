@@ -1,3 +1,5 @@
+import { selectAllEvents } from '../event/store/event.selectors';
+import { projectEvent } from './calendar-display-item';
 import { createSelector } from '@ngrx/store';
 import {
   selectAllWorkSessions,
@@ -19,4 +21,10 @@ export const selectLocalCalendarDisplayItems = createSelector(
       timelineTasks.planned,
       state?.dismissedLegacySessionIds,
     ),
+);
+
+export const selectPersistedCalendarDisplayItems = createSelector(
+  selectLocalCalendarDisplayItems,
+  selectAllEvents,
+  (items, events) => [...items, ...events.map(projectEvent)],
 );

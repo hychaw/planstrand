@@ -171,6 +171,9 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   [ActionType.SECTION_REMOVE_TASK]: 'S6',
 
   // WorkSession actions (V)
+  [ActionType.EVENT_ADD]: 'LEA',
+  [ActionType.EVENT_UPDATE]: 'LEU',
+  [ActionType.EVENT_REMOVE]: 'LED',
   [ActionType.WORK_SESSION_ADD]: 'VA',
   [ActionType.WORK_SESSION_UPDATE]: 'VU',
   [ActionType.WORK_SESSION_REMOVE]: 'VD',

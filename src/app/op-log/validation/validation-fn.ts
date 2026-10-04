@@ -1,3 +1,4 @@
+import { EventState } from '../../features/event/event.model';
 import { FolderState } from '../../features/folder/folder.model';
 import { isFolderState } from '../../features/folder/folder-state';
 import { PlanningState } from '../../features/planning/planning.model';
@@ -60,6 +61,7 @@ const _validatePluginUserData = createValidate<PluginUserDataState>();
 const _validatePluginMetadata = createValidate<PluginMetaDataState>();
 const _validateSection = createValidate<SectionState>();
 const _validatePlanning = createValidate<PlanningState>();
+const _validateEvent = createValidate<EventState>();
 const _validateWorkSession = createValidate<WorkSessionState>();
 
 /**
@@ -226,6 +228,7 @@ export const appDataValidators: {
     _wrapValidate(_validateSection(d), d, true, 'section'),
   planning: <R>(d: R | PlanningState) =>
     _wrapValidate(_validatePlanning(d), d, true, 'planning'),
+  event: <R>(d: R | EventState) => _wrapValidate(_validateEvent(d), d, true, 'event'),
   workSession: <R>(d: R | WorkSessionState) =>
     _wrapValidate(_validateWorkSession(d), d, true, 'workSession'),
 } as const;

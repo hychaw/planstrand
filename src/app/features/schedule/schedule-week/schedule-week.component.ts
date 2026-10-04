@@ -1,3 +1,4 @@
+import { editableLocalEvent } from '../schedule.model';
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
   AfterViewInit,
@@ -108,7 +109,8 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly isShiftNoScheduleMode = computed(
     () =>
       this._service.isShiftMode() &&
-      this._service.currentDragEvent()?.type !== SVEType.WorkSession,
+      this._service.currentDragEvent()?.type !== SVEType.WorkSession &&
+      this._service.currentDragEvent()?.type !== SVEType.LocalEvent,
   );
 
   FH = FH;
@@ -221,7 +223,25 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${ev.id}_${ev.plannedForDay ?? ''}_${ev.startHours}`;
   }
 
+  readonly timedEvents = computed(() =>
+    (this.events() ?? []).filter(
+      (ev) =>
+        !(
+          ev.type === SVEType.LocalEvent && (ev.data as { isAllDay?: boolean })?.isAllDay
+        ),
+    ),
+  );
+  allDayEvents(day: string): ScheduleEvent[] {
+    return (this.events() ?? []).filter(
+      (ev) =>
+        ev.type === SVEType.LocalEvent &&
+        (ev.data as { isAllDay?: boolean })?.isAllDay &&
+        ev.plannedForDay === day,
+    );
+  }
+
   canDragEvent(ev: ScheduleEvent): boolean {
+    if (ev.type === SVEType.LocalEvent) return !!editableLocalEvent(ev, 'canMove');
     if (ev.type === SVEType.WorkSession) {
       return !!editableWorkSession(ev, 'canMove');
     }

@@ -47,7 +47,11 @@ export const createSortedBlockerBlocks = (
         : scheduledTasks,
     ),
     ...(calendarDisplayItems ?? [])
-      .filter((item) => item.sourceType === 'workSession')
+      .filter(
+        (item) =>
+          item.sourceType === 'workSession' ||
+          (item.sourceType === 'event' && !item.isAllDay),
+      )
       .map(
         (item): BlockedBlock => ({
           start: item.start,

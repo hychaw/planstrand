@@ -1,0 +1,89 @@
+<h2 mat-dialog-title>{{ (data.id ? T.F.EVENT.EDIT : T.F.EVENT.NEW) | translate }}</h2>
+<form (ngSubmit)="save()">
+  <mat-dialog-content>
+    <label
+      >{{ T.F.EVENT.TITLE | translate
+      }}<input
+        name="title"
+        [(ngModel)]="title"
+        required
+        autofocus
+    /></label>
+    <label
+      ><input
+        type="checkbox"
+        name="allDay"
+        [(ngModel)]="isAllDay"
+      />{{ T.F.EVENT.ALL_DAY | translate }}</label
+    >
+    <label
+      >{{ T.F.EVENT.DATE | translate
+      }}<input
+        type="date"
+        name="date"
+        [(ngModel)]="date"
+        (ngModelChange)="endDate = $event"
+        required
+    /></label>
+    @if (!isAllDay) {
+      <label
+        >{{ T.F.EVENT.START | translate
+        }}<input
+          type="time"
+          name="start"
+          [(ngModel)]="startTime"
+          required
+      /></label>
+      <label
+        >{{ T.F.EVENT.END_DATE | translate
+        }}<input
+          type="date"
+          name="endDate"
+          [(ngModel)]="endDate"
+          required
+      /></label>
+      <label
+        >{{ T.F.EVENT.END | translate
+        }}<input
+          type="time"
+          name="end"
+          [(ngModel)]="endTime"
+          required
+      /></label>
+      <label
+        >{{ T.F.EVENT.TIME_ZONE | translate
+        }}<input
+          name="timeZone"
+          [(ngModel)]="timeZone"
+          required
+      /></label>
+    }
+    @if (invalid) {
+      <p role="alert">{{ T.F.EVENT.INVALID | translate }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    @if (data.id) {
+      <button
+        mat-button
+        type="button"
+        (click)="remove()"
+      >
+        {{ T.G.DELETE | translate }}
+      </button>
+    }
+    <button
+      mat-button
+      type="button"
+      mat-dialog-close
+    >
+      {{ T.G.CANCEL | translate }}
+    </button>
+    <button
+      mat-button
+      type="submit"
+    >
+      {{ T.G.SAVE | translate }}
+    </button>
+  </mat-dialog-actions>
+</form>

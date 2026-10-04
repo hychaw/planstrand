@@ -1,3 +1,5 @@
+import { selectPersistedCalendarDisplayItems } from './calendar-display-item.selectors';
+import { projectEvent } from './calendar-display-item';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
@@ -93,5 +95,58 @@ describe('CalendarDisplayService', () => {
     events.next([]);
     expect(service.items()).toEqual([local]);
     expect(dispatch).not.toHaveBeenCalled();
+  });
+  it('combines WorkSession, local Event and external items without provider duplicates', () => {
+    const local = projectEvent({
+      id: 'local',
+      title: 'Local',
+      isAllDay: true,
+      date: '2026-10-04',
+      created: 50,
+      modified: 50,
+    });
+    const session = projectWorkSession({
+      id: 'session',
+      taskId: 'task',
+      start: 100,
+      end: 200,
+      timeZone: 'UTC',
+      created: 50,
+      modified: 50,
+    });
+    const external = {
+      id: 'external',
+      calProviderId: 'provider',
+      issueProviderKey: 'ICAL',
+      title: 'External',
+      start: 300,
+      duration: 100,
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideMockStore({
+          selectors: [
+            { selector: selectPersistedCalendarDisplayItems, value: [session, local] },
+          ],
+        }),
+        {
+          provide: CalendarIntegrationService,
+          useValue: {
+            calendarEvents$: new BehaviorSubject([{ items: [external, external] }]),
+          },
+        },
+        {
+          provide: HiddenCalendarProvidersService,
+          useValue: { hiddenProviderIds: signal([]) },
+        },
+      ],
+    });
+    const service = TestBed.inject(CalendarDisplayService);
+    expect(service.items().map((item) => item.sourceType)).toEqual([
+      'workSession',
+      'event',
+      'external',
+    ]);
+    expect(service.externalCalendars()[0].items.length).toBe(1);
   });
 });

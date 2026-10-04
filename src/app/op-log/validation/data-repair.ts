@@ -112,6 +112,7 @@ export const dataRepair = (
     dataOut.section = { ids: [], entities: {} };
   }
 
+  if (!Object.hasOwn(dataOut, 'event')) dataOut.event = { ids: [], entities: {} };
   if (!Object.hasOwn(dataOut, 'workSession')) {
     dataOut.workSession = { ids: [], entities: {} };
   }

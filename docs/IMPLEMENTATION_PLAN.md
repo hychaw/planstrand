@@ -2,9 +2,19 @@
 
 ## Active strategy: Fast-Track V1 (2026-10-04)
 
-Milestone A is implemented and ready for merge, pending user review. See
-[the concise final milestone audit](FAST_TRACK_MILESTONE_A_FINAL_AUDIT.md) for
-delivered behavior, validation, baseline failure classification, and deferred polish.
+Milestone A is merged. Milestone B delivers minimal standalone local Events and
+one unified Calendar / Schedule using the Phase 3 projection and existing
+Day/Week/Month views. Local Events have normalized NgRx CRUD, operation replay,
+IndexedDB snapshots, backup/import, and entity capability protection. All-day
+Events store date-only strings; timed Events store absolute start/end and a valid
+IANA timezone. Use New Event, the empty-time-area button, or an Event itself to
+open the small editor. Timed drag/resize writes only that Event. Provider events
+remain adapters and WorkSessions retain their own commands.
+
+Validation strategy: implement → targeted tests → one final combined milestone
+validation → push → one normal final CI/E2E checkpoint. Do not restore the old
+phase-by-phase roadmap or begin shipping polish. See the Milestone B final audit
+for exact results and limitations.
 
 Phases 1–4 are the authoritative foundations. Execute product milestones instead
 of running old Phases 5–13 sequentially. Milestone A combines essential Phase 5/6:
@@ -19,7 +29,7 @@ normalization, Trash, account/device/E2EE redesign, encrypted-backup redesign) i
 **post-V1 / deferred**, unless a demonstrated product blocker requires a separate
 decision. Standalone Events and advanced calendar views from Phase 7 are not part
 of Milestone A. Phase 13 branding, animation, density, exhaustive responsive polish,
-and advanced integration export are deferred to shipping polish or post-V1.
+and advanced provider export are deferred to shipping polish or post-V1.
 No new schema, sync entities, dependencies, or UI-state synchronization in A.
 The historical audit below remains context; this strategy supersedes its sequence.
 

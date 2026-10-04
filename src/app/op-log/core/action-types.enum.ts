@@ -156,6 +156,9 @@ export enum ActionType {
   SECTION_REMOVE_TASK = '[Section] Remove Task from Section',
 
   // WorkSession actions (V)
+  EVENT_ADD = '[Event] Add Event',
+  EVENT_UPDATE = '[Event] Update Event',
+  EVENT_REMOVE = '[Event] Remove Event',
   WORK_SESSION_ADD = '[WorkSession] Add WorkSession',
   WORK_SESSION_UPDATE = '[WorkSession] Update WorkSession',
   WORK_SESSION_REMOVE = '[WorkSession] Remove WorkSession',

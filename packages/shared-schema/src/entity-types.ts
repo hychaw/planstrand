@@ -31,6 +31,7 @@ export const ENTITY_TYPES = [
   'SECTION',
   'FOLDER',
   'WORK_SESSION',
+  'EVENT',
   'REMINDER',
   'PLUGIN_USER_DATA',
   'PLUGIN_METADATA',

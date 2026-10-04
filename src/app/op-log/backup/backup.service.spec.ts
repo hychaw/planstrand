@@ -730,6 +730,49 @@ describe('BackupService', () => {
       expect(mockStore.dispatch).not.toHaveBeenCalled();
       expect(data.workSession.entities[future.id]).toEqual(future);
     });
+    it('round-trips timed and date-only Events through complete backup import and declares EVENT', async () => {
+      const data = createValidAppData();
+      const timed = {
+        id: 'local',
+        title: 'Meeting',
+        isAllDay: false as const,
+        start: 100,
+        end: 200,
+        timeZone: 'UTC',
+        created: 50,
+        modified: 50,
+      };
+      const allDay = {
+        id: 'date-only',
+        title: 'Day off',
+        isAllDay: true as const,
+        date: '2026-10-04',
+        created: 50,
+        modified: 50,
+      };
+      data.event = {
+        ids: [timed.id, allDay.id],
+        entities: { [timed.id]: timed, [allDay.id]: allDay },
+      };
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
+      const exported = await service.loadCompleteBackup(true);
+      expect(exported.data.event).toEqual(data.event);
+      await service.importCompleteBackup(
+        JSON.parse(JSON.stringify(exported)),
+        true,
+        true,
+      );
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect('event' in action.appDataComplete && action.appDataComplete.event).toEqual(
+        data.event,
+      );
+      expect(
+        JSON.stringify(
+          mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0],
+        ),
+      ).toContain('EVENT');
+    });
     it('exports and imports multiple WorkSessions through the complete backup and durable full-state path', async () => {
       const data = addTaskToAppData(createValidAppData(), createValidTask('task-1'));
       const first = {

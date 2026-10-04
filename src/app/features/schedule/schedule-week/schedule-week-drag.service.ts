@@ -1,3 +1,5 @@
+import { EventService } from '../../event/event.service';
+import { editableLocalEvent } from '../schedule.model';
 import { planningCommands } from '../../planning/planning-commands';
 import { CdkDragMove, CdkDragRelease, CdkDragStart } from '@angular/cdk/drag-drop';
 import { inject, Injectable, Signal, signal } from '@angular/core';
@@ -49,6 +51,7 @@ export class ScheduleWeekDragService {
   private readonly _store = inject(Store);
   private readonly _calendarEventActions = inject(CalendarEventActionsService);
   private readonly _dateService = inject(DateService);
+  private readonly _eventService = inject(EventService);
   private readonly _workSessionService = inject(WorkSessionService);
 
   private readonly _isShiftMode = signal(false);
@@ -197,7 +200,8 @@ export class ScheduleWeekDragService {
     if (
       this.isShiftMode() &&
       !draggedCalendarEvent &&
-      this._currentDragEvent()?.type !== SVEType.WorkSession
+      this._currentDragEvent()?.type !== SVEType.WorkSession &&
+      this._currentDragEvent()?.type !== SVEType.LocalEvent
     ) {
       this._handleShiftDragMove(targetEl, pointer, gridRect, targetDay, isWithinGrid);
     } else {
@@ -233,8 +237,12 @@ export class ScheduleWeekDragService {
 
     const sourceEvent = ev.source.data;
     // Source identity, never the timed-Task CSS class or referenced Task id.
-    if (sourceEvent.type === SVEType.WorkSession) {
-      const session = editableWorkSession(sourceEvent, 'canMove');
+    if (
+      sourceEvent.type === SVEType.WorkSession ||
+      sourceEvent.type === SVEType.LocalEvent
+    ) {
+      const local = editableLocalEvent(sourceEvent, 'canMove');
+      const session = local ?? editableWorkSession(sourceEvent, 'canMove');
       const targetDay = columnTarget?.getAttribute('data-day');
       const start =
         this._lastCalculatedTimestamp ??
@@ -247,10 +255,12 @@ export class ScheduleWeekDragService {
         start !== null &&
         (!dropPoint || !this._isOutsideGrid(dropPoint))
       ) {
-        this._workSessionService.update(session.sourceId, {
-          start,
-          end: start + (session.end - session.start),
-        });
+        if (local) this._eventService.move(local.sourceId, start);
+        else
+          this._workSessionService.update(session.sourceId, {
+            start,
+            end: start + (session.end - session.start),
+          });
       }
       this._currentDragEvent.set(null);
       this._resetDragRelatedVars();
@@ -387,7 +397,8 @@ export class ScheduleWeekDragService {
     if (
       this.isShiftMode() &&
       !draggedCalendarEvent &&
-      this._currentDragEvent()?.type !== SVEType.WorkSession
+      this._currentDragEvent()?.type !== SVEType.WorkSession &&
+      this._currentDragEvent()?.type !== SVEType.LocalEvent
     ) {
       if (targetEl) {
         this._handleShiftDragMove(targetEl, pointer, gridRect, targetDay, isWithinGrid);
@@ -588,7 +599,8 @@ export class ScheduleWeekDragService {
     } else {
       if (
         this._pluckMovableCalendarEvent(this._currentDragEvent()) ||
-        this._currentDragEvent()?.type === SVEType.WorkSession
+        this._currentDragEvent()?.type === SVEType.WorkSession ||
+        this._currentDragEvent()?.type === SVEType.LocalEvent
       ) {
         this._dragPreviewContext.set(null);
         this._lastCalculatedTimestamp = null;

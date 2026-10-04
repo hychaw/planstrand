@@ -1,3 +1,4 @@
+import { isValidEventState } from '../../features/event/store/event.reducer';
 import { isFolderState } from '../../features/folder/folder-state';
 import { isPlanningState } from '../../features/planning/planning.model';
 import { devError } from '../../util/dev-error';
@@ -156,6 +157,7 @@ export const isRelatedModelDataValid = (d: AppDataComplete): boolean => {
 
   // Legacy partial states may precede the additive slice default boundary.
   // Full validation still requires its normalized shape through Typia.
+  if (Object.hasOwn(d, 'event') && !isValidEventState(d.event)) return false;
   if (Object.hasOwn(d, 'folder') && !isFolderState(d.folder)) return false;
   if (Object.hasOwn(d, 'planning') && !isPlanningState(d.planning, new Set(taskIds)))
     return false;

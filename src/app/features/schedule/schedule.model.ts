@@ -47,6 +47,11 @@ interface SVEWorkSession extends SVEBase {
   data: CalendarDisplayItem;
 }
 
+interface SVELocalEvent extends SVEBase {
+  type: SVEType.LocalEvent;
+  data: CalendarDisplayItem;
+}
+
 export interface SVESplitTaskStart extends SVEBase {
   type: SVEType.SplitTaskPlannedForDay | SVEType.SplitTask;
   data: TaskCopy;
@@ -125,6 +130,7 @@ export type SVEEntryForNextDay =
 
 export type SVE =
   | SVEWorkSession
+  | SVELocalEvent
   | SVETask
   | SVESplitTaskStart
   | SVETaskPlannedForDay
@@ -141,6 +147,20 @@ export type SVE =
 export interface ScheduleCalendarMapEntry {
   items: ScheduleFromCalendarEvent[];
 }
+
+export const editableLocalEvent = (
+  event: ScheduleEvent | null,
+  capability: 'canMove' | 'canResize' | 'canDelete',
+): CalendarDisplayItem | null => {
+  if (event?.type !== SVEType.LocalEvent || !event.data) return null;
+  const item = event.data as CalendarDisplayItem;
+  return item.sourceType === 'event' &&
+    !!item.sourceId &&
+    item[capability] &&
+    !item.isReadOnly
+    ? item
+    : null;
+};
 
 /** Timing edits require a stored zone; explicit removal does not. */
 export const editableWorkSession = (

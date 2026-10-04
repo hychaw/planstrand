@@ -1,3 +1,11 @@
+import {
+  EVENT_FEATURE_NAME,
+  eventAdapter,
+} from '../../features/event/store/event.reducer';
+import {
+  selectEventEntities,
+  selectEventById,
+} from '../../features/event/store/event.selectors';
 import { FOLDER_FEATURE_NAME } from '../../features/folder/store/folder.reducer';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import {
@@ -293,6 +301,14 @@ export const buildEntityRegistry = (): EntityRegistry<EntityType> =>
       selectById: selectSectionById,
     },
 
+    EVENT: {
+      storagePattern: 'adapter',
+      featureName: EVENT_FEATURE_NAME,
+      payloadKey: 'event',
+      adapter: eventAdapter,
+      selectEntities: selectEventEntities,
+      selectById: selectEventById,
+    },
     WORK_SESSION: {
       storagePattern: 'adapter',
       featureName: WORK_SESSION_FEATURE_NAME,

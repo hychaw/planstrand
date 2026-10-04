@@ -138,6 +138,20 @@
     }
   },
   "F": {
+    "EVENT": {
+      "NEW": "New Event",
+      "EDIT": "Edit Event",
+      "TITLE": "Title",
+      "DATE": "Date",
+      "ALL_DAY": "All day",
+      "START": "Start",
+      "END": "End",
+      "END_DATE": "End date",
+      "TIME_ZONE": "Timezone (IANA)",
+      "INVALID": "Enter a title, valid date and timezone, and an end after the start. Times skipped by daylight saving are unavailable.",
+      "DELETE_CONFIRM": "Permanently delete this Event?"
+    },
+
     "IOS_SHARE": {
       "SAVE": "Save",
       "DESTINATION": "Inbox",

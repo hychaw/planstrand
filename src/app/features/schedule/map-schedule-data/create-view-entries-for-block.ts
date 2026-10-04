@@ -13,7 +13,8 @@ export const createViewEntriesForBlock = (
         id: entry.data.id,
         start: entry.start,
         duration: entry.end - entry.start,
-        type: SVEType.WorkSession,
+        type:
+          entry.data.sourceType === 'event' ? SVEType.LocalEvent : SVEType.WorkSession,
         data: entry.data,
         plannedForDay: dayDate,
       });

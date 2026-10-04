@@ -41,6 +41,18 @@ export const mapScheduleDaysToScheduleEvents = (
     )[] = [];
 
     day.entries.forEach((entry) => {
+      if (entry.type === SVEType.LocalEvent && entry.data.isAllDay) {
+        eventsFlat.push({
+          id: entry.id,
+          type: entry.type,
+          startHours: 0,
+          timeLeftInHours: 0,
+          style: '',
+          data: entry.data,
+          plannedForDay: day.dayDate,
+        });
+        return;
+      }
       if (entry.type !== SVEType.WorkdayEnd && entry.type !== SVEType.WorkdayStart) {
         const start = new Date(entry.start);
         const startHour = start.getHours();

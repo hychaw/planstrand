@@ -1,9 +1,31 @@
+import { LocalEvent } from '../event/event.model';
+import { parseDbDateStr } from '../../util/parse-db-date-str';
 import { CalendarDisplayItem } from './calendar-display-item.model';
 import { WorkSession } from '../work-session/work-session.model';
 import { Task, TaskWithDueTime } from '../tasks/task.model';
 import { legacyTaskWorkSessionId } from '../work-session/legacy-task-work-session-backfill';
 import { getTimeLeftForTask } from '../../util/get-time-left-for-task';
 import { isAllDayCalendarEvent, ScheduleFromCalendarEvent } from './schedule.model';
+
+export const projectEvent = (event: LocalEvent): CalendarDisplayItem => ({
+  id: `event:${event.id}`,
+  sourceType: 'event',
+  sourceId: event.id,
+  title: event.title,
+  isAllDay: event.isAllDay,
+  // Date-only source remains authoritative; these are disposable view coordinates.
+  ...(event.isAllDay
+    ? {
+        date: event.date,
+        start: parseDbDateStr(event.date).getTime(),
+        end: parseDbDateStr(event.date).getTime(),
+      }
+    : { start: event.start, end: event.end, timeZone: event.timeZone }),
+  canMove: !event.isAllDay,
+  canResize: !event.isAllDay,
+  canDelete: true,
+  isReadOnly: false,
+});
 
 export const projectWorkSession = (
   session: WorkSession,
