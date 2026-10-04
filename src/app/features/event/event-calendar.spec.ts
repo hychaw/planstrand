@@ -145,7 +145,10 @@ describe('Event calendar interactions', () => {
           },
         },
         { provide: DateService, useValue: { todayStr: () => '2026-10-04' } },
-        { provide: DateTimeFormatService, useValue: { is24HourFormat: () => true } },
+        {
+          provide: DateTimeFormatService,
+          useValue: { currentLocale: () => 'en-US', is24HourFormat: () => true },
+        },
         { provide: MatDialog, useValue: { open: dialog } },
         { provide: MatDialogRef, useValue: { close: jasmine.createSpy('close') } },
         { provide: MAT_DIALOG_DATA, useValue: { date: '2026-10-04' } },

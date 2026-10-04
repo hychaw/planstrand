@@ -1,3 +1,4 @@
+import { calendarDisplayZone } from '../calendar-time';
 import { SVEType } from '../schedule.const';
 import { parseDbDateStr } from '../../../util/parse-db-date-str';
 import { Task, TaskWithDueTime, TaskWithoutReminder } from '../../tasks/task.model';
@@ -32,6 +33,7 @@ export const mapToScheduleDays = (
   lunchBreakCfg?: ScheduleLunchBreakCfg,
   realNow?: number,
   calendarDisplayItems?: CalendarDisplayItem[],
+  displayZone = calendarDisplayZone(),
 ): ScheduleDay[] => {
   // NOTE to use for failing test cases
   // const params = {
@@ -96,6 +98,7 @@ export const mapToScheduleDays = (
     dayDates.length,
     realNow,
     calendarDisplayItems,
+    displayZone,
   );
 
   const v = createScheduleDays(
@@ -107,6 +110,7 @@ export const mapToScheduleDays = (
     workStartEndCfg,
     now,
     realNow,
+    displayZone,
   );
 
   return v.map((day) => ({

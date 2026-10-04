@@ -1,7 +1,12 @@
+import {
+  calendarAddDays,
+  calendarDate,
+  calendarClock,
+  calendarDisplayZone,
+} from '../calendar-time';
 import { TaskWithDueTime } from '../../tasks/task.model';
 
 import { getTimeLeftForTask } from '../../../util/get-time-left-for-task';
-import { getDateTimeFromClockString } from '../../../util/get-date-time-from-clock-string';
 import { isValidSplitTime } from '../../../util/is-valid-split-time';
 import { devError } from '../../../util/dev-error';
 import { TaskRepeatCfg } from '../../task-repeat-cfg/task-repeat-cfg.model';
@@ -13,9 +18,8 @@ import {
   ScheduleWorkStartEndCfg,
 } from '../schedule.model';
 import { getTaskRepeatCfgsForExactDayCached } from '../../task-repeat-cfg/store/get-task-repeat-cfgs-for-exact-day-cached.util';
-import { isSameDay } from '../../../util/is-same-day';
-import { getDbDateStr } from '../../../util/get-db-date-str';
 import { CalendarDisplayItem } from '../calendar-display-item.model';
+import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 const PROJECTION_DAYS: number = 30;
 
 export const createSortedBlockerBlocks = (
@@ -28,6 +32,7 @@ export const createSortedBlockerBlocks = (
   nrOfDays: number = PROJECTION_DAYS,
   realNow?: number,
   calendarDisplayItems?: CalendarDisplayItem[],
+  displayZone = calendarDisplayZone(),
 ): BlockedBlock[] => {
   if (typeof now !== 'number') {
     throw new Error('No valid now given');
@@ -73,9 +78,10 @@ export const createSortedBlockerBlocks = (
       scheduledTaskRepeatCfgs,
       scheduledTasks,
       realNow,
+      displayZone,
     ),
-    ...createBlockerBlocksForWorkStartEnd(now, nrOfDays, workStartEndCfg),
-    ...createBlockerBlocksForLunchBreak(now, nrOfDays, lunchBreakCfg),
+    ...createBlockerBlocksForWorkStartEnd(now, nrOfDays, workStartEndCfg, displayZone),
+    ...createBlockerBlocksForLunchBreak(now, nrOfDays, lunchBreakCfg, displayZone),
   ];
 
   blockedBlocks = mergeBlocksRecursively(blockedBlocks);
@@ -98,7 +104,8 @@ const createBlockerBlocksForScheduledRepeatProjections = (
   nrOfDays: number,
   scheduledTaskRepeatCfgs: TaskRepeatCfg[],
   scheduledTasks: TaskWithDueTime[],
-  realNow?: number,
+  realNow: number | undefined,
+  displayZone: string,
 ): BlockedBlock[] => {
   const blockedBlocks: BlockedBlock[] = [];
   // Days that already have a concrete (timed) instance of a repeat cfg, keyed
@@ -110,24 +117,22 @@ const createBlockerBlocksForScheduledRepeatProjections = (
   const concreteInstanceDays = new Set<string>();
   scheduledTasks.forEach((task) => {
     if (task.repeatCfgId) {
-      concreteInstanceDays.add(`${task.repeatCfgId}|${getDbDateStr(task.dueWithTime)}`);
+      concreteInstanceDays.add(
+        `${task.repeatCfgId}|${calendarDate(task.dueWithTime, displayZone)}`,
+      );
     }
   });
 
-  const isViewingCurrentDay = realNow === undefined || isSameDay(realNow, now);
+  const isViewingCurrentDay =
+    realNow === undefined ||
+    calendarDate(realNow, displayZone) === calendarDate(now, displayZone);
   let i: number = isViewingCurrentDay ? 1 : 0;
   while (i < nrOfDays) {
-    // Calculate proper day start instead of adding 24-hour increments
-    const nowDate = new Date(now);
-    const targetDate = new Date(nowDate);
-    targetDate.setDate(nowDate.getDate() + i);
-    targetDate.setHours(0, 0, 0, 0);
-    const currentDayTimestamp = targetDate.getTime();
-    const currentDayStr = getDbDateStr(currentDayTimestamp);
+    const currentDayStr = calendarAddDays(calendarDate(now, displayZone), i);
 
     const allRepeatableTasksForDay = getTaskRepeatCfgsForExactDayCached(
       scheduledTaskRepeatCfgs,
-      currentDayTimestamp,
+      dateStrToUtcDate(currentDayStr).getTime(),
     );
     i++;
 
@@ -139,7 +144,7 @@ const createBlockerBlocksForScheduledRepeatProjections = (
         devError('Timeline: Invalid or missing startTime for repeat projection');
         return;
       }
-      const start = getDateTimeFromClockString(repeatCfg.startTime, currentDayTimestamp);
+      const start = calendarClock(currentDayStr, repeatCfg.startTime, displayZone);
       const end = start + (repeatCfg.defaultEstimate || 0);
       blockedBlocks.push({
         start,
@@ -163,7 +168,8 @@ const createBlockerBlocksForScheduledRepeatProjections = (
 const createBlockerBlocksForWorkStartEnd = (
   now: number,
   nrOfDays: number,
-  workStartEndCfg?: ScheduleWorkStartEndCfg,
+  workStartEndCfg: ScheduleWorkStartEndCfg | undefined,
+  displayZone: string,
 ): BlockedBlock[] => {
   const blockedBlocks: BlockedBlock[] = [];
 
@@ -186,23 +192,13 @@ const createBlockerBlocksForWorkStartEnd = (
   }
   let i: number = 0;
   while (i < nrOfDays) {
-    // Calculate proper day start instead of adding 24-hour increments
-    const nowDate = new Date(now);
-    const currentDate = new Date(nowDate);
-    currentDate.setDate(nowDate.getDate() + i);
-    currentDate.setHours(0, 0, 0, 0);
-    const currentDayTimestamp = currentDate.getTime();
-
-    const nextDate = new Date(nowDate);
-    nextDate.setDate(nowDate.getDate() + i + 1);
-    nextDate.setHours(0, 0, 0, 0);
-    const nextDayTimestamp = nextDate.getTime();
-
-    const start = getDateTimeFromClockString(
-      workStartEndCfg.endTime,
-      currentDayTimestamp,
+    const day = calendarAddDays(calendarDate(now, displayZone), i);
+    const start = calendarClock(day, workStartEndCfg.endTime, displayZone);
+    const end = calendarClock(
+      calendarAddDays(day, 1),
+      workStartEndCfg.startTime,
+      displayZone,
     );
-    const end = getDateTimeFromClockString(workStartEndCfg.startTime, nextDayTimestamp);
     blockedBlocks.push({
       start,
       end,
@@ -224,7 +220,8 @@ const createBlockerBlocksForWorkStartEnd = (
 const createBlockerBlocksForLunchBreak = (
   now: number,
   nrOfDays: number,
-  lunchBreakCfg?: ScheduleLunchBreakCfg,
+  lunchBreakCfg: ScheduleLunchBreakCfg | undefined,
+  displayZone: string,
 ): BlockedBlock[] => {
   const blockedBlocks: BlockedBlock[] = [];
 
@@ -240,18 +237,9 @@ const createBlockerBlocksForLunchBreak = (
   }
   let i: number = 0;
   while (i < nrOfDays) {
-    // Calculate proper day start instead of adding 24-hour increments
-    const nowDate = new Date(now);
-    const targetDate = new Date(nowDate);
-    targetDate.setDate(nowDate.getDate() + i);
-    targetDate.setHours(0, 0, 0, 0);
-    const currentDayTimestamp = targetDate.getTime();
-
-    const start = getDateTimeFromClockString(
-      lunchBreakCfg.startTime,
-      currentDayTimestamp,
-    );
-    const end = getDateTimeFromClockString(lunchBreakCfg.endTime, currentDayTimestamp);
+    const day = calendarAddDays(calendarDate(now, displayZone), i);
+    const start = calendarClock(day, lunchBreakCfg.startTime, displayZone);
+    const end = calendarClock(day, lunchBreakCfg.endTime, displayZone);
     blockedBlocks.push({
       start,
       end,

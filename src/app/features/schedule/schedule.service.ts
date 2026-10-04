@@ -1,3 +1,5 @@
+import { calendarDate, calendarTimeRow } from './calendar-time';
+import { getDbDateStr } from '../../util/get-db-date-str';
 import { computed, inject, Injectable, Signal } from '@angular/core';
 import { DateService } from '../../core/date/date.service';
 import { interval } from 'rxjs';
@@ -8,7 +10,7 @@ import {
   ScheduleLunchBreakCfg,
   ScheduleWorkStartEndCfg,
 } from './schedule.model';
-import { SVEType } from './schedule.const';
+import { FH, SVEType } from './schedule.const';
 import { PlannerDayMap } from '../planner/planner.model';
 import { TaskWithDueTime, TaskWithSubTasks } from '../tasks/task.model';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
@@ -35,6 +37,20 @@ export class ScheduleService {
   private _store = inject(Store);
   private readonly _calendarDisplay = inject(CalendarDisplayService);
   private _taskService = inject(TaskService);
+  readonly displayTimeZone = this._calendarDisplay.displayTimeZone;
+
+  currentTimeRow(now = Date.now()): number {
+    return calendarTimeRow(now, this.displayTimeZone(), FH);
+  }
+
+  getCalendarToday(): Date {
+    return parseDbDateStr(
+      calendarDate(
+        Date.now() - this._dateService.getStartOfNextDayDiffMs(),
+        this.displayTimeZone(),
+      ),
+    );
+  }
 
   private _timelineTasks = toSignal(this._store.select(selectTimelineTasks));
   private readonly _calendarDisplayItems = this._calendarDisplay.items;
@@ -64,7 +80,9 @@ export class ScheduleService {
       // landed beyond the only rendered day and the panel came up empty.
       const days = daysToShow();
       const realNow = Date.now();
-      const now = days.length ? anchorContextNow(days[0], realNow) : realNow;
+      const now = days.length
+        ? anchorContextNow(days[0], realNow, this.displayTimeZone())
+        : realNow;
 
       return this.buildScheduleDays({
         calendarDisplayItems: this._calendarDisplayItems(),
@@ -112,6 +130,7 @@ export class ScheduleService {
       timelineCfg?.isLunchBreakEnabled ? createLunchBreakCfg(timelineCfg) : undefined,
       realNow,
       params.calendarDisplayItems,
+      this.displayTimeZone(),
     );
   }
 
@@ -120,7 +139,9 @@ export class ScheduleService {
    * This is a public wrapper around the internal DateService method.
    */
   getTodayStr(date?: Date | number): string {
-    return this._dateService.todayStr(date);
+    return date === undefined
+      ? getDbDateStr(this.getCalendarToday())
+      : calendarDate(Number(date), this.displayTimeZone());
   }
 
   /**
@@ -160,9 +181,7 @@ export class ScheduleService {
     // begin at (logical) today, which todayStr() elsewhere keeps naming.
     // Cloned because the cursor is mutated below and referenceDate is the
     // caller's (a selected-date signal value in the schedule component).
-    const cursor = referenceDate
-      ? new Date(referenceDate)
-      : this._dateService.getLogicalTodayDate();
+    const cursor = referenceDate ? new Date(referenceDate) : this.getCalendarToday();
     // Only date parts are read below, so pin the cursor to midday first.
     // setDate() preserves the wall time, and a late-evening one is normalised
     // past midnight in zones whose spring-forward gap ends at 00:00
@@ -171,7 +190,7 @@ export class ScheduleService {
     cursor.setHours(12, 0, 0, 0);
     const daysToShow: string[] = [];
     for (let i = 0; i < nrOfDaysToShow; i++) {
-      daysToShow.push(this._dateService.todayStr(cursor.getTime()));
+      daysToShow.push(getDbDateStr(cursor));
       // Calendar-day stepping: a DST transition day is 23h/25h long, so
       // +24h ms arithmetic skips or duplicates a date around it.
       cursor.setDate(cursor.getDate() + 1);
@@ -199,7 +218,7 @@ export class ScheduleService {
     referenceDate: Date | null = null,
   ): number {
     // Same logical-day anchoring as getMonthDaysToShow below.
-    const today = referenceDate || this._dateService.getLogicalTodayDate();
+    const today = referenceDate || this.getCalendarToday();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const daysToGoBack = (firstDayOfMonth.getDay() - firstDayOfWeek + 7) % 7;
     // Day 0 of the next month is the last day of this one.
@@ -213,7 +232,7 @@ export class ScheduleService {
     referenceDate: Date | null = null,
   ): string[] {
     // Same logical-day anchoring as getDaysToShow above.
-    const today = referenceDate || this._dateService.getLogicalTodayDate();
+    const today = referenceDate || this.getCalendarToday();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
     // Calculate the first day to show based on firstDayOfWeek setting
@@ -230,7 +249,7 @@ export class ScheduleService {
     for (let i = 0; i < totalDays; i++) {
       const currentDate = new Date(firstDayToShow);
       currentDate.setDate(firstDayToShow.getDate() + i);
-      daysToShow.push(this._dateService.todayStr(currentDate.getTime()));
+      daysToShow.push(getDbDateStr(currentDate));
     }
 
     return daysToShow;
@@ -240,9 +259,10 @@ export class ScheduleService {
     if (ev.type === SVEType.WorkSession || ev.type === SVEType.LocalEvent) {
       return ev.plannedForDay ?? null;
     }
+    if (ev.plannedForDay) return ev.plannedForDay;
     // Calendar events
     if (isCalendarEventData(ev)) {
-      return this._dateService.todayStr(ev.data.start);
+      return this.getTodayStr(ev.data.start);
     }
 
     // Task view entries can carry the resolved day on the event itself, e.g. when
@@ -258,12 +278,12 @@ export class ScheduleService {
 
     // ScheduledTask with remindAt
     if (isScheduledTaskWithRemindAt(ev)) {
-      return this._dateService.todayStr(ev.data.remindAt);
+      return this.getTodayStr(ev.data.remindAt);
     }
 
     // ScheduledTask with dueWithTime
     if (isScheduledTaskWithDueWithTime(ev)) {
-      return this._dateService.todayStr(ev.data.dueWithTime);
+      return this.getTodayStr(ev.data.dueWithTime);
     }
 
     // Task with dueDay (fallback after plannedForDay check)
@@ -292,7 +312,7 @@ export class ScheduleService {
     const dayDate = parseDbDateStr(day);
     // Logical day, same as the window anchors above: the today ring must sit
     // on the column todayStr() names, not one off during the offset window.
-    const today = this._dateService.getLogicalTodayDate();
+    const today = this.getCalendarToday();
 
     // If referenceMonth is provided, use it to determine "current month"
     // Otherwise, use the actual current month

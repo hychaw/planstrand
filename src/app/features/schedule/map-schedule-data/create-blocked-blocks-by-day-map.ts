@@ -1,3 +1,9 @@
+import {
+  calendarAddDays,
+  calendarDate,
+  calendarDayStart,
+  calendarDisplayZone,
+} from '../calendar-time';
 import { TaskWithDueTime } from '../../tasks/task.model';
 import { TaskRepeatCfg } from '../../task-repeat-cfg/task-repeat-cfg.model';
 import {
@@ -9,8 +15,6 @@ import {
   ScheduleWorkStartEndCfg,
 } from '../schedule.model';
 import { createSortedBlockerBlocks } from './create-sorted-blocker-blocks';
-import { getDbDateStr } from '../../../util/get-db-date-str';
-import { getDiffInDays } from '../../../util/get-diff-in-days';
 import { CalendarDisplayItem } from '../calendar-display-item.model';
 
 // TODO improve to even better algo for createSortedBlockerBlocks
@@ -26,6 +30,7 @@ export const createBlockedBlocksByDayMap = (
   nrOfDays: number = NR_OF_DAYS,
   realNow?: number,
   calendarDisplayItems?: CalendarDisplayItem[],
+  displayZone = calendarDisplayZone(),
 ): BlockedBlockByDayMap => {
   const allBlockedBlocks = createSortedBlockerBlocks(
     scheduledTasks,
@@ -37,21 +42,25 @@ export const createBlockedBlocksByDayMap = (
     nrOfDays,
     realNow,
     calendarDisplayItems,
+    displayZone,
   );
   // Log.log(allBlockedBlocks);
 
   const blockedBlocksByDay: BlockedBlockByDayMap = {};
 
   allBlockedBlocks.forEach((block) => {
-    const dayStartDateStr = getDbDateStr(block.start);
-    const startDayEndBoundaryTs = new Date(block.start).setHours(24, 0, 0, 0);
+    const dayStartDateStr = calendarDate(block.start, displayZone);
+    const startDayEndBoundaryTs = calendarDayStart(
+      calendarAddDays(dayStartDateStr, 1),
+      displayZone,
+    );
 
     if (!blockedBlocksByDay[dayStartDateStr]) {
       blockedBlocksByDay[dayStartDateStr] = [];
     }
-    const nrOfExtraDaysToSpawn = getDiffInDays(
-      new Date(block.start),
-      new Date(block.end),
+    const endDate = calendarDate(Math.max(block.start, block.end - 1), displayZone);
+    const nrOfExtraDaysToSpawn = Math.round(
+      (Date.parse(endDate) - Date.parse(dayStartDateStr)) / 86400000,
     );
 
     const splitEntriesBlockStart = createEntriesForDay(
@@ -70,12 +79,12 @@ export const createBlockedBlocksByDayMap = (
     if (nrOfExtraDaysToSpawn > 0) {
       let entriesForNextDay: BlockedBlockEntry[] = splitEntriesBlockStart.entriesAfterEnd;
       for (let i = 0; i < nrOfExtraDaysToSpawn; i++) {
-        const curDateTs = new Date(block.start).setDate(
-          new Date(block.start).getDate() + i + 1,
+        const dayStr = calendarAddDays(dayStartDateStr, i + 1);
+        const dayStartBoundaryTs = calendarDayStart(dayStr, displayZone);
+        const dayEndBoundaryTs = calendarDayStart(
+          calendarAddDays(dayStr, 1),
+          displayZone,
         );
-        const dayStr = getDbDateStr(curDateTs);
-        const dayStartBoundaryTs = new Date(curDateTs).setHours(0, 0, 0, 0);
-        const dayEndBoundaryTs = new Date(curDateTs).setHours(24, 0, 0, 0);
 
         if (!blockedBlocksByDay[dayStr]) {
           blockedBlocksByDay[dayStr] = [];

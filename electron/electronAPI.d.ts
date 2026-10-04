@@ -25,6 +25,7 @@ import { ElectronDistChannel } from './shared-with-frontend/get-dist-channel';
 import { JiraElectronApi } from './shared-with-frontend/jira-request.model';
 
 export interface ElectronAPI {
+  getSystemTimeZone(): string | null;
   on(channel: string, listener: (...args: unknown[]) => void): void;
 
   // SYNC

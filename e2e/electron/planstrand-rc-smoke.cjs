@@ -20,9 +20,10 @@ const launch = async (profile) => {
     timeout: 60000,
   });
   const page = await app.firstWindow();
-  // The test host reports no IANA zone; use the same deterministic zone as CI.
+  // Vancouver wall time must agree with the current-time row and persisted items.
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Emulation.setTimezoneOverride', { timezoneId: 'UTC' });
+  await cdp.send('Emulation.setTimezoneOverride', { timezoneId: 'America/Vancouver' });
+  await page.clock.setFixedTime(new Date('2026-10-04T19:21:00Z'));
   page.on('pageerror', (e) => failures.push(e.message));
   page.on('dialog', (d) => d.accept());
   await page.waitForLoadState('domcontentloaded');
@@ -102,6 +103,31 @@ const checkData = async (page) => {
       .locator('schedule-event:not(.custom-drag-preview)')
       .filter({ hasText: 'RC Event' }),
   ).toHaveCount(1);
+  for (const view of ['Month', 'Week', 'Day']) {
+    await page.getByRole('button', { name: `View ${view}`, exact: true }).click();
+    const early = page
+      .locator('schedule-event:not(.custom-drag-preview)')
+      .filter({ hasText: 'RC Early Event' });
+    await expect(early).toHaveCount(1);
+    if (view === 'Month') {
+      await expect(
+        page.locator('.month-day-cell[data-day="2026-10-04"]').filter({ has: early }),
+      ).toHaveCount(1);
+    } else {
+      await expect
+        .poll(() => early.evaluate((el) => getComputedStyle(el).gridRowStart))
+        .toBe('25');
+      await early.scrollIntoViewIfNeeded();
+      await expect(early).toBeInViewport();
+      await expect
+        .poll(() =>
+          page
+            .locator('#current-time')
+            .evaluate((el) => getComputedStyle(el).gridRowStart),
+        )
+        .toBe('149');
+    }
+  }
 };
 (async () => {
   const profile = path.join(runDir, 'profile');
@@ -146,6 +172,13 @@ const checkData = async (page) => {
   await event.locator('input[name=end]').fill('13:00');
   await event.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(event).toBeHidden();
+  await page.getByRole('button', { name: 'New Event', exact: true }).first().click();
+  await event.locator('input[name=title]').fill('RC Early Event');
+  await event.locator('input[name=start]').fill('09:00');
+  await event.locator('input[name=end]').fill('10:00');
+  await event.locator('input[name=timeZone]').fill('UTC');
+  await event.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(event).toBeHidden();
   await checkData(page);
   await page.screenshot({ path: path.join(runDir, 'schedule.png') });
   const exportButton = await openBackup(page);
@@ -160,7 +193,13 @@ const checkData = async (page) => {
   const exportFile = fs.readdirSync(runDir).find((f) => /^sp-backup_.*\.json$/.test(f));
   const backup = path.join(runDir, 'backup.json');
   fs.copyFileSync(path.join(runDir, exportFile), backup);
-  JSON.parse(fs.readFileSync(backup, 'utf8'));
+  const exported = JSON.parse(fs.readFileSync(backup, 'utf8'));
+  const earlyRecord = Object.values(exported.appDataComplete.event.entities).find(
+    (e) => e.title === 'RC Early Event',
+  );
+  expect(earlyRecord.start).toBe(Date.parse('2026-10-04T09:00:00Z'));
+  expect(earlyRecord.end).toBe(Date.parse('2026-10-04T10:00:00Z'));
+  expect(earlyRecord.timeZone).toBe('UTC');
   await stop();
   page = await launch(profile);
   await checkData(page);

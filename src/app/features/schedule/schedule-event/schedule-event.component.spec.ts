@@ -80,7 +80,7 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
         {
           provide: DateTimeFormatService,
           // is24HourFormat is a signal (a function); the component must call it.
-          useValue: { is24HourFormat: () => true },
+          useValue: { currentLocale: () => 'en-US', is24HourFormat: () => true },
         },
       ],
       schemas: [NO_ERRORS_SCHEMA],
@@ -562,7 +562,7 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
           },
           {
             provide: DateTimeFormatService,
-            useValue: { is24HourFormat: () => is24Hour },
+            useValue: { currentLocale: () => 'en-US', is24HourFormat: () => is24Hour },
           },
         ],
         schemas: [NO_ERRORS_SCHEMA],
@@ -582,7 +582,7 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
 
     it('folds to 12-hour time for a 12h locale', async () => {
       const c = await setupWith24h(false);
-      expect(c.scheduledClockStr()).toBe('2:00');
+      expect(c.scheduledClockStr()).toBe('2:00 PM');
     });
   });
 });
@@ -631,7 +631,10 @@ describe('ScheduleEventComponent – clickable affordance', () => {
             canMoveEvent: () => false,
           },
         },
-        { provide: DateTimeFormatService, useValue: { is24HourFormat: () => true } },
+        {
+          provide: DateTimeFormatService,
+          useValue: { currentLocale: () => 'en-US', is24HourFormat: () => true },
+        },
       ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();

@@ -1,3 +1,5 @@
+import { selectLocalizationConfig } from '../config/store/global-config.reducer';
+import { calendarDisplayZone } from './calendar-time';
 import { computed, inject, Injectable } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
@@ -12,6 +14,11 @@ import { CalendarDisplayItem } from './calendar-display-item.model';
 /** Canonical calendar facade: WorkSessions, Events, legacy fallback and provider adapters. */
 @Injectable({ providedIn: 'root' })
 export class CalendarDisplayService {
+  private readonly _localization = inject(Store).selectSignal(selectLocalizationConfig);
+  readonly displayTimeZone = computed(() =>
+    calendarDisplayZone(this._localization()?.timeZone),
+  );
+
   private readonly _localItems = inject(Store).selectSignal(
     selectPersistedCalendarDisplayItems,
   );

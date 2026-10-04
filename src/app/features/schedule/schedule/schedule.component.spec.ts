@@ -20,7 +20,11 @@ import { registerLocaleData } from '@angular/common';
 import localeSv from '@angular/common/locales/sv';
 
 describe('ScheduleComponent', () => {
-  const mockLocalization = signal({ firstDayOfWeek: 1, dateTimeLocale: 'en-US' });
+  const mockLocalization = signal<{
+    firstDayOfWeek: number;
+    dateTimeLocale: string;
+    timeZone?: string;
+  }>({ firstDayOfWeek: 1, dateTimeLocale: 'en-US' });
   let component: ScheduleComponent;
   let fixture: ComponentFixture<ScheduleComponent>;
   let mockTaskService: jasmine.SpyObj<TaskService>;
@@ -133,6 +137,21 @@ describe('ScheduleComponent', () => {
     fixture = TestBed.createComponent(ScheduleComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('uses Vancouver for the live current-time line independently of the system zone', () => {
+    jasmine.clock().install();
+    try {
+      jasmine.clock().mockDate(new Date('2026-10-04T19:21:00Z'));
+      mockLocalization.set({
+        firstDayOfWeek: 1,
+        dateTimeLocale: 'en-US',
+        timeZone: 'America/Vancouver',
+      });
+      expect(component.currentTimeRow()).toBe(149);
+    } finally {
+      jasmine.clock().uninstall();
+    }
   });
 
   describe('headerTitle computed', () => {
@@ -321,7 +340,8 @@ describe('ScheduleComponent', () => {
     });
 
     it('should return true when the displayed range contains today', () => {
-      // Mock today = 2026-01-20. Displayed range includes that day.
+      component['_todayDateStr'] = signal('2026-01-20');
+      // Displayed range includes today.
       mockScheduleService.getDaysToShow.and.returnValue([
         '2026-01-19',
         '2026-01-20',

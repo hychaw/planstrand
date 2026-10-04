@@ -1,3 +1,5 @@
+import { calendarDate, calendarDisplayZone } from './calendar-time';
+import { zonedDateTimeToTimestamp } from '../../util/iana-time-zone';
 import { FH } from './schedule.const';
 
 /**
@@ -11,6 +13,7 @@ export const calculateTimeFromYPosition = (
   clientY: number,
   gridRect: DOMRect,
   targetDay?: string,
+  displayZone = calendarDisplayZone(),
 ): number | null => {
   const relativeY = clientY - gridRect.top;
 
@@ -30,26 +33,9 @@ export const calculateTimeFromYPosition = (
   const clampedHours = Math.max(0, Math.min(23, hours));
   const clampedMinutes = Math.max(0, Math.min(59, minutes));
 
-  // Create date with the calculated time
-  let targetDate: Date;
-
-  if (targetDay) {
-    // Parse the target day if provided
-    const [year, month, day] = targetDay.split('-').map(Number);
-    targetDate = new Date(year, month - 1, day, clampedHours, clampedMinutes);
-  } else {
-    // Use today if no target day specified
-    const today = new Date();
-    targetDate = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate(),
-      clampedHours,
-      clampedMinutes,
-    );
-  }
-
-  return targetDate.getTime();
+  const date = targetDay ?? calendarDate(Date.now(), displayZone);
+  const time = `${String(clampedHours).padStart(2, '0')}:${String(clampedMinutes).padStart(2, '0')}`;
+  return zonedDateTimeToTimestamp(date, time, displayZone);
 };
 
 /**
@@ -63,6 +49,7 @@ export const calculateDropTimeFromEvent = (
   event: MouseEvent | TouchEvent,
   gridElement: HTMLElement | null,
   targetDay?: string,
+  displayZone = calendarDisplayZone(),
 ): number | null => {
   if (!gridElement) {
     return null;
@@ -74,5 +61,5 @@ export const calculateDropTimeFromEvent = (
   // Get the grid's bounding rectangle
   const gridRect = gridElement.getBoundingClientRect();
 
-  return calculateTimeFromYPosition(clientY, gridRect, targetDay);
+  return calculateTimeFromYPosition(clientY, gridRect, targetDay, displayZone);
 };

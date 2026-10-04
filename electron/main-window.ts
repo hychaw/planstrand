@@ -1,3 +1,4 @@
+import { getNativeSystemTimeZone } from './system-time-zone';
 import windowStateKeeper from 'electron-window-state';
 import {
   App,
@@ -211,6 +212,9 @@ export const createWindow = async ({
     backgroundThrottling: false,
     webSecurity: true,
     preload: path.join(__dirname, 'preload.js'),
+    additionalArguments: [
+      `--planstrand-system-time-zone=${getNativeSystemTimeZone() ?? ''}`,
+    ],
     nodeIntegration: false,
     // make remote module work with those two settings
     contextIsolation: true,
