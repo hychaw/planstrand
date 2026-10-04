@@ -1,3 +1,4 @@
+import { eventIntegrityMetaReducer } from './event-integrity.meta-reducer';
 import { MetaReducer } from '@ngrx/store';
 import { isDevMode } from '@angular/core';
 import { operationCaptureMetaReducer } from '../../op-log/capture/operation-capture.meta-reducer';
@@ -143,6 +144,7 @@ export const META_REDUCERS: MetaReducer[] = [
   // bulk action — once Phase 4 strips the parent, the subtask references are
   // gone and section.taskIds entries pointing at removed subtasks would leak.
   sectionSharedMetaReducer, // Task deletion → prune section.taskIds (incl. subtasks)
+  eventIntegrityMetaReducer,
   workSessionIntegrityMetaReducer, // Reject dangling session refs and destructive Task removal
 
   // ═══════════════════════════════════════════════════════════════════════════

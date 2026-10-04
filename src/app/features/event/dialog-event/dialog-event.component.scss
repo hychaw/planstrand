@@ -1,0 +1,10 @@
+label {
+  display: flex;
+  gap: var(--s);
+  align-items: center;
+  margin-bottom: var(--s2);
+}
+input:not([type='checkbox']) {
+  min-width: 0;
+  flex: 1;
+}

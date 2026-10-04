@@ -1,4 +1,13 @@
 <div class="schedule-nav-controls">
+  <button
+    mat-icon-button
+    class="e2e-new-event"
+    (click)="newEvent()"
+    [matTooltip]="T.F.EVENT.NEW | translate"
+    [attr.aria-label]="T.F.EVENT.NEW | translate"
+  >
+    <mat-icon>event_available</mat-icon>
+  </button>
   <div class="time-view-selector">
     <button
       mat-icon-button

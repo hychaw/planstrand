@@ -11,6 +11,12 @@
   }
 </div>
 
+<button
+  type="button"
+  (click)="newEvent($event)"
+>
+  {{ T.F.EVENT.NEW | translate }}
+</button>
 @if (!isEditMode()) {
   <div class="msg">
     <mat-icon>add</mat-icon>

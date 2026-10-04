@@ -41,6 +41,13 @@
         >restaurant
       </mat-icon>
     }
+    @case ('LOCAL_EVENT') {
+      <mat-icon
+        class="ico"
+        inline="true"
+        >event_note</mat-icon
+      >
+    }
     @case ('CAL_PROJECTION') {
       <mat-icon
         class="ico"
@@ -55,6 +62,7 @@
   <!--- -->
 
   @if (
+    (se().type === SVEType.LocalEvent && !$any(se().data)?.isAllDay) ||
     se().type === SVEType.WorkSession ||
     se().type === SVEType.ScheduledTask ||
     se().type === SVEType.ScheduledRepeatProjection

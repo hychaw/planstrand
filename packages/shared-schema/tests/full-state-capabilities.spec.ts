@@ -52,3 +52,28 @@ describe('Full-state reader requirements', () => {
     expect(supportsRequiredEntityTypes([], [])).toBe(true);
   });
 });
+
+describe('Event full-state entity requirement', () => {
+  it('keeps absent and exact empty optional Event slices compatible', () => {
+    expect(getFullStateRequiredEntityTypes({})).not.toContain('EVENT');
+    expect(
+      getFullStateRequiredEntityTypes({ event: { ids: [], entities: {} } }),
+    ).not.toContain('EVENT');
+  });
+  for (const event of [
+    null,
+    undefined,
+    [],
+    { ids: ['event'], entities: { event: { id: 'event' } } },
+    { ids: [], entities: {}, future: true },
+  ]) {
+    it('requires EVENT for populated or unsupported present state', () => {
+      const required = getFullStateRequiredEntityTypes({ event });
+      expect(required).toContain('EVENT');
+      expect(supportsRequiredEntityTypes(required, ['TASK', 'WORK_SESSION'])).toBe(false);
+      expect(
+        supportsRequiredEntityTypes(required, ['TASK', 'WORK_SESSION', 'EVENT']),
+      ).toBe(true);
+    });
+  }
+});

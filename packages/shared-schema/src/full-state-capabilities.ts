@@ -31,8 +31,29 @@ export const hasMeaningfulFolderState = (state: unknown): boolean => {
     Object.keys(f).some((k) => !['id', 'title', 'parentId', 'orderKey'].includes(k))
   );
 };
-export const getFullStateRequiredEntityTypes = (state: unknown): string[] =>
-  hasMeaningfulFolderState(state) ? ['FOLDER'] : [];
+export const getFullStateRequiredEntityTypes = (state: unknown): string[] => {
+  const required = hasMeaningfulFolderState(state) ? ['FOLDER'] : [];
+  if (state && typeof state === 'object' && Object.hasOwn(state, 'event')) {
+    const event = (state as { event?: unknown }).event;
+    // Only the exact optional empty slice is safe for an unaware reader.
+    if (!event || typeof event !== 'object' || Array.isArray(event))
+      required.push('EVENT');
+    else {
+      const v = event as { ids?: unknown; entities?: unknown };
+      if (
+        !Array.isArray(v.ids) ||
+        v.ids.length ||
+        !v.entities ||
+        typeof v.entities !== 'object' ||
+        Array.isArray(v.entities) ||
+        Object.keys(v.entities).length ||
+        Object.keys(v).some((k) => !['ids', 'entities'].includes(k))
+      )
+        required.push('EVENT');
+    }
+  }
+  return required;
+};
 export const supportsRequiredEntityTypes = (
   required: unknown,
   supported: readonly string[],

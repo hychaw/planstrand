@@ -1,3 +1,4 @@
+import { EventState } from '../features/event/event.model';
 import { FolderState } from '../features/folder/folder.model';
 import { PlanningState } from '../features/planning/planning.model';
 import { TASK_FEATURE_NAME } from '../features/tasks/store/task.reducer';
@@ -43,4 +44,5 @@ export interface RootState {
   [appStateFeatureKey]: AppState;
   [TIME_TRACKING_FEATURE_KEY]: TimeTrackingState;
   [WORK_SESSION_FEATURE_NAME]: WorkSessionState;
+  event?: EventState;
 }

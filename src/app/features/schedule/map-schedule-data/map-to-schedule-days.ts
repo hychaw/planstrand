@@ -1,3 +1,5 @@
+import { SVEType } from '../schedule.const';
+import { parseDbDateStr } from '../../../util/parse-db-date-str';
 import { Task, TaskWithDueTime, TaskWithoutReminder } from '../../tasks/task.model';
 import { TaskRepeatCfg } from '../../task-repeat-cfg/task-repeat-cfg.model';
 
@@ -107,7 +109,25 @@ export const mapToScheduleDays = (
     realNow,
   );
 
-  return v;
+  return v.map((day) => ({
+    ...day,
+    entries: [
+      ...day.entries,
+      ...(calendarDisplayItems ?? [])
+        .filter(
+          (item) =>
+            item.sourceType === 'event' && item.isAllDay && item.date === day.dayDate,
+        )
+        .map((item) => ({
+          id: item.id,
+          type: SVEType.LocalEvent as const,
+          start: parseDbDateStr(day.dayDate).getTime(),
+          duration: 0,
+          plannedForDay: day.dayDate,
+          data: item,
+        })),
+    ],
+  }));
 };
 
 const resortTasksWithCurrentFirst = (currentId: string, tasks: Task[]): Task[] => {

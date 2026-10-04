@@ -5,15 +5,15 @@ import { CalendarIntegrationService } from '../calendar-integration/calendar-int
 import { HiddenCalendarProvidersService } from '../calendar-integration/hidden-calendar-providers.service';
 import { PluginIssueProviderRegistryService } from '../../plugins/issue-provider/plugin-issue-provider-registry.service';
 import { isPluginIssueProvider, IssueProviderKey } from '../issue/issue.model';
-import { selectLocalCalendarDisplayItems } from './calendar-display-item.selectors';
+import { selectPersistedCalendarDisplayItems } from './calendar-display-item.selectors';
 import { projectCalendarIntegrationEvent } from './calendar-display-item';
 import { CalendarDisplayItem } from './calendar-display-item.model';
 
-/** Shared read facade; ScheduleService consumes its local selector through SVE. */
+/** Canonical calendar facade: WorkSessions, Events, legacy fallback and provider adapters. */
 @Injectable({ providedIn: 'root' })
 export class CalendarDisplayService {
   private readonly _localItems = inject(Store).selectSignal(
-    selectLocalCalendarDisplayItems,
+    selectPersistedCalendarDisplayItems,
   );
   private readonly _events = toSignal(
     inject(CalendarIntegrationService).calendarEvents$,
@@ -24,27 +24,42 @@ export class CalendarDisplayService {
   private readonly _hiddenProviders = inject(HiddenCalendarProvidersService);
   private readonly _registry = inject(PluginIssueProviderRegistryService);
 
+  /** Existing provider buckets, filtered once for the unified calendar and SVE adapter. */
+  readonly externalCalendars = computed(() => {
+    const hidden = new Set(this._hiddenProviders.hiddenProviderIds());
+    const seen = new Set<string>();
+    return this._events()
+      .map((entry) => ({
+        ...entry,
+        items: entry.items.filter((event) => {
+          const key = JSON.stringify([event.calProviderId, event.id]);
+          if (hidden.has(event.calProviderId) || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }),
+      }))
+      .filter((entry) => entry.items.length > 0);
+  });
+
   readonly items = computed<CalendarDisplayItem[]>(() => {
     this._registry.registrationVersion();
-    const hidden = new Set(this._hiddenProviders.hiddenProviderIds());
-    return [
+    const items = [
       ...this._localItems(),
-      ...this._events().flatMap((entry) =>
-        entry.items
-          .filter((event) => !hidden.has(event.calProviderId))
-          .map((event) => {
-            const definition = isPluginIssueProvider(
-              event.issueProviderKey as IssueProviderKey,
-            )
-              ? this._registry.getProvider(event.issueProviderKey)?.definition
-              : undefined;
-            return projectCalendarIntegrationEvent(
-              event,
-              !!definition?.updateIssue,
-              !!definition?.deleteIssue,
-            );
-          }),
+      ...this.externalCalendars().flatMap((entry) =>
+        entry.items.map((event) => {
+          const definition = isPluginIssueProvider(
+            event.issueProviderKey as IssueProviderKey,
+          )
+            ? this._registry.getProvider(event.issueProviderKey)?.definition
+            : undefined;
+          return projectCalendarIntegrationEvent(
+            event,
+            !!definition?.updateIssue,
+            !!definition?.deleteIssue,
+          );
+        }),
       ),
     ];
+    return [...new Map(items.map((item) => [item.id, item])).values()];
   });
 }

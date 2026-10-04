@@ -1,3 +1,4 @@
+import { selectEventFeatureState } from '../../features/event/store/event.selectors';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import { inject, Injectable } from '@angular/core';
 import { Selector, Store } from '@ngrx/store';
@@ -74,6 +75,7 @@ const SNAPSHOT_SELECTORS: readonly {
   { key: 'reminders', selector: selectReminderFeatureState },
   { key: 'section', selector: selectSectionFeatureState },
   { key: 'workSession', selector: selectWorkSessionFeatureState },
+  { key: 'event', selector: selectEventFeatureState },
   { key: 'planning', selector: selectPlanningState },
   { key: 'folder', selector: selectFolderFeatureState },
 ] as const;

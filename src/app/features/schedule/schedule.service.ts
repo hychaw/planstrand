@@ -19,15 +19,13 @@ import { selectTimelineTasks } from '../work-context/store/work-context.selector
 import { selectPlannerDayMap } from '../planner/store/planner.selectors';
 import { selectTaskRepeatCfgsWithAndWithoutStartTime } from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { selectTimelineConfig } from '../config/store/global-config.reducer';
-import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
-import { HiddenCalendarProvidersService } from '../calendar-integration/hidden-calendar-providers.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TaskService } from '../tasks/task.service';
 import { startWith } from 'rxjs/operators';
 import { parseDbDateStr } from '../../util/parse-db-date-str';
 import { anchorContextNow } from './anchor-context-now';
 import { CalendarDisplayItem } from './calendar-display-item.model';
-import { selectLocalCalendarDisplayItems } from './calendar-display-item.selectors';
+import { CalendarDisplayService } from './calendar-display.service';
 
 @Injectable({
   providedIn: 'root',
@@ -35,22 +33,17 @@ import { selectLocalCalendarDisplayItems } from './calendar-display-item.selecto
 export class ScheduleService {
   private _dateService = inject(DateService);
   private _store = inject(Store);
-  private _calendarIntegrationService = inject(CalendarIntegrationService);
-  private _hiddenCalendarProviders = inject(HiddenCalendarProvidersService);
+  private readonly _calendarDisplay = inject(CalendarDisplayService);
   private _taskService = inject(TaskService);
 
   private _timelineTasks = toSignal(this._store.select(selectTimelineTasks));
-  private _calendarDisplayItems = toSignal(
-    this._store.select(selectLocalCalendarDisplayItems),
-  );
+  private readonly _calendarDisplayItems = this._calendarDisplay.items;
   private _taskRepeatCfgs = toSignal(
     this._store.select(selectTaskRepeatCfgsWithAndWithoutStartTime),
   );
   private _timelineConfig = toSignal(this._store.select(selectTimelineConfig));
   private _plannerDayMap = toSignal(this._store.select(selectPlannerDayMap));
-  private _calendarEvents = toSignal(this._calendarIntegrationService.calendarEvents$, {
-    initialValue: [],
-  });
+  private readonly _calendarEvents = this._calendarDisplay.externalCalendars;
   scheduleRefreshTick = toSignal(interval(2 * 60 * 1000).pipe(startWith(0)), {
     initialValue: 0,
   });
@@ -145,17 +138,7 @@ export class ScheduleService {
     const taskRepeatCfgs = this._taskRepeatCfgs();
     const timelineCfg = this._timelineConfig();
     const plannerDayMap = this._plannerDayMap();
-    const hiddenProviderIds = this._hiddenCalendarProviders.hiddenProviderIds();
-    const calendarEvents = hiddenProviderIds.length
-      ? this._calendarEvents()
-          .map((entry) => ({
-            ...entry,
-            items: entry.items.filter(
-              (item) => !hiddenProviderIds.includes(item.calProviderId),
-            ),
-          }))
-          .filter((entry) => entry.items.length > 0)
-      : this._calendarEvents();
+    const calendarEvents = this._calendarEvents();
 
     return this.buildScheduleDays({
       calendarDisplayItems: this._calendarDisplayItems(),
@@ -254,7 +237,7 @@ export class ScheduleService {
   }
 
   getEventDayStr(ev: ScheduleEvent): string | null {
-    if (ev.type === SVEType.WorkSession) {
+    if (ev.type === SVEType.WorkSession || ev.type === SVEType.LocalEvent) {
       return ev.plannedForDay ?? null;
     }
     // Calendar events

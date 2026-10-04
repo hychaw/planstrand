@@ -23,6 +23,7 @@ export interface AppStateSnapshot {
   reminders: unknown;
   section: unknown;
   workSession: unknown;
+  event?: unknown;
   planning?: unknown;
   folder?: unknown;
   archiveYoung: ArchiveModel;
