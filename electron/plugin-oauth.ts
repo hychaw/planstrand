@@ -26,13 +26,13 @@ const cleanupServer = (): void => {
 
 // Success page shown in the user's browser after completing OAuth
 const SUCCESS_HTML = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Super Productivity</title>
+<html><head><meta charset="utf-8"><title>Planstrand</title>
 <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;
 justify-content:center;height:100vh;margin:0;background:#f5f5f5}
 .card{text-align:center;padding:2rem;background:#fff;border-radius:8px;
 box-shadow:0 2px 8px rgba(0,0,0,.1)}</style></head>
 <body><div class="card"><h2>Authentication complete</h2>
-<p>You can close this tab and return to Super Productivity.</p></div></body></html>`;
+<p>You can close this tab and return to Planstrand.</p></div></body></html>`;
 
 export const initPluginOAuth = (mainWin: BrowserWindow): void => {
   // Prepare: start a loopback HTTP server and return the port.

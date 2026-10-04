@@ -16,7 +16,7 @@ describe('NEW_INSTALL_APP_FEATURES', () => {
       isSearchEnabled: true,
       isSyncIconEnabled: true,
       isDonatePageEnabled: true,
-      isSchedulerEnabled: false,
+      isSchedulerEnabled: true,
       isScheduleDayPanelEnabled: false,
       isBoardsEnabled: false,
       isHabitsEnabled: false,

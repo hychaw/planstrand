@@ -5,7 +5,6 @@ import { signal } from '@angular/core';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { BehaviorSubject } from 'rxjs';
 import { CalendarDisplayService } from './calendar-display.service';
-import { selectLocalCalendarDisplayItems } from './calendar-display-item.selectors';
 import { projectWorkSession } from './calendar-display-item';
 import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
 import { HiddenCalendarProvidersService } from '../calendar-integration/hidden-calendar-providers.service';
@@ -13,6 +12,7 @@ import { PluginIssueProviderRegistryService } from '../../plugins/issue-provider
 import { ScheduleCalendarMapEntry } from './schedule.model';
 
 describe('CalendarDisplayService', () => {
+  afterEach(() => TestBed.inject(MockStore).resetSelectors());
   it('merges local/provider items, reacts to capabilities/visibility, and never dispatches', () => {
     const local = projectWorkSession({
       id: 'session',
@@ -49,7 +49,7 @@ describe('CalendarDisplayService', () => {
     TestBed.configureTestingModule({
       providers: [
         provideMockStore({
-          selectors: [{ selector: selectLocalCalendarDisplayItems, value: [local] }],
+          selectors: [{ selector: selectPersistedCalendarDisplayItems, value: [local] }],
         }),
         { provide: CalendarIntegrationService, useValue: { calendarEvents$: events } },
         { provide: HiddenCalendarProvidersService, useValue: { hiddenProviderIds } },

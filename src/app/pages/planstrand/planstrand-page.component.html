@@ -46,10 +46,18 @@
       >
         <p>{{ 'PLANSTRAND.ROOT_DROP' | translate }}</p>
       </div>
+      @if (mode() === 'folder' && folderRows().length === 0) {
+        <p>{{ 'PLANSTRAND.MISSING_FOLDER' | translate }}</p>
+        <a
+          mat-button
+          routerLink="/master-tasks"
+          >{{ 'PLANSTRAND.MASTER_TASKS' | translate }}</a
+        >
+      }
       @for (row of folderRows(); track row.folder.id) {
         <section
           [style.margin-inline-start]="
-            'calc(var(--s2) * ' + (mode() === 'master' ? row.depth : 0) + ')'
+            'calc(var(--s2) * ' + (mode() === 'master' ? Math.min(row.depth, 4) : 0) + ')'
           "
         >
           <div
@@ -68,7 +76,12 @@
                 (click)="ui.toggle(row.folder.id)"
                 [attr.aria-expanded]="!ui.collapsed().has(row.folder.id)"
               >
-                {{ ui.collapsed().has(row.folder.id) ? '▸' : '▾' }} {{ row.folder.title }}
+                {{ ui.collapsed().has(row.folder.id) ? '▸' : '▾' }}
+                <span
+                  class="folder-title"
+                  [title]="row.folder.title"
+                  >{{ row.folder.title }}</span
+                >
               </button>
             </h2>
           </div>

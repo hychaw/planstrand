@@ -6,7 +6,7 @@
     "MASTER_TASKS": "Master Tasks",
     "TODAY": "Today",
     "THIS_WEEK": "This Week",
-    "SCHEDULE": "Calendar / Schedule",
+    "SCHEDULE": "Calendar",
     "FOLDERS": "Folders",
     "SEARCH": "Search",
     "CREATE_FOLDER": "Create Folder",
@@ -21,17 +21,23 @@
     "UNPLAN": "Unplan",
     "MOVE_UP": "Move up",
     "MOVE_DOWN": "Move down",
-    "EMPTY": "No tasks",
+    "EMPTY": "No tasks yet. Add a task to get started.",
     "ROOT": "Root",
     "ROOT_DROP": "Drop a Folder here to move it to the root",
     "WEEK_ONLY": "This Week — choose a day later",
-    "UNPLANNED": "Unplanned Tasks"
+    "UNPLANNED": "Unplanned Tasks",
+    "SCHEDULE_SESSION": "Schedule WorkSession",
+    "MORE": "More",
+    "NAVIGATION": "Navigation",
+    "EMPTY_PLANNING": "No tasks planned here. Choose Plan Task on an unplanned task below.",
+    "EMPTY_CALENDAR": "Create an Event, or schedule a WorkSession from a task.",
+    "MISSING_FOLDER": "This Folder is no longer available. Open Master Tasks to find your tasks."
   },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignore",
       "INSTALL": "Install",
-      "MSG": "Do you want to install Super Productivity as a PWA (Progressive Web App)?"
+      "MSG": "Do you want to install Planstrand as a PWA (Progressive Web App)?"
     },
     "B_OFFLINE": "You are disconnected from the internet. Syncing and requesting issue provider data will not work.",
     "B_SUPER_SYNC_ENCRYPTION": {
@@ -47,12 +53,12 @@
     },
     "B_SYNC_SAFETY": {
       "DISMISS": "Not now",
-      "MSG": "You've been using Super Productivity for a while. Set up sync to back up your data and keep it safe across devices.",
+      "MSG": "You've been using Planstrand for a while. Set up sync to back up your data and keep it safe across devices.",
       "SETUP": "Set up sync"
     },
     "B_UPDATE_AVAILABLE": {
       "DOWNLOAD": "Download",
-      "MSG": "A new version of Super Productivity is available ({{version}})."
+      "MSG": "A new version of Planstrand is available ({{version}})."
     },
     "CONTEXT_MENU": {
       "CHANGE_PROJECT_SETTINGS": "Change Project Settings",
@@ -79,7 +85,7 @@
   },
   "CONFIRM": {
     "DELETE_SECTION": "Are you sure you want to delete this section? Tasks in it will be moved to the task list.",
-    "RELOAD_AFTER_IDB_ERROR": "Database Error - App Will Restart\n\nSuper Productivity cannot save data! This is usually caused by:\n• Low disk space (most common)\n• App update in background\n• Linux Snap users: run 'snap set core experimental.refresh-app-awareness=true'\n\nYour recent changes may not have been saved. Please free up disk space if low. The app will restart after you close this dialog.",
+    "RELOAD_AFTER_IDB_ERROR": "Database Error - App Will Restart\n\nPlanstrand cannot save data! This is usually caused by:\n• Low disk space (most common)\n• App update in background\n• Linux Snap users: run 'snap set core experimental.refresh-app-awareness=true'\n\nYour recent changes may not have been saved. Please free up disk space if low. The app will restart after you close this dialog.",
     "RESTORE_FILE_BACKUP": "There seems to be NO DATA, but there are backups available at \"{{dir}}\". Do you want to restore the latest backup from {{from}}?",
     "RESTORE_FILE_BACKUP_ANDROID": "There seems to be NO DATA, but there is a backup available. Do you want to load it?",
     "RESTORE_FILE_BACKUP_MOBILE": "No data was found on this device, but a backup is available to restore (tasks: {{tasks}}, projects: {{projects}}). Restore it?",
@@ -116,25 +122,25 @@
   },
   "DONATE_PAGE": {
     "BUTTON_TEXT": "Donate via GitHub Sponsors",
-    "INTRO_1": "Super Productivity is funded entirely by the community. There is no tracking, no ads, and no data collection — your tasks stay on your device.",
+    "INTRO_1": "Planstrand builds on Super Productivity. You can support the upstream project here. There is no tracking, no ads, and no data collection — your tasks stay on your device.",
     "INTRO_2": "If you value this approach and want to keep the project healthy and evolving, a voluntary donation is greatly appreciated."
   },
   "EXAMPLE_TASKS": {
     "LEARN_KEYBOARD_SHORTCUTS": {
       "TITLE": "Learn the keyboard shortcuts",
-      "NOTES": "Super Productivity is designed to be used with the keyboard. Learn the shortcuts to work faster.\n\n**How to start:**\n1. Open the **sidebar menu**\n2. Go to **Help**\n3. Click **How to: Keyboard Navigation**"
+      "NOTES": "Planstrand is designed to be used with the keyboard. Learn the shortcuts to work faster.\n\n**How to start:**\n1. Open the **sidebar menu**\n2. Go to **Help**\n3. Click **How to: Keyboard Navigation**"
     },
     "CREATE_PROJECT": {
-      "TITLE": "Create your first project",
-      "NOTES": "Projects help you organize your tasks by topic. Each project has its own task list and backlog.\n\n**How to create a project:**\n1. Click the **+** button next to **Projects** in the sidebar\n2. Give it a name and pick a color\n3. Start adding tasks to it"
+      "TITLE": "Create your first Folder",
+      "NOTES": "Folders organize your tasks. Open Master Tasks to see Inbox and your Folder hierarchy.\n\n1. Choose Create Folder\n2. Give it a name\n3. Use Add Task in that Folder\n\nUse Move Task to Folder to organize existing tasks. Create nested Folders for more structure."
     },
     "SET_UP_SYNC": {
       "TITLE": "Set up Sync",
       "NOTES": "Keep your data safe and accessible across devices.\n\n**How to set up:**\n1. Open **Settings** (gear icon in the sidebar)\n2. Go to **Sync**\n3. Choose a provider: SuperSync, Nextcloud, Dropbox, or local file sync\n4. Follow the setup instructions"
     },
     "GO_FURTHER": {
-      "TITLE": "Go further",
-      "NOTES": "There is much more to discover!\n\n**App Features** (in Settings) — Enable integrations, habits, and other features. Go to **Settings → App Features** to see what's available.\n\n**Boards** — Visualize your tasks in customizable Kanban-style boards. Enable them in **App Features**, then find them in the **sidebar menu**.\n\n**Schedule** — Plan your day by scheduling tasks at specific times. Enable it in **App Features**, then drag tasks onto the **Schedule** view in the sidebar to organize your timeline.\n\n**Integrations** — Once enabled in App Features, import tasks from Jira, GitHub, GitLab, Gitea, OpenProject, CalDAV, and many more. You can also integrate your calendar. Configure them in the **Issue Provider Panel**.\n\n**Habits** — Track recurring habits and routines. Find them in the **sidebar menu** once enabled.\n\n**Focus mode & Finish Day** — Work in distraction-free focus sessions and wrap up your day with a short review. Enable them in **App Features**.\n\n**Plugins** — Add features like the Procrastination Buster, Automations, or Voice Reminders. Go to **Settings → Plugins**.\n\n**Customize** — Themes, dark mode, keyboard shortcuts, language, and productivity helpers are all in **Settings**."
+      "TITLE": "Plan your week",
+      "NOTES": "Use Plan Task to place a task in Today or This Week. Planning is independent of timed work.\n\nUse Schedule WorkSession to reserve time for a task in Calendar. New Event creates an independent timed or all-day Event.\n\nSettings contains sync, backups, reminders and preferences. More in the sidebar keeps Projects, Tags, Planner and other inherited tools available."
     }
   },
   "F": {
@@ -151,11 +157,10 @@
       "INVALID": "Enter a title, valid date and timezone, and an end after the start. Times skipped by daylight saving are unavailable.",
       "DELETE_CONFIRM": "Permanently delete this Event?"
     },
-
     "IOS_SHARE": {
       "SAVE": "Save",
       "DESTINATION": "Inbox",
-      "NEXT_OPEN": "Added when you next open Super Productivity",
+      "NEXT_OPEN": "Added when you next open Planstrand",
       "SAVE_ERROR": "Could not save. Please try again.",
       "IMPORT_ERROR": "Could not import shared content. It has been kept on this device; reopen the app to retry.",
       "INVALID": "Share a link or text (up to 100,000 characters)."
@@ -273,7 +278,7 @@
         "TWO_WAY_SYNC_TITLE": "Title sync direction"
       },
       "FORM_SECTION": {
-        "HELP": "<p>Here you can configure Super Productivity to list uncompleted CalDAV tasks for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the task as well as more information about it.</p><p>In addition, you can automatically add and sync all uncompleted tasks to your task backlog.</p><p>To make it work for Nextcloud in the webapp, you may need to allow \"https://app.super-productivity.com\" in the Nextcloud app <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword</a>.</p>"
+        "HELP": "<p>Here you can configure Planstrand to list uncompleted CalDAV tasks for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the task as well as more information about it.</p><p>In addition, you can automatically add and sync all uncompleted tasks to your task backlog.</p><p>To make it work for Nextcloud in the webapp, you may need to allow \"https://app.super-productivity.com\" in the Nextcloud app <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword</a>.</p>"
       },
       "ISSUE_CONTENT": {
         "DESCRIPTION": "Description",
@@ -350,7 +355,7 @@
       "FEEDBACK_PUBLIC": "Post on GitHub Discussions",
       "FEEDBACK_PUBLIC_DESC": "Others can see and respond",
       "FEEDBACK_TITLE": "How would you like to help?",
-      "TITLE": "Enjoying Super Productivity?",
+      "TITLE": "Enjoying Planstrand?",
       "TXT": "It's a free, open-source project built by enthusiasts – no tracking, no ads. A rating or short message helps more people find it."
     },
     "DROPBOX": {
@@ -469,7 +474,7 @@
         "TOKEN": "Access Token"
       },
       "FORM_SECTION": {
-        "HELP": "<p>Here you can configure Super Productivity to list open Gitea issues for a specific repository in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the issue as well as more information about it.</p><p>In addition, you can automatically add and import all open issues.</p><p>To get by usage limits and gain access, you can provide an access token."
+        "HELP": "<p>Here you can configure Planstrand to list open Gitea issues for a specific repository in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the issue as well as more information about it.</p><p>In addition, you can automatically add and import all open issues.</p><p>To get by usage limits and gain access, you can provide an access token."
       },
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Assignee",
@@ -511,7 +516,7 @@
         "TOKEN": "Access Token"
       },
       "FORM_SECTION": {
-        "HELP": "<p>Here you can configure Super Productivity to list open GitLab (either its the online version or a self-hosted instance) issues for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the issue as well as more information about it.</p><p>In addition, you can automatically import all open issues.</p>"
+        "HELP": "<p>Here you can configure Planstrand to list open GitLab (either its the online version or a self-hosted instance) issues for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the issue as well as more information about it.</p><p>In addition, you can automatically import all open issues.</p>"
       },
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Assignee",
@@ -529,14 +534,14 @@
       }
     },
     "ISSUE": {
-      "CROSS_ORIGIN_BROWSER_WARNING": "This integration will likely not work in your web browser. Please download the desktop or Android version of Super Productivity!",
+      "CROSS_ORIGIN_BROWSER_WARNING": "This integration will likely not work in your web browser. Please download the desktop or Android version of Planstrand!",
       "DEFAULT": {
         "ISSUE_STR": "issue",
         "ISSUES_STR": "issues"
       },
       "DEFAULT_NOTE_LABEL": "Default note for imported tasks",
       "DEFAULT_PROJECT_DESCRIPTION": "Project assigned to tasks created from issues.",
-      "DEFAULT_PROJECT_LABEL": "Default Super Productivity Project",
+      "DEFAULT_PROJECT_LABEL": "Default Planstrand Project",
       "DEFAULT_TAGS_LABEL": "Default tags for imported tasks",
       "FORM": {
         "AUTO_ADD_TO_BACKLOG": "Auto import to default project (requires a default project)",
@@ -642,7 +647,7 @@
     },
     "JIRA": {
       "BANNER": {
-        "BLOCK_ACCESS_MSG": "Jira: To prevent API lock out, access has been blocked by Super Productivity. You probably should check your Jira settings!",
+        "BLOCK_ACCESS_MSG": "Jira: To prevent API lock out, access has been blocked by Planstrand. You probably should check your Jira settings!",
         "BLOCK_ACCESS_UNBLOCK": "Unblock"
       },
       "CFG_CMP": {
@@ -691,7 +696,7 @@
         "TITLE": "Jira: Submit Worklog"
       },
       "FORM_ADV": {
-        "AUTO_ADD_BACKLOG_JQL_QUERY": "JQL used for importing issues to Super Productivity automatically",
+        "AUTO_ADD_BACKLOG_JQL_QUERY": "JQL used for importing issues to Planstrand automatically",
         "IS_ADD_WORKLOG_ON_SUB_TASK_DONE": "Open dialog to submit worklog to Jira when subtask is completed",
         "IS_CHECK_TO_RE_ASSIGN_TICKET_ON_TASK_START": "Check if the currently worked on issue is assigned to current user",
         "IS_WORKLOG_ENABLED": "Open dialog to submit worklog to Jira when task is completed",
@@ -979,7 +984,7 @@
         "TOKEN": "Access Token"
       },
       "FORM_SECTION": {
-        "HELP": "<p>Here you can configure Super Productivity to list open OpenProject work packages. Please note that for this to work in the web browser version, you need to probably configure CORS for your OpenProject server to allow access from app.super-productivity.com</p>"
+        "HELP": "<p>Here you can configure Planstrand to list open OpenProject work packages. Please note that for this to work in the web browser version, you need to probably configure CORS for your OpenProject server to allow access from app.super-productivity.com</p>"
       },
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Assignee",
@@ -1167,7 +1172,7 @@
         "SCOPE_CREATED": "Created by me"
       },
       "FORM_SECTION": {
-        "HELP": "<p>Here you can configure Super Productivity to list open Redmine (either its the online version or a self-hosted instance) issues for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the issue as well as more information about it.</p><p>In addition you can automatically import all open issues.</p>",
+        "HELP": "<p>Here you can configure Planstrand to list open Redmine (either its the online version or a self-hosted instance) issues for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the issue as well as more information about it.</p><p>In addition you can automatically import all open issues.</p>",
         "TITLE": "Redmine"
       },
       "ISSUE_CONTENT": {
@@ -1354,7 +1359,7 @@
         "CHANGE_PW_AND_DECRYPT": "Retry Decrypt",
         "P1": "Your remote data is encrypted and decryption failed.",
         "P2_FORGOT_PW": "If you <strong>forgot your password</strong>, enter the correct password and click \"Retry Decrypt\".",
-        "P3_START_OVER": "If you cannot recover the password, leave the sync server as it is \u2014 your data there stays intact. To erase it and start over from this device, close this window and use <strong>Force Overwrite</strong> in Settings \u2192 Sync & Backup \u2192 Sync.",
+        "P3_START_OVER": "If you cannot recover the password, leave the sync server as it is — your data there stays intact. To erase it and start over from this device, close this window and use <strong>Force Overwrite</strong> in Settings → Sync & Backup → Sync.",
         "PASSWORD": "Password",
         "TITLE": "Decryption Failed"
       },
@@ -1401,8 +1406,8 @@
         "TITLE": "Replace Local Data?"
       },
       "D_NOTHING_TO_UPLOAD": {
-        "MESSAGE": "Nothing was changed \u2014 the data on your sync server is still there.\n\nThis device has never finished a sync, so it holds no copy of your data that the app can see. Overwriting would have replaced everything on the server with an empty device, and that cannot be undone.\n\nTry your encryption password here again \u2014 an older password often works. If you cannot remember it, leave this device and the server exactly as they are and report the problem rather than overwriting; your history is still on the server.\n\nIf you do want to erase the sync server and start over, close this window and use Force Overwrite in Settings \u2192 Sync & Backup \u2192 Sync.",
-        "MESSAGE_CHANGE_PW": "Nothing was changed \u2014 the data on your sync server is still there.\n\nChanging the encryption password re-uploads this device's data and replaces what is on the server. This device has never finished a sync, so it holds no copy of your data that the app can see, and the server copy would be lost.\n\nChange the password from a device that already has your data and has synced successfully.",
+        "MESSAGE": "Nothing was changed — the data on your sync server is still there.\n\nThis device has never finished a sync, so it holds no copy of your data that the app can see. Overwriting would have replaced everything on the server with an empty device, and that cannot be undone.\n\nTry your encryption password here again — an older password often works. If you cannot remember it, leave this device and the server exactly as they are and report the problem rather than overwriting; your history is still on the server.\n\nIf you do want to erase the sync server and start over, close this window and use Force Overwrite in Settings → Sync & Backup → Sync.",
+        "MESSAGE_CHANGE_PW": "Nothing was changed — the data on your sync server is still there.\n\nChanging the encryption password re-uploads this device's data and replaces what is on the server. This device has never finished a sync, so it holds no copy of your data that the app can see, and the server copy would be lost.\n\nChange the password from a device that already has your data and has synced successfully.",
         "TITLE": "Your synced data was not touched"
       },
       "D_PERMISSION": {
@@ -1586,9 +1591,9 @@
           "L_CONFIRM_PASSWORD": "Confirm Password",
           "L_ENABLE_E2E_ENCRYPTION": "Enable end-to-end encryption",
           "L_ENABLE_TRACKING_PRESENCE": "Show live tracking on other devices (experimental)",
-          "TRACKING_PRESENCE_DESCRIPTION": "Mirrors which task this account is currently tracking to your other connected devices and lets you stop it from there. Display only \u2014 never persisted on the server, though it is briefly relayed in server memory (opaque to the server when end-to-end encryption is on).",
+          "TRACKING_PRESENCE_DESCRIPTION": "Mirrors which task this account is currently tracking to your other connected devices and lets you stop it from there. Display only — never persisted on the server, though it is briefly relayed in server memory (opaque to the server when end-to-end encryption is on).",
           "L_PRESENCE_DEVICE_NAME": "Name of this device on other devices",
-          "PRESENCE_DEVICE_NAME_DESCRIPTION": "Shown in the live tracking chip on your other devices, e.g. \u201cWork laptop\u201d, so two desktops can be told apart. Sent along with the tracking state (encrypted when sync encryption is on). Leave empty to use the platform name shown as placeholder.",
+          "PRESENCE_DEVICE_NAME_DESCRIPTION": "Shown in the live tracking chip on your other devices, e.g. “Work laptop”, so two desktops can be told apart. Sent along with the tracking state (encrypted when sync encryption is on). Leave empty to use the platform name shown as placeholder.",
           "L_NEW_PASSWORD": "New Encryption Password",
           "L_REMOVE_ENCRYPTION": "Or Remove Encryption",
           "L_SERVER_URL": "Server URL",
@@ -1632,9 +1637,9 @@
         },
         "TITLE": "Sync",
         "WEB_DAV": {
-          "CORS_INFO": "<strong>Making it work in a web browser:</strong> You need to allow Super Productivity to make CORS requests to your server. For Nextcloud, one approach is allowing \"https://app.super-productivity.com\" via the <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword</a> app. Refer to <a href='https://github.com/nextcloud/server/issues/3131'>this GitHub thread</a> for more information.",
+          "CORS_INFO": "<strong>Making it work in a web browser:</strong> You need to allow Planstrand to make CORS requests to your server. For Nextcloud, one approach is allowing \"https://app.super-productivity.com\" via the <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword</a> app. Refer to <a href='https://github.com/nextcloud/server/issues/3131'>this GitHub thread</a> for more information.",
           "D_SYNC_FOLDER_PATH": "Path relative to the WebDAV server root where sync files will be stored (e.g. '/super-productivity' or '/'). This is NOT your server's internal directory path.",
-          "INFO": "<strong>Warning:</strong> Generic WebDAV sync is <strong>experimental and provided as-is, without support</strong>. WebDAV implementations differ enormously between servers, and the vast majority of sync problems are caused by your provider's setup or quirks (CORS, authentication, non-standard behavior, file locking, etc.) — <strong>not by Super Productivity</strong>. We cannot debug individual WebDAV servers, so please troubleshoot such issues with your provider and do not report them to us as bugs. If you are using Nextcloud, use the dedicated Nextcloud option instead. For reliable, fully supported sync consider Dropbox or SuperSync.",
+          "INFO": "<strong>Warning:</strong> Generic WebDAV sync is <strong>experimental and provided as-is, without support</strong>. WebDAV implementations differ enormously between servers, and the vast majority of sync problems are caused by your provider's setup or quirks (CORS, authentication, non-standard behavior, file locking, etc.) — <strong>not by Planstrand</strong>. We cannot debug individual WebDAV servers, so please troubleshoot such issues with your provider and do not report them to us as bugs. If you are using Nextcloud, use the dedicated Nextcloud option instead. For reliable, fully supported sync consider Dropbox or SuperSync.",
           "L_BASE_URL": "Base URL",
           "L_PASSWORD": "Password",
           "L_SYNC_FOLDER_PATH": "Sync Folder Path",
@@ -1678,7 +1683,7 @@
         "ERROR_REMOTE_FILE_EMPTY": "Remote sync file is empty. This can happen after an interrupted sync. Overwrite remote with your local data?",
         "ERROR_REMOTE_FILE_LOCKED": "Remote sync file is locked by the server. This may resolve on the next sync attempt.",
         "ERROR_REMOTE_RESPONSE_NOT_SYNC_DATA": "The sync server answered with a web page instead of your sync data (e.g. a login, proxy or error page). Your remote data is probably intact — check your server URL, credentials and network, then try again. If the problem persists, you can overwrite the remote via Sync Settings → Force Overwrite.",
-        "ERROR_SYNC_VERSION_MISMATCH": "Remote sync data uses an incompatible format version. Ensure all devices run the same version of Super Productivity.",
+        "ERROR_SYNC_VERSION_MISMATCH": "Remote sync data uses an incompatible format version. Ensure all devices run the same version of Planstrand.",
         "WARN_CLIENT_ID_REGENERATED": "Sync device ID was invalid and has been regenerated. A sync conflict may occur on next sync.",
         "ERROR_UNABLE_TO_READ_REMOTE_DATA": "Error while syncing. Unable to read remote data. Maybe you enabled encryption and your local password does not match the one used to encrypt the remote data?",
         "FINISH_DAY_SYNC_ERROR": "Sync error while finishing day. Please try again.",
@@ -2466,7 +2471,7 @@
     "IMPORT_FROM_FILE": "Import from File",
     "IMPORT_FROM_TODOIST": "Import from Todoist",
     "IMPORT_FROM_URL": "Import from URL",
-    "IMPORT_FROM_URL_DIALOG_DESCRIPTION": "Please enter the full URL of the Super Productivity backup JSON file to import.",
+    "IMPORT_FROM_URL_DIALOG_DESCRIPTION": "Please enter the full URL of the Planstrand backup JSON file to import.",
     "IMPORT_FROM_URL_DIALOG_TITLE": "Import from URL",
     "OPEN_IMPORT_FROM_URL_DIALOG": "Import from URL",
     "PRIVACY_EXPORT": "Export Data (anonymized)",
@@ -2590,7 +2595,7 @@
     },
     "CALENDARS": {
       "AUTO_IMPORT_FOR_CURRENT_DAY": "Auto import events as tasks for current day",
-      "BROWSER_WARNING": "Due to cross-origin and WebView restrictions <b>this will likely NOT work with the web browser or Android app versions of Super Productivity.<br /> Please <a href=\"https://super-productivity.com/download/\">download the desktop version</a> to use this feature!</b>",
+      "BROWSER_WARNING": "Due to cross-origin and WebView restrictions <b>this will likely NOT work with the web browser or Android app versions of Planstrand.<br /> Please <a href=\"https://super-productivity.com/download/\">download the desktop version</a> to use this feature!</b>",
       "CAL_COLOR": "Calendar color",
       "CAL_PATH": "URL of the iCal source",
       "CHECK_UPDATES": "Check for remote updates every X",
@@ -2600,7 +2605,7 @@
       "FILTER_INCLUDE_REGEX": "Include events matching regex (optional)",
       "FILTER_INCLUDE_REGEX_DESCRIPTION": "Only events whose title matches this regular expression will be shown. Leave empty to include all events. Example: meeting|standup",
       "INVALID_REGEX": "Invalid regular expression",
-      "HELP": "You can integrate calendars to be reminded and add them as tasks within Super Productivity. The integration works by using the iCal format. For this to work your calendars need to be accessible either over the internet or via file system.",
+      "HELP": "You can integrate calendars to be reminded and add them as tasks within Planstrand. The integration works by using the iCal format. For this to work your calendars need to be accessible either over the internet or via file system.",
       "REFERENCE_CALENDAR": "Reference calendar (display only, no task creation)",
       "SHOW_BANNER_THRESHOLD": "Show a notification X before the event (blank for disabled)"
     },
@@ -2685,7 +2690,7 @@
       "EXPAND_SUB_TASKS": "Expand subtasks",
       "GLOBAL_ADD_NOTE": "Add new note",
       "GLOBAL_ADD_TASK": "Add new task",
-      "GLOBAL_SHOW_HIDE": "Show/hide Super Productivity",
+      "GLOBAL_SHOW_HIDE": "Show/hide Planstrand",
       "GLOBAL_TOGGLE_TASK_START": "Start/stop time tracking for last active task",
       "GLOBAL_TOGGLE_TASK_WIDGET": "Show/hide task widget",
       "GO_TO_DAILY_AGENDA": "Go to agenda",
@@ -2817,7 +2822,7 @@
       "IS_LOCAL_REST_API_ENABLED_HINT": "Allows local scripts to control the running app via http://127.0.0.1:3876. Requests require the access token shown below; keep it private and regenerate it if it may have been exposed. Any application running as you on this computer can read the token and modify your tasks.",
       "LOCAL_REST_API_TOKEN": "Access Token",
       "LOCAL_REST_API_TOKEN_REGENERATE": "Regenerate Access Token",
-      "LOCAL_REST_API_TOKEN_ERROR": "Could not store the access token, so the API is not running. Check that Super Productivity can write to its data folder, then use Regenerate to retry.",
+      "LOCAL_REST_API_TOKEN_ERROR": "Could not store the access token, so the API is not running. Check that Planstrand can write to its data folder, then use Regenerate to retry.",
       "LOCAL_REST_API_TOKEN_REGENERATE_ERROR": "Could not save the new access token. The previous token is still valid.",
       "IS_MINIMIZE_TO_TRAY": "Minimize to tray (desktop only)",
       "IS_SHOW_TIP_LONGER": "Show productivity tip on app start a little longer",
@@ -2854,7 +2859,7 @@
       "DEFAULT_TASK_REMIND_OPTION": "Default remind option selected when creating tasks",
       "DISABLE_REMINDERS": "Disable all reminders",
       "DUE_DATE_NOTIFICATION_HOUR": "Hour to show planned-task notifications (0-23)",
-      "HELP": "<p><strong>Important:</strong> Reminders use <strong>local notifications</strong>, not push notifications. This means the app needs to have been opened at least once on your device for reminders to be scheduled. Reminders set on another device will only appear after the app syncs on the target device.</p><p>On <strong>iOS</strong>, make sure notifications are enabled for Super Productivity in your device settings under 'Settings' > 'Notifications'.</p>",
+      "HELP": "<p><strong>Important:</strong> Reminders use <strong>local notifications</strong>, not push notifications. This means the app needs to have been opened at least once on your device for reminders to be scheduled. Reminders set on another device will only appear after the app syncs on the target device.</p><p>On <strong>iOS</strong>, make sure notifications are enabled for Planstrand in your device settings under 'Settings' > 'Notifications'.</p>",
       "IS_COUNTDOWN_BANNER_ENABLED": "Show countdown banner before reminders are due",
       "IS_FOCUS_WINDOW": "Focus application window when reminder is triggered",
       "NOTIFY_ON_DUE_DATE": "Show notifications for tasks planned for today",
@@ -3037,10 +3042,10 @@
     "OPEN_APP_FEATURES": "Open Settings",
     "PLANNER": "Planner",
     "PROCRASTINATE": "Procrastinate",
-    "PROJECT_MENU": "Project Menu",
+    "PROJECT_MENU": "Navigation",
     "PROJECT_SETTINGS": "Project Settings",
     "PROJECTS": "Projects",
-    "SCHEDULE": "Schedule",
+    "SCHEDULE": "Calendar",
     "SEARCH": "Search",
     "SETTINGS": "Settings",
     "SHARE_TASK_LIST_MARKDOWN": "Share Task List",
@@ -3065,7 +3070,7 @@
     "ARCHIVED_PROJECTS": "Archived Projects"
   },
   "MIGRATE": {
-    "C_DOWNLOAD_BACKUP": "Do you want to download a backup of your legacy data (can be used with older versions of Super Productivity)?",
+    "C_DOWNLOAD_BACKUP": "Do you want to download a backup of your legacy data (can be used with older versions of Planstrand)?",
     "DETECTED_LEGACY": "Detected legacy data. We will migrate it for you!",
     "DIALOG_MESSAGE": "We're updating how your data is stored for improved sync reliability. A backup will be downloaded automatically.",
     "DIALOG_TITLE": "Migrating Your Data",

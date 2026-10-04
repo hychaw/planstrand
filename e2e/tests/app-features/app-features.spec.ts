@@ -19,7 +19,7 @@ test.describe('App Features', () => {
   [
     {
       label: 'Schedule',
-      locator: (page: Page) => page.getByRole('menuitem', { name: 'Schedule' }),
+      locator: (page: Page) => page.getByRole('menuitem', { name: 'Calendar' }),
     },
     {
       label: 'Planner',
@@ -78,8 +78,13 @@ test.describe('App Features', () => {
       // Navigate to main view
       await goToMainView(page);
 
-      // Feature's element should not be present when disabled
-      await expect(featureElement).not.toBeAttached();
+      // Calendar is a primary V1 destination even with the legacy scheduler
+      // preference off. Other legacy feature controls retain their toggles.
+      if (feature.label === 'Schedule') {
+        await expect(featureElement).toBeVisible();
+      } else {
+        await expect(featureElement).not.toBeAttached();
+      }
 
       // Re-enable the feature
       await goToConfig(page);

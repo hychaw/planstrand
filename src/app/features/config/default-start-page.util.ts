@@ -20,7 +20,7 @@ export const getStartPageUrlPath = (
   appFeatures: AppFeaturesConfig,
   startProject: Project | undefined,
 ): string => {
-  const todayUrl = `/tag/${TODAY_TAG.id}/tasks`;
+  const todayUrl = '/today';
 
   if (typeof defaultStartPage === 'string' && defaultStartPage.length > 0) {
     // Build the path from the validated project's own id (not the raw config
@@ -31,7 +31,7 @@ export const getStartPageUrlPath = (
       : todayUrl;
   }
 
-  switch (defaultStartPage ?? DefaultStartPage.Today) {
+  switch (defaultStartPage ?? DefaultStartPage.PlanstrandToday) {
     case DefaultStartPage.Inbox:
       // Legacy numeric value preserved for old configs.
       return `/project/${INBOX_PROJECT.id}/tasks`;
@@ -42,6 +42,14 @@ export const getStartPageUrlPath = (
     case DefaultStartPage.Boards:
       return appFeatures.isBoardsEnabled ? '/boards' : todayUrl;
     case DefaultStartPage.Today:
+      return `/tag/${TODAY_TAG.id}/tasks`;
+    case DefaultStartPage.PlanstrandInbox:
+      return '/inbox';
+    case DefaultStartPage.MasterTasks:
+      return '/master-tasks';
+    case DefaultStartPage.ThisWeek:
+      return '/this-week';
+    case DefaultStartPage.PlanstrandToday:
     default:
       return todayUrl;
   }

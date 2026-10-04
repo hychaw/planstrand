@@ -31,7 +31,7 @@ test.describe('Schedule month view scroll position', () => {
     workViewPage,
   }) => {
     await workViewPage.waitForTaskList();
-    await page.getByRole('menuitem', { name: 'Schedule' }).click();
+    await page.getByRole('menuitem', { name: 'Calendar' }).click();
 
     const wrapper = page.locator('schedule .scroll-wrapper');
     await expect(wrapper).toBeVisible();

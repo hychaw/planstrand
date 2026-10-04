@@ -8,7 +8,7 @@ test.describe('Schedule overlap', () => {
     await workViewPage.waitForTaskList();
 
     // Navigate to schedule view
-    await page.getByRole('menuitem', { name: 'Schedule' }).click();
+    await page.getByRole('menuitem', { name: 'Calendar' }).click();
 
     const addTask = async (taskDescription: string): Promise<void> => {
       // Last day is far enough into the future to avoid any created tasks

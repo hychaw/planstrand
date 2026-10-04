@@ -46,10 +46,13 @@ export class DialogEventComponent {
     : undefined;
   title = this._existing?.title ?? '';
   isAllDay = this._existing?.isAllDay ?? false;
+  private readonly _configuredTimeZone =
+    inject(GlobalConfigService).localization()?.timeZone;
   timeZone =
     this._existing && !this._existing.isAllDay
       ? this._existing.timeZone
-      : (resolveIanaTimeZone(inject(GlobalConfigService).localization()?.timeZone) ?? '');
+      : (resolveIanaTimeZone(this._configuredTimeZone) ??
+        (this._configuredTimeZone ? '' : 'UTC'));
   date = this._existing?.isAllDay
     ? this._existing.date
     : (this.data.date ?? inject(DateService).todayStr());

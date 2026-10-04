@@ -1,6 +1,7 @@
 import { type Page } from '@playwright/test';
 
-const DEFAULT_ROUTE_REGEX = /#\/(tag|project)\/.+\/tasks/;
+const DEFAULT_ROUTE_REGEX =
+  /#\/((tag|project)\/.+\/tasks|today|this-week|inbox|master-tasks)(?:$|[?])/;
 
 type WaitForAppReadyOptions = {
   /**
@@ -8,7 +9,7 @@ type WaitForAppReadyOptions = {
    */
   selector?: string;
   /**
-   * Whether to wait for a work-view style route.
+   * Whether to wait for a supported startup route.
    */
   ensureRoute?: boolean;
   /**

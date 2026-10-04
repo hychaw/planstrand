@@ -1,5 +1,6 @@
 import { signal, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { Action } from '@ngrx/store';
 import { BehaviorSubject, Subject } from 'rxjs';
@@ -117,6 +118,7 @@ describe('OnboardingHintService', () => {
       providers: [
         OnboardingHintService,
         provideMockStore(),
+        provideRouter([{ path: 'today', children: [] }]),
         {
           provide: LayoutService,
           useValue: { isShowAddTaskBar, isShowMobileBottomNav: signal(false) },
@@ -159,6 +161,13 @@ describe('OnboardingHintService', () => {
   });
 
   describe('first task', () => {
+    it('uses V1 empty-state actions instead of legacy tutorial targets', async () => {
+      const service = createService();
+      await TestBed.inject(Router).navigateByUrl('/today');
+      TestBed.tick();
+      expect(service.currentStep()).toBeNull();
+      expect(localStorage.getItem(LS.ONBOARDING_HINTS_DONE)).toBe('true');
+    });
     it('points at + for a new user and hides while the composer is open', () => {
       const service = createService();
       expect(service.currentStep()).toBe('create-task');

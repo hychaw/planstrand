@@ -357,7 +357,7 @@ export class StartupService {
 
   private _showMultiInstanceBlocker(): void {
     const msg =
-      'Super Productivity is already running in another tab. Please close this tab or the other one.';
+      'Planstrand is already running in another tab. Please close this tab or the other one.';
     const style =
       'display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; font-family: sans-serif; padding: 2rem;';
     document.body.innerHTML = `

@@ -23,7 +23,7 @@ test.describe('Schedule day view', () => {
     workViewPage,
   }) => {
     await workViewPage.waitForTaskList();
-    await page.getByRole('menuitem', { name: 'Schedule' }).click();
+    await page.getByRole('menuitem', { name: 'Calendar' }).click();
 
     const dayCols = page.locator(DAY_COL);
     const dayBtn = page.getByRole('button', { name: 'View Day' });

@@ -159,7 +159,13 @@ export class MagicNavConfigService {
           route,
         }),
       ),
-      ...this._buildMainRoutesItems().filter((item) => item.id === 'schedule'),
+      {
+        type: 'route',
+        id: 'schedule',
+        label: 'PLANSTRAND.SCHEDULE',
+        icon: 'calendar_month',
+        route: '/schedule',
+      },
       // Work Context Items
       ...this._buildWorkContextItems(),
 
@@ -292,7 +298,7 @@ export class MagicNavConfigService {
             id: 'help-online',
             label: T.MH.HM.GET_HELP_ONLINE,
             icon: 'help_center',
-            href: 'https://github.com/super-productivity/super-productivity/blob/master/README.md#question-how-to-use-it',
+            href: 'https://github.com/hychaw/planstrand/blob/development/docs/wiki/3.10-Planstrand-V1.md',
           },
           {
             type: 'action',
@@ -306,7 +312,7 @@ export class MagicNavConfigService {
             id: 'help-feedback',
             label: T.MH.HM.SEND_FEEDBACK,
             icon: 'feedback',
-            href: 'https://github.com/super-productivity/super-productivity/discussions',
+            href: 'https://github.com/hychaw/planstrand/issues',
           },
           // Donation links are disabled on native iOS and every macOS desktop
           // build to keep App Store review behavior deterministic.

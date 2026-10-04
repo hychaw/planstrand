@@ -123,6 +123,7 @@ test.describe.serial('Plugin Loading', () => {
     await expect(page).toHaveURL(/\/#\/today/);
 
     // Verify plugin menu entry exists
+    await page.locator('magic-side-nav summary').click();
     const pluginNavItem = page
       .locator(PLUGIN_NAV_ENTRIES)
       .filter({ hasText: 'API Test Plugin' });

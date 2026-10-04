@@ -14,7 +14,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { NavigationStart, Router, RouterModule } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
+import { NavigationEnd, NavigationStart, Router, RouterModule } from '@angular/router';
 import { NavItemComponent } from './nav-item/nav-item.component';
 import { NavListTreeComponent } from './nav-list/nav-list-tree.component';
 import { NavItem } from './magic-side-nav.model';
@@ -28,7 +29,7 @@ import { TaskService } from '../../features/tasks/task.service';
 import { LayoutService } from '../layout/layout.service';
 import { magicSideNavAnimations } from './magic-side-nav.animations';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { filter, take } from 'rxjs/operators';
+import { filter, map, take } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 import { ScheduleExternalDragService } from '../../features/schedule/schedule-week/schedule-external-drag.service';
 import { Log } from '../../core/log';
@@ -55,6 +56,7 @@ const INITIAL_ENTER_ANIMATION_DURATION_MS = 425;
   standalone: true,
   imports: [
     FolderNavigationComponent,
+    NgTemplateOutlet,
     RouterModule,
     NavItemComponent,
     NavListTreeComponent,
@@ -89,7 +91,41 @@ export class MagicSideNavComponent implements OnDestroy, AfterViewInit {
   private _pointerUpSubscription: Subscription | null = null;
 
   // Use service's computed signal directly
+  readonly isLegacyRoute = toSignal(
+    this._router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) =>
+        /^\/(tag|project|planner|boards|habits|archived-projects|plugins)(\/|$)/.test(
+          event.urlAfterRedirects,
+        ),
+      ),
+    ),
+    {
+      initialValue:
+        /^\/(tag|project|planner|boards|habits|archived-projects|plugins)(\/|$)/.test(
+          this._router.url ?? '',
+        ),
+    },
+  );
   readonly config = this._sideNavConfigService.navConfig;
+  readonly primaryItems = computed(() =>
+    this.config().items.filter(
+      (item) => item.id.startsWith('planstrand-') || item.id === 'schedule',
+    ),
+  );
+  readonly utilityItems = computed(() =>
+    this.config().items.filter((item) =>
+      ['search', 'help', 'settings'].includes(item.id),
+    ),
+  );
+  readonly secondaryItems = computed(() =>
+    this.config().items.filter(
+      (item) =>
+        item.type !== 'separator' &&
+        !this.primaryItems().includes(item) &&
+        !this.utilityItems().includes(item),
+    ),
+  );
   private readonly _isDataLoaded = toSignal(
     this._dataInitStateService.isAllDataLoadedInitially$,
     { initialValue: false },

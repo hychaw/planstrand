@@ -244,6 +244,26 @@ describe('Event calendar interactions', () => {
     expect(writes).toHaveBeenCalledTimes(1);
     tick(200);
   }));
+  it('offers an editable UTC default when the browser has no system zone', () => {
+    spyOn(TestBed.inject(GlobalConfigService), 'localization').and.returnValue({});
+    spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').and.returnValue({
+      ...Intl.DateTimeFormat().resolvedOptions(),
+      timeZone: undefined as unknown as string,
+    });
+    const editor = TestBed.createComponent(DialogEventComponent);
+    expect(editor.componentInstance.timeZone).toBe('UTC');
+    editor.componentInstance.title = 'Timed Event without a system zone';
+    editor.componentInstance.save();
+    expect(
+      Object.values(events.entities()).some(
+        (e) =>
+          e?.title === 'Timed Event without a system zone' &&
+          !e.isAllDay &&
+          e.timeZone === 'UTC',
+      ),
+    ).toBeTrue();
+    editor.destroy();
+  });
   it('creates through the editor, then confirms permanent deletion', async () => {
     const editor = TestBed.createComponent(DialogEventComponent);
     editor.detectChanges();

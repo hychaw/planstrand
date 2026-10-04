@@ -8,3 +8,10 @@ input:not([type='checkbox']) {
   min-width: 0;
   flex: 1;
 }
+
+@media (max-width: 440px) {
+  label:has(input:not([type='checkbox'])) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

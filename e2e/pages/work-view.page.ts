@@ -1,6 +1,6 @@
 import { Locator, Page } from '@playwright/test';
 import { BasePage } from './base.page';
-import { waitForAngularStability } from '../utils/waits';
+import { waitForAngularStability, waitForAppReady } from '../utils/waits';
 
 export class WorkViewPage extends BasePage {
   readonly addTaskGlobalInput: Locator;
@@ -22,6 +22,7 @@ export class WorkViewPage extends BasePage {
   }
 
   async waitForTaskList(): Promise<void> {
+    await this._ensureLegacyWorkView();
     // Wait for the loading screen to disappear first (if visible).
     // The app shows `.loading-full-page-wrapper` while syncing/importing data.
     const loadingWrapper = this.page.locator('.loading-full-page-wrapper');
@@ -45,6 +46,26 @@ export class WorkViewPage extends BasePage {
 
     // Wait for Angular to stabilize using shared helper
     await waitForAngularStability(this.page);
+  }
+
+  override async addTask(
+    taskName: string,
+    skipClose = false,
+    expectedVisibleTitle: string | null = taskName,
+  ): Promise<void> {
+    await this._ensureLegacyWorkView();
+    await super.addTask(taskName, skipClose, expectedVisibleTitle);
+  }
+
+  private async _ensureLegacyWorkView(): Promise<void> {
+    // This page object exercises legacy Task lists, rather than independent V1
+    // Planning. Preserve explicit startup tests until they request this view.
+    if (!new URL(this.page.url()).hash || new URL(this.page.url()).hash === '#/') {
+      await waitForAppReady(this.page);
+    }
+    if (/#\/(today|this-week|inbox|master-tasks)(?:$|[?])/.test(this.page.url())) {
+      await this.page.goto('/#/tag/TODAY/tasks');
+    }
   }
 
   async addSubTask(task: Locator, subTaskName: string): Promise<void> {

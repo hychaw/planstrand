@@ -122,7 +122,12 @@ describe('PageTitleComponent', () => {
 
   describe('displayTitle()', () => {
     const cases: Array<[string, string]> = [
-      ['/schedule', T.MH.SCHEDULE],
+      ['/inbox', 'PLANSTRAND.INBOX'],
+      ['/master-tasks', 'PLANSTRAND.MASTER_TASKS'],
+      ['/today', 'PLANSTRAND.TODAY'],
+      ['/this-week', 'PLANSTRAND.THIS_WEEK'],
+      ['/folder/example', 'PLANSTRAND.FOLDERS'],
+      ['/schedule', 'PLANSTRAND.SCHEDULE'],
       ['/planner', T.MH.PLANNER],
       ['/boards', T.MH.BOARDS],
       ['/habits', T.MH.HABITS],

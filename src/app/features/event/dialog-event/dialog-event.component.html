@@ -7,7 +7,7 @@
         name="title"
         [(ngModel)]="title"
         required
-        autofocus
+        cdkFocusInitial
     /></label>
     <label
       ><input
@@ -67,6 +67,7 @@
       <button
         mat-button
         type="button"
+        color="warn"
         (click)="remove()"
       >
         {{ T.G.DELETE | translate }}
@@ -80,7 +81,8 @@
       {{ T.G.CANCEL | translate }}
     </button>
     <button
-      mat-button
+      mat-flat-button
+      color="primary"
       type="submit"
     >
       {{ T.G.SAVE | translate }}

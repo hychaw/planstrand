@@ -1,6 +1,6 @@
 {
-  "name": "Super Productivity",
-  "short_name": "sup",
+  "name": "Planstrand",
+  "short_name": "Planstrand",
   "theme_color": "#6495ED",
   "background_color": "#fff",
   "start_url": "./index.html",

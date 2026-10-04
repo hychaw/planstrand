@@ -242,7 +242,7 @@ test.describe('Conflict journal retirement', () => {
     await dialog.getByRole('button', { name: 'Restore', exact: true }).click();
     await page.locator('dialog-confirm button[e2e="confirmBtn"]').click();
     await expect(dialog).not.toBeVisible();
-    await page.goto('/#/work-view');
+    await page.goto('/#/tag/TODAY/tasks');
     await workViewPage.waitForTaskList();
     await expect(taskPage.getTaskByText('S5 backup witness')).toBeVisible();
     await expect(

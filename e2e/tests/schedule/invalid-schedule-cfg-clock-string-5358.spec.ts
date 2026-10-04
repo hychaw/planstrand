@@ -107,7 +107,7 @@ test.describe('Schedule with a corrupt schedule config (#5358)', () => {
 
     await corruptScheduleCfg(page);
 
-    await page.getByRole('menuitem', { name: 'Schedule' }).click();
+    await page.getByRole('menuitem', { name: 'Calendar' }).click();
     await expect(page.locator('schedule-week')).toBeVisible({ timeout: 10000 });
 
     // The view must actually be populated, not an empty shell left behind by a
