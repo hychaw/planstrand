@@ -165,7 +165,7 @@ Root/e2e agent guidance requires reproduction-first sync evidence, per-file
 checks and real provider execution; unavailable/skipped providers never validate
 a fix. The [PR checklist](../.github/PULL_REQUEST_TEMPLATE.md) says
 “Existing tests still pass”. Read alongside the
-[contributor rules](../.github/CONTRIBUTING.md) and
+[contributor rules](../CONTRIBUTING.md) and
 [feature review guide](feature-review-guide.md), the audit interprets this as
 **B: do not introduce unresolved regressions in the supported feature contract**.
 None of those rules explicitly mandates repairing all historical baseline E2E
@@ -223,7 +223,6 @@ documentation files are finalized in a separate `Finalize Phase 3 validation
 audit` commit; the resulting commit is identified in the completion report and Git
 history. No runtime/test changes or broad rerun were needed for this final pass.
 Documentation formatting and `git diff --check` were run. No merge was performed.
-
 
 ---
 

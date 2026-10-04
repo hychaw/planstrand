@@ -1,9 +1,9 @@
-# E2E Testing Guide for Super Productivity
+# E2E Testing Guide for Planstrand
 
-This guide provides comprehensive information for writing and maintaining end-to-end tests for Super Productivity using Playwright.
+This guide provides comprehensive information for writing and maintaining end-to-end tests for Planstrand using Playwright.
 
-For current command selection, provider prerequisites, and agent instructions,
-start with [AGENTS.md](AGENTS.md).
+For current command selection, provider prerequisites, and development guidance,
+start with [E2E development guidance](development.md).
 
 ## Table of Contents
 

@@ -1,33 +1,39 @@
-:hearts: :hearts::hearts: :hearts::hearts: :hearts::hearts: :hearts::hearts: :hearts::hearts:
+# Contributing to Planstrand
 
-Welcome you awesome human being! You want to contribute to this repository? This is gonna be great!
+Thanks for helping improve Planstrand. Please follow our [Code of Conduct](.github/CODE_OF_CONDUCT.md). Report vulnerabilities privately through the [Security policy](SECURITY.md).
 
-If you want to discuss something private, please write an email to contact@super-productivity.com.
+## Bugs and proposals
 
-### Code of conduct
+Search [existing issues](https://github.com/hychaw/planstrand/issues) before opening a bug report or feature request. For bugs, include your version, package type, OS, reproduction steps, expected result, and actual result. Remove personal data, tokens, and credentials from logs and backups. For proposals, explain the problem and a concrete workflow; discuss significant changes before implementation.
 
-Don't be a d\*\*\*!
+## Development setup
 
-### Options for contributing
+Use Git, Node.js 22.18.0, and npm 11.18.0. Use the repository's local tools; a global Angular CLI is unnecessary.
 
-In case you want to contribute, but you wouldn't know how, here are some suggestions:
+```sh
+git clone https://github.com/hychaw/planstrand.git
+cd planstrand
+git switch development
+npm ci
+npm run startFrontend
+```
 
-1. **Spread the word:** More users means more people testing and contributing to the app which in turn means better stability and possibly more and better features. You can vote for Super Productivity on [Slant](https://www.slant.co/topics/14021/viewpoints/7/~productivity-tools-for-linux~super-productivity), [Product Hunt](https://www.producthunt.com/posts/super-productivity), [Softpedia](https://www.softpedia.com/get/Office-tools/Diary-Organizers-Calendar/Super-Productivity.shtml) or on [AlternativeTo](https://alternativeto.net/software/super-productivity/), you can [tweet about it](https://twitter.com/intent/tweet?text=I%20like%20Super%20Productivity%20%20https%3A%2F%2Fsuper-productivity.com), share it on [LinkedIn](http://www.linkedin.com/shareArticle?mini=true&url=https://super-productivity.com&title=I%20like%20Super%20Productivity&), [reddit](http://www.reddit.com/submit?url=https%3A%2F%2Fsuper-productivity.com&title=I%20like%20Super%20Productivity) or any of your favorite social media platforms. Every little bit helps!
+Run `npm start` in another terminal for Electron. Optional integration keys belong in an untracked `.env`; see [environment setup](docs/ENV_SETUP.md). Docker is needed for local sync-provider tests, and Angular unit tests need a Chrome/Chromium binary.
 
-2. **Provide a Pull Request:** Here is a list of [the most popular community requests](https://github.com/super-productivity/super-productivity/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc) and here some info on **[how to run the development build](https://github.com/super-productivity/super-productivity/wiki/2.11-Run-the-Development-Server)** (wiki). Please make sure that you're following the commit message format documented in [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md#commit-message-format) and to also include the issue number in your commit message, if you're fixing a particular issue (e.g.: `feat: add nice feature #31`). If your change touches synced state (effects, reducers, bulk dispatches), read the [Contributor Sync Model](docs/sync-and-op-log/contributor-sync-model.md) first — one invariant, partly lint-enforced.
+## Focused validation
 
-3. **[Answer questions](https://github.com/super-productivity/super-productivity/discussions)**: You know the answer to another user's problem? Share your knowledge!
+Run checks appropriate to your change and report the results. **Run `npm run checkFile <filepath>` for every modified `.ts` or `.scss` file.** Package-specific checks are listed in [packages/README.md](packages/README.md#validation).
 
-4. **[Provide your opinion](https://github.com/super-productivity/super-productivity/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc+label%3A%22community+feedback+wanted%22):** Some community suggestions are controversial. Your input might be helpful even if it is just an up- or down-vote.
+Use `npm run test:file <filepath>` for an Angular spec and `npm run test:electron` for Electron tests. See the [E2E guide](e2e/development.md) for browser and sync tests; skipped provider tests do not validate a fix. For documentation, run `node tools/check-doc-links.js --docs-only <filepath>` and `git diff --check`. Do not run broad suites merely for documentation edits.
 
-5. **[Provide a more refined UI spec for existing feature requests](https://github.com/super-productivity/super-productivity/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+concept+and%2For+ui+spec%22)**
+## Persisted and synchronized state
 
-6. **[Report bugs](https://github.com/super-productivity/super-productivity/issues/new)**
+Read the [contributor sync model](docs/sync-and-op-log/contributor-sync-model.md) before changing effects, reducers, or bulk dispatches. One user intent must produce one operation; remote replay must not trigger local effects. Preserve backup and released-client compatibility. New persisted fields need runtime defaults; schema bumps require deliberate compatibility review. Sync fixes need a reproduction that fails before the fix and passes afterward.
 
-7. **[Make a feature or improvement request](https://github.com/super-productivity/super-productivity/issues/new)**: Something can be done better? Something essential missing? Let us know!
+## Pull requests and commits
 
-8. **[Translations](docs/TRANSLATING.md)**: You don't have to be programmer to help. See our [translation guide](docs/TRANSLATING.md) for details on how to contribute translations.
+Create a focused branch from `development`. Explain the problem, solution, tests, and any documentation or persisted/sync-state impact in the pull request. Include screenshots for visible UI changes where useful, and link related issues. Keep unrelated refactoring out of the diff.
 
-9. **[Sponsor the project](https://github.com/sponsors/johannesjo)**
+Use conventional commits: `type(scope): description`, such as `fix(tasks): preserve task ordering`. Use an imperative, lower-case description without a trailing period; scope can be omitted for repository-wide work. Test-only changes use `test`. This is the project convention; no commit-message hook currently enforces it.
 
-:hearts: :hearts::hearts: :hearts::hearts: :hearts::hearts: :hearts::hearts: :hearts::hearts:
+See [development guidance](docs/development.md) and the [repository map](docs/repository-map.md) when deeper context is needed.

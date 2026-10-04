@@ -89,13 +89,11 @@ upstream
 
 ### master
 
-Stable Planstrand history.
-
-Do not develop directly on `master`.
+Retained historical branch; not the default branch or an automatic publishing source.
 
 ### development
 
-Integrated development branch.
+Default GitHub branch and integrated development branch.
 
 Features are merged here after verification.
 
@@ -313,6 +311,7 @@ Planstrand should preserve an operation-friendly synchronization model.
 Prefer field-level or operation-level merges when safe.
 
 For same-field conflicts:
+
 - use deterministic resolution,
 - preserve sufficient history for recovery when practical.
 
@@ -527,6 +526,7 @@ with non-secret placeholder values.
 ### Unit tests
 
 Required for:
+
 - reducers/state transitions,
 - date calculations,
 - recurrence rules,
@@ -538,6 +538,7 @@ Required for:
 ### Integration tests
 
 Required for:
+
 - persistence,
 - sync,
 - backup/restore,
@@ -567,6 +568,7 @@ Test desktop and representative mobile/tablet viewport behavior.
 Large task hierarchies should remain responsive.
 
 Avoid:
+
 - full-tree recomputation on every minor input,
 - unnecessary re-rendering,
 - calendar recalculation unrelated to changed dates,

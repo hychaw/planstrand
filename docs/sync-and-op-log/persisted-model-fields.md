@@ -1,9 +1,9 @@
 # Persisted-Model Fields: Adding a Field Without Breaking Existing Installs
 
-**The invariant (AGENTS.md, sync rule 11): a new REQUIRED field on a persisted
+**The invariant (persisted model compatibility): a new REQUIRED field on a persisted
 model breaks every existing install — type it optional (`?`) plus a runtime
 default.** This document carries the full failure analysis behind the rule; the
-short form lives in [AGENTS.md](../../AGENTS.md).
+See the [development guidance](../development.md#persisted-and-sync-state).
 
 Origin: #9125, #9124 (audit of the #8965 → v18.15.0 boot-to-empty-store
 incident). File-level specifics below were verified 2026-07 — re-check the
@@ -14,7 +14,7 @@ named source files before relying on the exact counts.
 Data already on users' disks lacks the new field, and typia validation rejects
 the stored snapshot on hydration: the model says the field must exist, the data
 says it doesn't. Prefer `?` plus a runtime default. A backfill migration is the
-exception, not the alternative — it costs a schema bump, and rule 10 (AGENTS.md)
+exception, not the alternative — it costs a schema bump, and the operation-log compatibility policy
 explains why a bump is near-irreversible and defaults to "no".
 
 ## Why TypeScript will not warn you

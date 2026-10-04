@@ -1,18 +1,9 @@
 # Judging Sync Severity
 
 Triage rules — how to decide whether a sync bug is real and how bad it is.
-AGENTS.md points here from _Required reading per task_; the rules below were
-moved out of that file verbatim to keep it skimmable. Each one is here because
-getting it wrong already produced a confidently wrong conclusion. Statistics are
-dated where cited — re-measure before relying on them.
+Use these rules alongside the [contributor sync model](contributor-sync-model.md). Historical upstream examples below explain risks; re-measure dated statistics before relying on them.
 
-1. **`master` ships to real users. "It's only on master" never downgrades severity.** Every master
-   push auto-publishes to the Play **internal track** (`.github/workflows/build-android.yml`,
-   `tracks: internal` + `status: completed` → testers' phones auto-update within minutes, on their
-   real data). `ghcr.io/super-productivity/supersync:latest` **is** master and has no
-   release-tagged build at all — it is the default in `packages/super-sync-server/docker-compose.yml`,
-   so self-hosters on `docker compose pull` run master HEAD. Snap `edge` is also published from
-   every master push. Only desktop/web/F-Droid/Play-production/Snap-stable are release-gated.
+1. **Prove which clients received a change.** Planstrand RC1 is publicly released; development pushes do not automatically publish it. Check tag ancestry and release artifacts. Historical upstream store/container channels may have shipped commits independently of tags; do not apply those publishing assumptions to Planstrand.
 2. **Never infer "shipped" from dates or the latest tag — prove it.** Use
    `git merge-base --is-ancestor <commit> v<tag>` / `git tag --contains <commit>`. Tags are cut from
    a point in time, and sync features routinely land just after: **#8874's disjoint-field merge

@@ -1,66 +1,53 @@
 # Planstrand
 
-A local-first planner combining hierarchical task organization, weekly planning, time-blocked WorkSessions, and calendar Events.
+A local-first, offline-first personal planner for organizing tasks, planning your week, and reserving time for focused work. Core planning works without an account or internet connection.
 
-## What Planstrand is
+## Download
 
-A personal workspace for organizing tasks and planning work. Core planning works offline without an account.
+**Planstrand v1.0.0-rc.1 is PUBLIC.** The Windows x64 release candidate is available as an installer (`Planstrand-Setup.exe`) and a portable build (`Planstrand-Portable.exe`).
 
-## V1 features
+[Download from GitHub Releases](https://github.com/hychaw/planstrand/releases/tag/v1.0.0-rc.1) · [All releases](https://github.com/hychaw/planstrand/releases)
 
-- Folders and hierarchical Tasks.
-- Today and weekly planning.
-- Time-blocked WorkSessions attached to Tasks.
+Binaries are unsigned and may trigger Windows SmartScreen. Check the release's source and SHA256 checksums before running a download.
+
+## Core V1 features
+
+- Hierarchical Folders and Tasks, with an Inbox for capture and Master Tasks for an overview.
+- Today and This Week planning views.
+- WorkSessions for task-linked time blocking.
 - Local calendar Events alongside planned work.
-- Local persistence, backup export/import and optional sync.
+- Local persistence and backup export/import.
+- Optional sync and integrations using services you configure.
 
-Screenshots will follow packaged RC verification. The RC uses a neutral calendar icon; final artwork is pending.
+## Platforms and RC limitations
 
-## Installation and status
+Windows x64 is the currently validated distribution platform. Web builds can be run locally for development on a separate origin. Linux packages, macOS signing/notarization, mobile distribution, and app stores are deferred; their source does not imply validated support.
 
-**Planstrand v1.0.0-rc.1 is being prepared; no release is published yet.** Downloads will appear in [Planstrand releases](https://github.com/hychaw/planstrand/releases) after manual approval.
+RC1 has interim artwork and unsigned binaries. Dropbox and bundled Google Calendar authorization are deferred pending project-owned credentials; other OAuth integrations require your own client configuration. Update notifications use the inherited technical version (`19.1.0`), so check GitHub Releases manually for public RC updates. Keep backups while evaluating the RC.
 
-Windows x64 targets: `Planstrand-Setup.exe` and `Planstrand-Portable.exe`. Unsigned builds may trigger SmartScreen; verify source and checksums before running downloaded builds. Technical version remains `19.1.0` for inherited compatibility; public tag is `v1.0.0-rc.1`.
+## Local data and privacy
 
-## Local-first and privacy
+Tasks, planning, Events, settings, and backups live locally. Core use requires no account and has no analytics or tracking. Optional sync and integrations contact the services you configure; Planstrand does not host a public sync service.
 
-Tasks, planning and Events live locally. Core use requires no account or analytics. Optional sync/integrations contact configured services. Desktop data uses a separate Planstrand profile; browser storage belongs to its origin. Keep independent backups.
-
-## Sync and backups
-
-Export/import backups through Settings. Optional file/WebDAV sync retains compatibility formats. Use a separate remote destination; sharing a live sync target with Super Productivity is not a supported migration path. Dropbox and bundled Google Calendar authorization are deferred until Planstrand-owned OAuth credentials exist. Other OAuth integrations require your own registrations/client configuration.
-
-## Supported platforms
-
-RC validation targets Windows x64. Web builds are available for development on a separate origin. Linux identity is prepared, with artifacts deferred. macOS signing/notarization, Android/iOS distribution and all app stores are deferred. Mobile source retains upstream IDs and must not be distributed as a separate app yet.
+Desktop uses a separate Planstrand profile (`%APPDATA%\Planstrand` on Windows). Browser storage belongs to its origin. Export backups through Settings and keep an independent copy outside the profile. Uninstalling normally retains the desktop profile.
 
 ## Migration from Super Productivity
 
-Export a full backup from Super Productivity, keep an independent copy, then import into a clean Planstrand profile. Verify Tasks/Projects and review planning before adopting the RC. Existing compatibility conversion handles Folders, planning and WorkSessions. Do not copy a live profile or point `--user-data-dir` at Super Productivity. Default Windows data is `%APPDATA%\Planstrand`; settings and local backups stay under that profile. Uninstall normally retains the profile; remove it separately only after saving backups.
+Export a full backup from Super Productivity and keep an independent copy. Import it into a clean Planstrand profile, then verify your Tasks/Folders and review planning before adopting the RC. Do not copy a live profile or use the upstream profile as `--user-data-dir`. Use a separate sync destination; sharing a live sync target between the two applications is not a supported migration path.
 
-## Known V1 limitations
+## Development and contributing
 
-Unsigned binaries, interim artwork, Windows-first validation, deferred mobile/store ownership and Dropbox credentials. Update notifications compare technical versions, so public 1.x RC tags require manual download checks. Wider platform validation and a Planstrand-native technical version policy remain follow-ups. See [release checklist](docs/PLANSTRAND_RELEASE_CHECKLIST.md).
-
-## Development
-
-Use Node.js 22.18.0 and npm 11.18.0 (recorded in package metadata).
+Use Node.js 22.18.0 and npm 11.18.0, as recorded in package metadata.
 
 ```sh
 npm ci
 npm run startFrontend
-npm run build
-npx electron-builder --win nsis portable --x64 --publish never
 ```
 
-Run focused tests and `npm run checkFile <file>` for changed TypeScript/SCSS. Release builds must include only deliberately configured Planstrand-owned credentials. See [identity decisions](docs/PLANSTRAND_RELEASE_IDENTITY.md) and [RC notes](docs/releases/PLANSTRAND_V1_RC1.md).
+In a second terminal, `npm start` launches Electron against the development frontend. See [Contributing](CONTRIBUTING.md) for focused checks, [development guidance](docs/development.md) for repository conventions, and the [Security policy](SECURITY.md) for vulnerability reporting. Community participation follows the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
-## Attribution
+## License and attribution
 
-Planstrand is based on/forked from [Super Productivity](https://github.com/super-productivity/super-productivity), originally by Johannes Millan and contributors. Planstrand modifications are maintained independently by hychaw. No affiliation or endorsement by the upstream author is implied.
+Planstrand is an independent fork of [Super Productivity](https://github.com/super-productivity/super-productivity), originally by Johannes Millan and contributors. Planstrand changes are maintained by hychaw and contributors; no upstream affiliation or endorsement is implied.
 
-## License
-
-Distributed under the [MIT license](LICENSE). Original copyright and license text are preserved.
-
-Hosted sync is not supplied by Planstrand; configure a server you control. This host can report an unknown system timezone; configure a valid OS timezone before scheduling WorkSessions or Events. RC automation uses UTC.
+Distributed under the [MIT license](LICENSE), with the original copyright and license text preserved in source and packaged distributions.

@@ -5,7 +5,7 @@ then the relevant constraints below; do not load every linked document. Paths ar
 entry points, not an exhaustive list of files to change. Follow imports, callers,
 and nearby tests to verify the actual behavior before editing.
 
-This map describes navigation only. [Agent instructions](../AGENTS.md) govern the
+This map describes navigation only. [Development guidance](development.md) governs the
 workflow, [accepted decisions](../ARCHITECTURE-DECISIONS.md) record constraints,
 and code and tests establish current behavior. [Plans and research](README.md)
 are proposals or dated evidence, not specifications of current behavior.
@@ -13,14 +13,14 @@ are proposals or dated evidence, not specifications of current behavior.
 ## Find the implementation and tests
 
 App unit tests are co-located as `*.spec.ts`; the last column adds useful starting
-points, not a complete test requirement. Read the [E2E guide](../e2e/AGENTS.md)
-before editing or running E2E tests. Test commands live in [AGENTS.md](../AGENTS.md#core-commands)
+points, not a complete test requirement. Read the [E2E guide](../e2e/development.md)
+before editing or running E2E tests. Test commands live in [Contributing](../CONTRIBUTING.md#focused-validation)
 and the [package validation table](../packages/README.md#validation).
 
 For a focused single-provider sync E2E, use `npm run e2e:supersync:file <path>` or
 `npm run e2e:webdav:file <path>` so the named server's absence fails the run.
 Provider-switch scenarios need both servers and both required flags; follow the
-[E2E guide](../e2e/AGENTS.md#run-the-right-suite). Skipped tests do not validate the change.
+[E2E guide](../e2e/development.md#run-the-right-suite). Skipped tests do not validate the change.
 
 | Task / search terms                                       | Code entry points                                                                                                                                                                                                                                                                       | Focused tests / deeper map                                                                                                                                                         |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -55,9 +55,9 @@ Provider-switch scenarios need both servers and both required flags; follow the
   [long-term cost review](feature-review-guide.md).
 - **Today membership or day boundaries:** [due-date exclusivity](../ARCHITECTURE-DECISIONS.md#1-duedayduewithtime-mutual-exclusivity-pattern),
   [virtual Today membership](../ARCHITECTURE-DECISIONS.md#2-today_tag-virtual-tag-pattern),
-  and the logical-clock/Today rules in [AGENTS.md](../AGENTS.md#sync-correctness-rules).
+  and the logical-clock/Today rules in [development.md](development.md#persisted-and-sync-state).
 - **Reported sync/data-loss bugs:** [severity and release verification](sync-and-op-log/sync-severity-triage.md)
-  plus the reproduction requirements in [AGENTS.md](../AGENTS.md#sync-correctness-rules).
+  plus the reproduction requirements in [development.md](development.md#persisted-and-sync-state).
 
 ## Navigation traps and maintenance
 

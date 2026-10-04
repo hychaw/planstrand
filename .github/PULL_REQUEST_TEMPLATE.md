@@ -1,24 +1,15 @@
 ## Problem
 
-<!-- Describe the problem that these changes solve (links to issues are welcome). -->
+Describe the problem and link related issues.
 
 ## Solution
 
-<!-- Describe your changes in detail. -->
+Explain the change and any important tradeoffs.
 
-## Type of Change
+## Testing
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Refactoring
-- [ ] Documentation
-- [ ] Other (please describe)
+List focused checks and results, including any skipped or unavailable checks.
 
-## Checklist
+## Documentation and state impact
 
-- [ ] I have included relevant changes to the documentation/[wiki](https://github.com/super-productivity/super-productivity/tree/master/docs/wiki).
-- [ ] I have run `npm run checkFile` on changed `.ts`/`.scss` files
-- [ ] I have added tests for my changes (if applicable)
-- [ ] Existing tests still pass
-- [ ] My commit messages follow the Angular format (`type(scope): description`)
+Note documentation updates, if relevant. For persisted or synchronized state changes, explain backup/released-client compatibility and reproduction coverage. Otherwise write “Not applicable.”

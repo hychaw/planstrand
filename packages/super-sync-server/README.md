@@ -1,5 +1,7 @@
 # SuperSync Server
 
+This inherited server implementation is included for self-hosting and compatibility testing. Planstrand does not run a public sync service. Upstream container images and hosted endpoints described below are upstream infrastructure, not Planstrand releases. Review configuration before self-hosting.
+
 A custom, high-performance synchronization server for Super Productivity.
 
 > **Note:** This server implements a custom operation-based synchronization protocol (Event Sourcing), **not** WebDAV. It is designed specifically for the Super Productivity client's efficient sync requirements.
@@ -46,8 +48,8 @@ The image revision check requires Docker Compose support for
 
 ```bash
 # 1. Clone the repo (deploy.sh runs from this checkout) and enter this directory
-git clone https://github.com/super-productivity/super-productivity.git
-cd super-productivity/packages/super-sync-server
+git clone https://github.com/hychaw/planstrand.git
+cd planstrand/packages/super-sync-server
 
 # 2. Copy environment example
 cp env.example .env

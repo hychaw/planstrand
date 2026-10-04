@@ -1,7 +1,6 @@
 # Hardening earns its place
 
-Narrative behind the **Hardening needs an observed instance** rule in
-[`AGENTS.md`](../AGENTS.md). The invariant lives there; the evidence lives here.
+Historical evidence for requiring an observed failure before adding defensive complexity. Apply the current [development guidance](development.md) and reproduce the real path before changing behavior.
 
 ## What happened
 
@@ -152,5 +151,5 @@ already expect to be wrong.
 ## Related
 
 - [`feature-review-guide.md`](feature-review-guide.md) — does it earn its place
-- [`../AGENTS.md`](../AGENTS.md) — the sync section's "start from a reproducible
+- [`../docs/development.md`](development.md) — the sync section's "start from a reproducible
   problem" rule, which this generalises

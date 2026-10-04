@@ -917,7 +917,7 @@ Happy plugin development! 🚀
 
 ### Tips
 
-- Don't test on your real world data! Use a test instance! (you can use https://test-app.super-productivity.com/ if you don't know how get one)
+- Don't test on your real world data! Use a separate local development instance with test data; see [development setup](../CONTRIBUTING.md#development-setup).
 - Be as specific as possible
 - Outline what APIs your plugin should use
 - Test for errors (`Ctrl+Shift+i` opens the console) and iterate until it works. Don't expect that everything works on your first try.
@@ -928,7 +928,7 @@ Happy plugin development! 🚀
 ```md
 Can you you write me a plugin for Super Productivity that plays a beep sound every time i click on a header button (You need to add a header button via PluginAPI.registerHeaderButton).
 
-Here are the docs: https://github.com/super-productivity/super-productivity/blob/master/docs/plugin-development.md
+Here are the docs: https://github.com/hychaw/planstrand/blob/development/docs/plugin-development.md
 
 Don't use any PluginAPI methods that are not listed in the guide.
 

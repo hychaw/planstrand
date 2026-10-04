@@ -31,7 +31,7 @@ should receive the key directly; check the receiving API before replacing a stri
 Reuse existing keys and their nested naming structure before adding new ones.
 
 Run `npm run int:test` for locale/placeholder consistency and the applicable
-[code checks](../AGENTS.md#core-commands). These checks do not prove that text is
+[code checks](../CONTRIBUTING.md#focused-validation). These checks do not prove that text is
 translated on screen; verify the changed UI as well.
 
 ## Important Notes

@@ -1,6 +1,6 @@
 # @super-productivity/plugin-api
 
-Official TypeScript definitions for developing [Super Productivity](https://github.com/super-productivity/super-productivity) plugins.
+TypeScript definitions for developing Planstrand plugins. The inherited package name remains compatible with existing plugins.
 
 ## Installation
 
@@ -201,4 +201,4 @@ MIT - See the main Super Productivity repository for details.
 
 ## Contributing
 
-Please contribute to the main [Super Productivity repository](https://github.com/super-productivity/super-productivity).
+Please follow the [Planstrand contribution guide](../../CONTRIBUTING.md).
