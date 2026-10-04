@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => {
     getPrevalidatedPayloadBytes: vi.fn(),
   };
   const prisma = {
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    userSyncState: { findUnique: vi.fn().mockResolvedValue(null) },
     operation: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),

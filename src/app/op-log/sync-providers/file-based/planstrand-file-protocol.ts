@@ -1,11 +1,26 @@
-import { PLANNING_V1, SUPER_SYNC_BASELINE_OP_TYPES } from '@sp/shared-schema';
+import {
+  ENTITY_TYPES,
+  CLIENT_SYNC_READER_CAPABILITIES,
+  supportsRequiredCapabilities,
+  PLANNING_V1,
+  SUPER_SYNC_BASELINE_OP_TYPES,
+  SUPER_SYNC_OP_TYPES,
+} from '@sp/shared-schema';
 import { FILE_BASED_SYNC_CONSTANTS as LEGACY } from './file-based-sync.types';
 import { SyncOperation } from '../provider.interface';
 
 export const PLANSTRAND_FILE_VERSION = 4 as const;
-/** Phase 2 must add its stable operation family here with its first writer. */
+/** Required operation families and full-state entity vocabulary for current writers. */
 export const PLANSTRAND_REQUIRED_FILE_OP_TYPES: readonly string[] = Object.freeze([
   PLANNING_V1,
+  // The existing semantic manifest also protects full-state entity vocabulary.
+  // Older readers reject these unknown requirements before reading/writing state.
+  ...ENTITY_TYPES.filter((type) => type !== 'FOLDER').map((type) => `ENTITY:${type}`),
+]);
+export const KNOWN_FILE_SEMANTICS: ReadonlySet<string> = new Set([
+  ...SUPER_SYNC_OP_TYPES,
+  ...ENTITY_TYPES.map((type) => `ENTITY:${type}`),
+  ...CLIENT_SYNC_READER_CAPABILITIES,
 ]);
 
 export interface FileSyncNamespace {
@@ -86,6 +101,10 @@ export const assertPlanstrandFileEnvelope: (
   const d = data as Partial<PlanstrandFileEnvelope>;
   const required = d.compatibility?.requiredOpTypes;
   if (
+    !supportsRequiredCapabilities(
+      (data as { requiredCapabilities?: unknown }).requiredCapabilities,
+      [...supported],
+    ) ||
     d.product !== 'planstrand' ||
     d.version !== PLANSTRAND_FILE_VERSION ||
     !Array.isArray(required) ||

@@ -3,6 +3,12 @@ import { type Page, type Download } from '@playwright/test';
 import { ImportPage } from '../../pages/import.page';
 import * as fs from 'fs';
 
+/** Read the protected current backup envelope while retaining legacy raw exports. */
+const parseExportedBackup = (content: string): ReturnType<typeof JSON.parse> => {
+  const backup = JSON.parse(content);
+  return { ...backup, data: backup.data.appDataComplete ?? backup.data };
+};
+
 /**
  * E2E Tests for Archive Data Import Persistence
  *
@@ -93,7 +99,7 @@ test.describe('@archive-import Archive Import Persistence', () => {
     await importPage.navigateToImportPage();
     const downloadBefore = await captureDownload(page);
     const exportedBefore = await readDownloadedFile(downloadBefore);
-    const dataBefore = JSON.parse(exportedBefore);
+    const dataBefore = parseExportedBackup(exportedBefore);
 
     // Verify archives exist immediately after import
     console.log(
@@ -114,7 +120,7 @@ test.describe('@archive-import Archive Import Persistence', () => {
     await importPage.navigateToImportPage();
     const downloadAfter = await captureDownload(page);
     const exportedAfter = await readDownloadedFile(downloadAfter);
-    const dataAfter = JSON.parse(exportedAfter);
+    const dataAfter = parseExportedBackup(exportedAfter);
 
     console.log(
       '[Archive Import Test] Archive after reload - archiveYoung task IDs:',
@@ -170,7 +176,7 @@ test.describe('@archive-import Archive Import Persistence', () => {
     await importPage.navigateToImportPage();
     const download = await captureDownload(page);
     const exported = await readDownloadedFile(download);
-    const data = JSON.parse(exported);
+    const data = parseExportedBackup(exported);
 
     // Verify archiveYoung timeTracking has project data
     expect(data.data.archiveYoung.timeTracking).toBeDefined();
@@ -208,7 +214,7 @@ test.describe('@archive-import Archive Import Persistence', () => {
     await importPage.navigateToImportPage();
     const download = await captureDownload(page);
     const exported = await readDownloadedFile(download);
-    const data = JSON.parse(exported);
+    const data = parseExportedBackup(exported);
 
     // Both archives should be present
     expect(data.data.archiveYoung).toBeDefined();

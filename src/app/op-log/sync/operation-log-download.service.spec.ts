@@ -126,6 +126,38 @@ describe('OperationLogDownloadService', () => {
         );
       });
 
+      it('blocks incompatible full state before covered-clock filtering or a forced checkpoint', async () => {
+        const op: SyncOperation = {
+          id: 'folder-full-state',
+          clientId: 'other',
+          actionType: ActionType.LOAD_ALL_DATA,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          payload: 'ciphertext',
+          isPayloadEncrypted: true,
+          requiredEntityTypes: ['FUTURE_FOLDER'],
+          vectorClock: { other: 1 },
+          timestamp: Date.now(),
+          schemaVersion: 5,
+        };
+        mockOpLogStore.getVectorClock.and.resolveTo({ other: 5 });
+        mockApiProvider.downloadOps.and.resolveTo({
+          ops: [{ serverSeq: 9, receivedAt: Date.now(), op }],
+          hasMore: true,
+          latestSeq: 10,
+        });
+        const result = await service.downloadRemoteOps(mockApiProvider, {
+          forceFromSeq0: true,
+        });
+        expect(result.newOps).toEqual([op as any]);
+        expect(mockApiProvider.downloadOps).toHaveBeenCalledTimes(1);
+        expect(mockApiProvider.setLastServerSeq).not.toHaveBeenCalled();
+        expect(mockEncryptionService.decryptOperations).not.toHaveBeenCalled();
+        mockApiProvider.downloadOps.calls.reset();
+        await service.downloadRemoteOps(mockApiProvider, { forceFromSeq0: true });
+        expect(mockApiProvider.downloadOps.calls.mostRecent().args[0]).toBe(0);
+      });
+
       it('should use API download for operation-sync-capable providers', async () => {
         await service.downloadRemoteOps(mockApiProvider);
 

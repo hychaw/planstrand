@@ -380,13 +380,17 @@ export class OperationLogDownloadService implements OnDestroy {
           clientId ?? undefined,
           DOWNLOAD_PAGE_SIZE,
         );
-        // File snapshots bypass replay for snapshot-included ops. Screen the raw
-        // retained vocabulary BEFORE dedup, snapshot hydration, or clock filtering.
+        // Reader requirements apply to every provider before dedup or checkpoints.
+        // File snapshots also screen retained vocabulary before snapshot hydration.
         // A snapshot is atomic, so no part of it can be accepted across this fence.
-        if (syncProvider.providerMode === 'fileSnapshotOps') {
-          const blocked = response.ops.find(
-            ({ op }) => getRemoteOpBlockReason(op, CURRENT_SCHEMA_VERSION) !== null,
-          );
+        {
+          const blocked = response.ops.find(({ op }) => {
+            const reason = getRemoteOpBlockReason(op, CURRENT_SCHEMA_VERSION);
+            return (
+              reason === 'ENTITY_SUPPORT_REQUIRED' ||
+              (syncProvider.providerMode === 'fileSnapshotOps' && reason !== null)
+            );
+          });
           if (blocked) {
             allNewOps.length = 0;
             // Carry untrusted metadata only to the processor's blocking check.

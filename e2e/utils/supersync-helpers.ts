@@ -1,3 +1,4 @@
+import { CLIENT_SYNC_READER_CAPABILITIES, ENTITY_TYPES } from '@sp/shared-schema';
 import {
   type Browser,
   type BrowserContext,
@@ -38,6 +39,17 @@ import {
  */
 export const SUPERSYNC_BASE_URL =
   process.env.SUPERSYNC_E2E_URL || 'http://localhost:1901';
+
+/** Advertise the current reader contract for direct test probes of current-client data. */
+export const withCurrentSuperSyncReader = (url: string): string => {
+  const readerUrl = new URL(url);
+  readerUrl.searchParams.set('supportedEntityTypes', ENTITY_TYPES.join(','));
+  readerUrl.searchParams.set(
+    'supportedCapabilities',
+    CLIENT_SYNC_READER_CAPABILITIES.join(','),
+  );
+  return readerUrl.toString();
+};
 
 /**
  * Matches both `/api/sync/ops` uploads and `/api/sync/ops?...` downloads.

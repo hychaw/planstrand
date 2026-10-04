@@ -82,6 +82,8 @@ export interface SuperSyncServerStatus {
     operationSync?: {
       contractVersion: number;
       supportedEntityTypes: string[];
+      fullStateReaderRequirements?: boolean;
+      supportedCapabilities?: string[];
       supportedOpTypes?: string[];
       minSchemaVersion: number;
       maxSchemaVersion: number;

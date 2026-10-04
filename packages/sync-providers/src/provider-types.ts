@@ -95,6 +95,8 @@ export type OperationSyncProviderMode = 'superSyncOps' | 'fileSnapshotOps';
 export interface OperationSyncServerCapabilities {
   contractVersion: number;
   supportedEntityTypes: string[];
+  fullStateReaderRequirements?: boolean;
+  supportedCapabilities?: string[];
   supportedOpTypes?: string[];
   minSchemaVersion: number;
   maxSchemaVersion: number;
@@ -117,6 +119,9 @@ export interface SyncOperation {
   vectorClock: VectorClock;
   timestamp: number;
   schemaVersion: number;
+  /** Full-state reader capabilities, preserved outside payload encryption. */
+  requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
   isPayloadEncrypted?: boolean;
   syncImportReason?: string;
   repairBaseServerSeq?: number;
@@ -245,6 +250,8 @@ export interface OperationSyncCapable<
     repairBaseServerSeq?: number,
     /** Cursor bound to a prepared destructive replacement, never refreshed on retry. */
     lastKnownServerSeq?: number,
+    requiredEntityTypes?: string[],
+    requiredCapabilities?: string[],
   ): Promise<SnapshotUploadResponse>;
   deleteAllData(): Promise<{ success: boolean }>;
   getEncryptKey?(): Promise<string | undefined>;
@@ -293,6 +300,7 @@ export interface RestorePointsResponse<TRestorePointType extends string = string
 }
 
 export interface RestoreSnapshotResponse {
+  requiredCapabilities?: string[];
   state: unknown;
   serverSeq: number;
   generatedAt: number;

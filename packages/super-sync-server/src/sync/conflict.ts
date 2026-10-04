@@ -551,6 +551,14 @@ export const isSameDuplicateOperation = (
     payloadsMatch &&
     areJsonValuesEqual(existingOp.vectorClock, storedVectorClock) &&
     existingOp.schemaVersion === op.schemaVersion &&
+    areJsonValuesEqual(
+      existingOp.requiredEntityTypes ?? [],
+      op.requiredEntityTypes ?? [],
+    ) &&
+    areJsonValuesEqual(
+      existingOp.requiredCapabilities ?? [],
+      op.requiredCapabilities ?? [],
+    ) &&
     isSameDuplicateTimestamp(
       existingOp.clientTimestamp,
       existingOp.receivedAt,
@@ -586,6 +594,14 @@ export const isSameIncomingOperation = (
       limitVectorClockSize(second.vectorClock, [second.clientId]),
     ) &&
     first.schemaVersion === second.schemaVersion &&
+    areJsonValuesEqual(
+      first.requiredEntityTypes ?? [],
+      second.requiredEntityTypes ?? [],
+    ) &&
+    areJsonValuesEqual(
+      first.requiredCapabilities ?? [],
+      second.requiredCapabilities ?? [],
+    ) &&
     firstOriginalTimestamp === secondOriginalTimestamp &&
     (first.isPayloadEncrypted ?? false) === (second.isPayloadEncrypted ?? false) &&
     (first.syncImportReason ?? null) === (second.syncImportReason ?? null) &&

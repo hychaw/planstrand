@@ -1,3 +1,6 @@
+import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
+import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder } from '../../features/folder/store/folder.actions';
 import { TestBed } from '@angular/core/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { StateSnapshotService } from './state-snapshot.service';
@@ -103,6 +106,16 @@ describe('StateSnapshotService', () => {
     timeTracking: initialTimeTrackingState,
     lastTimeTrackingFlush: 500,
   };
+
+  it('includes Folder in synchronous and asynchronous snapshots', async () => {
+    const folder = addFolder({
+      state: initialFolderState,
+      folder: { id: 'snapshot-folder', title: 'Folder' },
+    }).folderState;
+    store.overrideSelector(selectFolderFeatureState, folder);
+    expect(service.getStateSnapshot().folder).toEqual(folder);
+    expect((await service.getStateSnapshotAsync()).folder).toEqual(folder);
+  });
 
   beforeEach(() => {
     archiveDbAdapterSpy = jasmine.createSpyObj('ArchiveDbAdapter', [

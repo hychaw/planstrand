@@ -376,7 +376,11 @@ vi.mock('../src/db', () => {
       findUnique: vi.fn(),
       update: vi.fn(),
     },
-    $queryRaw: vi.fn().mockResolvedValue([{ total: BigInt(0) }]),
+    $queryRaw: vi
+      .fn()
+      .mockImplementation(async (query: { text?: string }) =>
+        query.text?.includes('required_capabilities <@') ? [] : [{ total: BigInt(0) }],
+      ),
     $executeRaw: vi.fn().mockResolvedValue(0),
   };
 

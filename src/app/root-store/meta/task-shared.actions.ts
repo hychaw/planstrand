@@ -525,6 +525,8 @@ export const TaskSharedActions = createActionGroup({
     batchUpdateForProject: (taskProps: {
       projectId: string;
       operations: BatchOperation[];
+      /** Canonical owner for Tasks created by this compatibility batch. */
+      folderId?: string;
       createdTaskIds: { [tempId: string]: string };
       /** Captured before dispatch so replay creates identical task state. */
       createdTaskTimestamp?: number;

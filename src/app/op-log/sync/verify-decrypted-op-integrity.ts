@@ -1,3 +1,4 @@
+import { assertFullStateReaderCompatible } from './folder-full-state-gate';
 import { extractActionPayload } from '@sp/sync-core';
 import { SyncOperation } from '../sync-providers/provider.interface';
 import { getLwwEntityType } from '../core/lww-update-action-types';
@@ -477,6 +478,13 @@ export const assertDecryptedFullStateOpIntegrity = async (
 
   const validateAllData = await _loadValidateAllData();
   const fullState = extractFullStateFromPayload(decryptedPayload);
+  assertFullStateReaderCompatible(decryptedPayload);
+  assertFullStateReaderCompatible(
+    fullState,
+    op.requiredEntityTypes,
+    undefined,
+    op.requiredCapabilities,
+  );
   const migratedState = _migrateFullStateForValidation(op, fullState);
   const stateToValidate = _restoreKnownFullStateOmissionsForValidation(migratedState);
   const validationResult = validateAllData(stateToValidate);

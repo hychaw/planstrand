@@ -1,3 +1,4 @@
+import { SERVER_SYNC_READER_CAPABILITIES } from './reader-capabilities';
 import { z } from 'zod';
 import { PLANNING_V1 } from './planning';
 import { ENTITY_TYPES } from './entity-types';
@@ -47,7 +48,9 @@ export const SUPER_SYNC_OP_TYPES = [
  */
 export const SUPER_SYNC_OPERATION_CAPABILITIES = {
   contractVersion: SUPER_SYNC_CAPABILITY_CONTRACT_VERSION,
+  fullStateReaderRequirements: true,
   supportedEntityTypes: ENTITY_TYPES,
+  supportedCapabilities: SERVER_SYNC_READER_CAPABILITIES,
   supportedOpTypes: SUPER_SYNC_OP_TYPES,
   // Planstrand release floor for LIVE UPLOAD, not retained-history download.
   // Deploy this floor on every serving instance before enabling legacy cutover.
@@ -164,6 +167,8 @@ export const SuperSyncOperationSchema = z.object({
   isPayloadEncrypted: z.boolean().optional(),
   syncImportReason: z.enum(SUPER_SYNC_IMPORT_REASONS).optional(),
   /** Server cursor proven to be included in a causally accepted REPAIR snapshot. */
+  requiredEntityTypes: z.array(z.string().min(1).max(255)).max(100).optional(),
+  requiredCapabilities: z.array(z.string().min(1).max(255)).max(100).optional(),
   repairBaseServerSeq: z.number().int().min(0).optional(),
 });
 
@@ -220,6 +225,8 @@ export const SuperSyncUploadSnapshotRequestSchema = z
     opId: z.string().uuid().optional(),
     isCleanSlate: z.boolean().optional(),
     snapshotOpType: z.enum(SUPER_SYNC_SNAPSHOT_OP_TYPES).optional(),
+    requiredEntityTypes: z.array(z.string().min(1).max(255)).max(100).optional(),
+    requiredCapabilities: z.array(z.string().min(1).max(255)).max(100).optional(),
     repairBaseServerSeq: z.number().int().min(0).optional(),
     lastKnownServerSeq: z.number().int().min(0).optional(),
     requestId: SuperSyncRequestIdSchema.optional(),
@@ -300,6 +307,7 @@ export const SuperSyncDownloadOpsResponseSchema = z
 
 export const SuperSyncSnapshotResponseSchema = z
   .object({
+    requiredCapabilities: z.array(z.string().min(1).max(255)).max(100).optional(),
     state: z.unknown(),
     serverSeq: z.number(),
     generatedAt: z.number(),
@@ -331,6 +339,11 @@ export const SuperSyncStatusResponseSchema = z
           .object({
             contractVersion: z.number().int().min(1),
             supportedEntityTypes: z.array(z.string().min(1).max(255)),
+            fullStateReaderRequirements: z.boolean().optional(),
+            supportedCapabilities: z
+              .array(z.string().min(1).max(255))
+              .max(100)
+              .optional(),
             // Additive v1 extension: absent only on pre-extension servers.
             supportedOpTypes: z.array(z.string().min(1).max(255)).optional(),
             minSchemaVersion: z.number().int().min(1),

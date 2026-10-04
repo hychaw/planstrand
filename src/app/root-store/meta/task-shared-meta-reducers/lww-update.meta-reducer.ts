@@ -1,3 +1,4 @@
+import { assertFolderState } from '../../../features/folder/folder-state';
 import { Action, ActionReducer, MetaReducer } from '@ngrx/store';
 import { EntityAdapter } from '@ngrx/entity';
 import { RootState } from '../../root-state';
@@ -621,6 +622,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
           ...entityData,
         };
       }
+      if (entityType === 'FOLDER') assertFolderState(entityData);
       if (
         entityType === 'GLOBAL_CONFIG' &&
         actionMeta?.isApplyingFromOtherClient === true

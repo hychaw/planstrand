@@ -17,6 +17,7 @@ import {
   routeSuperSyncOps,
   type SimulatedE2EClient,
   waitForTask,
+  withCurrentSuperSyncReader,
 } from '../../utils/supersync-helpers';
 
 const PAGE_CAP = 1000; // MAX_DOWNLOAD_ITERATIONS in the app
@@ -35,7 +36,7 @@ const getServerHistory = async (
   sinceSeq = 0,
 ): Promise<DownloadHistory> => {
   const response = await fetch(
-    `${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=${sinceSeq}`,
+    withCurrentSuperSyncReader(`${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=${sinceSeq}`),
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!response.ok) {
@@ -64,11 +65,14 @@ const seedBacklog = async (
     );
     const headers = new Headers({ Authorization: `Bearer ${token}` });
     headers.set('Content-Type', 'application/json');
-    const response = await fetch(`${SUPERSYNC_BASE_URL}/api/sync/ops`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ clientId, ops }),
-    });
+    const response = await fetch(
+      withCurrentSuperSyncReader(`${SUPERSYNC_BASE_URL}/api/sync/ops`),
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ clientId, ops }),
+      },
+    );
     if (!response.ok) {
       throw new Error(`Failed to seed SuperSync backlog: ${response.status}`);
     }
@@ -81,11 +85,14 @@ const seedBacklog = async (
 const wipeUserSyncData = async (token: string, userId: number): Promise<void> => {
   const headers = new Headers({ Authorization: `Bearer ${token}` });
   headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${SUPERSYNC_BASE_URL}/api/sync/data`, {
-    method: 'DELETE',
-    headers,
-    body: '{}',
-  });
+  const response = await fetch(
+    withCurrentSuperSyncReader(`${SUPERSYNC_BASE_URL}/api/sync/data`),
+    {
+      method: 'DELETE',
+      headers,
+      body: '{}',
+    },
+  );
   if (!response.ok)
     throw new Error(`Failed to reset test user's history: ${response.status}`);
   // Normal deletion preserves the sequence counter. The existing backup-restore
@@ -102,11 +109,14 @@ const wipeUserSyncData = async (token: string, userId: number): Promise<void> =>
 const uploadSavedOp = async (token: string, op: SuperSyncOperation): Promise<void> => {
   const headers = new Headers({ Authorization: `Bearer ${token}` });
   headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${SUPERSYNC_BASE_URL}/api/sync/ops`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ clientId: op.clientId, ops: [op] }),
-  });
+  const response = await fetch(
+    withCurrentSuperSyncReader(`${SUPERSYNC_BASE_URL}/api/sync/ops`),
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ clientId: op.clientId, ops: [op] }),
+    },
+  );
   if (!response.ok)
     throw new Error(`Failed to restore final task op: ${response.status}`);
   const result = SuperSyncUploadOpsResponseSchema.parse(await response.json());

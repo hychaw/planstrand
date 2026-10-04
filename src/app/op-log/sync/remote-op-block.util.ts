@@ -1,8 +1,17 @@
 import {
   CURRENT_SCHEMA_VERSION,
+  ENTITY_TYPES,
   SUPER_SYNC_OP_TYPES,
   SUPER_SYNC_IMPORT_REASONS,
 } from '@sp/shared-schema';
+import {
+  supportsRequiredEntityTypes,
+  supportsRequiredCapabilities,
+  CLIENT_SYNC_READER_CAPABILITIES,
+  getFullStateRequiredEntityTypes,
+  getFullStateRequiredCapabilities,
+} from '@sp/shared-schema';
+import { extractFullStateFromPayload, isFullStateOpType } from '../core/operation.types';
 import { KNOWN_ACTION_TYPES } from '../core/action-types.enum';
 import { LWW_UPDATE_ACTION_TYPES } from '../core/lww-update-action-types';
 import {
@@ -23,12 +32,20 @@ const KNOWN_IMPORT_REASONS: ReadonlySet<string> = new Set<string>(
 
 /** Wire metadata is untrusted, irrespective of the local TypeScript enums. */
 interface RemoteOpVocabularyInput {
+  entityType?: unknown;
   opType?: unknown;
   actionType?: unknown;
   syncImportReason?: unknown;
+  requiredEntityTypes?: unknown;
+  requiredCapabilities?: unknown;
+  payload?: unknown;
 }
 
-export type UnknownOpVocabulary = 'opType' | 'actionType' | 'syncImportReason';
+export type UnknownOpVocabulary =
+  | 'opType'
+  | 'actionType'
+  | 'entityType'
+  | 'syncImportReason';
 
 /**
  * Names the vocabulary field of a remote op this client cannot interpret, or
@@ -43,6 +60,12 @@ export type UnknownOpVocabulary = 'opType' | 'actionType' | 'syncImportReason';
 export const getUnknownOpVocabulary = (
   op: RemoteOpVocabularyInput,
 ): UnknownOpVocabulary | null => {
+  if (
+    op.entityType !== undefined &&
+    (typeof op.entityType !== 'string' ||
+      !(ENTITY_TYPES as readonly string[]).includes(op.entityType))
+  )
+    return 'entityType';
   // File envelopes do not have the API transport's structural guarantees.
   // Required vocabulary must be checked even when absent.
   if (!isKnownRequiredVocabulary(op.opType, KNOWN_OP_TYPES)) {
@@ -75,7 +98,8 @@ export type RemoteOpBlockReason =
   | 'VERSION_TOO_NEW'
   | 'UNKNOWN_OP_VOCABULARY'
   | 'INVALID_SCHEMA_VERSION'
-  | 'MIGRATION_FAILED';
+  | 'MIGRATION_FAILED'
+  | 'ENTITY_SUPPORT_REQUIRED';
 
 /**
  * The ONE predicate for "this client cannot process this remote op", shared
@@ -86,6 +110,8 @@ export type RemoteOpBlockReason =
 export const getRemoteOpBlockReason = (
   op: RemoteOpVocabularyInput & { schemaVersion?: unknown },
   currentVersion: number,
+  supportedEntityTypes: readonly string[] = ENTITY_TYPES,
+  supportedCapabilities: readonly string[] = CLIENT_SYNC_READER_CAPABILITIES,
 ): Exclude<RemoteOpBlockReason, 'MIGRATION_FAILED'> | null => {
   let opVersion: number;
   try {
@@ -109,6 +135,30 @@ export const getRemoteOpBlockReason = (
   // understood is silent data loss.
   if (getUnknownOpVocabulary(op) !== null) {
     return 'UNKNOWN_OP_VOCABULARY';
+  }
+  if (
+    !supportsRequiredEntityTypes(op.requiredEntityTypes, supportedEntityTypes) ||
+    !supportsRequiredCapabilities(op.requiredCapabilities, supportedCapabilities) ||
+    (typeof op.opType === 'string' &&
+      isFullStateOpType(op.opType) &&
+      !supportsRequiredCapabilities(
+        getFullStateRequiredCapabilities(extractFullStateFromPayload(op.payload)),
+        supportedCapabilities,
+      )) ||
+    (typeof op.opType === 'string' &&
+      isFullStateOpType(op.opType) &&
+      !supportsRequiredCapabilities(
+        (op.payload as { requiredCapabilities?: unknown } | null)?.requiredCapabilities,
+        supportedCapabilities,
+      )) ||
+    (typeof op.opType === 'string' &&
+      isFullStateOpType(op.opType) &&
+      !supportsRequiredEntityTypes(
+        getFullStateRequiredEntityTypes(extractFullStateFromPayload(op.payload)),
+        supportedEntityTypes,
+      ))
+  ) {
+    return 'ENTITY_SUPPORT_REQUIRED';
   }
   return null;
 };

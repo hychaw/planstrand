@@ -1,3 +1,22 @@
+import { DEFAULT_TASK } from '../../features/tasks/task.model';
+import { INBOX_PROJECT } from '../../features/project/project.const';
+import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
+import {
+  prepareTaskFolderAction,
+  rememberTaskFolderCaptureAction,
+} from '../../root-store/meta/task-folder-ownership.meta-reducer';
+import { createBaseState } from '../../root-store/meta/task-shared-meta-reducers/test-utils';
+import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder } from '../../features/folder/store/folder.actions';
+import { addProject } from '../../features/project/store/project.actions';
+import { DEFAULT_PROJECT } from '../../features/project/project.const';
+import {
+  initialProjectState,
+  projectReducer,
+} from '../../features/project/store/project.reducer';
+import { folderReducer } from '../../features/folder/store/folder.reducer';
+import { projectFolderSeedMetaReducer } from '../../root-store/meta/project-folder-seed.meta-reducer';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { setPlacement as planningSet } from '../../features/planning/store/planning.actions';
 import { provideMockActions } from '@ngrx/effects/testing';
@@ -199,6 +218,188 @@ describe('OperationLogEffects', () => {
       effects.notifyStuckDeferredBuffer$.subscribe();
 
       expect(mockSnackService.open).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('canonical Task ownership capture', () => {
+    it('captures the prepared Task creation payload once with semantic requirements', (done) => {
+      const current = {
+        ...createBaseState(),
+        folder: { ...initialFolderState, legacyProjectMigrationComplete: true as const },
+      };
+      const action = createPersistentAction(ActionType.TASK_SHARED_ADD, false, {
+        task: { ...DEFAULT_TASK, id: 'task-1', projectId: INBOX_PROJECT.id },
+      });
+      const prepared = prepareTaskFolderAction(current, action);
+      rememberTaskFolderCaptureAction(action, prepared);
+      actions$ = of(action);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+          const [op] =
+            mockOpLogStore.appendWithVectorClockOverwrite.calls.mostRecent().args;
+          expect(op.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+          expect(op.requiredEntityTypes).toEqual(['FOLDER']);
+          expect(op.payload).toEqual(
+            jasmine.objectContaining({
+              actionPayload: jasmine.objectContaining({
+                task: jasmine.objectContaining({ folderId: INBOX_FOLDER_ID }),
+              }),
+            }),
+          );
+          expect(mockStore.dispatch).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
+    });
+    it('captures a Project move as one Task operation with both ownership fields', (done) => {
+      const current = {
+        ...createBaseState(),
+        folder: { ...initialFolderState, legacyProjectMigrationComplete: true as const },
+      };
+      const action = TaskSharedActions.moveToOtherProject({
+        task: {
+          ...DEFAULT_TASK,
+          id: 'task-1',
+          projectId: 'project1',
+          folderId: 'manual',
+          subTasks: [],
+        },
+        targetProjectId: INBOX_PROJECT.id,
+      });
+      rememberTaskFolderCaptureAction(action, prepareTaskFolderAction(current, action));
+      actions$ = of(action);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+          const [op] =
+            mockOpLogStore.appendWithVectorClockOverwrite.calls.mostRecent().args;
+          expect(op.entityType).toBe('TASK');
+          expect(op.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+          expect(op.payload).toEqual(
+            jasmine.objectContaining({
+              actionPayload: jasmine.objectContaining({
+                targetProjectId: INBOX_PROJECT.id,
+                folderId: INBOX_FOLDER_ID,
+              }),
+            }),
+          );
+          expect(mockStore.dispatch).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
+    });
+    it('never captures compatibility installation or legacy/current remote Task replay', (done) => {
+      actions$ = of(
+        {
+          type: '[Folder] Install persisted legacy migration',
+          folderState: initialFolderState,
+        },
+        createPersistentAction(ActionType.TASK_SHARED_ADD, true, {
+          task: { ...DEFAULT_TASK, id: 'task-1', projectId: INBOX_PROJECT.id },
+        }),
+        createPersistentAction(ActionType.TASK_SHARED_ADD, true, {
+          task: {
+            ...DEFAULT_TASK,
+            id: 'task-2',
+            projectId: INBOX_PROJECT.id,
+            folderId: INBOX_FOLDER_ID,
+          },
+        }),
+      );
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
+    });
+  });
+  describe('Folder operation capture', () => {
+    it('captures only the original Project intent when its Folder is materialized', (done) => {
+      const action = addProject({
+        project: { ...DEFAULT_PROJECT, id: 'seed', title: 'Seed' },
+      });
+      const reduce = projectFolderSeedMetaReducer(
+        (
+          state = {
+            projects: initialProjectState,
+            folder: {
+              ...initialFolderState,
+              legacyProjectMigrationComplete: true as const,
+            },
+          },
+          a: Action,
+        ) => ({
+          projects: projectReducer(state.projects, a),
+          folder: folderReducer(state.folder, a),
+        }),
+      );
+      expect(
+        reduce(undefined, action).folder?.entities['PROJECT_FOLDER:seed'],
+      ).toBeDefined();
+      mockOperationCaptureService.extractEntityChanges.and.callFake((captured) =>
+        new OperationCaptureService().extractEntityChanges(captured),
+      );
+      actions$ = of(action);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+          const [operation] =
+            mockOpLogStore.appendWithVectorClockOverwrite.calls.mostRecent().args;
+          expect(operation.entityType).toBe('PROJECT');
+          expect(operation.payload).toEqual({
+            actionPayload: { project: action.project },
+            entityChanges: [],
+          });
+          expect(mockStore.dispatch).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
+    });
+    it('captures one complete snapshot per user intent', (done) => {
+      const action = addFolder({
+        state: initialFolderState,
+        folder: { id: 'folder-capture', title: 'Folder', orderKey: 'F' },
+      });
+      actions$ = of(action);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(1);
+          const [op] =
+            mockOpLogStore.appendWithVectorClockOverwrite.calls.mostRecent().args;
+          expect(op.entityType).toBe('FOLDER');
+          expect(op.entityId).toBe('*');
+          expect(op.payload).toEqual({
+            actionPayload: { folderState: action.folderState },
+            entityChanges: [],
+          });
+          done();
+        },
+        error: done.fail,
+      });
+    });
+    it('does not recapture converted remote Folder snapshots or reserved no-ops', (done) => {
+      const local = addFolder({
+        state: initialFolderState,
+        folder: { id: 'folder-capture', title: 'Folder' },
+      });
+      const noop = addFolder({
+        state: initialFolderState,
+        folder: { id: 'INBOX_FOLDER', title: 'Fake' },
+      });
+      actions$ = of({ ...local, meta: { ...local.meta, isRemote: true } }, noop);
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
     });
   });
 

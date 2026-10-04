@@ -1,3 +1,5 @@
+import { FolderState } from '../../features/folder/folder.model';
+import { isFolderState } from '../../features/folder/folder-state';
 import { PlanningState } from '../../features/planning/planning.model';
 import { isEntityStateConsistent } from '../../util/check-fix-entity-state-consistency';
 import {
@@ -143,6 +145,23 @@ export const validateAllData = <R>(
   d: AppDataComplete | R,
 ): ValidationResult<AppDataComplete> => {
   const r = _wrapValidate(_validateAllData(d), d, false, 'appData');
+  if (
+    r.success &&
+    Object.hasOwn(d as object, 'folder') &&
+    !isFolderState((d as AppDataComplete).folder)
+  ) {
+    return {
+      success: false,
+      data: d,
+      errors: [
+        {
+          expected: 'Valid Folder state',
+          path: '$input.folder',
+          value: (d as AppDataComplete).folder,
+        },
+      ],
+    };
+  }
   return r as ValidationResult<AppDataComplete>;
 
   // unfortunately that is quite a bit slower
@@ -195,6 +214,14 @@ export const appDataValidators: {
     _wrapValidate(_validatePluginUserData(d), d, false, 'pluginUserData'),
   pluginMetadata: <R>(d: R | PluginMetaDataState) =>
     _wrapValidate(_validatePluginMetadata(d), d, false, 'pluginMetadata'),
+  folder: <R>(d: R | FolderState) =>
+    isFolderState(d)
+      ? { success: true as const, data: d }
+      : {
+          success: false as const,
+          data: d,
+          errors: [{ expected: 'Valid Folder state', path: '$input', value: d }],
+        },
   section: <R>(d: R | SectionState) =>
     _wrapValidate(_validateSection(d), d, true, 'section'),
   planning: <R>(d: R | PlanningState) =>

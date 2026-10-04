@@ -249,7 +249,10 @@ export interface ElectronAPI {
   showFullScreenBlocker(args: { msg?: string; takeABreakCfg: TakeABreakConfig }): void;
 
   backupAppData(args: {
-    data: AppDataCompleteLegacy | AppDataComplete;
+    data:
+      | AppDataCompleteLegacy
+      | AppDataComplete
+      | { requiredEntityTypes: string[]; appDataComplete: AppDataComplete };
     maxBackupFiles?: number | null;
   }): Promise<void>;
 

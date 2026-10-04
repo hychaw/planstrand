@@ -110,6 +110,8 @@ export const uploadSnapshotHandler = async (
       snapshotOpType,
       syncImportReason,
       repairBaseServerSeq,
+      requiredEntityTypes,
+      requiredCapabilities,
       lastKnownServerSeq,
       requestId,
     } = snapshotRequest;
@@ -159,6 +161,8 @@ export const uploadSnapshotHandler = async (
       reason,
       vectorClock,
       schemaVersion,
+      requiredEntityTypes,
+      requiredCapabilities,
       isPayloadEncrypted,
       syncImportReason,
       opId,
@@ -272,6 +276,8 @@ export const uploadSnapshotHandler = async (
       vectorClock,
       timestamp: Date.now(),
       schemaVersion: schemaVersion ?? 1,
+      requiredEntityTypes,
+      requiredCapabilities,
       // Always true post-E2EE gate; the `?? false` fallback is dead and goes
       // with the rest of the plaintext handling in eradication plan Step 3.
       isPayloadEncrypted: isPayloadEncrypted ?? false,
@@ -309,6 +315,8 @@ export const uploadSnapshotHandler = async (
               vectorClock: existingFullStateOp.vectorClock as Operation['vectorClock'],
               timestamp: op.timestamp,
               schemaVersion: existingFullStateOp.schemaVersion,
+              requiredEntityTypes: existingFullStateOp.requiredEntityTypes,
+              requiredCapabilities: existingFullStateOp.requiredCapabilities,
               isPayloadEncrypted: existingFullStateOp.isPayloadEncrypted,
               syncImportReason: existingFullStateOp.syncImportReason ?? undefined,
               repairBaseServerSeq: existingFullStateOp.repairBaseServerSeq ?? undefined,

@@ -42,7 +42,7 @@ export const taskBatchUpdateMetaReducer = <T extends Partial<RootState> = RootSt
 ): ActionReducer<T> => {
   return (state: T | undefined, action: Action) => {
     if (action.type === TaskSharedActions.batchUpdateForProject.type) {
-      const { projectId, operations, createdTaskIds, createdTaskTimestamp } =
+      const { projectId, folderId, operations, createdTaskIds, createdTaskTimestamp } =
         action as ReturnType<typeof TaskSharedActions.batchUpdateForProject>;
 
       // Ensure state has required properties
@@ -138,6 +138,7 @@ export const taskBatchUpdateMetaReducer = <T extends Partial<RootState> = RootSt
               ...DEFAULT_TASK,
               id: actualId,
               projectId,
+              ...(folderId !== undefined ? { folderId } : {}),
               title: createOp.data.title || '',
               isDone: createOp.data.isDone || false,
               notes: createOp.data.notes || '',

@@ -9,6 +9,7 @@ import {
   SUPERSYNC_BASE_URL,
   type SimulatedE2EClient,
   type TestUser,
+  withCurrentSuperSyncReader,
 } from '../../utils/supersync-helpers';
 import { execSync } from 'child_process';
 import { writeFileSync } from 'fs';
@@ -39,11 +40,14 @@ const wipeUserSyncData = async (token: string): Promise<void> => {
   headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(`${SUPERSYNC_BASE_URL}/api/sync/data`, {
-    method: 'DELETE',
-    headers,
-    body: '{}',
-  });
+  const response = await fetch(
+    withCurrentSuperSyncReader(`${SUPERSYNC_BASE_URL}/api/sync/data`),
+    {
+      method: 'DELETE',
+      headers,
+      body: '{}',
+    },
+  );
 
   if (!response.ok) {
     const text = await response.text();

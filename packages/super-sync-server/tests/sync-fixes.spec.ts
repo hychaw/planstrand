@@ -228,7 +228,11 @@ vi.mock('../src/db', async () => {
         }),
         update: vi.fn().mockResolvedValue({}),
       },
-      $queryRaw: vi.fn().mockResolvedValue([{ total: BigInt(0) }]),
+      $queryRaw: vi
+        .fn()
+        .mockImplementation(async (query: { text?: string }) =>
+          query.text?.includes('required_capabilities <@') ? [] : [{ total: BigInt(0) }],
+        ),
     },
   };
 });

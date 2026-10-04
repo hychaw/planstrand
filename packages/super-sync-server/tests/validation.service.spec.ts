@@ -1,4 +1,4 @@
-import { SUPER_SYNC_OPERATION_CAPABILITIES } from '@sp/shared-schema';
+import { ENTITY_TYPES, SUPER_SYNC_OPERATION_CAPABILITIES } from '@sp/shared-schema';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   ValidationService,
@@ -65,6 +65,20 @@ describe('ValidationService', () => {
           expect(result.valid).toBe(false);
           expect(result.errorCode).toBe(SYNC_ERROR_CODES.INVALID_SCHEMA_VERSION);
         });
+    it('accepts and advertises Folder singleton snapshots using the shared vocabulary', () => {
+      const op = createValidOp({
+        actionType: '[Folder] Move',
+        opType: 'UPD',
+        entityType: 'FOLDER',
+        entityId: '*',
+        isPayloadEncrypted: true,
+        payload: 'encrypted-folder-state',
+      });
+      expect(validationService.validateOp(op, clientId).valid).toBe(true);
+      expect(ALLOWED_ENTITY_TYPES).toContain('FOLDER');
+      expect(SUPER_SYNC_OPERATION_CAPABILITIES.supportedEntityTypes).toContain('FOLDER');
+    });
+
     it('accepts a valid encrypted WorkSession operation through authoritative validation', () => {
       const op = createValidOp({
         actionType: '[WorkSession] Add WorkSession',
@@ -727,7 +741,7 @@ describe('ValidationService', () => {
     });
 
     it('should have exactly the expected number of entity types', () => {
-      expect(ALLOWED_ENTITY_TYPES.size).toBe(23);
+      expect(ALLOWED_ENTITY_TYPES.size).toBe(ENTITY_TYPES.length);
     });
   });
 });

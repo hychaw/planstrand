@@ -1,3 +1,7 @@
+import {
+  getFullStateRequiredEntityTypes,
+  getFullStateRequiredCapabilities,
+} from '@sp/shared-schema';
 import { FileSyncProvider } from '../provider.interface';
 import { SyncProviderId } from '../provider.const';
 import { EncryptAndCompressCfg } from '../../core/types/sync.types';
@@ -110,8 +114,27 @@ export class PlanstrandFileTransport {
     });
   }
 
-  requireOperations(ops: readonly { opType: string }[]): void {
-    this._requirements = requiredFileOpTypes(this._requirements, [], ops);
+  requireOperations(
+    ops: readonly {
+      opType: string;
+      entityType?: string;
+      requiredEntityTypes?: string[];
+      requiredCapabilities?: string[];
+    }[],
+  ): void {
+    const entities = ops.flatMap((op) => [
+      ...(op.entityType === 'FOLDER' ? ['FOLDER'] : []),
+      ...(op.requiredEntityTypes ?? []),
+    ]);
+    this._requirements = requiredFileOpTypes(
+      this._requirements,
+      entities.map((type) => `ENTITY:${type}`),
+      ops,
+    );
+    this._requirements = requiredFileOpTypes(
+      this._requirements,
+      ops.flatMap((op) => op.requiredCapabilities ?? []),
+    );
   }
 
   private async _decode(body: string): Promise<Record<string, unknown>> {
@@ -212,6 +235,16 @@ export class PlanstrandFileTransport {
       this._key,
       body,
     );
+    this._requirements = requiredFileOpTypes(
+      this._requirements,
+      getFullStateRequiredEntityTypes(data.state).map((type) => `ENTITY:${type}`),
+    );
+    // Reuse the semantic manifest so pre-extension file readers reject the
+    // requirement too. Keep it through backups, compaction and force writes.
+    this._requirements = requiredFileOpTypes(this._requirements, [
+      ...((data.requiredCapabilities as string[] | undefined) ?? []),
+      ...getFullStateRequiredCapabilities(data.state),
+    ]);
     const ref = data.snapshotRef as { file?: string } | undefined;
     if (ref?.file) data.snapshotRef = { ...ref, file: planstrandPath(ref.file) };
     data.product = 'planstrand';

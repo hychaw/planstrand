@@ -3,6 +3,10 @@ import {
   planningReducer,
 } from '../features/planning/store/planning.reducer';
 import { NgModule } from '@angular/core';
+import {
+  FOLDER_FEATURE_NAME,
+  folderReducer,
+} from '../features/folder/store/folder.reducer';
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
 import {
@@ -120,6 +124,7 @@ import {
 @NgModule({
   declarations: [],
   imports: [
+    StoreModule.forFeature(FOLDER_FEATURE_NAME, folderReducer),
     EffectsModule.forFeature([OperationLogEffects, ReducerFailureSnackEffects]),
 
     StoreModule.forFeature(appStateFeature),

@@ -13,7 +13,7 @@ import { TIME_TRACKING_FEATURE_KEY } from '../../features/time-tracking/store/ti
 import { clearSessionKeyCache, encrypt, setArgon2ParamsForTesting } from '@sp/sync-core';
 import { createValidAppData } from '../validation/state-validity-test-utils';
 import { stripLocalOnlySyncSettingsFromAppData } from '../../features/config/local-only-sync-settings.util';
-import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
+import { CURRENT_SCHEMA_VERSION, TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 
 describe('OperationEncryptionService', () => {
   let service: OperationEncryptionService;
@@ -33,6 +33,23 @@ describe('OperationEncryptionService', () => {
     schemaVersion: 1,
   });
 
+  it('preserves optional reader requirements through real encryption and JSON transport', async () => {
+    const op = {
+      ...createMockSyncOp({ task: { id: 'task-123', changes: { title: 'test' } } }),
+      requiredEntityTypes: ['FOLDER'],
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    };
+    const encrypted = await service.encryptOperation(op, TEST_PASSWORD);
+    expect(encrypted.requiredCapabilities).toEqual(op.requiredCapabilities);
+    expect(encrypted.payload).not.toEqual(op.payload);
+    const decrypted = await service.decryptOperation(
+      JSON.parse(JSON.stringify(encrypted)),
+      TEST_PASSWORD,
+    );
+    expect(decrypted.requiredCapabilities).toEqual(op.requiredCapabilities);
+    expect(decrypted.requiredEntityTypes).toEqual(op.requiredEntityTypes);
+    expect(decrypted.payload).toEqual(op.payload);
+  });
   const jsonRoundTrip = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
   const corruptAuthenticationTag = (ciphertext: string): string => {

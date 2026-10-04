@@ -192,6 +192,11 @@ describe('operation-sync utility', () => {
       ).toThrowError(/missing opType/);
     });
 
+    it('preserves full-state reader requirements through conversion', () => {
+      const op = syncOpToOperation(createMockSyncOp({ requiredEntityTypes: ['FOLDER'] }));
+      expect(op.requiredEntityTypes).toEqual(['FOLDER']);
+    });
+
     it('should preserve payload', () => {
       const syncOp = createMockSyncOp({
         payload: { title: 'My Task', done: true, timeSpent: 3600 },

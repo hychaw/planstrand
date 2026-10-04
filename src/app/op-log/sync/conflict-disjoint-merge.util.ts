@@ -300,6 +300,10 @@ export const isDisjointMergeEligible = (params: {
 }): boolean => {
   const { localOps, remoteOps, payloadKey, entityId } = params;
 
+  // Folder topology/order is one atomic snapshot, including create and removal.
+  // Never merge its ids and entities independently.
+  if ([...localOps, ...remoteOps].some((op) => op.entityType === 'FOLDER')) return false;
+
   const hasMultiEntityOp = [...localOps, ...remoteOps].some((op) =>
     isMultiEntityOperation(op),
   );

@@ -1,3 +1,4 @@
+import { protectFullStateBackup } from '../../op-log/backup/full-state-backup-envelope';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -284,7 +285,10 @@ export class FileImexComponent implements OnInit {
   async downloadBackup(): Promise<void> {
     const data = await this._backupService.loadCompleteBackup(true);
     const fileName = `${BACKUP_FILENAME_PREFIX}_${getBackupTimestamp()}.json`;
-    const result = await download(fileName, JSON.stringify(data));
+    const result = await download(
+      fileName,
+      JSON.stringify({ ...data, data: protectFullStateBackup(data.data) }),
+    );
     if ((IS_NATIVE_PLATFORM && !result.wasCanceled) || result.isSnap) {
       this._snackService.open({
         type: 'SUCCESS',
@@ -298,7 +302,10 @@ export class FileImexComponent implements OnInit {
   async privacyAppDataDownload(): Promise<void> {
     const data = await this._backupService.loadCompleteBackup(true);
     const fileName = `${BACKUP_FILENAME_PREFIX_ANONYMIZED}_${getBackupTimestamp()}.json`;
-    const result = await download(fileName, privacyExport(data));
+    const result = await download(
+      fileName,
+      privacyExport({ ...data, data: protectFullStateBackup(data.data) }),
+    );
     if ((IS_NATIVE_PLATFORM && !result.wasCanceled) || result.isSnap) {
       this._snackService.open({
         type: 'SUCCESS',

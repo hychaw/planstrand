@@ -1,3 +1,7 @@
+import { materializeTaskFolders } from '../../features/tasks/task-folder-ownership';
+import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
+import { FolderState } from '../../features/folder/folder.model';
+import { isFolderState } from '../../features/folder/folder-state';
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from './operation-log-store.service';
 import {
@@ -67,6 +71,8 @@ export class OperationLogSnapshotService {
       return false;
     }
 
+    if (Object.hasOwn(state, 'folder') && !isFolderState(state['folder'])) return false;
+
     // Check for at least some core models (task, project, globalConfig)
     // These should always exist even if empty
     const coreModels = ['task', 'project', 'globalConfig'];
@@ -130,13 +136,23 @@ export class OperationLogSnapshotService {
     return this._saveCurrentStateAsSnapshot(install);
   }
 
+  async backfillLegacyFolders(install: (folder: FolderState) => void): Promise<boolean> {
+    return this._saveCurrentStateAsSnapshot(undefined, install);
+  }
+
   private async _saveCurrentStateAsSnapshot(
     installLegacyBackfill?: (sessions: WorkSessionState) => void,
+    installFolders?: (folder: FolderState) => void,
   ): Promise<boolean> {
     try {
       return await this.writeFlushService.flushThenRunExclusive(async () => {
         const source = await this.opLogStore.loadStateCache();
-        if (source && (source.schemaVersion ?? 1) < 5 && !installLegacyBackfill) {
+        if (
+          source &&
+          (source.schemaVersion ?? 1) < 5 &&
+          !installLegacyBackfill &&
+          !installFolders
+        ) {
           // Only confirmed clean-slate replacement may advance this legacy anchor.
           return false;
         }
@@ -169,9 +185,33 @@ export class OperationLogSnapshotService {
             )
           : capturedState.workSession;
         if (installLegacyBackfill && sessions === capturedState.workSession) return false;
-        const currentState = installLegacyBackfill
+        let currentState = installLegacyBackfill
           ? { ...capturedState, workSession: sessions }
           : capturedState;
+        if (installFolders) {
+          const folder = materializeProjectFolders(
+            capturedState.project,
+            capturedState.menuTree,
+            capturedState.folder,
+          );
+          const task = materializeTaskFolders(
+            capturedState.task,
+            capturedState.project,
+            folder,
+          );
+          const sourceTask = (source?.state as Partial<AppDataComplete> | undefined)
+            ?.task;
+          const hasUnpersistedOwners = sourceTask?.ids.some(
+            (id) => sourceTask.entities[id]?.folderId === undefined,
+          );
+          if (
+            folder === capturedState.folder &&
+            task === capturedState.task &&
+            !hasUnpersistedOwners
+          )
+            return false;
+          currentState = { ...capturedState, folder, task };
+        }
         const lastSeq = await this.opLogStore.getLastSeq();
 
         // GUARD (#9438): lastSeq is the global max across the SHARED store,
@@ -205,7 +245,7 @@ export class OperationLogSnapshotService {
           return false;
         }
 
-        if (installLegacyBackfill) {
+        if (installLegacyBackfill || installFolders) {
           const validation = await this.validateStateService.validateState(
             currentState as unknown as Record<string, unknown>,
           );
@@ -226,11 +266,12 @@ export class OperationLogSnapshotService {
           vectorClock,
           compactedAt: Date.now(),
           // Compatibility backfill never confirms/advances a legacy Planning anchor.
-          schemaVersion: installLegacyBackfill
-            ? source
-              ? (source.schemaVersion ?? 1)
-              : CURRENT_SCHEMA_VERSION
-            : CURRENT_SCHEMA_VERSION,
+          schemaVersion:
+            installLegacyBackfill || installFolders
+              ? source
+                ? (source.schemaVersion ?? 1)
+                : CURRENT_SCHEMA_VERSION
+              : CURRENT_SCHEMA_VERSION,
           snapshotEntityKeys,
         });
 
@@ -244,6 +285,7 @@ export class OperationLogSnapshotService {
           });
         }
 
+        if (installFolders && currentState.folder) installFolders(currentState.folder);
         OpLog.normal('OperationLogSnapshotService: Saved new snapshot');
         return true;
       });

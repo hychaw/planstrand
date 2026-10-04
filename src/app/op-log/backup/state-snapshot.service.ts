@@ -1,3 +1,4 @@
+import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import { inject, Injectable } from '@angular/core';
 import { Selector, Store } from '@ngrx/store';
 import { first } from 'rxjs/operators';
@@ -74,6 +75,7 @@ const SNAPSHOT_SELECTORS: readonly {
   { key: 'section', selector: selectSectionFeatureState },
   { key: 'workSession', selector: selectWorkSessionFeatureState },
   { key: 'planning', selector: selectPlanningState },
+  { key: 'folder', selector: selectFolderFeatureState },
 ] as const;
 
 /**

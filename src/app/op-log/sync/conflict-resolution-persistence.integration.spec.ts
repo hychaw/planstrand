@@ -1,3 +1,12 @@
+import { FolderState } from '../../features/folder/folder.model';
+import { initialFolderState, isFolderState } from '../../features/folder/folder-state';
+import { folderReducer } from '../../features/folder/store/folder.reducer';
+import {
+  addFolder,
+  updateFolder,
+  moveFolder,
+  removeFolder,
+} from '../../features/folder/store/folder.actions';
 import { planningReducer } from '../../features/planning/store/planning.reducer';
 import { PlanningPlacement, PLANNING_V1 } from '../../features/planning/planning.model';
 import { TestBed } from '@angular/core/testing';
@@ -374,6 +383,152 @@ describe('ConflictResolutionService persistence (integration, real store)', () =
       },
     );
   }
+
+  describe('Folder shared hierarchy LWW boundary', () => {
+    const seedFolders = (): FolderState => {
+      let state = initialFolderState;
+      for (const id of ['a', 'b', 'c', 'x'])
+        state = addFolder({ state, folder: { id, title: id } }).folderState;
+      return state;
+    };
+    type FolderSnapshotAction = { folderState: FolderState; type: string };
+    const scenarios: {
+      name: string;
+      a: (state: FolderState) => FolderSnapshotAction;
+      b: (state: FolderState) => FolderSnapshotAction;
+    }[] = [
+      {
+        name: 'equal-timestamp rename uses client-ID tie-break',
+        a: (state) => updateFolder({ state, id: 'a', changes: { title: 'A' } }),
+        b: (state) => updateFolder({ state, id: 'a', changes: { title: 'B' } }),
+      },
+      {
+        name: 'concurrent rename',
+        a: (state) => updateFolder({ state, id: 'a', changes: { title: 'A' } }),
+        b: (state) => updateFolder({ state, id: 'a', changes: { title: 'B' } }),
+      },
+      {
+        name: 'concurrent move',
+        a: (state) => moveFolder({ state, id: 'a', parentId: 'b', orderKey: 'F' }),
+        b: (state) => moveFolder({ state, id: 'a', parentId: 'x', orderKey: 'z' }),
+      },
+      {
+        name: 'independent moves discard the losing snapshot',
+        a: (state) => moveFolder({ state, id: 'a', parentId: 'b', orderKey: 'F' }),
+        b: (state) => moveFolder({ state, id: 'c', parentId: 'x', orderKey: 'z' }),
+      },
+      {
+        name: 'same sibling reorder',
+        a: (state) => moveFolder({ state, id: 'a', parentId: null, orderKey: 'F' }),
+        b: (state) => moveFolder({ state, id: 'a', parentId: null, orderKey: 'z' }),
+      },
+      {
+        name: 'different sibling reorder',
+        a: (state) => moveFolder({ state, id: 'a', parentId: null, orderKey: 'F' }),
+        b: (state) => moveFolder({ state, id: 'c', parentId: null, orderKey: 'z' }),
+      },
+      {
+        name: 'reparent versus reorder in the old parent',
+        a: (state) => moveFolder({ state, id: 'a', parentId: 'b', orderKey: 'F' }),
+        b: (state) => moveFolder({ state, id: 'a', parentId: null, orderKey: 'z' }),
+      },
+      {
+        name: 'cross-folder moves that would form a cycle if merged',
+        a: (state) => moveFolder({ state, id: 'a', parentId: 'b', orderKey: 'F' }),
+        b: (state) => moveFolder({ state, id: 'b', parentId: 'a', orderKey: 'z' }),
+      },
+      {
+        name: 'deletion versus rename',
+        a: (state) => removeFolder({ state, id: 'a' }),
+        b: (state) => updateFolder({ state, id: 'a', changes: { title: 'B' } }),
+      },
+      {
+        name: 'deletion versus move',
+        a: (state) => removeFolder({ state, id: 'a' }),
+        b: (state) => moveFolder({ state, id: 'a', parentId: 'b', orderKey: 'z' }),
+      },
+      {
+        name: 'deletion wins with the newer snapshot',
+        a: (state) => moveFolder({ state, id: 'a', parentId: 'b', orderKey: 'z' }),
+        b: (state) => removeFolder({ state, id: 'a' }),
+      },
+    ];
+    for (const scenario of scenarios)
+      for (const reverse of [false, true]) {
+        it(`${scenario.name}: ${reverse ? 'reversed' : 'forward'} arrival and durable replay converge`, async () => {
+          const baseline = seedFolders();
+          const actionA = scenario.a(baseline),
+            actionB = scenario.b(baseline);
+          const make = (
+            action: FolderSnapshotAction,
+            clientId: string,
+            timestamp: number,
+          ): Operation => ({
+            id: 'folder-' + clientId,
+            clientId,
+            timestamp,
+            actionType: action.type as ActionType,
+            opType: OpType.Update,
+            entityType: 'FOLDER',
+            entityId: '*',
+            entityIds: ['*'],
+            vectorClock: { [clientId]: 1 },
+            schemaVersion: CURRENT_SCHEMA_VERSION,
+            payload: {
+              actionPayload: { folderState: action.folderState },
+              entityChanges: [],
+            },
+          });
+          const a = make(actionA, LOCAL_CLIENT_ID, 100),
+            b = make(
+              actionB,
+              REMOTE_CLIENT_ID,
+              scenario.name.startsWith('equal-timestamp') ? 100 : 200,
+            );
+          const local = reverse ? b : a,
+            remote = reverse ? a : b;
+          const localState = reverse ? actionB.folderState : actionA.folderState;
+          store.select.and.returnValue(of(localState));
+          await opLogStore.setVectorClock(local.vectorClock);
+          await opLogStore.append(local, 'local');
+          await service.autoResolveConflictsLWW([
+            {
+              entityType: 'FOLDER',
+              entityId: '*',
+              localOps: [local],
+              remoteOps: [remote],
+              suggestedResolution: 'manual',
+            },
+          ]);
+          const base: ActionReducer<{ folder: FolderState }> = (
+            state = { folder: initialFolderState },
+            action,
+          ) => ({ folder: folderReducer(state.folder, action) });
+          const replay = bulkOperationsMetaReducer(
+            lwwUpdateMetaReducer(base),
+          ) as ActionReducer<{ folder: FolderState }>;
+          const live = replay(
+            { folder: localState },
+            bulkApplyOperations({
+              operations: liveResolutionOps,
+              localClientId: LOCAL_CLIENT_ID,
+            }),
+          );
+          const durable = await opLogStore.getOpsAfterSeq(0);
+          const restarted = replay(
+            { folder: initialFolderState },
+            bulkApplyOperations({
+              operations: durable.map((entry) => entry.op),
+              localClientId: LOCAL_CLIENT_ID,
+            }),
+          );
+          expect(live.folder).toEqual(actionB.folderState);
+          expect(restarted.folder).toEqual(actionB.folderState);
+          expect(isFolderState(restarted.folder)).toBeTrue();
+          expect(durable.some((entry) => entry.op.entityType === 'FOLDER')).toBeTrue();
+        });
+      }
+  });
 
   it('hydrates to the same winner that was applied live', async () => {
     const { localOp, conflicts } = createConflicts();

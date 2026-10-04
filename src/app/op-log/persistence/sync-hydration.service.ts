@@ -1,3 +1,4 @@
+import { assertFullStateReaderCompatible } from '../sync/folder-full-state-gate';
 import { mergePlanningState, isPlanningState, PLANNING_V1 } from '@sp/shared-schema';
 import {
   SchemaMigrationService,
@@ -126,6 +127,7 @@ export class SyncHydrationService {
       const downloadedArchiveYoung = typedDownloadedData?.['archiveYoung'] as
         | ArchiveModel
         | undefined;
+      assertFullStateReaderCompatible(downloadedMainModelData);
       const downloadedArchiveOld = typedDownloadedData?.['archiveOld'] as
         | ArchiveModel
         | undefined;

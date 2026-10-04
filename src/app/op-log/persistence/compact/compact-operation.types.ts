@@ -54,6 +54,12 @@ export interface CompactOperation {
   /** syncImportReason (optional) */
   r?: string;
 
+  /** Full-state reader entity requirements (optional). */
+  q?: string[];
+
+  /** Semantic reader requirements (optional). */
+  k?: string[];
+
   /** repairBaseServerSeq (optional) */
   b?: number;
 }

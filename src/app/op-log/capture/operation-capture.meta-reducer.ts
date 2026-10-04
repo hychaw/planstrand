@@ -6,6 +6,11 @@ import {
 import { OperationCaptureService } from './operation-capture.service';
 import { OpLog } from '../../core/log';
 import { devError } from '../../util/dev-error';
+import {
+  prepareTaskFolderAction,
+  rememberTaskFolderCaptureAction,
+  TaskFolderState,
+} from '../../root-store/meta/task-folder-ownership.meta-reducer';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ARCHITECTURAL DEBT: Module-Level State for Meta-Reducer Service Injection
@@ -262,7 +267,12 @@ export const operationCaptureMetaReducer = <S, A extends Action = Action>(
 ): ActionReducer<S, A> => {
   return (state: S | undefined, action: A): S => {
     // Call inner reducer first
-    const afterState = reducer(state, action);
+    const prepared =
+      isPersistentAction(action) && !action.meta.isRemote
+        ? prepareTaskFolderAction(state as TaskFolderState | undefined, action)
+        : action;
+    const afterState = reducer(state, prepared);
+    rememberTaskFolderCaptureAction(action, prepared);
 
     // Only process persistent, non-remote actions
     if (isPersistentAction(action) && !(action as PersistentAction).meta.isRemote) {

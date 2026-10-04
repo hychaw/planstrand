@@ -1,4 +1,6 @@
 import { createFeatureSelector, createSelector, MemoizedSelector } from '@ngrx/store';
+import { selectFolderFeatureState } from '../../folder/store/folder.selectors';
+import { resolveTaskFolderId } from '../task-folder-ownership';
 import { TASK_FEATURE_NAME } from './task.reducer';
 import {
   Task,
@@ -78,6 +80,19 @@ export const flattenTasks = (tasksIN: TaskWithSubTasks[]): TaskWithSubTasks[] =>
 // ---------
 const { selectEntities, selectAll } = taskAdapter.getSelectors();
 export const selectTaskFeatureState = createFeatureSelector<TaskState>(TASK_FEATURE_NAME);
+export const selectEffectiveTaskFolderId = (
+  id: string,
+): MemoizedSelector<object, string> =>
+  createSelector(selectTaskFeatureState, selectFolderFeatureState, (tasks, folders) =>
+    resolveTaskFolderId(tasks.entities[id] ?? {}, folders),
+  );
+export const selectTasksInFolder = (folderId: string): MemoizedSelector<object, Task[]> =>
+  createSelector(selectTaskFeatureState, selectFolderFeatureState, (tasks, folders) =>
+    tasks.ids.flatMap((id) => {
+      const task = tasks.entities[id];
+      return task && resolveTaskFolderId(task, folders) === folderId ? [task] : [];
+    }),
+  );
 export const selectTaskEntities = createSelector(selectTaskFeatureState, selectEntities);
 export const selectTaskEntitiesInActiveProjects = createSelector(
   selectTaskEntities,

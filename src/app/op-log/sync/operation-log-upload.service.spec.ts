@@ -1382,6 +1382,8 @@ describe('OperationLogUploadService', () => {
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
           undefined, // lastKnownServerSeq
+          [], // default state requires no Folder capability
+          [], // no semantic requirement
         );
       });
 
@@ -1404,6 +1406,8 @@ describe('OperationLogUploadService', () => {
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
           undefined, // lastKnownServerSeq
+          [], // default state requires no Folder capability
+          [], // no semantic requirement
         );
       });
 
@@ -1426,6 +1430,8 @@ describe('OperationLogUploadService', () => {
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
           undefined, // lastKnownServerSeq
+          [], // default state requires no Folder capability
+          [], // no semantic requirement
         );
       });
 
@@ -1945,7 +1951,7 @@ describe('OperationLogUploadService', () => {
         const callArgs = mockApiProvider.uploadSnapshot.calls.mostRecent().args;
 
         // Separate optional arguments carry REPAIR and state-replacement bases.
-        expect(callArgs.length).toBe(12);
+        expect(callArgs.length).toBe(14);
 
         // Verify specific args
         expect(callArgs[1]).toBe('client-1'); // clientId
@@ -1999,6 +2005,8 @@ describe('OperationLogUploadService', () => {
           undefined, // syncImportReason
           undefined, // repairBaseServerSeq
           undefined, // lastKnownServerSeq
+          [], // default state requires no Folder capability
+          [], // no semantic requirement
         );
       });
 

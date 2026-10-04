@@ -1,3 +1,4 @@
+import { protectFullStateBackup } from '../../op-log/backup/full-state-backup-envelope';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GlobalConfigService } from '../../features/config/global-config.service';
@@ -461,7 +462,7 @@ export class LocalBackupService {
   private async _backupElectron(data: AppDataComplete): Promise<void> {
     const cfg = await firstValueFrom(this._cfg$);
     await window.ea.backupAppData({
-      data,
+      data: protectFullStateBackup(data),
       maxBackupFiles: cfg.maxBackupFiles ?? DEFAULT_MAX_BACKUP_FILES,
     });
   }
@@ -522,7 +523,7 @@ export class LocalBackupService {
     if (existing) {
       await this._nativeDbSave(ANDROID_DB_KEY_PREV, existing);
     }
-    const json = JSON.stringify(data);
+    const json = JSON.stringify(protectFullStateBackup(data));
     // Size only, never content (core/log rule 9) — lands in shared log exports.
     Log.log(`LocalBackupService: writing Android backup (${json.length} chars)`);
     await this._nativeDbSave(ANDROID_DB_KEY, json);
@@ -554,7 +555,10 @@ export class LocalBackupService {
       if (existing) {
         await this._writeIOSFile(IOS_BACKUP_PREV_FILENAME, existing);
       }
-      await this._writeIOSFile(IOS_BACKUP_FILENAME, JSON.stringify(data));
+      await this._writeIOSFile(
+        IOS_BACKUP_FILENAME,
+        JSON.stringify(protectFullStateBackup(data)),
+      );
       Log.log('iOS backup saved successfully');
       return true;
     } catch (error) {

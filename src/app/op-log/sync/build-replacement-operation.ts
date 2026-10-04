@@ -6,7 +6,11 @@ import {
   LwwUpdatePayload,
   OpType,
 } from '../core/operation.types';
-import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
+import {
+  CURRENT_SCHEMA_VERSION,
+  hasTaskFolderOwnership,
+  TASK_FOLDER_OWNERSHIP_V1,
+} from '@sp/shared-schema';
 import { uuidv7 } from '../../util/uuid-v7';
 import { isLwwPayloadIdCanonical, isSingletonEntityId } from '../core/entity-registry';
 import { toLwwUpdateActionType } from '../core/lww-update-action-types';
@@ -103,5 +107,11 @@ export const buildReplacementOperation = (
     vectorClock,
     timestamp,
     schemaVersion: CURRENT_SCHEMA_VERSION,
+    ...(entityType === 'TASK' && hasTaskFolderOwnership(entityState)
+      ? {
+          requiredEntityTypes: ['FOLDER'],
+          requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+        }
+      : {}),
   };
 };

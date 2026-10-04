@@ -1,3 +1,4 @@
+import { readFullStateBackup } from '../../op-log/backup/full-state-backup-envelope';
 import { hasMeaningfulStateData } from '../../op-log/validation/has-meaningful-state-data.util';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import type { SyncConfig } from '../../features/config/global-config.model';
@@ -45,7 +46,7 @@ export const countAllTasksInBackupStr = (
     return null;
   }
   try {
-    return countAllTasks(JSON.parse(str));
+    return countAllTasks(readFullStateBackup(JSON.parse(str)));
   } catch {
     return null;
   }
@@ -76,7 +77,7 @@ export const summarizeBackupStr = (
     return null;
   }
   try {
-    const s = JSON.parse(str) as Record<string, unknown>;
+    const s = readFullStateBackup(JSON.parse(str)) as Record<string, unknown>;
     const projectIds = (s.project as { ids?: unknown })?.ids;
     return {
       taskCount: countAllTasks(s),
@@ -102,7 +103,7 @@ export const isUsableBackupStr = (str: string | null | undefined): boolean => {
     return false;
   }
   try {
-    return hasMeaningfulStateData(JSON.parse(str));
+    return hasMeaningfulStateData(readFullStateBackup(JSON.parse(str)));
   } catch {
     return false;
   }
@@ -126,7 +127,7 @@ export const backupStrHasSyncEnabled = (str: string | null | undefined): boolean
     // Keyed off SyncConfig so a rename of these fields breaks the build here
     // instead of silently weakening this guard (a moved field would make a
     // synced backup look non-synced and auto-restore it).
-    const s = JSON.parse(str) as {
+    const s = readFullStateBackup(JSON.parse(str)) as {
       globalConfig?: { sync?: Partial<Pick<SyncConfig, 'isEnabled' | 'syncProvider'>> };
     };
     const sync = s.globalConfig?.sync;

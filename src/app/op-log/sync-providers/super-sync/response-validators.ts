@@ -1,4 +1,8 @@
 import {
+  CLIENT_SYNC_READER_CAPABILITIES,
+  supportsRequiredCapabilities,
+} from '@sp/shared-schema';
+import {
   SuperSyncDeleteAllDataResponseSchema,
   SuperSyncDevicesResponseSchema,
   SuperSyncDownloadOpsResponseSchema,
@@ -51,6 +55,15 @@ const parseResponse = <T>(
   data: unknown,
   responseName: string,
 ): T => {
+  if (
+    !supportsRequiredCapabilities(
+      (data as { requiredCapabilities?: unknown } | null)?.requiredCapabilities,
+      CLIENT_SYNC_READER_CAPABILITIES,
+    )
+  )
+    throw new InvalidDataSPError(
+      'Response requires unsupported semantic reader capabilities',
+    );
   const parseResult = schema.safeParse(data);
 
   if (parseResult.success) {

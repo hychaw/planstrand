@@ -1,3 +1,9 @@
+import { INBOX_PROJECT } from '../../features/project/project.const';
+import { DEFAULT_TASK } from '../../features/tasks/task.model';
+import { materializeTaskFolders } from '../../features/tasks/task-folder-ownership';
+import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder, removeFolder } from '../../features/folder/store/folder.actions';
+import { projectFolderId } from '../../features/folder/legacy-project-folder-migration';
 import { TestBed } from '@angular/core/testing';
 import { OperationLogSnapshotService } from './operation-log-snapshot.service';
 import { OperationLogStoreService } from './operation-log-store.service';
@@ -130,6 +136,136 @@ describe('OperationLogSnapshotService', () => {
     clearDeferredActions();
   });
 
+  describe('startup legacy Folder bridge', () => {
+    beforeEach(() => {
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        createValidAppData() as AppStateSnapshot,
+      );
+      mockOpLogStore.getLastSeq.and.resolveTo(10);
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo({ local: 3 });
+      mockOpLogStore.saveStateCache.and.resolveTo();
+    });
+    it('persists ownership already materialized during hydration without a new operation', async () => {
+      const data = createValidAppData({
+        project: {
+          ids: [INBOX_PROJECT.id],
+          entities: { [INBOX_PROJECT.id]: { ...INBOX_PROJECT, taskIds: ['legacy'] } },
+        },
+      });
+      const folder = {
+        ...initialFolderState,
+        legacyProjectMigrationComplete: true as const,
+      };
+      const legacy = {
+        ...data,
+        folder,
+        task: {
+          ...data.task,
+          ids: ['legacy'],
+          entities: {
+            legacy: {
+              ...DEFAULT_TASK,
+              id: 'legacy',
+              title: 'Legacy',
+              projectId: 'INBOX',
+            },
+          },
+        },
+      };
+      const hydrated = {
+        ...legacy,
+        task: materializeTaskFolders(legacy.task, legacy.project, folder),
+      };
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        hydrated as AppStateSnapshot,
+      );
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        state: legacy,
+        lastAppliedOpSeq: 8,
+        vectorClock: { local: 2 },
+        compactedAt: 1,
+        schemaVersion: 4,
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeTrue();
+      const saved = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      expect((saved.state as AppDataComplete).task.entities.legacy?.folderId).toBe(
+        'INBOX_FOLDER',
+      );
+      expect(saved.schemaVersion).toBe(4);
+      expect(saved.lastAppliedOpSeq).toBe(10);
+      expect(saved.vectorClock).toEqual({ local: 3 });
+      mockOpLogStore.loadStateCache.and.resolveTo(saved);
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledTimes(1);
+    });
+    it('persists under the snapshot transaction before noncapturing installation', async () => {
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        state: createValidAppData(),
+        lastAppliedOpSeq: 8,
+        vectorClock: { local: 2 },
+        compactedAt: 1,
+        schemaVersion: 4,
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeTrue();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledBefore(install);
+      const saved = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      expect(saved.schemaVersion).toBe(4);
+      expect(saved.lastAppliedOpSeq).toBe(10);
+      expect(saved.vectorClock).toEqual({ local: 3 });
+      expect(
+        (saved.state as AppDataComplete).folder?.legacyProjectMigrationComplete,
+      ).toBeTrue();
+    });
+    it('never installs when persistence fails', async () => {
+      mockOpLogStore.saveStateCache.and.rejectWith(new Error('disk full'));
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(install).not.toHaveBeenCalled();
+    });
+    it('never installs invalid state', async () => {
+      mockValidateStateService.validateState.and.resolveTo({
+        isValid: false,
+        typiaErrors: [],
+      });
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(install).not.toHaveBeenCalled();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    });
+    it('durably seeds new active Projects in a manual domain and never repeats or resurrects', async () => {
+      const source = createValidAppData();
+      source.folder = addFolder({
+        state: { ...initialFolderState, legacyProjectMigrationComplete: true },
+        folder: { id: 'manual', title: 'Manual', orderKey: 'F' },
+      }).folderState;
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        source as AppStateSnapshot,
+      );
+      const install = jasmine.createSpy('install');
+      expect(await service.backfillLegacyFolders(install)).toBeTrue();
+      const saved = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      const folder = (saved.state as AppDataComplete).folder!;
+      const association = projectFolderId('INBOX');
+      expect(folder.entities[association]?.orderKey).toBe('V');
+      expect(folder.entities['manual']).toBe(source.folder.entities['manual']);
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledBefore(install);
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue(
+        saved.state as AppStateSnapshot,
+      );
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      const deleted = removeFolder({ state: folder, id: association }).folderState;
+      mockStateSnapshotService.getStateSnapshotForOperationLog.and.returnValue({
+        ...source,
+        folder: deleted,
+      } as AppStateSnapshot);
+      expect(await service.backfillLegacyFolders(install)).toBeFalse();
+      expect(install).toHaveBeenCalledTimes(1);
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('startup legacy scheduling backfill', () => {
     const data = (): AppDataComplete => {
       const base = createValidAppData();
@@ -237,6 +373,33 @@ describe('OperationLogSnapshotService', () => {
       ...overrides,
     });
 
+    it('accepts absent/default Folder slices and rejects malformed present cache data', () => {
+      expect(service.isValidSnapshot(createValidSnapshot())).toBeTrue();
+      expect(
+        service.isValidSnapshot(
+          createValidSnapshot({
+            state: {
+              task: {},
+              project: {},
+              globalConfig: {},
+              folder: initialFolderState,
+            },
+          }),
+        ),
+      ).toBeTrue();
+      expect(
+        service.isValidSnapshot(
+          createValidSnapshot({
+            state: {
+              task: {},
+              project: {},
+              globalConfig: {},
+              folder: { ids: [], entities: {} },
+            },
+          }),
+        ),
+      ).toBeFalse();
+    });
     it('should return true for valid snapshot with all core models', () => {
       const snapshot = createValidSnapshot();
       expect(service.isValidSnapshot(snapshot)).toBe(true);

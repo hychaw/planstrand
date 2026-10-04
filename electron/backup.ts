@@ -127,7 +127,10 @@ const listBackupFiles = (): LocalBackupMeta[] => {
 };
 
 interface BackupDataArgs {
-  data: AppDataCompleteLegacy | AppDataComplete;
+  data:
+    | AppDataCompleteLegacy
+    | AppDataComplete
+    | { requiredEntityTypes: string[]; appDataComplete: AppDataComplete };
   maxBackupFiles?: number | null;
 }
 

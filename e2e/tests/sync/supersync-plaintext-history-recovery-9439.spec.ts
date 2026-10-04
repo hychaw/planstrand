@@ -13,6 +13,7 @@ import {
   SUPERSYNC_BASE_URL,
   type SimulatedE2EClient,
   waitForTask,
+  withCurrentSuperSyncReader,
 } from '../../utils/supersync-helpers';
 
 type DownloadHistory = ReturnType<typeof SuperSyncDownloadOpsResponseSchema.parse>;
@@ -37,7 +38,9 @@ const authHeaders = (token: string): Headers => {
 
 const downloadServerHistory = async (token: string): Promise<DownloadHistory> => {
   const response = await fetch(
-    `${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`,
+    withCurrentSuperSyncReader(
+      `${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`,
+    ),
     { headers: authHeaders(token) },
   );
   if (!response.ok) {

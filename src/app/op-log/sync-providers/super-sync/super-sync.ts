@@ -1,3 +1,4 @@
+import { CLIENT_SYNC_READER_CAPABILITIES } from '@sp/shared-schema';
 import { CapacitorHttp } from '@capacitor/core';
 import {
   PROVIDER_ID_SUPER_SYNC,
@@ -6,6 +7,7 @@ import {
   type SuperSyncDeps,
 } from '@sp/sync-providers/super-sync';
 import type { NativeHttpResponse } from '@sp/sync-providers/http';
+import { ENTITY_TYPES } from '@sp/shared-schema';
 import type { SuperSyncImportReason, SuperSyncOpType } from '@sp/shared-schema';
 import { type PlanstrandOpType, type SyncImportReason } from '../../core/operation.types';
 import { OP_LOG_SYNC_LOGGER } from '../../core/sync-logger.adapter';
@@ -102,6 +104,8 @@ export const createSuperSyncProvider = (): PackageSuperSyncProvider => {
     // server URL.
     defaultBaseUrl: SUPER_SYNC_DEFAULT_BASE_URL,
     appVersion: getAppSemver(),
+    supportedEntityTypes: ENTITY_TYPES,
+    supportedCapabilities: CLIENT_SYNC_READER_CAPABILITIES,
   };
   return new PackageSuperSyncProvider(deps);
 };

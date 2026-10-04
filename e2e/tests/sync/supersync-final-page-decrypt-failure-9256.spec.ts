@@ -20,6 +20,7 @@ import {
   routeSuperSyncOps,
   unrouteSuperSyncOps,
   type SimulatedE2EClient,
+  withCurrentSuperSyncReader,
 } from '../../utils/supersync-helpers';
 
 interface ObservedDownloadPage {
@@ -45,7 +46,9 @@ const authHeaders = (token: string): Headers => {
 
 const downloadServerHistory = async (token: string): Promise<DownloadHistory> => {
   const response = await fetch(
-    `${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`,
+    withCurrentSuperSyncReader(
+      `${SUPERSYNC_BASE_URL}/api/sync/ops?sinceSeq=0&limit=1000`,
+    ),
     { headers: authHeaders(token) },
   );
   if (!response.ok) {
@@ -100,11 +103,14 @@ const uploadCorruptSuffix = async (
     clientId,
     ops: [corruptOp],
   });
-  const response = await fetch(`${SUPERSYNC_BASE_URL}/api/sync/ops`, {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify(requestBody),
-  });
+  const response = await fetch(
+    withCurrentSuperSyncReader(`${SUPERSYNC_BASE_URL}/api/sync/ops`),
+    {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify(requestBody),
+    },
+  );
   if (!response.ok) {
     throw new Error(
       `Failed to seed corrupt operation: ${response.status} ${await response.text()}`,

@@ -1,3 +1,5 @@
+import { getOperationRequiredCapabilities } from './sync-capability.util';
+import { getFullStateRequiredEntityTypes } from './folder-full-state-gate';
 import { inject, Injectable } from '@angular/core';
 import {
   planRegularOpsAfterFullStateUpload,
@@ -697,6 +699,12 @@ export class OperationLogUploadService {
       vectorClock: entry.op.vectorClock,
       timestamp: entry.op.timestamp,
       schemaVersion: entry.op.schemaVersion,
+      ...(entry.op.requiredCapabilities !== undefined
+        ? { requiredCapabilities: entry.op.requiredCapabilities }
+        : {}),
+      ...(entry.op.requiredEntityTypes !== undefined
+        ? { requiredEntityTypes: entry.op.requiredEntityTypes }
+        : {}),
       ...(entry.op.syncImportReason
         ? { syncImportReason: entry.op.syncImportReason }
         : {}),
@@ -839,6 +847,12 @@ export class OperationLogUploadService {
       'OperationLogUploadService._uploadFullStateOpAsSnapshot',
     );
 
+    const requiredEntityTypes = [
+      ...new Set([
+        ...getFullStateRequiredEntityTypes(state),
+        ...(op.requiredEntityTypes ?? []),
+      ]),
+    ];
     const isPayloadEncrypted = !!encryptKey;
 
     // If encryption is enabled, encrypt the state
@@ -864,6 +878,8 @@ export class OperationLogUploadService {
         op.syncImportReason,
         repairBaseServerSeq,
         lastKnownServerSeq,
+        requiredEntityTypes,
+        getOperationRequiredCapabilities(op),
       );
       return response;
     } catch (err) {

@@ -1,3 +1,5 @@
+import { FolderState } from '../../features/folder/folder.model';
+import { initialFolderState } from '../../features/folder/folder-state';
 import { PlanningState } from '../../features/planning/planning.model';
 import { initialPlanningState } from '../../features/planning/store/planning.reducer';
 import { AllModelData, ModelCfg } from '../core/types/sync.types';
@@ -65,6 +67,7 @@ export type AllModelConfig = {
   section: ModelCfg<SectionState>;
   workSession: ModelCfg<WorkSessionState>;
   planning?: ModelCfg<PlanningState>;
+  folder?: ModelCfg<FolderState>;
   taskRepeatCfg: ModelCfg<TaskRepeatCfgState>;
   reminders: ModelCfg<Reminder[]>;
   timeTracking: ModelCfg<TimeTrackingState>;
@@ -77,6 +80,7 @@ export type AllModelConfig = {
 export type AppDataComplete = AllModelData<AllModelConfig>;
 
 export const MODEL_CONFIGS: AllModelConfig = {
+  folder: { defaultData: initialFolderState, isMainFileModel: true },
   planning: { defaultData: initialPlanningState, isMainFileModel: true },
   task: {
     defaultData: initialTaskState,
@@ -215,7 +219,7 @@ export const withDefaultModelSlices = (data: object): AppDataComplete => {
     // WorkSession defaults only when absent. A present null/undefined slice is
     // invalid input and must reach validation rather than become empty data.
     const needsDefault =
-      key === 'workSession' || key === 'planning'
+      key === 'workSession' || key === 'planning' || key === 'folder'
         ? !Object.hasOwn(result, key)
         : result[key] === undefined || result[key] === null;
     if (needsDefault) {

@@ -172,6 +172,8 @@ export interface ConflictData {
 // ============================================================================
 
 export interface CompleteBackup<T extends ModelCfgs> {
+  requiredEntityTypes?: string[];
+  requiredCapabilities?: string[];
   timestamp: number;
   lastUpdate: number;
   crossModelVersion: number;

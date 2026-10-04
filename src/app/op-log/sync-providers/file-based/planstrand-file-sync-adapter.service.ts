@@ -9,7 +9,6 @@ import {
 } from '../provider.interface';
 import { SyncProviderId } from '../provider.const';
 import { EncryptAndCompressCfg } from '../../core/types/sync.types';
-import { KNOWN_OP_TYPES } from '../../sync/remote-op-block.util';
 import {
   FileSyncTargetChangedError,
   RemoteFileNotFoundAPIError,
@@ -28,6 +27,7 @@ import {
   PlanstrandFileIncompatibleError,
   PLANSTRAND_FILE_NAMESPACE as P,
   PLANSTRAND_REQUIRED_FILE_OP_TYPES,
+  KNOWN_FILE_SEMANTICS,
   PLANSTRAND_FILE_VERSION,
   assertPlanstrandFileEnvelope,
   requiredFileOpTypes,
@@ -77,7 +77,7 @@ export class PlanstrandFileSyncAdapterService {
         throw new FileSyncTargetChangedError(generation, this._generation);
     };
     const transport = new PlanstrandFileTransport(provider, cfg, key, {
-      supportedOpTypes: options.supportedOpTypes ?? KNOWN_OP_TYPES,
+      supportedOpTypes: options.supportedOpTypes ?? KNOWN_FILE_SEMANTICS,
       requiredOpTypes: requiredFileOpTypes(
         options.requiredOpTypes ?? [],
         PLANSTRAND_REQUIRED_FILE_OP_TYPES,
@@ -110,6 +110,14 @@ export class PlanstrandFileSyncAdapterService {
           }
           if (prop === 'uploadOps')
             transport.requireOperations(args[0] as { opType: string }[]);
+          if (prop === 'uploadSnapshot')
+            transport.requireOperations([
+              {
+                opType: (args[8] as string | undefined) ?? 'SYNC_IMPORT',
+                requiredEntityTypes: args[12] as string[] | undefined,
+                requiredCapabilities: args[13] as string[] | undefined,
+              },
+            ]);
           if (prop === 'deleteAllData') await transport.readRequirements();
           return value.apply(target, args);
         };
@@ -243,7 +251,7 @@ export class PlanstrandFileSyncAdapterService {
       key,
       verified.dataStr,
     );
-    assertPlanstrandFileEnvelope(decoded, KNOWN_OP_TYPES);
+    assertPlanstrandFileEnvelope(decoded, KNOWN_FILE_SEMANTICS);
     if (verified.dataStr !== encoded) throw new UploadRevToMatchMismatchAPIError();
     // Recovery state only after commit; a losing importer cannot install its
     // candidate snapshot in an authoritative backup.

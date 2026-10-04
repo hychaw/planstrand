@@ -1,3 +1,9 @@
+import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
+import { protectFullStateBackup } from './full-state-backup-envelope';
+import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
+import { projectFolderId } from '../../features/folder/legacy-project-folder-migration';
+import { initialFolderState } from '../../features/folder/folder-state';
+import { addFolder, moveFolder } from '../../features/folder/store/folder.actions';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { BackupService } from './backup.service';
@@ -580,7 +586,130 @@ describe('BackupService', () => {
     expect(mockStore.dispatch).not.toHaveBeenCalled();
   });
 
+  describe('Folder backups', () => {
+    it('exports/imports a nested hierarchy with absolute order through the durable backup path', async () => {
+      const data = createValidAppData();
+      let folder = addFolder({
+        state: initialFolderState,
+        folder: { id: 'a', title: 'A' },
+      }).folderState;
+      folder = addFolder({
+        state: folder,
+        folder: { id: 'b', title: 'B', parentId: 'a', orderKey: 'F' },
+      }).folderState;
+      folder = moveFolder({
+        state: folder,
+        id: 'a',
+        parentId: 'INBOX_FOLDER',
+        orderKey: 'z',
+      }).folderState;
+      data.folder = folder;
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
+      const exported = await service.loadCompleteBackup(true);
+      expect(exported.data.folder).toEqual(folder);
+      await service.importCompleteBackup(
+        JSON.parse(
+          JSON.stringify({ ...exported, data: protectFullStateBackup(exported.data) }),
+        ),
+        true,
+        true,
+      );
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect((action.appDataComplete as typeof data).folder).toEqual(
+        materializeProjectFolders(data.project, data.menuTree, folder),
+      );
+      expect((action.appDataComplete as typeof data).folder?.entities['a']).toEqual(
+        folder.entities['a'],
+      );
+      expect((action.appDataComplete as typeof data).folder?.entities['b']).toEqual(
+        folder.entities['b'],
+      );
+      const replacement =
+        mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0];
+      expect(JSON.stringify(replacement)).toContain('FOLDER:*');
+    });
+    it('imports an absent legacy Folder slice as Inbox without changing Project identities', async () => {
+      const data = createValidAppData();
+      delete data.folder;
+      await service.importCompleteBackup(data, true, true);
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect(
+        (action.appDataComplete as typeof data).folder?.entities[projectFolderId('INBOX')]
+          ?.title,
+      ).toBe(data.project.entities['INBOX']!.title);
+      expect(action.appDataComplete.project.ids).toEqual(data.project.ids);
+    });
+    it('restores old Project/MenuTree state once, preserving Tasks, Tags and Sections', async () => {
+      const source = createValidAppData();
+      delete source.folder;
+      await service.importCompleteBackup(source, true, true);
+      const first = (
+        mockStore.dispatch.calls.mostRecent().args[0] as unknown as ReturnType<
+          typeof loadAllData
+        >
+      ).appDataComplete as typeof source;
+      expect(first.project).toEqual(source.project);
+      expect(first.tag).toEqual(source.tag);
+      expect(first.section).toEqual(source.section);
+      expect(first.task).toEqual(source.task);
+      await service.importCompleteBackup(first as typeof source, true, true);
+      const second = (
+        mockStore.dispatch.calls.mostRecent().args[0] as unknown as ReturnType<
+          typeof loadAllData
+        >
+      ).appDataComplete as typeof source;
+      expect(second.folder).toEqual(first.folder);
+    });
+    it('rejects unsupported declared backup requirements before persistence or apply', async () => {
+      mockStateSnapshotService.getAllSyncModelDataFromStore.and.returnValue(
+        createValidAppData(),
+      );
+      const source = await service.loadCompleteBackup();
+      source.requiredEntityTypes = ['FUTURE'];
+      await expectAsync(
+        service.importCompleteBackup(source, true, true),
+      ).toBeRejectedWithError(/unsupported entity/);
+      expect(mockOpLogStore.runDestructiveStateReplacement).not.toHaveBeenCalled();
+      expect(mockStore.dispatch).not.toHaveBeenCalled();
+    });
+    it('captures recovery when Folders are the only user data', async () => {
+      const data = createValidAppData();
+      data.folder = addFolder({
+        state: initialFolderState,
+        folder: { id: 'a', title: 'A' },
+      }).folderState;
+      mockStateSnapshotService.getStateSnapshotAsync.and.resolveTo(data);
+      await service.captureRecoveryPointIfMeaningful('REMOTE_IMPORT');
+      expect(mockOpLogStore.saveImportBackup).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('importCompleteBackup', () => {
+    it('materializes legacy ownership and retains explicit ownership through durable backup restore', async () => {
+      const data = addTaskToAppData(
+        addTaskToAppData(createValidAppData(), createValidTask('legacy')),
+        createValidTask('explicit', { folderId: 'manual' }),
+      );
+      data.folder = addFolder({
+        state: initialFolderState,
+        folder: { id: 'manual', title: 'Manual' },
+      }).folderState;
+      await service.importCompleteBackup(JSON.parse(JSON.stringify(data)), true, true);
+      const replacement =
+        mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0];
+      const restored = replacement.syncImportOp.payload as typeof data;
+      expect(restored.task.entities.legacy?.folderId).toBe(projectFolderId('INBOX'));
+      expect(restored.task.entities.explicit?.folderId).toBe('manual');
+      expect(replacement.syncImportOp.requiredCapabilities).toEqual([
+        TASK_FOLDER_OWNERSHIP_V1,
+      ]);
+      const action = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      expect((action.appDataComplete as typeof data).task).toEqual(restored.task);
+    });
+
     it('refuses a future-shaped WorkSession backup without downgrading its payload', async () => {
       const data = addTaskToAppData(createValidAppData(), createValidTask('task-1'));
       const future = {

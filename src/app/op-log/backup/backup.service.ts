@@ -1,3 +1,11 @@
+import { readFullStateBackup } from './full-state-backup-envelope';
+import { materializeTaskFolders } from '../../features/tasks/task-folder-ownership';
+import { getFullStateRequiredCapabilities } from '@sp/shared-schema';
+import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
+import {
+  assertFullStateReaderCompatible,
+  getFullStateRequiredEntityTypes,
+} from '../sync/folder-full-state-gate';
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
@@ -80,6 +88,8 @@ export class BackupService {
       timestamp: Date.now(),
       lastUpdate: Date.now(),
       crossModelVersion: CROSS_MODEL_VERSION,
+      requiredEntityTypes: getFullStateRequiredEntityTypes(data),
+      requiredCapabilities: getFullStateRequiredCapabilities(data),
       data: {
         ...(data as AppDataComplete),
         planning: (data as AppDataComplete).planning ?? { ids: [], entities: {} },
@@ -127,6 +137,14 @@ export class BackupService {
       } else {
         backupData = data as AppDataComplete;
       }
+
+      backupData = readFullStateBackup(backupData) as unknown as AppDataComplete;
+      assertFullStateReaderCompatible(
+        backupData,
+        (data as { requiredEntityTypes?: unknown }).requiredEntityTypes,
+        undefined,
+        (data as { requiredCapabilities?: unknown }).requiredCapabilities,
+      );
 
       // 2. Migrate legacy backups (pre-v14) that have the old data shape
       const { isLegacyBackupData, migrateLegacyBackup } =
@@ -218,6 +236,24 @@ export class BackupService {
           throw new BackupRepairFailedError();
         }
       }
+
+      validatedData = {
+        ...validatedData,
+        folder: materializeProjectFolders(
+          validatedData.project,
+          validatedData.menuTree,
+          validatedData.folder,
+        ),
+      };
+
+      validatedData = {
+        ...validatedData,
+        task: materializeTaskFolders(
+          validatedData.task,
+          validatedData.project,
+          validatedData.folder!,
+        ),
+      };
 
       // 4. Persist to operation log
       await this._operationWriteFlushService.flushPendingWrites();
@@ -452,6 +488,8 @@ export class BackupService {
       entityType: 'ALL',
       entityId: opId,
       payload: importedData,
+      requiredEntityTypes: getFullStateRequiredEntityTypes(importedData),
+      requiredCapabilities: getFullStateRequiredCapabilities(importedData),
       clientId,
       vectorClock: newClock,
       timestamp: Date.now(),

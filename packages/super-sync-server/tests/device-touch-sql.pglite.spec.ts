@@ -24,6 +24,9 @@ import { SYNC_DEVICES_DDL } from './sync-devices-ddl.helper';
 const mocks = vi.hoisted(() => {
   const state: { db: PGlite | null } = { db: null };
   const prisma = {
+    // This fixture has no operation history; reader requirements are empty.
+    userSyncState: { findUnique: async () => null },
+    $queryRaw: async () => [],
     syncDevice: {
       findMany: async (args: { where: { lastSeenAt: { gt: bigint } } }) => {
         const result = await state.db!.query<{

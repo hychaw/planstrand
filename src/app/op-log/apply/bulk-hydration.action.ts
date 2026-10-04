@@ -28,6 +28,8 @@ export const bulkApplyOperations = createAction(
   props<{
     operations: Operation[];
     localClientId?: string;
+    /** Startup waits for tail replay, failed-operation retry, and Folder seeding. */
+    deferTaskFolderMaterialization?: boolean;
     /**
      * Ephemeral replay groups whose operations came from one durable source op.
      * If one member fails, the meta-reducer excludes the whole group so a split
