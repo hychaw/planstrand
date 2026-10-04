@@ -26,7 +26,7 @@
       [class.label-hidden]="!showLabels()"
       [attr.aria-hidden]="!showLabels() ? 'true' : 'false'"
     >
-      {{ workContext()!.title }}
+      {{ label() || workContext()!.title | translate }}
     </span>
   </button>
 

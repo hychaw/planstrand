@@ -74,10 +74,10 @@ test.describe('Basic Navigation', () => {
     await expect(page).toHaveURL(/\/#\/config/);
     await expect(page.locator('.page-settings')).toBeVisible();
 
-    // Navigate back to work view by clicking the Today tag
+    // The primary Today destination uses independent Planning.
     await page.click('text=Today');
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/#\/tag\/TODAY/);
-    await expect(page.locator('task-list').first()).toBeVisible();
+    await expect(page).toHaveURL(/\/#\/today/);
+    await expect(page.locator('planstrand-page')).toBeVisible();
   });
 });

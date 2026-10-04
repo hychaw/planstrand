@@ -120,7 +120,7 @@ test.describe.serial('Plugin Loading', () => {
     // Navigate back to work view to see plugin menu
     await page.click('text=Today');
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/#\/tag\/TODAY/);
+    await expect(page).toHaveURL(/\/#\/today/);
 
     // Verify plugin menu entry exists
     const pluginNavItem = page

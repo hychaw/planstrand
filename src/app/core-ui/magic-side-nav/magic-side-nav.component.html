@@ -142,6 +142,7 @@
                 @switch (item.type) {
                   @case ('workContext') {
                     <nav-item
+                      [label]="item.label"
                       [workContext]="item.workContext"
                       [type]="item.workContextType"
                       [defaultIcon]="item.defaultIcon"

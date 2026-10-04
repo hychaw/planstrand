@@ -1,5 +1,7 @@
 {
   "PLANSTRAND": {
+    "LEGACY_TASKS": "Legacy Tasks",
+    "LEGACY_CAPTURE": "Legacy Capture",
     "INBOX": "Inbox",
     "MASTER_TASKS": "Master Tasks",
     "TODAY": "Today",

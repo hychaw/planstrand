@@ -34,7 +34,7 @@ test.describe('Drag Task to change project and labels', () => {
 
     // Navigate back to Today view where the task lives
     // (project creation navigates to the new project)
-    const todayNavItem = page.getByRole('menuitem').filter({ hasText: 'Today' });
+    const todayNavItem = page.getByRole('menuitem').filter({ hasText: 'Legacy Tasks' });
     await todayNavItem.waitFor({ state: 'visible', timeout: 5000 });
     await todayNavItem.click();
     await page.waitForURL(/tag\/TODAY/);
@@ -74,7 +74,7 @@ test.describe('Drag Task to change project and labels', () => {
     await expect(tagList).toContainText(`${testPrefix}-TestProject 2`);
 
     // Drag and drop back to inbox - wait for tag change
-    const inboxNavItem = page.getByRole('menuitem').filter({ hasText: 'Inbox' });
+    const inboxNavItem = page.getByRole('menuitem').filter({ hasText: 'Legacy Capture' });
     await dragHandle.dragTo(inboxNavItem);
     await expect(tagList).not.toContainText(`${testPrefix}-TestProject 2`, {
       timeout: 5000,
