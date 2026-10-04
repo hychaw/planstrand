@@ -40,7 +40,7 @@ test.describe('Planstrand Milestone A', () => {
     const planned = page.locator('planstrand-page section').first();
     await expect(planned).toContainText('Milestone canonical Task');
     await planned
-      .getByRole('button', { name: 'Calendar / Schedule', exact: true })
+      .getByRole('button', { name: 'Schedule WorkSession', exact: true })
       .click();
     await expect(page.locator('dialog-schedule-task')).toBeVisible();
     await page
@@ -72,7 +72,7 @@ test.describe('Planstrand Milestone A', () => {
     await expect(day).not.toContainText('Milestone canonical Task');
     const unplanned = page.locator('planstrand-page section').last();
     await unplanned
-      .getByRole('button', { name: 'Calendar / Schedule', exact: true })
+      .getByRole('button', { name: 'Schedule WorkSession', exact: true })
       .click();
     await expect(page.locator('dialog-schedule-task input[type="time"]')).toHaveValue(
       '10:00',

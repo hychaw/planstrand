@@ -91,7 +91,9 @@ export const test = base.extend<TestFixtures>({
       let navigationSuccess = false;
       for (let attempt = 0; attempt < 3 && !navigationSuccess; attempt++) {
         try {
-          await page.goto('/', {
+          // Legacy page objects exercise the retained upstream work view explicitly.
+          // V1 landing/navigation are covered independently by the Planstrand smoke.
+          await page.goto('/#/tag/TODAY/tasks', {
             waitUntil: 'domcontentloaded',
             timeout: 30000,
           });
