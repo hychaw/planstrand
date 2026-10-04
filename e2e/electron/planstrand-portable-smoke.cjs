@@ -65,34 +65,48 @@ const stop = async () => {
   page = undefined;
   browser = undefined;
 };
-(async () => {
-  await launch();
+const masterTasks = async () => {
   await page.evaluate(() => {
     location.hash = '/master-tasks';
   });
+  await expect(
+    page.getByRole('heading', { name: 'Master Tasks', exact: true, level: 1 }),
+  ).toBeVisible();
+  await expect(page.locator('planstrand-page')).toHaveCount(1);
+};
+const savePrompt = async (title) => {
+  const prompt = page.locator('dialog-prompt');
+  const input = prompt.locator('input');
+  await expect(input).toHaveClass(/ng-invalid/);
+  await input.focus();
+  await input.press('Tab');
+  await expect(input).toHaveClass(/ng-touched/);
+  await input.fill(title);
+  await expect(input).toHaveValue(title);
+  await expect(input).toHaveClass(/ng-valid/);
+  await prompt.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(prompt).toBeHidden();
+};
+(async () => {
+  await launch();
+  await masterTasks();
   await page
     .locator('planstrand-page header')
     .getByRole('button', { name: 'Create Folder', exact: true })
     .click();
-  let prompt = page.locator('dialog-prompt');
-  await prompt.locator('input').fill('Portable Folder');
-  await prompt.getByRole('button', { name: 'Save', exact: true }).click();
+  await savePrompt('Portable Folder');
   const folder = page.locator('planstrand-page section').filter({
     has: page.getByRole('heading', { name: '▾ Portable Folder', exact: true }),
   });
   await folder.getByRole('button', { name: 'Add Task', exact: true }).click();
-  prompt = page.locator('dialog-prompt');
-  await prompt.locator('input').fill('Portable Task');
-  await prompt.getByRole('button', { name: 'Save', exact: true }).click();
+  await savePrompt('Portable Task');
   await expect(folder).toContainText('Portable Task');
   // Export is unnecessary here; close only after the real persistence completion.
   await page.reload();
   await expect(page.locator('planstrand-page')).toContainText('Portable Task');
   await stop();
   await launch();
-  await page.evaluate(() => {
-    location.hash = '/master-tasks';
-  });
+  await masterTasks();
   await expect(page.locator('planstrand-page')).toContainText('Portable Folder');
   await expect(page.locator('planstrand-page')).toContainText('Portable Task');
   await page.screenshot({ path: path.join(dir, 'restart.png') });

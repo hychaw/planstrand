@@ -20,12 +20,18 @@ const launch = async (profile) => {
     timeout: 60000,
   });
   const page = await app.firstWindow();
+  await page.waitForLoadState('domcontentloaded');
+  const appUrl = page.url();
+  // Install the clock before application timers start. Replacing timers in a
+  // live RxJS app leaves old native intervals unable to cancel their callbacks.
+  await page.goto('about:blank');
   // Vancouver wall time must agree with the current-time row and persisted items.
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setTimezoneOverride', { timezoneId: 'America/Vancouver' });
-  await page.clock.setFixedTime(new Date('2026-10-04T19:21:00Z'));
+  await page.clock.install({ time: new Date('2026-10-04T19:21:00Z') });
   page.on('pageerror', (e) => failures.push(e.message));
   page.on('dialog', (d) => d.accept());
+  await page.goto(appUrl);
   await page.waitForLoadState('domcontentloaded');
   await page.locator('planstrand-page').waitFor({ timeout: 60000 });
   expect(await app.evaluate(({ app }) => app.getName())).toBe('Planstrand');
@@ -54,10 +60,31 @@ const goto = async (page, route) => {
   await page.evaluate((r) => {
     location.hash = r;
   }, route);
+  await page.waitForURL((url) => url.hash === `#${route}`);
+  if (route === '/master-tasks' || route === '/today') {
+    const name = route === '/master-tasks' ? 'Master Tasks' : 'Today';
+    await expect(
+      page.getByRole('heading', { name, exact: true, level: 1 }),
+    ).toBeVisible();
+    await expect(page.locator('planstrand-page')).toHaveCount(1);
+  } else {
+    await expect(page.locator('planstrand-page')).toHaveCount(0);
+  }
+};
+const fillNewTitle = async (input, text) => {
+  // The control can be visible before NgModel finishes initializing. Filling
+  // then can be overwritten by its initial empty value on fast Windows hosts.
+  await expect(input).toHaveClass(/ng-invalid/);
+  await input.focus();
+  await input.press('Tab');
+  await expect(input).toHaveClass(/ng-touched/);
+  await input.fill(text);
+  await expect(input).toHaveValue(text);
+  await expect(input).toHaveClass(/ng-valid/);
 };
 const prompt = async (page, text) => {
   const dialog = page.locator('dialog-prompt');
-  await dialog.locator('input').fill(text);
+  await fillNewTitle(dialog.locator('input'), text);
   await dialog.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(dialog).toBeHidden();
 };
@@ -104,7 +131,14 @@ const checkData = async (page) => {
       .filter({ hasText: 'RC Event' }),
   ).toHaveCount(1);
   for (const view of ['Month', 'Week', 'Day']) {
-    await page.getByRole('button', { name: `View ${view}`, exact: true }).click();
+    const toggle = page.getByRole('button', { name: `View ${view}`, exact: true });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    if (view !== 'Month') {
+      await expect(page.locator('schedule-week .week-header .day')).toHaveCount(
+        view === 'Day' ? 1 : 7,
+      );
+    }
     const early = page
       .locator('schedule-event:not(.custom-drag-preview)')
       .filter({ hasText: 'RC Early Event' });
@@ -117,8 +151,10 @@ const checkData = async (page) => {
       await expect
         .poll(() => early.evaluate((el) => getComputedStyle(el).gridRowStart))
         .toBe('25');
-      await early.scrollIntoViewIfNeeded();
-      await expect(early).toBeInViewport();
+      await expect(async () => {
+        await early.scrollIntoViewIfNeeded();
+        await expect(early).toBeInViewport();
+      }).toPass({ timeout: 5000 });
       await expect
         .poll(() =>
           page
@@ -167,13 +203,13 @@ const checkData = async (page) => {
   await page.getByRole('button', { name: 'View Day', exact: true }).click();
   await page.getByRole('button', { name: 'New Event', exact: true }).first().click();
   const event = page.locator('dialog-event');
-  await event.locator('input[name=title]').fill('RC Event');
+  await fillNewTitle(event.locator('input[name=title]'), 'RC Event');
   await event.locator('input[name=start]').fill('12:00');
   await event.locator('input[name=end]').fill('13:00');
   await event.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(event).toBeHidden();
   await page.getByRole('button', { name: 'New Event', exact: true }).first().click();
-  await event.locator('input[name=title]').fill('RC Early Event');
+  await fillNewTitle(event.locator('input[name=title]'), 'RC Early Event');
   await event.locator('input[name=start]').fill('09:00');
   await event.locator('input[name=end]').fill('10:00');
   await event.locator('input[name=timeZone]').fill('UTC');
@@ -194,7 +230,7 @@ const checkData = async (page) => {
   const backup = path.join(runDir, 'backup.json');
   fs.copyFileSync(path.join(runDir, exportFile), backup);
   const exported = JSON.parse(fs.readFileSync(backup, 'utf8'));
-  const earlyRecord = Object.values(exported.appDataComplete.event.entities).find(
+  const earlyRecord = Object.values(exported.data.appDataComplete.event.entities).find(
     (e) => e.title === 'RC Early Event',
   );
   expect(earlyRecord.start).toBe(Date.parse('2026-10-04T09:00:00Z'));
