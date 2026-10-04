@@ -1693,7 +1693,9 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
       // 3. Client A deletes the parent task
       // First, click elsewhere to clear any focus/selection
-      await clientA.page.locator('body').click({ position: { x: 10, y: 10 } });
+      await clientA.page
+        .locator('work-view > .wrapper')
+        .click({ position: { x: 10, y: 10 } });
       await clientA.page.waitForTimeout(200);
 
       // Find the parent task - use more specific selector targeting the parent (not subtask)
