@@ -219,7 +219,7 @@ test.describe.serial('Plugin Loading', () => {
 
     // Navigate back to main view
     await page.click('text=Today'); // Click on Today navigation
-    await expect(page).toHaveURL(/\/#\/tag\/TODAY/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/#\/today/, { timeout: 10000 });
 
     // Menu entry should reappear after re-enable
     const pluginNavItemReEnabled = page
