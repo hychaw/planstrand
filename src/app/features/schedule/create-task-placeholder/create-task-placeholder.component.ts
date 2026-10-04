@@ -1,5 +1,4 @@
 import { MatDialog } from '@angular/material/dialog';
-import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
 import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
@@ -52,12 +51,13 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
 
   private _taskService = inject(TaskService);
   private readonly _eventDialog = inject(MatDialog);
-  newEvent(ev: MouseEvent): void {
+  async newEvent(ev: MouseEvent): Promise<void> {
     ev.stopPropagation();
-    this._eventDialog.open(DialogEventComponent, {
-      data: { date: this.date(), start: this.due() },
-    });
+    const data = { date: this.date(), start: this.due() };
     this.editEnd.emit();
+    const { DialogEventComponent } =
+      await import('../../event/dialog-event/dialog-event.component');
+    this._eventDialog.open(DialogEventComponent, { data });
   }
   private readonly _workSessionService = inject(WorkSessionService);
   private _store = inject(Store);

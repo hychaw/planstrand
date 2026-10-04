@@ -1,5 +1,4 @@
 import { MatDialog } from '@angular/material/dialog';
-import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
 /* eslint-disable */
 import {
   ChangeDetectionStrategy,
@@ -75,10 +74,11 @@ import { anchorContextNow } from '../anchor-context-now';
 export class ScheduleComponent {
   T = T;
   private readonly _eventDialog = inject(MatDialog);
-  newEvent(): void {
-    this._eventDialog.open(DialogEventComponent, {
-      data: { date: this.daysToShow()[0] },
-    });
+  async newEvent(): Promise<void> {
+    const data = { date: this.daysToShow()[0] };
+    const { DialogEventComponent } =
+      await import('../../event/dialog-event/dialog-event.component');
+    this._eventDialog.open(DialogEventComponent, { data });
   }
   taskService = inject(TaskService);
   layoutService = inject(LayoutService);
