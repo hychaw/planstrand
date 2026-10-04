@@ -22,23 +22,17 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const CALENDAR_EVENTS_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
 const CALENDAR_LIST_READONLY_SCOPE =
   'https://www.googleapis.com/auth/calendar.calendarlist.readonly';
-const CLIENT_ID =
-  '637968426975-p6bu3f76b9cbk927k6281lb30bris19o.apps.googleusercontent.com';
-// NOT A SECRET — this is a "Desktop" OAuth client type (RFC 8252).
-// Google classifies these as public clients where the secret cannot be kept
-// confidential (it ships in the binary users download). PKCE + server-side
-// redirect URI restrictions are the actual security mechanisms.
-// Do not rotate or revoke — this value is intentionally committed.
-const CLIENT_SECRET = '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';
+// Planstrand RC defers Google OAuth until owned credentials are registered.
+const CLIENT_ID = '';
+// No inherited Desktop OAuth client/secret is shipped in Planstrand.
+const CLIENT_SECRET = '';
 // Android OAuth client ID — authenticates via package name + SHA-1 signing key.
 // No client secret needed; PKCE is the sole proof mechanism.
 // Requires "Custom URI scheme" to be enabled in Google Cloud Console.
-const MOBILE_CLIENT_ID =
-  '637968426975-ks6oveqe619324pimp8f7e1uqovfg65b.apps.googleusercontent.com';
+const MOBILE_CLIENT_ID = '';
 // iOS OAuth client ID — authenticates via bundle ID.
 // Requires "Custom URI scheme" to be enabled in Google Cloud Console.
-const IOS_CLIENT_ID =
-  '637968426975-ka1muro7mee1go0m7hhog49fm7svr4os.apps.googleusercontent.com';
+const IOS_CLIENT_ID = '';
 
 // Transient host config paired with getOAuthToken(tokenKey), never synced or public.
 const SP_OAUTH_TOKEN_KEY_CFG_KEY = '__spOAuthTokenKey';

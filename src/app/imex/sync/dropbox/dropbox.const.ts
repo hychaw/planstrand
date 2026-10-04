@@ -1,6 +1,8 @@
+import { getEnvOptional } from '../../../util/env';
 import { environment } from '../../../../environments/environment';
 
-export const DROPBOX_APP_KEY = 'm7w85uty7m745ph';
+// No upstream OAuth identity: only a deliberately configured Planstrand-owned key.
+export const DROPBOX_APP_KEY = getEnvOptional('DROPBOX_API_KEY') || '';
 
 export const DROPBOX_APP_FOLDER = 'super_productivity';
 const prefix = environment.production ? '' : 'dev_';
