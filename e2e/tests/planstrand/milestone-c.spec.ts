@@ -1,6 +1,10 @@
 import { expect, test } from '../../fixtures/test.fixture';
 import { Locator, Page } from '@playwright/test';
 import { waitForStatePersistence } from '../../utils/waits';
+import {
+  assertNoRuntimeBrowserErrors,
+  attachPageErrorCollector,
+} from '../../utils/runtime-errors';
 
 const savePrompt = async (page: Page, title: string): Promise<void> => {
   const dialog = page.locator('dialog-prompt');
@@ -47,6 +51,45 @@ const resize = async (page: Page, event: Locator): Promise<void> => {
 };
 
 test.describe('Planstrand V1 shipping smoke', () => {
+  test('guides a fresh desktop and phone user through primary empty-state actions', async ({
+    browser,
+    baseURL,
+  }) => {
+    for (const width of [1440, 390]) {
+      const context = await browser.newContext({
+        baseURL,
+        viewport: { width, height: 900 },
+      });
+      const page = await context.newPage();
+      const errors = attachPageErrorCollector(page, 'V1 first use');
+      try {
+        await page.goto('/');
+        await expect(page).toHaveURL(/#\/today$/);
+        await expect(page.locator('planstrand-page')).toContainText(
+          'Choose Plan Task on an unplanned task below',
+        );
+        await expect(page.locator('onboarding-hint')).toHaveCount(0);
+        await page.goto('/#/inbox');
+        const inbox = page.locator('planstrand-page section');
+        await inbox.getByRole('button', { name: 'Add Task', exact: true }).click();
+        await savePrompt(page, 'My first Planstrand Task');
+        await expect(inbox).toContainText('My first Planstrand Task');
+        await page.goto('/#/schedule');
+        await page
+          .getByRole('button', { name: 'New Event', exact: true })
+          .first()
+          .click();
+        await expect(page.locator('dialog-event input[name=title]')).toBeFocused();
+        await page
+          .locator('dialog-event')
+          .getByRole('button', { name: 'Cancel', exact: true })
+          .click();
+        assertNoRuntimeBrowserErrors(errors, 'V1 first use');
+      } finally {
+        await context.close();
+      }
+    }
+  });
   test('lands on Today and keeps primary navigation usable at representative widths', async ({
     page,
   }) => {

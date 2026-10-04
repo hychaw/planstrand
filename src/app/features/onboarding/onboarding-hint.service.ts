@@ -1,9 +1,10 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
 import { ofType } from '@ngrx/effects';
 import { Action, Store } from '@ngrx/store';
 import { Observable, Subscription } from 'rxjs';
-import { concatMap, filter, first } from 'rxjs/operators';
+import { concatMap, filter, first, map } from 'rxjs/operators';
 import { LS } from '../../core/persistence/storage-keys.const';
 import { LayoutService } from '../../core-ui/layout/layout.service';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
@@ -58,6 +59,14 @@ const RETURNING_USER_MIN_PROJECTS = 3;
  */
 @Injectable({ providedIn: 'root' })
 export class OnboardingHintService {
+  private _router = inject(Router);
+  private _route = toSignal(
+    this._router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects),
+    ),
+    { initialValue: this._router.url },
+  );
   private _layoutService = inject(LayoutService);
   private _dataInitStateService = inject(DataInitStateService);
   private _taskService = inject(TaskService);
@@ -116,6 +125,18 @@ export class OnboardingHintService {
       this._markDone();
       return;
     }
+
+    // V1 uses inline empty-state actions. The inherited tutorial targets legacy
+    // task lists and work contexts, which are not visible on these routes.
+    effect(() => {
+      if (
+        /^\/(today|this-week|inbox|master-tasks|folder|schedule)(\/|$)/.test(
+          this._route(),
+        )
+      ) {
+        untracked(() => this._markDone());
+      }
+    });
 
     // "Swipe left" is learned once the task menu was opened and closed again.
     effect(() => {

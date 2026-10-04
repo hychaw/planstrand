@@ -188,7 +188,8 @@ export const createLegacyMigratedClient = async (
   });
 
   // Navigate to the app origin (index.html loads but JS is blocked)
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  // Compatibility scenarios use the retained work view, independently of V1 startup.
+  await page.goto('/#/tag/TODAY/tasks', { waitUntil: 'domcontentloaded' });
   console.log(`[Legacy Client ${clientName}] Seeding legacy database...`);
 
   // Seed the legacy 'pf' database

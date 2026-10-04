@@ -203,7 +203,8 @@ export const setupSyncClient = async (
     );
   });
 
-  await page.goto('/');
+  // Compatibility scenarios use the retained work view, independently of V1 startup.
+  await page.goto('/#/tag/TODAY/tasks');
   await waitForAppReady(page);
   return { context, page };
 };

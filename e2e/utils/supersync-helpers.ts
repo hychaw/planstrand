@@ -468,7 +468,8 @@ export const createSimulatedClient = async (
   let lastGotoError: Error | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await page.goto('/');
+      // Compatibility scenarios use the retained work view, independently of V1 startup.
+      await page.goto('/#/tag/TODAY/tasks');
       lastGotoError = null;
       break;
     } catch (e) {
