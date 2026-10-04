@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { T } from '../../../t.const';
+import { DROPBOX_APP_KEY } from '../../../imex/sync/dropbox/dropbox.const';
 import { ConfigFormSection, SyncConfig } from '../global-config.model';
 import { SyncProviderId } from '../../../op-log/sync-providers/provider.const';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
@@ -196,7 +197,9 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         required: true,
         options: [
           { label: 'SuperSync (Beta)', value: SyncProviderId.SuperSync },
-          { label: SyncProviderId.Dropbox, value: SyncProviderId.Dropbox },
+          ...(DROPBOX_APP_KEY
+            ? [{ label: SyncProviderId.Dropbox, value: SyncProviderId.Dropbox }]
+            : []),
           { label: 'Nextcloud', value: SyncProviderId.Nextcloud },
           ...(IS_ONEDRIVE_SUPPORTED
             ? [

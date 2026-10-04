@@ -29,7 +29,7 @@ const UNIVERSAL_RECOVERY_STEPS =
   'keeps happening, you likely have a second, older copy: an outdated shortcut, ' +
   'a portable executable, or an old install folder.\n' +
   '3. If you cannot find it, update the way you installed it — your app store, ' +
-  'package manager, or https://super-productivity.com\n' +
+  'package manager, or https://github.com/hychaw/planstrand/releases\n' +
   '4. If you run it in a browser: reload with Ctrl+Shift+R (Cmd+Shift+R on Mac) ' +
   'and close any other tabs running Super Productivity.\n\n';
 
