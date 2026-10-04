@@ -1,6 +1,18 @@
 # Planstrand V1 release preparation audit
 
-Prepared 2026-10-04. **Planstrand v1.0.0-rc.1 ready to create.** No tag, release, workflow dispatch or store upload was performed.
+Prepared 2026-10-04. The original RC artifacts below are superseded by the Windows installer safety correction. No tag or GitHub Release is authorized by this audit.
+
+## Windows installer safety correction (2026-10-04)
+
+Manual RC testing selected the existing source checkout as the installation directory. Uninstall recursively removed its contents, including `.git`. Recovery from GitHub lost no pushed source or history. Safety work began from clean `release/planstrand-v1` SHA `4f5d716d26d5767e46fc40b491941575a7ec18ba` in `Planstrand-recovered`; the damaged checkout was not used. Unsafe workflow run `37195686206` is cancelled and must not supply a release.
+
+Electron Builder's installed NSIS templates explain the failure: `assistedInstaller.nsh` appends a subdirectory only when the full path does not contain the application filename. The repository path already contained Planstrand. `multiUser.nsh` also honors `/D=` independently of the directory page; `uninstaller.nsh` recursively removes `$INSTDIR` rather than tracking individual installed files.
+
+RC1 intentionally disables custom directory selection and uses a one-click per-user install at `%LOCALAPPDATA%\Programs\Planstrand`. `build/planstrand-installer.nsh` rejects `/D=` (including lowercase), foreign/orphaned prior uninstall registrations, and non-empty defaults without hardened-install provenance (registration, app identity marker, executable and uninstaller). The uninstaller also refuses a foreign destination or missing identity marker. Existing unhardened installations must not be upgraded/uninstalled automatically through this guard; review their contents separately. No profile deletion policy changed: ordinary uninstall retains `%APPDATA%\Planstrand`.
+
+`e2e/electron/planstrand-installer-safety.ps1` exercises real unsigned NSIS binaries, spaces in a temporary target, root/nested unrelated sentinels, an unsafe prior registration, an unowned non-empty default, default installation/reinstallation, runtime identity/profile isolation, Start Menu/uninstall metadata, packaged application smoke and uninstall retention. It refuses a host with an existing default installation/registration and never targets source. The existing portable-smoke CI entry point invokes the complete regression, including when dispatching master's workflow definition with the corrected source ref.
+
+Corrected local production desktop build, unsigned installer/portable packaging, packaged import verification, 14 release/Windows contracts, repository lint, changed JS `checkFile`, formatting and `git diff --check` passed. Installer-only regression passed: `/D=` and `/d=` refused; prior unsafe registration and unowned default refused; dedicated install metadata/version/shortcut, reinstallation, native `_?=` uninstall override, app file removal, retained profile and root/nested sentinels verified. Evidence: `.tmp/installer-safety-only.log`. Application launches through Playwright were blocked locally by Windows Device Guard; portable restart also timed out. No security policy was changed. Complete hosted Windows packaged verification is required before the final corrected RC is considered ready.
 
 Branch: `release/planstrand-v1`. Verified clean base: `development` = `origin/development` = `6eab0a6204db64fafc7b027667d2d14cbd545482`. Audited application/packaging commit: `d4ec0636b4073a6a124c494621c77d779cb7d121`. The final branch SHA is the commit containing this audit; obtain it with `git rev-parse HEAD`. This final commit changes documentation only.
 
@@ -24,7 +36,7 @@ The original MIT LICENSE and `Copyright (c) 2018 Johannes Millan` are unchanged.
 
 [release-planstrand.yml](../.github/workflows/release-planstrand.yml) is manual-only, takes an explicit ref and guards `hychaw/planstrand`. Default behavior builds/uploads unsigned Windows x64 installer/portable, checksums and source SHA; `--publish never` is used. Optional draft creation is a separate environment-gated job using `--draft --prerelease`. It records/embeds the checked-out SHA, not the dispatch event SHA. Syntax/contracts and local equivalent builds passed; GitHub-hosted execution has not run. No upstream secrets or store uploads are required.
 
-## Windows artifacts and packaged smoke
+## Original Windows artifacts and packaged smoke (superseded)
 
 Final local artifacts are ignored files under `.tmp/app-builds/`; binaries are not committed.
 

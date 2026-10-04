@@ -33,8 +33,10 @@ win:
   signAndEditExecutable: true
 nsis:
   artifactName: Planstrand-Setup.${ext}
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  include: build/planstrand-installer.nsh
   packElevateHelper: false
   shortcutName: Planstrand
   uninstallDisplayName: Planstrand

@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
 const { chromium, expect } = require('@playwright/test');
 const executable = path.resolve(
   process.argv[2] || '.tmp/app-builds/Planstrand-Portable.exe',
@@ -96,6 +96,23 @@ const stop = async () => {
   await expect(page.locator('planstrand-page')).toContainText('Portable Folder');
   await expect(page.locator('planstrand-page')).toContainText('Portable Task');
   await page.screenshot({ path: path.join(dir, 'restart.png') });
+  await stop();
+  // Dispatching from master uses master's workflow definition, but checks out
+  // the reviewed ref's scripts. Keep the installer regression in that existing
+  // CI entry point so the corrected SHA is tested before artifact upload.
+  if (process.platform === 'win32' && process.env.GITHUB_ACTIONS === 'true') {
+    execFileSync(
+      'pwsh.exe',
+      [
+        '-NoProfile',
+        '-File',
+        path.join(__dirname, 'planstrand-installer-safety.ps1'),
+        '-Installer',
+        path.join(path.dirname(executable), 'Planstrand-Setup.exe'),
+      ],
+      { stdio: 'inherit', windowsHide: true, timeout: 300000 },
+    );
+  }
   fs.writeFileSync(
     path.join(dir, 'result.json'),
     JSON.stringify(
