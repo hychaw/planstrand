@@ -4,7 +4,7 @@ name: Android Native Tests
 # expensive setup and tests are skipped when no Android-affecting files changed.
 on:
   pull_request:
-    branches: [master, main]
+    branches: [development]
   workflow_dispatch:
 
 permissions:
@@ -136,7 +136,7 @@ jobs:
           # One emulator session for both halves: the instrumented suite on
           # debug, then a launch smoke against the minified r8Test APK, which is
           # the only thing in CI that exercises R8. play, not fdroid: play is the
-          # flavor that ships to the Play internal track on every master push.
+          # flavor retained for future native-platform validation.
           #
           # A script file, not an inline block: this action runs the `script:`
           # input one line per `sh -c`, so variables, `set -u` and multi-line

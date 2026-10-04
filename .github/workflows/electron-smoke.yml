@@ -15,7 +15,7 @@ name: Electron Packaging Smoke Test
 
 on:
   pull_request:
-    branches: [master, main]
+    branches: [development]
     # Trigger broadly — #7320's root cause was a file under src/app/util/
     # that electron/ imported, so narrowing to electron/** would have let
     # the exact bug this workflow exists to prevent slip through again.
@@ -32,7 +32,7 @@ on:
       - '!.github/workflows/**'
       - '.github/workflows/electron-smoke.yml'
   push:
-    branches: [master]
+    branches: [development]
     tags: ['v*']
   workflow_dispatch:
 

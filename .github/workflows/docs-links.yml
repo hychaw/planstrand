@@ -3,9 +3,9 @@ name: Documentation Links
 
 'on':
   pull_request:
-    branches: [master, main]
+    branches: [development]
   push:
-    branches: [master, main]
+    branches: [development]
 
 concurrency:
   group: documentation-links-${{ github.ref }}
