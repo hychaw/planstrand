@@ -25,7 +25,9 @@ const openFreshApp = async (
       localStorage.setItem('SUP_EXAMPLE_TASKS_CREATED', 'true');
     });
   }
-  await page.goto('/');
+  // These scenarios retain the inherited tutorial on its legacy Task view.
+  // Primary V1 first use is covered by planstrand/milestone-c.spec.ts.
+  await page.goto('/#/tag/TODAY/tasks');
 };
 
 const addTaskViaComposer = async (page: Page, title: string): Promise<void> => {
@@ -39,7 +41,7 @@ const addTaskViaComposer = async (page: Page, title: string): Promise<void> => {
   await expect(composer).toBeHidden();
 };
 
-test.describe('First-run onboarding', () => {
+test.describe('Legacy first-run onboarding', () => {
   test('a new install starts with a calm feature set', async ({ isolatedContext }) => {
     const page = await isolatedContext.newPage();
     const runtimeErrors = attachPageErrorCollector(page, 'onboarding defaults');
@@ -52,7 +54,8 @@ test.describe('First-run onboarding', () => {
     const sideNav = page.locator('magic-side-nav');
     await expect(sideNav.getByText('Planner', { exact: true })).toBeVisible();
     await expect(page.locator('.tour-playBtn')).toBeVisible();
-    for (const hidden of ['Schedule', 'Boards', 'Habits']) {
+    await expect(sideNav.getByText('Calendar', { exact: true })).toBeVisible();
+    for (const hidden of ['Boards', 'Habits']) {
       await expect(sideNav.getByText(hidden, { exact: true })).toHaveCount(0);
     }
     assertNoRuntimeBrowserErrors(runtimeErrors, 'onboarding defaults');
@@ -79,13 +82,21 @@ test.describe('First-run onboarding', () => {
       .poll(async () => {
         const target = await inboxNavItem.boundingBox();
         const chip = await hint.locator('.hint-chip').boundingBox();
-        return !!target && !!chip && chip.y > target.y + target.height;
+        // More places the legacy Inbox lower in the sidebar; the hint can
+        // anchor above it when there is insufficient space below.
+        return (
+          !!target &&
+          !!chip &&
+          (chip.y > target.y + target.height || chip.y + chip.height < target.y)
+        );
       })
       .toBe(true);
 
     await inboxNavItem.click();
     await expect(hint).toHaveCount(0);
-    await expect(page.locator('task').filter({ hasText: 'Go further' })).toBeVisible();
+    await expect(
+      page.locator('task').filter({ hasText: 'Plan your week' }),
+    ).toBeVisible();
     assertNoRuntimeBrowserErrors(runtimeErrors, 'onboarding inbox');
     await page.close();
   });

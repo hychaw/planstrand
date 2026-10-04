@@ -66,14 +66,10 @@ test.describe('Planner Navigation', () => {
     expect(urlAfterRefresh).toMatch(/\/(planner|tasks)/);
   });
 
-  test('should handle deep linking to planner', async ({ page }) => {
-    // Direct navigation to planner URL
+  test('falls back to Today for an obsolete context-planner URL', async ({ page }) => {
     await page.goto('/#/tag/TODAY/planner');
     await page.waitForLoadState('networkidle');
-    await plannerPage.waitForPlannerView();
-
-    // Should be on planner or tasks view
-    await expect(page).toHaveURL(/\/(planner|tasks)/);
-    await expect(plannerPage.routerWrapper).toBeVisible();
+    await expect(page).toHaveURL(/#\/today$/);
+    await expect(page.locator('planstrand-page')).toBeVisible();
   });
 });

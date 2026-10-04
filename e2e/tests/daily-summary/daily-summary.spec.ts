@@ -33,7 +33,7 @@ test.describe('Daily Summary', () => {
 
   test('show any added task in table', async ({ page, workViewPage }) => {
     // First navigate to work view to add task
-    await page.goto('/');
+    await page.goto('/#/tag/TODAY/tasks');
     await workViewPage.waitForTaskList();
 
     // Add task

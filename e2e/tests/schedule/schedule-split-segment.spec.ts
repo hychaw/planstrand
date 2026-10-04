@@ -24,7 +24,7 @@ test.describe('Schedule split segments', () => {
     await dialog.locator('input[type="time"]').fill('12:00');
     await dialog.locator('[data-test-id="schedule-submit-btn"]').click();
     await expect(dialog).toBeHidden();
-    await page.getByRole('menuitem', { name: 'Schedule' }).click();
+    await page.getByRole('menuitem', { name: 'Calendar' }).click();
 
     // A 30h estimate crosses midnight no matter which hour the click lands on,
     // so the split does not depend on the grid's scroll position or on the time
