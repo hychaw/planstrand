@@ -97,6 +97,9 @@
     }
 
     @if (isDataLoaded()) {
+      @if (isFullMode() || isMobile()) {
+        <planstrand-folder-navigation (navigated)="isMobile() && toggleMobileNav()" />
+      }
       <!-- Navigation Items -->
       <ul
         class="nav-list"

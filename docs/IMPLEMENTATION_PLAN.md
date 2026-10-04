@@ -1,5 +1,24 @@
 # Planstrand Implementation Plan
 
+## Active strategy: Fast-Track V1 (2026-10-04)
+
+Phases 1–4 are the authoritative foundations. Execute product milestones instead
+of running old Phases 5–13 sequentially. Milestone A combines essential Phase 5/6:
+primary navigation, Master Tasks, recursive Folders, effective Inbox, Folder-aware
+Task capture/movement/search, canonical Today/This Week Planning, and existing
+WorkSession scheduling. Reuse upstream Task rows, inspector, add bar, and calendar.
+Implement → targeted tests → continue → one combined milestone validation, then
+one normal final CI/E2E checkpoint. Keep Projects and other upstream surfaces.
+
+Old Phase 8–12 advanced work (weekly templates, recurrence architecture, reminder
+normalization, Trash, account/device/E2EE redesign, encrypted-backup redesign) is
+**post-V1 / deferred**, unless a demonstrated product blocker requires a separate
+decision. Standalone Events and advanced calendar views from Phase 7 are not part
+of Milestone A. Phase 13 branding, animation, density, exhaustive responsive polish,
+and advanced integration export are deferred to shipping polish or post-V1.
+No new schema, sync entities, dependencies, or UI-state synchronization in A.
+The historical audit below remains context; this strategy supersedes its sequence.
+
 This audit compares the current repository at `feature/architecture-audit` with `docs/PRODUCT_SPEC.md`, `docs/ARCHITECTURE.md`, `docs/DESIGN_SYSTEM.md`, and `docs/UPSTREAM.md`. It is an implementation plan, not an authorization to change production code. Paths and symbols below were verified in the current source tree.
 
 ## 1. Current Architecture Map

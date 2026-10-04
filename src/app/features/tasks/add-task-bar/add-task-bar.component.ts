@@ -1,4 +1,7 @@
 import { planningCommands } from '../../planning/planning-commands';
+import { Router } from '@angular/router';
+import { folderForPlanstrandRoute } from '../../folder/folder-route';
+import { INBOX_PROJECT } from '../../project/project.const';
 import {
   afterRenderEffect,
   AfterViewInit,
@@ -135,6 +138,7 @@ export interface TaskAddEvent {
   providers: [AddTaskBarStateService, AddTaskBarParserService],
 })
 export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
+  private readonly _router = inject(Router, { optional: true });
   private readonly _taskService = inject(TaskService);
   private readonly _workContextService = inject(WorkContextService);
   private readonly _projectService = inject(ProjectService);
@@ -242,6 +246,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
             time: undefined as string | undefined,
           };
         } else if (
+          !folderForPlanstrandRoute(this._router?.url ?? '') &&
           workContext?.type === WorkContextType.TAG &&
           workContext?.id === 'TODAY'
         ) {
@@ -509,9 +514,16 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
       }
 
       const additionalFields = this.additionalFields();
+      const routeFolder = folderForPlanstrandRoute(this._router?.url ?? '');
       const taskData: Partial<TaskCopy> = {
         ...additionalFields,
         projectId: state.projectId,
+        ...(routeFolder
+          ? {
+              folderId: additionalFields?.folderId ?? routeFolder,
+              projectId: INBOX_PROJECT.id,
+            }
+          : {}),
         tagIds: additionalFields?.tagIds
           ? unique([...finalTagIds, ...additionalFields.tagIds])
           : finalTagIds,

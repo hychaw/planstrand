@@ -18,6 +18,9 @@ import { Tag } from '../../features/tag/tag.model';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import { SearchItem } from './search-page.model';
+import { provideMockStore, MockStore } from '@ngrx/store/testing';
+import { initialFolderState } from '../../features/folder/folder-state';
+import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
 
 // Minimal stub task matching the Task interface shape
 const createTask = (overrides: Partial<Task> = {}): Task =>
@@ -100,6 +103,7 @@ describe('SearchPageComponent', () => {
     await TestBed.configureTestingModule({
       imports: [SearchPageComponent, NoopAnimationsModule, TranslateModule.forRoot()],
       providers: [
+        provideMockStore({ initialState: { folder: initialFolderState } }),
         { provide: TaskService, useValue: taskServiceSpy },
         {
           provide: ProjectService,
@@ -151,6 +155,30 @@ describe('SearchPageComponent', () => {
   };
 
   // --- Behavioral tests ---
+
+  it('shows canonical ancestor Folder context and effectively resolves stale ownership to Inbox', fakeAsync(() => {
+    TestBed.inject(MockStore).setState({
+      folder: {
+        ...initialFolderState,
+        ids: [...initialFolderState.ids, 'a', 'b'],
+        entities: {
+          ...initialFolderState.entities,
+          a: { id: 'a', title: 'A' },
+          b: { id: 'b', title: 'B', parentId: 'a' },
+        },
+      },
+    });
+    allTasks$.next([
+      createTask({ id: 'owned', title: 'Folder Task', folderId: 'b' }),
+      createTask({ id: 'stale', title: 'Folder stale', folderId: 'deleted' }),
+    ]);
+    initAndFlush();
+    typeAndFlush('Folder');
+    expect(latestResults.find((t) => t.id === 'owned')?.folderPath).toBe('A / B');
+    expect(latestResults.find((t) => t.id === 'stale')?.folderPath).toBe(
+      initialFolderState.entities[INBOX_FOLDER_ID]!.title,
+    );
+  }));
 
   it('should return empty array for empty search', fakeAsync(() => {
     initAndFlush();

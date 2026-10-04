@@ -145,6 +145,21 @@ export class MagicNavConfigService {
   // Main navigation configuration
   readonly navConfig = computed<NavConfig>(() => ({
     items: [
+      ...[
+        ['inbox', 'INBOX', 'inbox', '/inbox'],
+        ['master-tasks', 'MASTER_TASKS', 'account_tree', '/master-tasks'],
+        ['today', 'TODAY', 'today', '/today'],
+        ['this-week', 'THIS_WEEK', 'date_range', '/this-week'],
+        ['calendar', 'SCHEDULE', 'calendar_month', '/schedule'],
+      ].map(
+        ([id, label, icon, route]): NavItem => ({
+          type: 'route',
+          id: `planstrand-${id}`,
+          label: `PLANSTRAND.${label}`,
+          icon,
+          route,
+        }),
+      ),
       // Work Context Items
       ...this._buildWorkContextItems(),
 

@@ -4,6 +4,7 @@ import { IssueProviderKey } from '../../features/issue/issue.model';
 import { TimeSpentOnDay } from '../../features/tasks/task.model';
 
 export interface SearchItem {
+  folderPath?: string;
   id: string;
   title: string;
   taskNotes: string;

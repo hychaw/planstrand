@@ -115,6 +115,10 @@ class PlanningCommands {
   private place(id: string, target: PlanningPlacement['target'], index: number): void {
     this.dispatchPrepared(this.placementAction(id, target, index));
   }
+  /** Single placement operation for day/week drops and accessible reorder commands. */
+  placeAt(id: string, target: PlanningPlacement['target'], index: number): void {
+    this.place(id, target, index);
+  }
   dayAction(
     p: Omit<ReturnType<typeof PlannerActions.planTaskForDay>, 'type' | 'meta'>,
   ): Promise<ReturnType<typeof setPlacement>> {
