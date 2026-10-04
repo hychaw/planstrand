@@ -367,7 +367,7 @@ recoverable via local undo, not via sync.
 channel by what actually changed (table below). Do not raise
 `CURRENT_SCHEMA_VERSION` unless a change is **both** inexpressible as an additive
 or derived field **and** would be _misapplied_ — not merely ignored — by older
-clients. This is the constructive counterpart to the bump policy (sync rule 10),
+clients. This is the constructive counterpart to the [schema-version bump policy](docs/sync-and-op-log/operation-log-architecture.md#bump-policy--a-bump-does-not-protect-the-released-fleet),
 which says when not to bump but not what to do instead.
 
 | What changed                                                   | Channel                                                               | Precedent                                              |
@@ -399,7 +399,7 @@ which says when not to bump but not what to do instead.
 **Evaluation record (2026-08)**: raising `CURRENT_SCHEMA_VERSION` to 5 was
 considered and **declined**. Neither candidate motivation survived: the
 accumulated optional-field/runtime-default debt needs no migration (that pattern
-_is_ the answer, per sync rule 11), and the typed RRULE recurrence model can ship
+_is_ the answer, per the [persisted-field requirements](docs/sync-and-op-log/persisted-model-fields.md)), and the typed RRULE recurrence model can ship
 as an additive field while the flat fields stay canonical and re-derived — see
 #9664, which also corrects that plan's inverted cross-version gate. A migration
 with no payload is pure cost.
@@ -407,7 +407,7 @@ with no payload is pure cost.
 **Implementation**: no new machinery — each channel above already exists and has
 a shipped precedent.
 
-**Documentation**: [Bump Policy §A.7.11](docs/sync-and-op-log/operation-log-architecture.md#bump-policy--a-bump-does-not-protect-the-released-fleet), [`persisted-model-fields.md`](docs/sync-and-op-log/persisted-model-fields.md), `development.md` sync rules 10 and 11
+**Documentation**: [Bump Policy §A.7.11](docs/sync-and-op-log/operation-log-architecture.md#bump-policy--a-bump-does-not-protect-the-released-fleet), [`persisted-model-fields.md`](docs/sync-and-op-log/persisted-model-fields.md)
 
 **Key Files**:
 
@@ -541,16 +541,16 @@ The server prunes after conflict detection, before storage.
 
 ## Decisions Recorded Elsewhere
 
-These carry the same authority as the numbered records above. They live outside this file because they are long enough to stand alone, or because they are enforced as contributor/agent rules that must be read before touching the subsystem. Keep this table complete — if you record a decision somewhere else, add a row here.
+These carry the same authority as the numbered records above. They live outside this file because they are long enough to stand alone, or because they are enforced as contributor rules that must be read before touching the subsystem. Keep this table complete — if you record a decision somewhere else, add a row here.
 
-| Decision                                                                                                                                                  | Where it lives                                                                                                                                                                                                                                                        |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Semantic sync reader requirements** — entity support does not imply new ownership semantics; Phase 4E clients advertise `TASK_FOLDER_OWNERSHIP_V1`      | [Semantic reader capabilities](docs/sync-and-op-log/semantic-reader-capabilities.md)                                                                                                                                                                                  |
-| **SuperSync database encryption at rest** — no project-managed volume encryption; the LUKS and PostgreSQL-TDE attempts are retired as OpenVZ-incompatible | [`docs/supersync-encryption-at-rest-decision.md`](docs/supersync-encryption-at-rest-decision.md)                                                                                                                                                                      |
-| **Schema-version bump policy** — default to NOT bumping `CURRENT_SCHEMA_VERSION`; a bump never protects the released fleet and cannot be reverted         | [`operation-log-architecture.md` §A.7.11 Bump Policy](docs/sync-and-op-log/operation-log-architecture.md#bump-policy--a-bump-does-not-protect-the-released-fleet), [`schema-version.ts`](packages/shared-schema/src/schema-version.ts), `development.md` sync rule 10 |
-| **Required fields on persisted models** — a new field on a persisted model is optional (`?`) plus a runtime default, never required                       | [`docs/sync-and-op-log/persisted-model-fields.md`](docs/sync-and-op-log/persisted-model-fields.md), `development.md` sync rule 11                                                                                                                                     |
-| **One user intent = one op** — effects inject `LOCAL_ACTIONS`; a multi-entity change is a meta-reducer, not an effect fan-out                             | [`docs/sync-and-op-log/contributor-sync-model.md`](docs/sync-and-op-log/contributor-sync-model.md), `development.md` sync rules 1–3 and 6                                                                                                                             |
-| **`src/app` layer boundary** — `core/` and `ui/` must not import `features/`; lint-enforced; legacy imports carry shrink-only inline disables             | [`src/app/README.md`](src/app/README.md), [`eslint.config.js`](eslint.config.js) (`FEATURE_LAYER_FENCE`)                                                                                                                                                              |
+| Decision                                                                                                                                                  | Where it lives                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Semantic sync reader requirements** — entity support does not imply new ownership semantics; Phase 4E clients advertise `TASK_FOLDER_OWNERSHIP_V1`      | [Semantic reader capabilities](docs/sync-and-op-log/semantic-reader-capabilities.md)                                                                                                                                                   |
+| **SuperSync database encryption at rest** — no project-managed volume encryption; the LUKS and PostgreSQL-TDE attempts are retired as OpenVZ-incompatible | [`docs/supersync-encryption-at-rest-decision.md`](docs/supersync-encryption-at-rest-decision.md)                                                                                                                                       |
+| **Schema-version bump policy** — default to NOT bumping `CURRENT_SCHEMA_VERSION`; a bump never protects the released fleet and cannot be reverted         | [`operation-log-architecture.md` §A.7.11 Bump Policy](docs/sync-and-op-log/operation-log-architecture.md#bump-policy--a-bump-does-not-protect-the-released-fleet), [`schema-version.ts`](packages/shared-schema/src/schema-version.ts) |
+| **Required fields on persisted models** — a new field on a persisted model is optional (`?`) plus a runtime default, never required                       | [`docs/sync-and-op-log/persisted-model-fields.md`](docs/sync-and-op-log/persisted-model-fields.md)                                                                                                                                     |
+| **One user intent = one op** — effects inject `LOCAL_ACTIONS`; a multi-entity change is a meta-reducer, not an effect fan-out                             | [`docs/sync-and-op-log/contributor-sync-model.md`](docs/sync-and-op-log/contributor-sync-model.md)                                                                                                                                     |
+| **`src/app` layer boundary** — `core/` and `ui/` must not import `features/`; lint-enforced; legacy imports carry shrink-only inline disables             | [`src/app/README.md`](src/app/README.md), [`eslint.config.js`](eslint.config.js) (`FEATURE_LAYER_FENCE`)                                                                                                                               |
 
 ---
 
@@ -616,7 +616,7 @@ This applies only when the answer changes. Fixing wording, adding a key file, or
 
 This log deliberately does **not** use one-file-per-decision (`docs/adr/NNNN-*.md`):
 
-- The numbered records are one read for a contributor or an agent. Unlike the lint-enforced rules in [development guidance](docs/development.md), a decision record's only teeth are being read — spreading them over 30 files means nobody reads all of them.
+- The numbered records are one read for a contributor. Unlike the lint-enforced contributor rules in the [contributor sync model](docs/sync-and-op-log/contributor-sync-model.md), a decision record's only teeth are being read — spreading them over 30 files means nobody reads all of them.
 - `docs/` already separates plans, long-term-plans, research, sync-and-op-log and wiki. A further location makes decisions harder to find, not easier.
 
 Note this is "one index, many locations", not "one file": [Decisions Recorded Elsewhere](#decisions-recorded-elsewhere) deliberately sanctions authoritative decisions living in their own documents. What stays consolidated is the **entry point**, so that ~30 in-code citations (`// See: ARCHITECTURE-DECISIONS.md Decision #2`) resolve to one place.
