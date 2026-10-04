@@ -1,0 +1,90 @@
+name: Planstrand Release Candidate
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Existing reviewed commit SHA or tag to build
+        required: true
+        type: string
+      create_draft:
+        description: Create a draft prerelease after validation
+        default: false
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  windows:
+    if: github.repository == 'hychaw/planstrand'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: npm
+      - run: npm ci
+      - name: Release contracts
+        run: node --test tools/verify-planstrand-release.test.cjs tools/verify-windows-artifact-contract.test.js tools/verify-linux-wm-class.test.js
+      - name: Production desktop build
+        shell: pwsh
+        run: |
+          $env:GITHUB_SHA = git rev-parse HEAD
+          npm run build
+      - name: Unsigned Windows x64 packages
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --win nsis portable --x64 --publish never
+      - name: Verify packaged imports
+        run: node tools/verify-electron-requires.js .tmp/app-builds/win-unpacked/resources/app.asar
+      - name: Packaged application smoke
+        run: node e2e/electron/planstrand-rc-smoke.cjs .tmp/app-builds/win-unpacked/Planstrand.exe
+      - name: Portable launcher smoke
+        run: node e2e/electron/planstrand-portable-smoke.cjs .tmp/app-builds/Planstrand-Portable.exe
+      - name: Checksums and provenance
+        shell: pwsh
+        run: |
+          $names = @('Planstrand-Setup.exe', 'Planstrand-Portable.exe')
+          $lines = foreach ($name in $names) {
+            $file = Join-Path '.tmp/app-builds' $name
+            if (!(Test-Path -LiteralPath $file)) { throw "Missing $name" }
+            $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $file
+            "$($hash.Hash.ToLower())  $name"
+          }
+          $lines | Set-Content .tmp/app-builds/SHA256SUMS.txt
+          git rev-parse HEAD | Set-Content .tmp/app-builds/SOURCE_SHA.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Planstrand-v1.0.0-rc.1-windows-x64
+          path: |
+            .tmp/app-builds/Planstrand-Setup.exe
+            .tmp/app-builds/Planstrand-Portable.exe
+            .tmp/app-builds/SHA256SUMS.txt
+            .tmp/app-builds/SOURCE_SHA.txt
+          if-no-files-found: error
+  draft:
+    if: github.repository == 'hychaw/planstrand' && inputs.create_draft
+    needs: windows
+    runs-on: ubuntu-latest
+    environment: planstrand-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: Planstrand-v1.0.0-rc.1-windows-x64
+          path: artifacts
+      - name: Create draft prerelease only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat artifacts/SOURCE_SHA.txt | tr -d '\r\n')" = "$(git rev-parse HEAD)"
+          gh release create v1.0.0-rc.1 artifacts/* --repo hychaw/planstrand --target "$(git rev-parse HEAD)" --draft --prerelease --title 'Planstrand v1.0.0-rc.1' --notes-file docs/releases/PLANSTRAND_V1_RC1.md
