@@ -18,7 +18,7 @@ updates:
     open-pull-requests-limit: 10
 
     reviewers:
-      - 'johannesjo'
+      - 'hychaw'
 
     labels:
       - 'dependencies'
@@ -71,9 +71,9 @@ updates:
     # Limit concurrent PRs to avoid overwhelming maintainers
     open-pull-requests-limit: 5
 
-    # Require @johannesjo approval (matches CODEOWNERS)
+    # Request maintainer review (branch rules enforce CODEOWNERS)
     reviewers:
-      - 'johannesjo'
+      - 'hychaw'
 
     # Label PRs for easy filtering and security awareness
     labels:

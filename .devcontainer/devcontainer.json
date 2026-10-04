@@ -1,8 +1,8 @@
 {
-  "name": "Super Productivity Dev Container",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
-  "postCreateCommand": "npm i -g @angular/cli && npm i",
-  "postStartCommand": "ng serve",
+  "name": "Planstrand Development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm install -g npm@11.18.0 && npm ci",
+  "postStartCommand": "npm run startFrontend",
   "forwardPorts": [4200],
   "portsAttributes": {
     "4200": {
