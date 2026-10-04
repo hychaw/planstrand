@@ -112,13 +112,13 @@ test.describe('Boards/Kanban', () => {
 
     await expect(page.locator('boards')).toBeVisible({ timeout: 10000 });
 
-    // Navigate back to Today tag
+    // Navigate to the primary Today composition.
     await page.click('text=Today');
     await page.waitForLoadState('networkidle');
 
     // Verify we're back at the work view
-    await expect(page).toHaveURL(/tag\/TODAY/);
-    await expect(page.locator('task-list').first()).toBeVisible();
+    await expect(page).toHaveURL(/\/#\/today/);
+    await expect(page.locator('planstrand-page')).toBeVisible();
   });
 
   test('should persist board selection across navigation', async ({

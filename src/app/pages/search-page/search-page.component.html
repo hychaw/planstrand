@@ -54,6 +54,13 @@
                   {{ item?.title }}
                 </div>
                 <div class="task-icons">
+                  @if (item.folderPath) {
+                    <span
+                      class="subtask-breadcrumb"
+                      [title]="item.folderPath"
+                      >{{ item.folderPath }}</span
+                    >
+                  }
                   @if (item.ctx) {
                     <tag
                       [tag]="item.ctx"

@@ -1,0 +1,27 @@
+:host {
+  display: block;
+}
+.planstrand-page {
+  padding: var(--s2);
+}
+header,
+.folder-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s);
+}
+section {
+  border-top: 1px solid var(--separator-color);
+  padding-block: var(--s2);
+  min-width: 0;
+}
+h1,
+h2 {
+  margin: var(--s) 0;
+}
+.planning-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--s2);
+}

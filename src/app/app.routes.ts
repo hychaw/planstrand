@@ -12,6 +12,21 @@ import {
 import { TagTaskPageComponent } from './pages/tag-task-page/tag-task-page.component';
 
 export const APP_ROUTES: Routes = [
+  ...[
+    ['inbox', 'inbox'],
+    ['master-tasks', 'master'],
+    ['folder/:id', 'folder'],
+    ['today', 'today'],
+    ['this-week', 'week'],
+  ].map(([path, planstrand]) => ({
+    path,
+    loadComponent: () =>
+      import('./pages/planstrand/planstrand-page.component').then(
+        (m) => m.PlanstrandPageComponent,
+      ),
+    data: { page: 'planstrand', planstrand },
+    canActivate: [FocusOverlayOpenGuard],
+  })),
   // Eagerly loaded — this is the main view
   {
     path: 'tag/:id/tasks',

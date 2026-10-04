@@ -39,6 +39,10 @@ import { DialogViewArchivedTaskComponent } from '../../features/tasks/dialog-vie
 import { Log } from '../../core/log';
 import { MenuTreeService } from '../../features/menu-tree/menu-tree.service';
 import { MatCheckbox } from '@angular/material/checkbox';
+import { Store } from '@ngrx/store';
+import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
+import { folderTreeRows } from '../../features/folder/folder-tree';
+import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership';
 
 const MAX_RESULTS = 50;
 
@@ -64,6 +68,7 @@ const MAX_RESULTS = 50;
   ],
 })
 export class SearchPageComponent implements OnInit {
+  private readonly _store = inject(Store);
   private _taskService = inject(TaskService);
   private _projectService = inject(ProjectService);
   private _tagService = inject(TagService);
@@ -98,6 +103,7 @@ export class SearchPageComponent implements OnInit {
     this._tagService.tags$,
     toObservable(this._menuTreeService.projectFolderMap),
     toObservable(this._menuTreeService.tagFolderMap),
+    this._store.select(selectFolderFeatureState),
   ]).pipe(
     map(
       ([
@@ -108,6 +114,7 @@ export class SearchPageComponent implements OnInit {
         tags,
         projectFolderMap,
         tagFolderMap,
+        folders,
       ]) => {
         if (
           !this._cachedArchiveItems ||
@@ -133,6 +140,12 @@ export class SearchPageComponent implements OnInit {
             tagFolderMap,
           );
         }
+        const paths = new Map(
+          folderTreeRows(folders).map((row) => [row.folder.id, row.path]),
+        );
+        const taskMap = new Map(
+          [...archiveTasks, ...allTasks].map((task) => [task.id, task]),
+        );
         return [
           ...this._mapTasksToSearchItems(
             false,
@@ -144,7 +157,12 @@ export class SearchPageComponent implements OnInit {
           ),
           ...this._mapNotesToSearchItems(notes, projects, projectFolderMap),
           ...this._cachedArchiveItems,
-        ];
+        ].map((item) => {
+          const task = !item.isNote && taskMap.get(item.id);
+          return task
+            ? { ...item, folderPath: paths.get(resolveTaskFolderId(task, folders)) }
+            : item;
+        });
       },
     ),
   );

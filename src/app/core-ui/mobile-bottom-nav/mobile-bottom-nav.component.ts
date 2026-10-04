@@ -97,7 +97,7 @@ export class MobileBottomNavComponent {
   readonly T = T;
   readonly TODAY_TAG = TODAY_TAG;
   readonly todayTagId = TODAY_TAG.id;
-  readonly todayRoute = `/tag/${TODAY_TAG.id}/tasks`;
+  readonly todayRoute = '/today';
 
   // Services for template access
   readonly layoutService = this._layoutService;

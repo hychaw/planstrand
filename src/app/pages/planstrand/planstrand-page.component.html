@@ -1,0 +1,175 @@
+<main class="planstrand-page">
+  <header>
+    <h1>
+      {{
+        'PLANSTRAND.' +
+          (mode() === 'master'
+            ? 'MASTER_TASKS'
+            : mode() === 'today'
+              ? 'TODAY'
+              : mode() === 'week'
+                ? 'THIS_WEEK'
+                : mode() === 'inbox'
+                  ? 'INBOX'
+                  : 'FOLDERS') | translate
+      }}
+    </h1>
+    <a
+      mat-button
+      routerLink="/inbox"
+      >{{ 'PLANSTRAND.INBOX' | translate }}</a
+    >
+    <a
+      mat-button
+      routerLink="/search"
+      >{{ 'PLANSTRAND.SEARCH' | translate }}</a
+    >
+    <a
+      mat-button
+      routerLink="/schedule"
+      >{{ 'PLANSTRAND.SCHEDULE' | translate }}</a
+    >
+    <button
+      mat-button
+      (click)="ui.createFolder()"
+    >
+      {{ 'PLANSTRAND.CREATE_FOLDER' | translate }}
+    </button>
+  </header>
+  @if (mode() === 'master' || mode() === 'inbox' || mode() === 'folder') {
+    <div cdkDropListGroup>
+      <div
+        cdkDropList
+        [cdkDropListEnterPredicate]="folderDragPredicate"
+        [cdkDropListSortingDisabled]="true"
+        (cdkDropListDropped)="folderDrop($event, null)"
+      >
+        <p>{{ 'PLANSTRAND.ROOT_DROP' | translate }}</p>
+      </div>
+      @for (row of folderRows(); track row.folder.id) {
+        <section
+          [style.margin-inline-start]="
+            'calc(var(--s2) * ' + (mode() === 'master' ? row.depth : 0) + ')'
+          "
+        >
+          <div
+            cdkDropList
+            [cdkDropListEnterPredicate]="folderDragPredicate"
+            [cdkDropListSortingDisabled]="true"
+            (cdkDropListDropped)="folderDrop($event, row.folder.id)"
+          >
+            <h2
+              cdkDrag
+              [cdkDragData]="row.folder.id"
+              [cdkDragDisabled]="row.folder.id === inboxId"
+            >
+              <button
+                mat-button
+                (click)="ui.toggle(row.folder.id)"
+                [attr.aria-expanded]="!ui.collapsed().has(row.folder.id)"
+              >
+                {{ ui.collapsed().has(row.folder.id) ? '▸' : '▾' }} {{ row.folder.title }}
+              </button>
+            </h2>
+          </div>
+          <div class="folder-controls">
+            <button
+              mat-button
+              (click)="ui.createTask(row.folder.id)"
+            >
+              {{ 'PLANSTRAND.ADD_TASK' | translate }}
+            </button>
+            <button
+              mat-button
+              (click)="ui.createFolder(row.folder.id)"
+            >
+              {{ 'PLANSTRAND.CREATE_FOLDER' | translate }}
+            </button>
+            @if (row.folder.id !== inboxId) {
+              <button
+                mat-button
+                (click)="ui.rename(row.folder.id)"
+              >
+                {{ 'PLANSTRAND.RENAME_FOLDER' | translate }}
+              </button>
+              <button
+                mat-button
+                (click)="ui.chooseFolderParent(row.folder.id)"
+              >
+                {{ 'PLANSTRAND.MOVE_FOLDER' | translate }}
+              </button>
+              <button
+                mat-button
+                (click)="ui.reorder(row.folder.id, -1)"
+                [attr.aria-label]="'PLANSTRAND.MOVE_UP' | translate"
+              >
+                ↑
+              </button>
+              <button
+                mat-button
+                (click)="ui.reorder(row.folder.id, 1)"
+                [attr.aria-label]="'PLANSTRAND.MOVE_DOWN' | translate"
+              >
+                ↓
+              </button>
+              <button
+                mat-button
+                color="warn"
+                [disabled]="row.hasChildren"
+                (click)="ui.deleteFolder(row.folder.id)"
+              >
+                {{ 'PLANSTRAND.DELETE_FOLDER' | translate }}
+              </button>
+            }
+          </div>
+          @if (!ui.collapsed().has(row.folder.id)) {
+            <planstrand-task-list
+              [tasks]="row.tasks"
+              [folderId]="row.folder.id"
+              [days]="days()"
+              (dropped)="moveTask($event, row.folder.id)"
+            />
+          }
+        </section>
+      }
+    </div>
+  } @else {
+    <div
+      cdkDropListGroup
+      class="planning-sections"
+    >
+      @for (section of sections(); track section.target.type + section.target.key) {
+        <section>
+          <h2>
+            {{
+              section.target.type === 'WEEK'
+                ? ('PLANSTRAND.WEEK_ONLY' | translate)
+                : section.target.key
+            }}
+          </h2>
+          <planstrand-task-list
+            [tasks]="section.tasks"
+            [days]="days()"
+            [planning]="true"
+            (dropped)="planDrop($event, section.target)"
+            (reordered)="reorder($event, section.tasks, section.target)"
+          />
+        </section>
+      }
+      <section>
+        <h2>{{ 'PLANSTRAND.UNPLANNED' | translate }}</h2>
+        <button
+          mat-button
+          (click)="ui.createTask(inboxId)"
+        >
+          {{ 'PLANSTRAND.ADD_TASK' | translate }}
+        </button>
+        <planstrand-task-list
+          [tasks]="captureTasks()"
+          [days]="days()"
+          (dropped)="unplan($event.task.id)"
+        />
+      </section>
+    </div>
+  }
+</main>

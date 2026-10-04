@@ -97,6 +97,9 @@
     }
 
     @if (isDataLoaded()) {
+      @if (isFullMode() || isMobile()) {
+        <planstrand-folder-navigation (navigated)="isMobile() && toggleMobileNav()" />
+      }
       <!-- Navigation Items -->
       <ul
         class="nav-list"
@@ -139,6 +142,7 @@
                 @switch (item.type) {
                   @case ('workContext') {
                     <nav-item
+                      [label]="item.label"
                       [workContext]="item.workContext"
                       [type]="item.workContextType"
                       [defaultIcon]="item.defaultIcon"

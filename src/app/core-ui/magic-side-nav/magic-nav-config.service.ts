@@ -145,13 +145,28 @@ export class MagicNavConfigService {
   // Main navigation configuration
   readonly navConfig = computed<NavConfig>(() => ({
     items: [
+      ...[
+        ['inbox', 'INBOX', 'inbox', '/inbox'],
+        ['master-tasks', 'MASTER_TASKS', 'account_tree', '/master-tasks'],
+        ['today', 'TODAY', 'today', '/today'],
+        ['this-week', 'THIS_WEEK', 'date_range', '/this-week'],
+      ].map(
+        ([id, label, icon, route]): NavItem => ({
+          type: 'route',
+          id: `planstrand-${id}`,
+          label: `PLANSTRAND.${label}`,
+          icon,
+          route,
+        }),
+      ),
+      ...this._buildMainRoutesItems().filter((item) => item.id === 'schedule'),
       // Work Context Items
       ...this._buildWorkContextItems(),
 
       // Separator
 
       // Main Routes
-      ...this._buildMainRoutesItems(),
+      ...this._buildMainRoutesItems().filter((item) => item.id !== 'schedule'),
 
       // Plugin entries
       ...this._buildPluginItems(),
@@ -375,7 +390,7 @@ export class MagicNavConfigService {
       items.push({
         type: 'workContext',
         id: `main-${mainContext.id}`,
-        label: mainContext.title,
+        label: 'PLANSTRAND.LEGACY_TASKS',
         icon: mainContext.icon || 'today',
         route: `/tag/${mainContext.id}/tasks`,
         workContext: mainContext,
@@ -388,7 +403,7 @@ export class MagicNavConfigService {
       items.push({
         type: 'workContext',
         id: `inbox-${inboxContext.id}`,
-        label: inboxContext.title,
+        label: 'PLANSTRAND.LEGACY_CAPTURE',
         icon: inboxContext.icon || 'inbox',
         route: `/project/${inboxContext.id}/tasks`,
         workContext: inboxContext,

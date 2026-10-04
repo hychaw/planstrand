@@ -120,7 +120,7 @@ test.describe.serial('Plugin Loading', () => {
     // Navigate back to work view to see plugin menu
     await page.click('text=Today');
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/#\/tag\/TODAY/);
+    await expect(page).toHaveURL(/\/#\/today/);
 
     // Verify plugin menu entry exists
     const pluginNavItem = page
@@ -219,7 +219,7 @@ test.describe.serial('Plugin Loading', () => {
 
     // Navigate back to main view
     await page.click('text=Today'); // Click on Today navigation
-    await expect(page).toHaveURL(/\/#\/tag\/TODAY/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/#\/today/, { timeout: 10000 });
 
     // Menu entry should reappear after re-enable
     const pluginNavItemReEnabled = page

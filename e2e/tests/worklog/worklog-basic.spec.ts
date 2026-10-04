@@ -137,7 +137,8 @@ test.describe('Worklog', () => {
 
     // Right-click on Today context to open menu
     const contextBtn = page
-      .locator('magic-side-nav .nav-list > li.nav-item:first-child nav-item')
+      .locator('magic-side-nav nav-item')
+      .filter({ hasText: 'Legacy Tasks' })
       .first();
 
     await contextBtn.waitFor({ state: 'visible', timeout: 5000 });

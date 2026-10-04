@@ -128,7 +128,7 @@ test.describe('Subtask inline input', () => {
     await expect(draftInput).toBeFocused();
 
     await draftInput.fill('Blurred subtask');
-    await page.locator('body').click({ position: { x: 10, y: 10 } });
+    await page.locator('work-view > .wrapper').click({ position: { x: 10, y: 10 } });
 
     await expect(draftInput).toHaveValue('Blurred subtask');
     await expect(draftInput).not.toBeFocused();
@@ -155,7 +155,7 @@ test.describe('Subtask inline input', () => {
     await page.keyboard.press('a');
     await expect(parentTask.locator('.e2e-add-subtask-input')).toBeFocused();
 
-    await page.locator('body').click({ position: { x: 10, y: 10 } });
+    await page.locator('work-view > .wrapper').click({ position: { x: 10, y: 10 } });
 
     await expect(parentTask.locator('.e2e-add-subtask-input')).toHaveCount(0);
     await expect(parentTask.locator('.sub-tasks task')).toHaveCount(0);

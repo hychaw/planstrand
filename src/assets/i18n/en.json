@@ -1,4 +1,32 @@
 {
+  "PLANSTRAND": {
+    "LEGACY_TASKS": "Legacy Tasks",
+    "LEGACY_CAPTURE": "Legacy Capture",
+    "INBOX": "Inbox",
+    "MASTER_TASKS": "Master Tasks",
+    "TODAY": "Today",
+    "THIS_WEEK": "This Week",
+    "SCHEDULE": "Calendar / Schedule",
+    "FOLDERS": "Folders",
+    "SEARCH": "Search",
+    "CREATE_FOLDER": "Create Folder",
+    "RENAME_FOLDER": "Rename Folder",
+    "DELETE_FOLDER": "Delete Folder",
+    "MOVE_FOLDER": "Move Folder",
+    "TOGGLE_FOLDER": "Expand or collapse Folder",
+    "ADD_TASK": "Add Task",
+    "MOVE_TASK": "Move Task to Folder",
+    "PLAN": "Plan Task",
+    "CHOOSE": "Choose destination",
+    "UNPLAN": "Unplan",
+    "MOVE_UP": "Move up",
+    "MOVE_DOWN": "Move down",
+    "EMPTY": "No tasks",
+    "ROOT": "Root",
+    "ROOT_DROP": "Drop a Folder here to move it to the root",
+    "WEEK_ONLY": "This Week — choose a day later",
+    "UNPLANNED": "Unplanned Tasks"
+  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignore",

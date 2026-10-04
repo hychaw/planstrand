@@ -181,7 +181,7 @@ test.describe('Add to Today - Subtask Support', () => {
     }
 
     // Click somewhere else first to ensure we're not in edit mode
-    await page.locator('body').click({ position: { x: 10, y: 10 } });
+    await page.locator('work-view > .wrapper').click({ position: { x: 10, y: 10 } });
     await page.waitForTimeout(100);
 
     // Right-click on subtask to open context menu

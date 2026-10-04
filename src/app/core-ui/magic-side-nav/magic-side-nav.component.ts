@@ -41,6 +41,7 @@ import { SwipeDirective } from '../../ui/swipe-gesture/swipe.directive';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 import { TranslatePipe } from '@ngx-translate/core';
 import { T } from '../../t.const';
+import { FolderNavigationComponent } from '../../pages/planstrand/folder-navigation.component';
 
 // 56px = 24px icon + 16px (var(--s2)) padding on each side, so the left-aligned
 // nav icons sit centered in the collapsed rail.
@@ -53,6 +54,7 @@ const INITIAL_ENTER_ANIMATION_DURATION_MS = 425;
   selector: 'magic-side-nav',
   standalone: true,
   imports: [
+    FolderNavigationComponent,
     RouterModule,
     NavItemComponent,
     NavListTreeComponent,

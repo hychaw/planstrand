@@ -335,7 +335,9 @@ test.describe('@migration Legacy Data Migration', () => {
       });
 
       // Verify project exists in sidebar
-      await expect(sideNav.getByText('Migration Test Project')).toBeVisible({
+      await expect(
+        sideNav.getByRole('menuitem', { name: 'Migration Test Project' }),
+      ).toBeVisible({
         timeout: 10000,
       });
     } finally {
