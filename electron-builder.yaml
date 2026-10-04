@@ -3,6 +3,7 @@ appId: io.github.hychaw.planstrand
 productName: Planstrand
 artifactName: Planstrand-${arch}.${ext}
 files:
+  - LICENSE
   - electron/**/*
   - '!electron/**/*.ts'
   - '!electron/**/*.js.map'

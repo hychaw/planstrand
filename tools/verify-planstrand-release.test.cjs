@@ -20,6 +20,10 @@ test('Planstrand packaging is distinct and cannot publish to upstream', () => {
   assert.equal(builder.mac.appId, builder.appId);
   assert.equal(builder.publish, null);
   assert.equal(builder.appx, undefined);
+  assert.ok(
+    builder.files.includes('LICENSE'),
+    'the distributed app must include the original MIT license',
+  );
   assert.equal(builder.mac.notarize, false);
   assert.equal(builder.mac.identity, null);
   assert.equal(builder.dmg.sign, false);
@@ -75,5 +79,37 @@ test('credentials and compatibility schemas retain deliberate boundaries', () =>
   assert.match(
     read('src/app/op-log/persistence/db-keys.const.ts'),
     /DB_NAME = 'SUP_OPS'/,
+  );
+});
+
+test('native source is explicitly deferred and parses with a Planstrand label', () => {
+  const ts = require('typescript');
+  const vm = require('node:vm');
+  const compiled = ts.transpileModule(read('capacitor.config.ts'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const exports = {};
+  vm.runInNewContext(compiled, { exports });
+  assert.equal(exports.default.appName, 'Planstrand');
+  assert.equal(exports.default.appId, 'com.super-productivity.app');
+  assert.match(
+    read('android/app/build.gradle'),
+    /applicationId "com.superproductivity.superproductivity"/,
+  );
+});
+
+test('NSIS uninstall identity differs from upstream', () => {
+  const { UUID } = require('builder-util-runtime');
+  const namespace = UUID.parse('50e065bc-3134-11e6-9bab-38c9862bdaf3');
+  assert.notEqual(
+    UUID.v5(builder.appId, namespace),
+    UUID.v5('superProductivity', namespace),
+  );
+});
+
+test('workflow embeds the checked-out ref rather than the dispatch event SHA', () => {
+  assert.match(
+    read('.github/workflows/release-planstrand.yml'),
+    /GITHUB_SHA = git rev-parse HEAD/,
   );
 });

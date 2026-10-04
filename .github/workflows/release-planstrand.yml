@@ -29,7 +29,10 @@ jobs:
       - name: Release contracts
         run: node --test tools/verify-planstrand-release.test.cjs tools/verify-windows-artifact-contract.test.js tools/verify-linux-wm-class.test.js
       - name: Production desktop build
-        run: npm run build
+        shell: pwsh
+        run: |
+          $env:GITHUB_SHA = git rev-parse HEAD
+          npm run build
       - name: Unsigned Windows x64 packages
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
