@@ -29,7 +29,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { delay, first } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { selectProjectById } from '../../project/store/project.selectors';
-import { getClockStringFromHours } from '../../../util/get-clock-string-from-hours';
+import { calendarClockLabel } from '../calendar-time';
 import {
   SCHEDULE_TASK_MIN_DURATION_IN_MS,
   SVEType,
@@ -171,12 +171,17 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     );
   });
 
+  private _clockLabel(hours: number): string {
+    return calendarClockLabel(
+      hours,
+      this._dateTimeFormatService.currentLocale(),
+      this._dateTimeFormatService.is24HourFormat(),
+    );
+  }
+
   readonly scheduledClockStr = computed(() => {
     const evt = this.se();
-    const is12Hour = !this._dateTimeFormatService.is24HourFormat();
-    return getClockStringFromHours(
-      is12Hour && evt.startHours > 12 ? evt.startHours - 12 : evt.startHours,
-    );
+    return this._clockLabel(evt.startHours);
   });
 
   readonly beyondBudgetTooltip = this._translateService.instant(
@@ -185,14 +190,8 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
 
   readonly hoverTitle = computed(() => {
     const evt = this.se();
-    const is12Hour = !this._dateTimeFormatService.is24HourFormat();
-    const startClockStr = getClockStringFromHours(
-      is12Hour && evt.startHours > 12 ? evt.startHours - 12 : evt.startHours,
-    );
-    const endHours = evt.startHours + evt.timeLeftInHours;
-    const endClockStr = getClockStringFromHours(
-      is12Hour && endHours > 12 ? endHours - 12 : endHours,
-    );
+    const startClockStr = this._clockLabel(evt.startHours);
+    const endClockStr = this._clockLabel(evt.startHours + evt.timeLeftInHours);
     const titleStr = this.title();
     const t = this.task();
 

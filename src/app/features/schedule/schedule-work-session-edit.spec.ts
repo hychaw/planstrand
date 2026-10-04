@@ -101,7 +101,10 @@ describe('existing WorkSession schedule edits', () => {
           useValue: { cfg: signal(DEFAULT_GLOBAL_CONFIG), localization: configZone },
         },
         { provide: DateService, useValue: { todayStr: () => '2026-01-15' } },
-        { provide: DateTimeFormatService, useValue: { is24HourFormat: () => true } },
+        {
+          provide: DateTimeFormatService,
+          useValue: { currentLocale: () => 'en-US', is24HourFormat: () => true },
+        },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         {
           provide: TaskService,

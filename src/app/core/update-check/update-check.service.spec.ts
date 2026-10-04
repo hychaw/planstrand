@@ -13,8 +13,7 @@ import { SnackService } from '../snack/snack.service';
 import { LS } from '../persistence/storage-keys.const';
 import { environment } from '../../../environments/environment';
 
-const RELEASES_API_URL =
-  'https://api.github.com/repos/super-productivity/super-productivity/releases/latest';
+const RELEASES_API_URL = 'https://api.github.com/repos/hychaw/planstrand/releases/latest';
 
 describe('UpdateCheckService', () => {
   let service: UpdateCheckService;
@@ -183,7 +182,7 @@ describe('UpdateCheckService', () => {
       banner.action?.fn();
       expect(localStorage.getItem(LS.UPDATE_CHECK_DISMISSED_VERSION)).toBe('v99.0.0');
       expect(openExternalUrl).toHaveBeenCalledWith(
-        'https://github.com/super-productivity/super-productivity/releases/tag/v99.0.0',
+        'https://github.com/hychaw/planstrand/releases/tag/v99.0.0',
       );
     });
 

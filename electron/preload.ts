@@ -32,6 +32,10 @@ const _invoke: (channel: IPCEventValue, ...args: unknown[]) => Promise<unknown> 
 const consumeJiraApi = createJiraPreloadApiConsumer(_invoke);
 
 const ea: ElectronAPI = {
+  getSystemTimeZone: () =>
+    process.argv
+      .find((arg) => arg.startsWith('--planstrand-system-time-zone='))
+      ?.split('=')[1] || null,
   on: (channel: string, listener: (...args: unknown[]) => void) => {
     // NOTE: there is no proper way to unsubscribe apart from unsubscribing all
     ipcRenderer.on(channel, toPayloadOnlyIpcListener(listener));

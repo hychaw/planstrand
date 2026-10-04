@@ -202,7 +202,7 @@ test.afterEach(() => {
 // stable location, so it keeps its GUID; Store (MSIX) and portable/scoop run
 // from versioned paths where a stale GUID makes the icon silently invisible
 // (#7282), so those build the tray without a GUID.
-const NSIS_TRAY_GUID = 'a2512177-8bee-4b70-a0a8-f3d18e0eab90';
+const NSIS_TRAY_GUID = 'ad3fbe2e-958d-4ae3-9562-e31d3a9ec85c';
 
 const initIndicatorOnWindows = () => {
   Object.defineProperty(process, 'platform', {

@@ -1,3 +1,5 @@
+import { selectLocalizationConfig } from '../../config/store/global-config.reducer';
+import { calendarDisplayZone } from '../calendar-time';
 import { EventService } from '../../event/event.service';
 import { editableLocalEvent } from '../schedule.model';
 import { planningCommands } from '../../planning/planning-commands';
@@ -49,6 +51,7 @@ const HOUR_IN_MS = 60 * 60 * 1000;
 export class ScheduleWeekDragService {
   // Central drag state handler so the component can remain mostly declarative.
   private readonly _store = inject(Store);
+  private readonly _localization = this._store.selectSignal(selectLocalizationConfig);
   private readonly _calendarEventActions = inject(CalendarEventActionsService);
   private readonly _dateService = inject(DateService);
   private readonly _eventService = inject(EventService);
@@ -654,7 +657,12 @@ export class ScheduleWeekDragService {
     const offsetRows = row - 1;
     const offsetY = offsetRows * rowHeight;
     const adjustedY = gridRect.top + offsetY;
-    return calculateTimeFromYPosition(adjustedY, gridRect, targetDay);
+    return calculateTimeFromYPosition(
+      adjustedY,
+      gridRect,
+      targetDay,
+      calendarDisplayZone(this._localization()?.timeZone),
+    );
   }
 
   // Calculate preview height based on task duration so users can see
@@ -753,7 +761,12 @@ export class ScheduleWeekDragService {
     const offsetY = offsetRows * rowHeight;
     const adjustedY = gridRect.top + offsetY;
 
-    return calculateTimeFromYPosition(adjustedY, gridRect, targetDay);
+    return calculateTimeFromYPosition(
+      adjustedY,
+      gridRect,
+      targetDay,
+      calendarDisplayZone(this._localization()?.timeZone),
+    );
   }
 
   private _isOutsideGrid(dropPoint: PointerPosition): boolean {

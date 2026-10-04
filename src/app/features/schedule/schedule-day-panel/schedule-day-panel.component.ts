@@ -94,7 +94,9 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   });
 
   daysToShow = computed(() => {
-    const d = this._todayDateStr();
+    this._todayDateStr();
+    this._scheduleService.scheduleRefreshTick();
+    const d = this._scheduleService.getTodayStr();
     return d ? [d] : [];
   });
 
@@ -102,7 +104,11 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
 
   private _eventsAndBeyondBudget = computed(() => {
     const days = this.scheduleDays();
-    return mapScheduleDaysToScheduleEvents(days, FH);
+    return mapScheduleDaysToScheduleEvents(
+      days,
+      FH,
+      this._scheduleService.displayTimeZone(),
+    );
   });
 
   events = computed(() => this._eventsAndBeyondBudget().eventsFlat);
@@ -133,12 +139,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   currentTimeRow = computed(() => {
     // Trigger re-computation every 2 minutes
     this._scheduleService.scheduleRefreshTick();
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    // eslint-disable-next-line no-mixed-operators
-    const hoursToday = hours + minutes / 60;
-    return Math.round(hoursToday * FH);
+    return this._scheduleService.currentTimeRow();
   });
 
   ngAfterViewInit(): void {
@@ -222,7 +223,12 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
       return null;
     }
 
-    return calculateTimeFromYPosition(clientY, gridRect, targetDay);
+    return calculateTimeFromYPosition(
+      clientY,
+      gridRect,
+      targetDay,
+      this._scheduleService.displayTimeZone(),
+    );
   }
 
   private _calculateDropTime(

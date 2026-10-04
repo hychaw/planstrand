@@ -256,7 +256,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
 
     superSync: {
       baseUrl: environment.production
-        ? 'https://sync.super-productivity.com'
+        ? '' // Planstrand has no owned hosted sync service; configure your own server.
         : 'http://localhost:1901',
       userName: null,
       password: null,

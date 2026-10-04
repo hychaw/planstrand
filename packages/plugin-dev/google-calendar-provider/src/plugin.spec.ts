@@ -33,6 +33,16 @@ describe('Google Calendar Plugin', () => {
       expect(oauthConfig?.webClientId).toBeUndefined();
     });
 
+    it('ships no inherited OAuth credentials in the Planstrand RC', () => {
+      const cfg = definition.configFields.find(
+        (field) => field.key === 'oauth',
+      )?.oauthConfig;
+      expect(cfg?.clientId).toBe('');
+      expect(cfg?.clientSecret).toBe('');
+      expect(cfg?.mobileClientId).toBe('');
+      expect(cfg?.iosClientId).toBe('');
+    });
+
     it('requests only verified Google Calendar scopes', () => {
       const oauthField = definition.configFields.find((field) => field.key === 'oauth');
       const oauthConfig = oauthField?.oauthConfig;

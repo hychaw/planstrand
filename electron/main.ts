@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import './app-identity';
 import { PROTOCOL_PREFIX } from './protocol-handler';
 import { startApp } from './start-app';
 

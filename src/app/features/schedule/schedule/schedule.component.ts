@@ -47,6 +47,7 @@ import { DEFAULT_FIRST_DAY_OF_WEEK } from '../../../core/locale.constants';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
 import { getWeekNumber } from '../../../util/get-week-number';
 import { parseDbDateStr } from '../../../util/parse-db-date-str';
+import { calendarDate, calendarDisplayZone, calendarTimeRow } from '../calendar-time';
 import { anchorContextNow } from '../anchor-context-now';
 
 @Component({
@@ -131,7 +132,15 @@ export class ScheduleComponent {
     return todayStr ? this.daysToShow().includes(todayStr) : false;
   });
 
-  protected _todayDateStr = toSignal(this._globalTrackingIntervalService.todayDateStr$);
+  private _todayTick = toSignal(this._globalTrackingIntervalService.todayDateStr$);
+  readonly displayTimeZone = computed(() =>
+    calendarDisplayZone(this._globalConfigService.localization()?.timeZone),
+  );
+  protected _todayDateStr = computed(() => {
+    this._todayTick();
+    this.scheduleService.scheduleRefreshTick();
+    return calendarDate(Date.now(), this.displayTimeZone());
+  });
   private _windowSize = toSignal(
     fromEvent(window, 'resize').pipe(
       startWith({ width: window.innerWidth, height: window.innerHeight }),
@@ -273,7 +282,7 @@ export class ScheduleComponent {
     if (!firstDay) {
       return Date.now();
     }
-    return anchorContextNow(firstDay, Date.now());
+    return anchorContextNow(firstDay, Date.now(), this.displayTimeZone());
   });
 
   scheduleDays = computed(() => {
@@ -287,7 +296,7 @@ export class ScheduleComponent {
 
   private _eventsAndBeyondBudget = computed(() => {
     const days = this.scheduleDays();
-    return mapScheduleDaysToScheduleEvents(days, FH);
+    return mapScheduleDaysToScheduleEvents(days, FH, this.displayTimeZone());
   });
 
   private _workStartEndHours = toSignal(
@@ -317,19 +326,14 @@ export class ScheduleComponent {
 
     // Trigger re-computation every 2 minutes
     this.scheduleService.scheduleRefreshTick();
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-
-    const hoursToday = hours + minutes / 60;
-    return Math.round(hoursToday * FH);
+    return calendarTimeRow(Date.now(), this.displayTimeZone(), FH);
   });
 
   goToPreviousPeriod(): void {
     // Never navigate into the past — the displayed range must include today or later
     if (this.isViewingToday()) return;
 
-    const currentDate = this._selectedDate() || new Date();
+    const currentDate = this._selectedDate() || parseDbDateStr(this._todayDateStr());
     const selectedView = this._currentTimeViewMode();
 
     if (selectedView === 'month') {
@@ -346,7 +350,7 @@ export class ScheduleComponent {
       previousPeriod.setHours(0, 0, 0, 0);
 
       // If going back would land on or before today, snap to "today view" (null)
-      const todayMidnight = new Date();
+      const todayMidnight = parseDbDateStr(this._todayDateStr());
       todayMidnight.setHours(0, 0, 0, 0);
       if (previousPeriod.getTime() <= todayMidnight.getTime()) {
         this._selectedDate.set(null);
@@ -357,7 +361,7 @@ export class ScheduleComponent {
   }
 
   goToNextPeriod(): void {
-    const currentDate = this._selectedDate() || new Date();
+    const currentDate = this._selectedDate() || parseDbDateStr(this._todayDateStr());
     const selectedView = this._currentTimeViewMode();
 
     if (selectedView === 'month') {

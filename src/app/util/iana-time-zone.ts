@@ -1,3 +1,4 @@
+import { IS_ELECTRON } from '../app.constants';
 export const isValidIanaTimeZone = (timeZone: string): boolean => {
   // Intl also accepts numeric offsets on newer platforms; these are not IANA zones.
   if (timeZone.startsWith('+') || timeZone.startsWith('-')) {
@@ -14,7 +15,9 @@ export const isValidIanaTimeZone = (timeZone: string): boolean => {
 export const getSystemIanaTimeZone = (): string | null => {
   try {
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return timeZone && isValidIanaTimeZone(timeZone) ? timeZone : null;
+    if (timeZone && isValidIanaTimeZone(timeZone)) return timeZone;
+    const nativeZone = IS_ELECTRON ? window.ea.getSystemTimeZone?.() : null;
+    return nativeZone && isValidIanaTimeZone(nativeZone) ? nativeZone : null;
   } catch {
     return null;
   }

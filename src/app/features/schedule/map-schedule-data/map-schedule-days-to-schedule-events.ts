@@ -1,3 +1,4 @@
+import { calendarHours, calendarTimeRow, calendarDisplayZone } from '../calendar-time';
 import { ScheduleDay, ScheduleEvent } from '../schedule.model';
 import { getTimeLeftForTask } from '../../../util/get-time-left-for-task';
 import { SVEType } from '../schedule.const';
@@ -7,6 +8,7 @@ import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 export const mapScheduleDaysToScheduleEvents = (
   days: ScheduleDay[],
   FH: number,
+  displayZone = calendarDisplayZone(),
 ): {
   eventsFlat: ScheduleEvent[];
   beyondBudgetDays: ScheduleEvent[][];
@@ -54,14 +56,8 @@ export const mapScheduleDaysToScheduleEvents = (
         return;
       }
       if (entry.type !== SVEType.WorkdayEnd && entry.type !== SVEType.WorkdayStart) {
-        const start = new Date(entry.start);
-        const startHour = start.getHours();
-        const startMinute = start.getMinutes();
-        // eslint-disable-next-line no-mixed-operators
-        const hoursToday = startHour + startMinute / 60;
-
-        // NOTE: +1 cause grids start on 1
-        const startRow = Math.round(hoursToday * FH) + 1;
+        const hoursToday = calendarHours(entry.start, displayZone);
+        const startRow = calendarTimeRow(entry.start, displayZone, FH);
         const timeLeft = entry.duration;
 
         // NOTE since we only use getMinutes we also need to floor the minutes for timeLeftInHours
@@ -79,7 +75,14 @@ export const mapScheduleDaysToScheduleEvents = (
           timeLeftInHours,
           style: `grid-column: ${dayIndex + 2};  grid-row: ${startRow} / span ${rowSpan}`,
           data: entry.data,
-          plannedForDay: entry.plannedForDay,
+          plannedForDay: [
+            SVEType.LocalEvent,
+            SVEType.WorkSession,
+            SVEType.ScheduledTask,
+            SVEType.CalendarEvent,
+          ].includes(entry.type)
+            ? day.dayDate
+            : entry.plannedForDay,
           ...(entry.sourceOccurrenceDate
             ? { sourceOccurrenceDate: entry.sourceOccurrenceDate }
             : {}),

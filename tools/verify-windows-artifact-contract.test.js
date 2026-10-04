@@ -25,7 +25,7 @@ const readRoot = (...pathParts) =>
   readFileSync(join(ROOT, ...pathParts), 'utf8').replace(/\r\n/g, '\n');
 
 const BUILDER_YAML = readRoot('electron-builder.yaml');
-const RELEASE_WORKFLOW = readRoot('.github', 'workflows', 'build.yml');
+const RELEASE_WORKFLOW = readRoot('.github', 'workflows', 'release-planstrand.yml');
 
 const sectionValue = (sectionName, key) => {
   const lines = BUILDER_YAML.split('\n');
@@ -46,56 +46,17 @@ const sectionValue = (sectionName, key) => {
   assert.fail(`${key} not found in ${sectionName}`);
 };
 
-test('Windows release builds only the two universal executables', () => {
-  assert.equal(sectionValue('nsis', 'artifactName'), 'Super-Productivity-Setup.${ext}');
-  assert.equal(sectionValue('portable', 'artifactName'), '${name}.${ext}');
+test('Windows RC has distinct installer and portable names', () => {
+  assert.equal(sectionValue('nsis', 'artifactName'), 'Planstrand-Setup.${ext}');
+  assert.equal(sectionValue('portable', 'artifactName'), 'Planstrand-Portable.${ext}');
 });
 
-test('the pre-sign gate inspects both architecture payloads inside each executable', () => {
-  assert.match(RELEASE_WORKFLOW, /Get-Command 7z/);
-  assert.match(RELEASE_WORKFLOW, /l -slt -tNsis/);
-  assert.match(RELEASE_WORKFLOW, /\$PLUGINSDIR\/app-64\.7z/);
-  assert.match(RELEASE_WORKFLOW, /\$PLUGINSDIR\/app-arm64\.7z/);
+test('RC workflow never uses upstream signing, aliases or stores', () => {
   assert.doesNotMatch(
     RELEASE_WORKFLOW,
-    /\$exe\.Length -lt/,
-    'a fixed size floor can reject valid universal builds as dependencies change',
+    /SignPath|johannesjo|super-productivity|appx|snapcraft/,
   );
-});
-
-test('signed universal executables are published under compatibility aliases', () => {
-  const signStep = RELEASE_WORKFLOW.indexOf(
-    '- name: Sign Windows executables with SignPath',
-  );
-  const metadataStep = RELEASE_WORKFLOW.indexOf(
-    '- name: Regenerate blockmaps and generate latest.yml for signed executables',
-  );
-  const aliasStep = RELEASE_WORKFLOW.indexOf(
-    '- name: Create legacy Windows download aliases',
-  );
-  const signatureStep = RELEASE_WORKFLOW.indexOf('- name: Verify code signatures');
-  const publishStep = RELEASE_WORKFLOW.indexOf(
-    '- name: Publish signed Windows binaries to GitHub Release',
-  );
-
-  assert.notEqual(signStep, -1, 'SignPath step not found');
-  assert.notEqual(metadataStep, -1, 'metadata generation step not found');
-  assert.notEqual(aliasStep, -1, 'compatibility alias step not found');
-  assert.notEqual(signatureStep, -1, 'signature verification step not found');
-  assert.notEqual(publishStep, -1, 'Windows publish step not found');
-  assert.ok(aliasStep > signStep, 'aliases must not be submitted to SignPath');
-  assert.ok(aliasStep > metadataStep, 'aliases must not enter latest.yml or blockmaps');
-  assert.ok(signatureStep > aliasStep, 'verify signatures after creating aliases');
-  assert.ok(publishStep > signatureStep, 'publish only after signature verification');
-
-  for (const alias of [
-    'Super-Productivity-Setup-x64.exe',
-    'Super-Productivity-Setup-arm64.exe',
-    'superProductivity-x64.exe',
-    'superProductivity-arm64.exe',
-  ]) {
-    assert.match(RELEASE_WORKFLOW, new RegExp(`Copy-Item.*${alias}`));
-  }
+  assert.match(RELEASE_WORKFLOW, /--publish never/);
 });
 
 // The release-metadata step runs after SignPath has been paid, so a broken
@@ -111,18 +72,6 @@ test('every package the release-metadata tool requires is actually installed', (
   assert.doesNotThrow(() => require('./finalize-windows-release-metadata.js'));
   const { BLOCK_MAP_MODULE } = require('./finalize-windows-release-metadata.js');
   assert.equal(typeof require(BLOCK_MAP_MODULE).buildBlockMap, 'function');
-});
-
-test('the release-metadata step delegates to the checked-in tool', () => {
-  assert.match(
-    RELEASE_WORKFLOW,
-    /run: node tools\/finalize-windows-release-metadata\.js \.tmp\/app-builds/,
-  );
-  assert.doesNotMatch(
-    RELEASE_WORKFLOW,
-    /app-builder-bin/,
-    'app-builder-bin is not installed; blockmaps come from app-builder-lib',
-  );
 });
 
 test('the tool builds a blockmap with the installed electron-builder', async (t) => {

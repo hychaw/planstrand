@@ -1,4 +1,11 @@
 import {
+  calendarAddDays,
+  calendarDate,
+  calendarDayStart,
+  calendarClock,
+  calendarDisplayZone,
+} from '../calendar-time';
+import {
   TaskCopy,
   TaskWithoutReminder,
   TaskWithPlannedForDayIndication,
@@ -13,11 +20,9 @@ import {
   SVE,
   SVEEntryForNextDay,
 } from '../schedule.model';
-import { getDateTimeFromClockString } from '../../../util/get-date-time-from-clock-string';
 import { isValidSplitTime } from '../../../util/is-valid-split-time';
 import { SCHEDULE_TASK_MIN_DURATION_IN_MS, SVEType } from '../schedule.const';
 import { createViewEntriesForDay } from './create-view-entries-for-day';
-import { msLeftToday } from '../../../util/ms-left-today';
 import { getTasksWithinAndBeyondBudget } from './get-tasks-within-and-beyond-budget';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 import { getTaskRepeatCfgsForExactDayCached } from '../../task-repeat-cfg/store/get-task-repeat-cfgs-for-exact-day-cached.util';
@@ -34,6 +39,7 @@ export const createScheduleDays = (
   workStartEndCfg: ScheduleWorkStartEndCfg | undefined,
   now: number,
   realNow?: number, // Actual current time for determining "current week"
+  displayZone = calendarDisplayZone(),
 ): ScheduleDay[] => {
   let viewEntriesPushedToNextDay: SVEEntryForNextDay[];
   let flowTasksLeftAfterDay: ScheduleFlowTask[] = nonScheduledTasks.map((task) => {
@@ -50,19 +56,14 @@ export const createScheduleDays = (
   // Calculate current week boundary (today + next 6 days = 7 days total)
   // Always use real current time to determine what "current week" means
   const actualNow = realNow ?? now;
-  const todayMidnight = new Date(actualNow);
-  todayMidnight.setHours(0, 0, 0, 0);
-  const todayStart = todayMidnight.getTime();
-  const currentWeekEnd = new Date(todayMidnight);
-  currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
-  const currentWeekEndTime = currentWeekEnd.getTime();
+  const today = calendarDate(actualNow, displayZone);
+  const todayStart = calendarDayStart(today, displayZone);
+  const currentWeekEndTime = calendarDayStart(calendarAddDays(today, 7), displayZone);
 
   // Check if the first day is within the current week
   // If not, filter out unscheduled tasks before processing any days
   if (dayDates.length > 0) {
-    const firstDayDate = dateStrToUtcDate(dayDates[0]);
-    firstDayDate.setHours(0, 0, 0, 0);
-    const firstDayStartTime = firstDayDate.getTime();
+    const firstDayStartTime = calendarDayStart(dayDates[0], displayZone);
     const isFirstDayInCurrentWeek =
       firstDayStartTime >= todayStart && firstDayStartTime < currentWeekEndTime;
 
@@ -70,7 +71,7 @@ export const createScheduleDays = (
       // Viewing a week outside the current week
       // Filter out tasks that don't belong in this week
       flowTasksLeftAfterDay = flowTasksLeftAfterDay.filter((task) =>
-        isTaskOnOrAfterDay(task, firstDayStartTime),
+        isTaskOnOrAfterDay(task, firstDayStartTime, displayZone),
       );
     }
   }
@@ -85,12 +86,8 @@ export const createScheduleDays = (
     !!workStartEndCfg && isValidSplitTime(workStartEndCfg.startTime);
 
   const v: ScheduleDay[] = dayDates.map((dayDate, i) => {
-    const nextDayStartDate = dateStrToUtcDate(dayDate);
-    nextDayStartDate.setHours(24, 0, 0, 0);
-    const nextDayStart = nextDayStartDate.getTime();
-    const dayStartDate = dateStrToUtcDate(dayDate);
-    dayStartDate.setHours(0, 0, 0, 0);
-    const dayStartTime = dayStartDate.getTime();
+    const nextDayStart = calendarDayStart(calendarAddDays(dayDate, 1), displayZone);
+    const dayStartTime = calendarDayStart(dayDate, displayZone);
 
     // Check if this day is within the current week (today through next 6 days)
     const isInCurrentWeek =
@@ -98,9 +95,10 @@ export const createScheduleDays = (
 
     let startTime = i == 0 ? now : dayStartTime;
     if (workStartEndCfg && isWorkStartTimeUsable) {
-      const startTimeToday = getDateTimeFromClockString(
+      const startTimeToday = calendarClock(
+        dayDate,
         workStartEndCfg.startTime,
-        dateStrToUtcDate(dayDate),
+        displayZone,
       );
       if (startTimeToday > now) {
         startTime = startTimeToday;
@@ -114,14 +112,15 @@ export const createScheduleDays = (
     // usually lands in the previous month.
     const nonScheduledRepeatCfgsDueOnDay = getTaskRepeatCfgsForExactDayCached(
       unScheduledTaskRepeatCfgs,
-      dayStartTime,
+      dateStrToUtcDate(dayDate).getTime(),
     );
 
     const blockerBlocksForDay = blockerBlocksDayMap[dayDate] || [];
 
     const nonScheduledBudgetForDay = getBudgetLeftForDay(
       blockerBlocksForDay,
-      i === 0 ? now : undefined,
+      i === 0 ? now : dayStartTime,
+      nextDayStart,
     );
 
     let viewEntries: SVE[] = [];
@@ -130,7 +129,7 @@ export const createScheduleDays = (
     const filteredFlowTasks: ScheduleFlowTask[] = isInCurrentWeek
       ? flowTasksLeftAfterDay
       : flowTasksLeftAfterDay.filter((task) => {
-          return isTaskOnOrAfterDay(task, dayStartTime);
+          return isTaskOnOrAfterDay(task, dayStartTime, displayZone);
         });
 
     const plannedForDayTasks = (plannerDayMap[dayDate] || []).map((t) =>
@@ -193,13 +192,14 @@ export const createScheduleDays = (
     // For the current week (days within 7 days from today), include all tasks including unscheduled ones
     // After current week, filter out tasks that don't belong in remaining days
     const futureDayAssignedTasks = filteredFlowTasks.filter(
-      (task) => isDayAssignedTask(task) && isTaskOnOrAfterDay(task, nextDayStart),
+      (task) =>
+        isDayAssignedTask(task) && isTaskOnOrAfterDay(task, nextDayStart, displayZone),
     );
     flowTasksLeftAfterDay = uniqueTasksById([
       ...(isInCurrentWeek
         ? [...nonSplitBeyondTasks]
         : nonSplitBeyondTasks.filter((task) => {
-            return isTaskOnOrAfterDay(task, nextDayStart);
+            return isTaskOnOrAfterDay(task, nextDayStart, displayZone);
           })),
       ...futureDayAssignedTasks,
     ]);
@@ -375,13 +375,17 @@ const asPlannedForDayTask = (
       : {}),
   }) as TaskWithPlannedForDayIndication;
 
-const isTaskOnOrAfterDay = (task: ScheduleFlowTask, dayStartTime: number): boolean => {
+const isTaskOnOrAfterDay = (
+  task: ScheduleFlowTask,
+  dayStartTime: number,
+  displayZone: string,
+): boolean => {
   if (isPlannedForDayTask(task)) {
-    return getDayStartTime(task.plannedForDay) >= dayStartTime;
+    return calendarDayStart(task.plannedForDay, displayZone) >= dayStartTime;
   }
 
   if (task.dueDay) {
-    return getDayStartTime(task.dueDay) >= dayStartTime;
+    return calendarDayStart(task.dueDay, displayZone) >= dayStartTime;
   }
 
   if (task.dueWithTime) {
@@ -389,12 +393,6 @@ const isTaskOnOrAfterDay = (task: ScheduleFlowTask, dayStartTime: number): boole
   }
 
   return false;
-};
-
-const getDayStartTime = (dayDate: string): number => {
-  const date = dateStrToUtcDate(dayDate);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
 };
 
 const uniqueTasksById = <T extends ScheduleFlowTask>(tasks: T[]): T[] => {
@@ -410,20 +408,12 @@ const uniqueTasksById = <T extends ScheduleFlowTask>(tasks: T[]): T[] => {
 
 const getBudgetLeftForDay = (
   blockerBlocksForDay: BlockedBlock[],
-  nowIfToday?: number,
+  nowIfToday: number,
+  dayEnd: number,
 ): number => {
-  if (typeof nowIfToday === 'number') {
-    return blockerBlocksForDay.reduce((acc, currentValue) => {
-      const diff =
-        Math.max(nowIfToday, currentValue.end) - Math.max(nowIfToday, currentValue.start);
-      return acc - diff;
-    }, msLeftToday(nowIfToday));
-  }
-
-  return blockerBlocksForDay.reduce(
-    (acc, currentValue) => {
-      return acc - (currentValue.end - currentValue.start);
-    },
-    24 * 60 * 60 * 1000,
-  );
+  return blockerBlocksForDay.reduce((acc, currentValue) => {
+    const diff =
+      Math.max(nowIfToday, currentValue.end) - Math.max(nowIfToday, currentValue.start);
+    return acc - diff;
+  }, dayEnd - nowIfToday);
 };
