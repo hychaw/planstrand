@@ -1,4 +1,5 @@
 import { EventService } from '../../event/event.service';
+import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
 import { editableLocalEvent } from '../schedule.model';
 import {
   ChangeDetectionStrategy,
@@ -407,8 +408,6 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     const t = this.task();
     const evt = this.se();
     if (editableLocalEvent(evt, 'canDelete') && !this.isDragPreview()) {
-      const { DialogEventComponent } =
-        await import('../../event/dialog-event/dialog-event.component');
       this._matDialog.open(DialogEventComponent, {
         data: { id: (evt.data as { sourceId: string }).sourceId },
       });
