@@ -2,6 +2,10 @@
 
 ## Active strategy: Fast-Track V1 (2026-10-04)
 
+Milestone A is implemented and ready for merge, pending user review. See
+[the concise final milestone audit](FAST_TRACK_MILESTONE_A_FINAL_AUDIT.md) for
+delivered behavior, validation, baseline failure classification, and deferred polish.
+
 Phases 1–4 are the authoritative foundations. Execute product milestones instead
 of running old Phases 5–13 sequentially. Milestone A combines essential Phase 5/6:
 primary navigation, Master Tasks, recursive Folders, effective Inbox, Folder-aware
