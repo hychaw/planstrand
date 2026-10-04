@@ -46,7 +46,7 @@ import { KeyboardConfig } from '@sp/keyboard-config';
         [matTooltip]="T.MH.GO_TO_TASK_LIST | translate"
         class="page-title"
         mat-ripple
-        routerLink="/active/tasks"
+        [routerLink]="isSpecialSection() ? '/today' : '/active/tasks'"
       >
         @if (!isSpecialSection() && activeWorkContext()) {
           <mat-icon
@@ -367,7 +367,12 @@ export class PageTitleComponent {
   // Routes that get their own title and have no work-context menu.
   // Order is irrelevant — patterns are mutually exclusive end-anchors.
   private static readonly _ROUTE_TITLE_KEYS: ReadonlyArray<readonly [RegExp, string]> = [
-    [/schedule$/, T.MH.SCHEDULE],
+    [/inbox$/, 'PLANSTRAND.INBOX'],
+    [/master-tasks$/, 'PLANSTRAND.MASTER_TASKS'],
+    [/today$/, 'PLANSTRAND.TODAY'],
+    [/this-week$/, 'PLANSTRAND.THIS_WEEK'],
+    [/folder\/[^/]+$/, 'PLANSTRAND.FOLDERS'],
+    [/schedule$/, 'PLANSTRAND.SCHEDULE'],
     [/planner$/, T.MH.PLANNER],
     [/boards$/, T.MH.BOARDS],
     [/habits$/, T.MH.HABITS],

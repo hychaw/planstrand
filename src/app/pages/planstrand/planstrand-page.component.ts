@@ -45,6 +45,7 @@ import { getDbDateStr } from '../../util/get-db-date-str';
   styleUrl: './planstrand-page.component.scss',
 })
 export class PlanstrandPageComponent {
+  readonly Math = Math;
   readonly ui = inject(PlanstrandService);
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(Store);

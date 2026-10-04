@@ -178,3 +178,8 @@
   display: inline;
   font-weight: 100;
 }
+
+.calendar-hint {
+  margin: var(--s) var(--s2);
+  color: var(--text-color-muted);
+}

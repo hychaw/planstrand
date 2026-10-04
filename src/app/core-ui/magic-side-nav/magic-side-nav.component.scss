@@ -343,3 +343,22 @@
     background-color: var(--sidenav-active-text);
   }
 }
+
+.secondary-navigation summary {
+  cursor: pointer;
+  padding: var(--s2);
+  color: var(--text-color);
+}
+.secondary-navigation summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
+
+.product-name {
+  display: block;
+  padding: var(--s2);
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}

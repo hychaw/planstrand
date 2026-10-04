@@ -1,5 +1,5 @@
 appId: superProductivity
-productName: Super Productivity
+productName: Planstrand
 artifactName: ${name}-${arch}.${ext}
 
 files:

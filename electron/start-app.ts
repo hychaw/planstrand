@@ -34,7 +34,7 @@ import { evaluateGpuStartupGuard } from './gpu-startup-guard';
 import * as fs from 'fs';
 
 const ICONS_FOLDER = __dirname + '/assets/icons/';
-const APP_DISPLAY_NAME = 'Super Productivity';
+const APP_DISPLAY_NAME = 'Planstrand';
 // Filename of the .desktop entry electron-builder installs, i.e.
 // `${linux.executableName}.desktop`. The `.desktop` suffix is required and is
 // what Electron's own default uses: `Browser::SetAsDefaultProtocolClient` hands

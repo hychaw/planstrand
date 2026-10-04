@@ -25,3 +25,20 @@ h2 {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: var(--s2);
 }
+
+.folder-title {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+@media (max-width: 600px) {
+  .planstrand-page {
+    padding: var(--s);
+  }
+  section {
+    margin-inline-start: 0 !important;
+  }
+}

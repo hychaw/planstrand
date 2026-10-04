@@ -96,16 +96,59 @@
       </button>
     }
 
+    @if (showText()) {
+      <a
+        class="product-name"
+        routerLink="/today"
+        (click)="isMobile() && toggleMobileNav()"
+        >Planstrand</a
+      >
+    }
     @if (isDataLoaded()) {
-      @if (isFullMode() || isMobile()) {
-        <planstrand-folder-navigation (navigated)="isMobile() && toggleMobileNav()" />
-      }
       <!-- Navigation Items -->
       <ul
         class="nav-list"
         role="list"
       >
-        @for (item of config().items; track item.id) {
+        @for (item of primaryItems(); track item.id) {
+          <ng-container
+            [ngTemplateOutlet]="navigationItem"
+            [ngTemplateOutletContext]="{ $implicit: item }"
+          />
+        }
+        @if (showText()) {
+          <li>
+            <planstrand-folder-navigation (navigated)="isMobile() && toggleMobileNav()" />
+          </li>
+        }
+        <li>
+          <details
+            class="secondary-navigation"
+            [open]="isLegacyRoute()"
+          >
+            <summary [attr.aria-label]="'PLANSTRAND.MORE' | translate">
+              {{ showText() ? ('PLANSTRAND.MORE' | translate) : '⋯' }}
+            </summary>
+            <ul class="nav-list">
+              @for (item of secondaryItems(); track item.id) {
+                <ng-container
+                  [ngTemplateOutlet]="navigationItem"
+                  [ngTemplateOutletContext]="{ $implicit: item }"
+                />
+              }
+            </ul>
+          </details>
+        </li>
+        @for (item of utilityItems(); track item.id) {
+          <ng-container
+            [ngTemplateOutlet]="navigationItem"
+            [ngTemplateOutletContext]="{ $implicit: item }"
+          />
+        }
+        <ng-template
+          #navigationItem
+          let-item
+        >
           @switch (item.type) {
             @case ('separator') {
               <hr
@@ -213,7 +256,7 @@
               </li>
             }
           }
-        }
+        </ng-template>
       </ul>
     }
   </nav>

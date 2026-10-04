@@ -58,7 +58,7 @@
           @if (t.tagIds?.length || t.projectId || t.repeatCfgId || t.issueId) {
             <tag-list
               [task]="t"
-              [isShowProjectTagNever]="isInSubTaskList()"
+              [isShowProjectTagNever]="isInSubTaskList() || isShowProjectTagNever()"
             ></tag-list>
           }
         </div>

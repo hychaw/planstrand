@@ -72,7 +72,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     // in misc-settings-form (#7891).
     isShowProductivityTipLonger: false,
     customTheme: 'default',
-    defaultStartPage: 0,
+    defaultStartPage: 5,
     backgroundImageDark: null,
     backgroundImageLight: null,
   },

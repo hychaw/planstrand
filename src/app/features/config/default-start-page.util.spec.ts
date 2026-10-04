@@ -5,7 +5,7 @@ import { Project } from '../project/project.model';
 import { TODAY_TAG } from '../tag/tag.const';
 import { INBOX_PROJECT } from '../project/project.const';
 
-const TODAY_URL = `/tag/${TODAY_TAG.id}/tasks`;
+const TODAY_URL = '/today';
 
 const features = (over: Partial<AppFeaturesConfig> = {}): AppFeaturesConfig =>
   ({
@@ -29,9 +29,9 @@ describe('getStartPageUrlPath', () => {
       expect(getStartPageUrlPath(undefined, features(), undefined)).toBe(TODAY_URL);
     });
 
-    it('resolves Today', () => {
+    it('preserves explicitly configured legacy Today', () => {
       expect(getStartPageUrlPath(DefaultStartPage.Today, features(), undefined)).toBe(
-        TODAY_URL,
+        `/tag/${TODAY_TAG.id}/tasks`,
       );
     });
 
@@ -86,6 +86,23 @@ describe('getStartPageUrlPath', () => {
     it('treats an empty string as Today', () => {
       expect(getStartPageUrlPath('', features(), undefined)).toBe(TODAY_URL);
     });
+  });
+
+  it('resolves all Planstrand destinations without depending on legacy feature toggles', () => {
+    const disabled = features({
+      isPlannerEnabled: false,
+      isSchedulerEnabled: false,
+      isBoardsEnabled: false,
+    });
+    for (const [page, route] of [
+      [DefaultStartPage.PlanstrandToday, '/today'],
+      [DefaultStartPage.PlanstrandInbox, '/inbox'],
+      [DefaultStartPage.MasterTasks, '/master-tasks'],
+      [DefaultStartPage.ThisWeek, '/this-week'],
+    ] as const) {
+      expect(getStartPageUrlPath(page, disabled, undefined)).toBe(route);
+    }
+    expect(getStartPageUrlPath(999, disabled, undefined)).toBe('/today');
   });
 
   describe('project start pages', () => {

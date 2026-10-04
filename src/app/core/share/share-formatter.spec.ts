@@ -74,7 +74,7 @@ describe('ShareFormatter', () => {
       });
 
       expect(payload.text).toContain('#productivity');
-      expect(payload.text).toContain('#SuperProductivity');
+      expect(payload.text).toContain('#Planstrand');
     });
 
     it('should set project name in title when provided', () => {
@@ -94,8 +94,8 @@ describe('ShareFormatter', () => {
     it('should format default promotional text', () => {
       const payload = ShareFormatter.formatPromotion();
 
-      expect(payload.text).toContain('Super Productivity');
-      expect(payload.title).toBe('Super Productivity');
+      expect(payload.text).toContain('Planstrand');
+      expect(payload.title).toBe('Planstrand');
       expect(payload.url).toBeDefined();
     });
 

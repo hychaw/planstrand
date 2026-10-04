@@ -4,8 +4,20 @@
   [formlyAttributes]="field"
   [id]="id"
 >
+  <mat-option [value]="DefaultStartPage.PlanstrandToday">{{
+    'PLANSTRAND.TODAY' | translate
+  }}</mat-option>
+  <mat-option [value]="DefaultStartPage.PlanstrandInbox">{{
+    'PLANSTRAND.INBOX' | translate
+  }}</mat-option>
+  <mat-option [value]="DefaultStartPage.MasterTasks">{{
+    'PLANSTRAND.MASTER_TASKS' | translate
+  }}</mat-option>
+  <mat-option [value]="DefaultStartPage.ThisWeek">{{
+    'PLANSTRAND.THIS_WEEK' | translate
+  }}</mat-option>
   <mat-option [value]="DefaultStartPage.Today">{{
-    T.G.TODAY_TAG_TITLE | translate
+    'PLANSTRAND.LEGACY_TASKS' | translate
   }}</mat-option>
 
   <!-- Legacy: render only when the user still has the old numeric Inbox value,

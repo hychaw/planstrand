@@ -23,7 +23,7 @@ export class BrowserTitleService {
   private _taskService = inject(TaskService);
   private _dateService = inject(DateService);
 
-  private readonly _baseTitle = 'Super Productivity';
+  private readonly _baseTitle = 'Planstrand';
   private readonly _currentTask = toSignal(this._taskService.currentTask$, {
     initialValue: null,
   });

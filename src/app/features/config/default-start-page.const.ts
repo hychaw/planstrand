@@ -7,4 +7,8 @@ export enum DefaultStartPage {
   Planner = 2,
   Schedule = 3,
   Boards = 4,
+  PlanstrandToday = 5,
+  PlanstrandInbox = 6,
+  MasterTasks = 7,
+  ThisWeek = 8,
 }

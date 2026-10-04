@@ -40,14 +40,22 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
           [cdkDragData]="task"
           class="task-entry"
         >
-          <task [task]="task" />
+          <task
+            [task]="task"
+            [isShowProjectTagNever]="true"
+          />
           <div class="commands">
+            <span
+              class="folder-path"
+              [title]="entry.path"
+              >{{ entry.path }}</span
+            >
             <button
               mat-button
               (click)="ui.chooseTaskFolder(task)"
               [title]="entry.path"
             >
-              {{ entry.path }} · {{ 'PLANSTRAND.MOVE_TASK' | translate }}
+              {{ 'PLANSTRAND.MOVE_TASK' | translate }}
             </button>
             <label
               >{{ 'PLANSTRAND.PLAN' | translate }}
@@ -68,7 +76,7 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
               mat-button
               (click)="schedule(task)"
             >
-              {{ 'PLANSTRAND.SCHEDULE' | translate }}
+              {{ 'PLANSTRAND.SCHEDULE_SESSION' | translate }}
             </button>
             @if (planning()) {
               <button
@@ -91,7 +99,11 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
           </div>
         </div>
       } @empty {
-        <p>{{ 'PLANSTRAND.EMPTY' | translate }}</p>
+        <p>
+          {{
+            (planning() ? 'PLANSTRAND.EMPTY_PLANNING' : 'PLANSTRAND.EMPTY') | translate
+          }}
+        </p>
       }
     </div>
   `,
@@ -111,6 +123,19 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
     }
     select {
       max-width: 16em;
+    }
+    .folder-path {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      font-size: var(--font-size-sm);
+      color: var(--text-color-muted);
+    }
+    .commands label {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--s-half);
+      min-width: 0;
     }
     .task-entry {
       margin-bottom: var(--s);

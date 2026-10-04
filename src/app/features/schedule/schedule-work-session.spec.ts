@@ -10,7 +10,10 @@ import { TaskService } from '../tasks/task.service';
 import { DEFAULT_TASK, TaskWithDueTime } from '../tasks/task.model';
 import { WorkSession } from '../work-session/work-session.model';
 import { legacyTaskWorkSessionId } from '../work-session/legacy-task-work-session-backfill';
-import { selectLocalCalendarDisplayItems } from './calendar-display-item.selectors';
+import {
+  selectLocalCalendarDisplayItems,
+  selectPersistedCalendarDisplayItems,
+} from './calendar-display-item.selectors';
 import { selectTimelineTasks } from '../work-context/store/work-context.selectors';
 import { selectTaskRepeatCfgsWithAndWithoutStartTime } from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { selectTimelineConfig } from '../config/store/global-config.reducer';
@@ -59,7 +62,7 @@ describe('Schedule WorkSession read integration', () => {
         DateService,
         provideMockStore({
           selectors: [
-            { selector: selectLocalCalendarDisplayItems, value: [] },
+            { selector: selectPersistedCalendarDisplayItems, value: [] },
             { selector: selectTimelineTasks, value: { planned: [task], unPlanned: [] } },
             {
               selector: selectTaskRepeatCfgsWithAndWithoutStartTime,
@@ -91,9 +94,11 @@ describe('Schedule WorkSession read integration', () => {
     service = TestBed.inject(ScheduleService);
   });
 
+  afterEach(() => store.resetSelectors());
+
   const project = (sessions: WorkSession[]): void => {
     store.overrideSelector(
-      selectLocalCalendarDisplayItems,
+      selectPersistedCalendarDisplayItems,
       selectLocalCalendarDisplayItems.projector(
         sessions,
         { [task.id]: task },
@@ -163,7 +168,7 @@ describe('Schedule WorkSession read integration', () => {
       days()[0].entries.find((entry) => entry.type === SVEType.WorkSession)?.data.title,
     ).toBe(task.title);
     store.overrideSelector(
-      selectLocalCalendarDisplayItems,
+      selectPersistedCalendarDisplayItems,
       selectLocalCalendarDisplayItems.projector(
         [session],
         { [task.id]: { ...task, title: 'Renamed Task', isDone: true } },

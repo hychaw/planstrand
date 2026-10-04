@@ -210,6 +210,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   task = input.required<TaskWithSubTasks>();
   isBacklog = input<boolean>(false);
   isInSubTaskList = input<boolean>(false);
+  isShowProjectTagNever = input<boolean>(false);
   showDoneAnimation = signal(false);
   showUndoneAnimation = signal(false);
 

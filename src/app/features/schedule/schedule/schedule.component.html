@@ -145,6 +145,9 @@
   <div class="title">{{ headerTitle() }}</div>
 </div>
 
+@if (monthEvents().length === 0) {
+  <p class="calendar-hint">{{ 'PLANSTRAND.EMPTY_CALENDAR' | translate }}</p>
+}
 <div
   #scrollWrapper
   class="scroll-wrapper"
