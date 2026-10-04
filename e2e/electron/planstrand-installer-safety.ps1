@@ -6,6 +6,7 @@ param(
   [switch]$InstallerOnly
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'planstrand-installer-ui.ps1')
 $Installer = (Resolve-Path -LiteralPath $Installer).Path
 $guid = 'f742ac0b-6794-588a-a5f8-d13e36ad8eb9'
 $installKey = "HKCU:\Software\$guid"
@@ -112,4 +113,51 @@ Remove-Item -LiteralPath $profileSentinel
 # after proving app removal; nonrecursive deletion proves nothing else remains.
 if (Test-Path -LiteralPath $uninstaller) { Remove-Item -LiteralPath $uninstaller }
 if (Test-Path -LiteralPath $destination) { [IO.Directory]::Delete($destination) }
+
+# The same policy must run after the actual destination page, not just for /D=.
+Assert-True ((Invoke-PlanstrandInstallerUI $Installer $unsafe) -eq 2) 'Unsafe UI destination accepted'
+Assert-Sentinels
+$destination = Join-Path $root 'CustomApps\Planstrand'
+$exe = Join-Path $destination 'Planstrand.exe'
+$uninstaller = Join-Path $destination 'Uninstall Planstrand.exe'
+Assert-True ((Invoke-PlanstrandInstallerUI $Installer $destination) -eq 0) 'Safe custom UI installation failed'
+Assert-True (Test-Path -LiteralPath $exe) 'Custom installation executable missing'
+$metadata = Get-ItemProperty -LiteralPath $uninstallKey
+Assert-True ($metadata.DisplayName -eq 'Planstrand') 'Custom Installed Apps name is wrong'
+Assert-True ($metadata.UninstallString -eq ('"' + $uninstaller + '" /currentuser')) 'Custom uninstall command is invalid'
+Assert-True ((Get-ItemProperty -LiteralPath $installKey).InstallLocation -eq $destination) 'Custom registration location mismatch'
+if (!$InstallerOnly) {
+  node e2e/electron/planstrand-rc-smoke.cjs $exe
+  Assert-True ($LASTEXITCODE -eq 0) 'Custom installed application smoke failed'
+}
+Assert-True ((Run-Installer $Installer "/S /currentuser /D=$destination") -eq 0) 'Owned custom upgrade failed'
+# A marker plus registration does not allow arbitrary files or a repository.
+$mixedSentinel = Join-Path $destination 'DO-NOT-DELETE.txt'
+[IO.File]::WriteAllText($mixedSentinel, 'unrelated addition')
+Assert-True ((Run-Installer $Installer "/S /currentuser /D=$destination") -eq 2) 'Mixed owned directory accepted'
+Assert-True ((Get-Content -LiteralPath $mixedSentinel -Raw) -eq 'unrelated addition') 'Mixed sentinel deleted'
+$gitMarker = Join-Path $destination '.git'
+[IO.File]::WriteAllText($gitMarker, 'gitdir: unrelated')
+Assert-True ((Run-Installer $Installer "/S /currentuser /D=$destination") -eq 2) 'Git worktree directory accepted'
+Assert-True ((Get-Content -LiteralPath $gitMarker -Raw) -eq 'gitdir: unrelated') 'Git marker changed'
+Remove-Item -LiteralPath $gitMarker
+[IO.File]::WriteAllText($profileSentinel, 'retain profile')
+Assert-True ((Run-Installer $uninstaller "/S /currentuser _?=$destination") -eq 0) 'Custom uninstall failed'
+Assert-True (!(Test-Path -LiteralPath $exe)) 'Custom uninstall retained executable'
+Assert-True (!(Test-Path -LiteralPath $uninstallKey)) 'Custom uninstall retained registration'
+Assert-True ((Get-Content -LiteralPath $mixedSentinel -Raw) -eq 'unrelated addition') 'Uninstall deleted mixed sentinel'
+Remove-Item -LiteralPath $mixedSentinel
+Assert-True ((Get-Content -LiteralPath $profileSentinel -Raw) -eq 'retain profile') 'Custom uninstall deleted profile'
+Assert-Sentinels
+Remove-Item -LiteralPath $profileSentinel
+if (Test-Path -LiteralPath $uninstaller) { Remove-Item -LiteralPath $uninstaller }
+if (Test-Path -LiteralPath $destination) { [IO.Directory]::Delete($destination) }
+# A fresh explicit /D= and an existing empty custom directory are supported too.
+New-Item -ItemType Directory -Path $destination | Out-Null
+Assert-True ((Run-Installer $Installer "/S /currentuser /D=$destination") -eq 0) 'Empty custom /D installation failed'
+Assert-True ((Run-Installer $uninstaller "/S /currentuser _?=$destination") -eq 0) 'Empty custom uninstall failed'
+if (Test-Path -LiteralPath $uninstaller) { Remove-Item -LiteralPath $uninstaller }
+if (Test-Path -LiteralPath $destination) { [IO.Directory]::Delete($destination) }
+Assert-Sentinels
+Write-Output "PASS: safe custom UI and /D=, unsafe UI, mixed owned content, Git marker, custom Installed Apps registration, uninstall and sentinels"
 Write-Output "PASS: installer destination/metadata/reinstall/uninstall/profile/sentinels verified. Application smoke executed: $(!$InstallerOnly). Evidence: $root"

@@ -1,8 +1,20 @@
 # Planstrand V1 release preparation audit
 
-Prepared 2026-10-04. The original RC artifacts below are superseded by the Windows installer safety correction. No tag or GitHub Release is authorized by this audit.
+Updated 2026-10-04. The earlier RC artifacts below are superseded by the Calendar and safe custom installer corrections. No tag or GitHub Release is authorized by this audit.
 
-## Windows installer safety correction (2026-10-04)
+## Calendar and custom destination correction (2026-10-04)
+
+Resumed the intentional WIP on `release/planstrand-v1` from committed SHA `a76d9e0a76005b1800c27e0d8a50420677b23fba`; the external recovery backups were preserved. Read-only inspection found `Testing` stored at `2026-10-04T09:00:00Z`–`10:00:00Z`, timezone `UTC`: **2–3 AM Vancouver**, rather than 1 PM. It survived the unified projection, but Day/Week scroll near the current time left it above the viewport. The former ambiguous `1:00` badge and the runtime's incorrect local offset obscured this finding. Twelve-hour badges and tooltips now include AM/PM.
+
+The genuine one-hour defect came from local `Date` getters on a Windows system using the new `British Columbia Standard Time` ID, which bundled ICU did not recognize. Calendar now resolves one display IANA zone (valid explicit localization, otherwise system, otherwise UTC) and carries it through date membership, civil-day boundaries, work clocks, Event/WorkSession/legacy Task rows, drag coordinates and the current-time indicator. Electron supplies the observed Windows ID's IANA identity when ICU cannot resolve it; IANA rules determine offsets. Persisted Event instants and stored zones are unchanged.
+
+Focused Calendar validation passed 383 tests, with 37 targeted follow-up tests after final helper changes. Regressions cover persisted early UTC Events, WorkSessions and legacy Tasks in 1/7/35-day projections, Vancouver October 4 at 12:21 (grid row 149), the March 2026 spring transition and historical November 2025 repeated hour/day boundaries. The production Chrome regression confirmed Month/Week/Day membership, 2 AM placement, scrollable visibility, current-time alignment, AM/PM and reload persistence.
+
+The assisted Windows installer restores the destination page. New/empty targets are allowed; existing installations require matching registration, identity marker, executable/uninstaller and an exact packaged-content allowlist. Unknown non-empty folders, repositories, links, unsafe `/D=` overrides and foreign prior registrations are rejected without an override button. Uninstall deletes only the compiled package file list and removes directories non-recursively, preserving unrelated additions and `%APPDATA%\Planstrand`. Custom installations retain the normal **Planstrand** Installed Apps entry and valid uninstall command. The real UI/sentinel regression is included in the existing hosted portable-smoke entry point; local executable launch restrictions are distinguished from hosted application smoke results.
+
+Production frontend/Electron builds, unsigned Windows packaging/import checks, 16 focused release/artifact/manifest/native-zone contracts, changed-file checks and production browser verification passed. The local real-installer regression passed safe custom UI and `/D=`, unsafe UI/non-empty/prior registration, owned upgrades, Git/mixed-content refusal, Installed Apps metadata, uninstall/profile retention and root/nested sentinel survival (`.tmp/installer-safety-final.log`); the final UI helper also passed independently. Local packaged launch was blocked by Code Integrity event 3077 (enterprise signing policy); portable launch timed out. Hosted Windows smoke remains the application execution check. The stale run `37200645732` must be cancelled only after pushing the corrected source; dispatch master's RC workflow with that exact SHA and `create_draft=true`, and leave `planstrand-release` waiting for manual approval.
+
+## Initial Windows installer safety correction (superseded mitigation)
 
 Manual RC testing selected the existing source checkout as the installation directory. Uninstall recursively removed its contents, including `.git`. Recovery from GitHub lost no pushed source or history. Safety work began from clean `release/planstrand-v1` SHA `4f5d716d26d5767e46fc40b491941575a7ec18ba` in `Planstrand-recovered`; the damaged checkout was not used. Unsafe workflow run `37195686206` is cancelled and must not supply a release.
 

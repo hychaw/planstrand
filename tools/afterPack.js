@@ -65,6 +65,12 @@ const verifyPackagedMacIcon = async (context) => {
 };
 
 async function afterPack(context) {
+  if (context.electronPlatformName === 'win32') {
+    require('./planstrand-installer-manifest.cjs').writeInstallerManifest(
+      context.appOutDir,
+      join(context.packager.projectDir, '.tmp'),
+    );
+  }
   if (
     context.electronPlatformName === 'darwin' ||
     context.electronPlatformName === 'mas'

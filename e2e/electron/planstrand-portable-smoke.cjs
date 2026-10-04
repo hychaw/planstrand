@@ -110,7 +110,7 @@ const stop = async () => {
         '-Installer',
         path.join(path.dirname(executable), 'Planstrand-Setup.exe'),
       ],
-      { stdio: 'inherit', windowsHide: true, timeout: 300000 },
+      { stdio: 'inherit', windowsHide: true, timeout: 600000 },
     );
   }
   fs.writeFileSync(

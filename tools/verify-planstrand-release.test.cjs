@@ -107,17 +107,26 @@ test('NSIS uninstall identity differs from upstream', () => {
   );
 });
 
-test('RC installer has no custom destination UI and guards NSIS overrides', () => {
-  assert.equal(builder.nsis.oneClick, true);
+test('RC installer offers safe destinations and guards overrides and uninstall', () => {
+  assert.equal(builder.nsis.oneClick, false);
   assert.equal(builder.nsis.perMachine, false);
-  assert.equal(builder.nsis.allowToChangeInstallationDirectory, false);
+  assert.equal(builder.nsis.allowToChangeInstallationDirectory, true);
   assert.equal(builder.nsis.include, 'build/planstrand-installer.nsh');
   const guard = read(builder.nsis.include);
   assert.match(guard, /!macro customInit[\s\S]*GetDParameter/);
   assert.match(guard, /StrCpy \$INSTDIR "\$LOCALAPPDATA\\Programs\\Planstrand"/);
-  assert.match(guard, /FindFirst[\s\S]*ReadINIStr[\s\S]*SetErrorLevel 2/);
+  assert.match(guard, /FindFirst[\s\S]*ReadINIStr/);
+  assert.match(guard, /SetErrorLevel 2/);
+  assert.match(guard, /customPageAfterChangeDir[\s\S]*Call PlanstrandCheckDestination/);
+  assert.match(guard, /GetFileAttributesW/);
+  assert.match(guard, /\$R2 == "\.git"/);
+  assert.match(guard, /PlanstrandCheckTree/);
   assert.match(guard, /!macro customUnInit/);
-  assert.doesNotMatch(guard, /RMDir|delete-app-data/);
+  assert.doesNotMatch(guard, /RMDir \/r|delete-app-data/);
+  assert.match(
+    read('tools/planstrand-installer-manifest.cjs'),
+    /!macro customRemoveFiles/,
+  );
   const smoke = read('e2e/electron/planstrand-portable-smoke.cjs');
   assert.match(smoke, /planstrand-installer-safety\.ps1/);
   assert.doesNotMatch(smoke, /InstallerOnly/);
