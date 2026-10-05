@@ -26,14 +26,119 @@ The failed logs were reviewed before editing expectations.
 
 No test suite is removed, disabled or made optional. Development branch filters,
 required gates, synchronization semantics, database migrations and release tags are
-unchanged. Android back navigation is the only product-code change so far.
+unchanged. Product-code changes are limited to Android back navigation and
+propagating protocol-incompatibility errors through split snapshot recovery.
 
 Focused Angular validation repaired the original failing files. A full local run
 reported 16,934 passing and two system-timezone diagnostic failures, with 19 existing
-timezone-dependent skips. Hosted Linux validation remains authoritative for both
-configured timezone passes. Server validation/service unit tests passed (201 tests)
+timezone-dependent skips. Hosted `npm run test` passed both configured Linux
+timezone runs on revision d70a9d3. Server validation/service unit tests passed (201 tests)
 and the server TypeScript build passed. Root `checkFile` passes for modified app and
 E2E TypeScript; it intentionally refuses the five server spec paths, which use the
 package's formatting/build/test validation instead.
 
-Hosted results and final totals will be recorded after the PR checks finish.
+The complete general-browser job and remaining provider results are pending.
+The first WebDAV run improved from 23 failures/38 passes to 10 failures/56 passes;
+six dependent cases did not run after their serial prerequisites failed. No skip
+was added. SuperSync shards 1, 5 and 6 passed; shards 2, 3 and 4 each retained one
+navigation/projection-harness failure corrected in the next revision. Follow-up
+results are available in PR #7 checks; this report records the first hosted pass.
+
+The WebDAV newer-protocol trace showed an actual bug: an immutable snapshot's
+`PlanstrandFileIncompatibleError` was caught as recoverable corruption, allowing
+an older fixed snapshot to hydrate. The split reader now propagates that error at
+both snapshot fallback boundaries and before state backup. Four regression cases
+cover immutable/fixed snapshots and future versions/semantics. All 226 tests in
+the two related adapter files passed. Both changed files passed `checkFile`.
+
+## Remaining atomicity defect
+
+The original WebDAV stale-monolith trace reproduces multiple persisted operations
+for one local task creation. After a fresh client joins a shared baseline, creating
+`Writer B pending task` in the Today context captures, in order:
+
+1. `[Task Shared] addTask`
+2. `[Tag] Update Tag`, from `preventParentAndSubTaskInTodayList$`
+3. `[Planning] Set Placement`, from `TaskService.add()`
+
+The upload-lock test finds three pending IDs where its one-intent assertion expects
+one. This is not a renamed-file failure or a reason to loosen that assertion.
+`TaskService.add()` dispatches creation and then separately invokes the Planning
+command; the legacy Today consistency effect also persists its correction.
+The task, legacy ordering and Planning placement need an atomic creation path with
+replay coverage. Changing those synchronized semantics belongs on a separate fix
+branch. The existing four stale-monolith scenarios retain their reproduction and
+pending-ID preservation assertions. No extra capture is suppressed here.
+
+Hosted server integration on the first revision improved from 15 failures to one
+(96 passing). Its remaining failure was a unique-sequence collision between the
+new ordinary padding and the test's unvacuumed tail. Padding now uses a disjoint
+sequence range; the exact heap-fetch and boundary assertions are unchanged.
+
+Other retained WebDAV failures require separate product work or policy review:
+
+- Surgical migration captures two operations for a new task where its regression
+  requires one. The same creation/Planning atomicity issue applies.
+- The backup-only claim scenario assumes that a new split client can claim a folder
+  with a surviving single-file backup. The current namespace guard intentionally
+  fences any existing namespace with neither primary commit. Whether a valid backup
+  should permit explicit recovery needs a separate policy decision; the test is
+  retained rather than silently accepting an empty overwrite.
+
+The remaining upload-unseen-operations harness expected one physical GET. Namespace
+discovery and semantic screening add two reads before the engine download. Its
+exact pre-upload expectation is now three GETs, with the lock, cursor, unseen-ID and
+convergence checks retained.
+
+The inherited Today remove-versus-reorder expectation was also stale. The trace
+shows both commands capture `[Planning] Set Placement`. Schema 5's published
+PlanningRecord contract resolves target and order together by counter, lexical
+clientId, then opId; it does not guarantee that removal beats every concurrent
+reorder. The rewritten scenario captures both authored records before sync,
+computes that contract's exact winner, and verifies the complete record and exact
+Today task order on both clients, including after B's reload. No production merge
+rule was changed.
+
+## Changed-file validation
+
+Each changed TypeScript file was passed to checkFile. Server specs are explicitly excluded by root ESLint, so their package checks are recorded separately. No SCSS, YAML or JSON file changed.
+
+| File                                                                                       | Result                                                    |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| e2e/tests/sync/supersync-example-task-fresh-client.spec.ts                                 | Passed                                                    |
+| e2e/tests/sync/supersync-import-other-client-ops.spec.ts                                   | Passed                                                    |
+| e2e/tests/sync/supersync-import-same-client-ops.spec.ts                                    | Passed                                                    |
+| e2e/tests/sync/supersync-lww-conflict.spec.ts                                              | Passed                                                    |
+| e2e/tests/sync/supersync-models.spec.ts                                                    | Passed                                                    |
+| e2e/tests/sync/supersync-superseded-clock-regression.spec.ts                               | Passed                                                    |
+| e2e/tests/sync/supersync-vector-clock-pruning.spec.ts                                      | Passed                                                    |
+| e2e/tests/sync/webdav-format-rollout.spec.ts                                               | Passed                                                    |
+| e2e/tests/sync/webdav-newer-format-8764.spec.ts                                            | Passed                                                    |
+| e2e/tests/sync/webdav-setup-encryption.spec.ts                                             | Passed                                                    |
+| e2e/tests/sync/webdav-split-claim-bak.spec.ts                                              | Passed                                                    |
+| e2e/tests/sync/webdav-stale-monolith.spec.ts                                               | Passed                                                    |
+| e2e/tests/sync/webdav-surgical-sync.spec.ts                                                | Passed                                                    |
+| e2e/tests/sync/webdav-sync-full.spec.ts                                                    | Passed                                                    |
+| e2e/tests/sync/webdav-sync-today-tag.spec.ts                                               | Passed                                                    |
+| e2e/tests/sync/webdav-upload-unseen-ops-10239.spec.ts                                      | Passed                                                    |
+| e2e/utils/supersync-helpers.ts                                                             | Passed                                                    |
+| e2e/utils/sync-helpers.ts                                                                  | Passed                                                    |
+| packages/super-sync-server/tests/integration/clean-slate-atomicity-sql.integration.spec.ts | Excluded by root ESLint; package build/format checks used |
+| packages/super-sync-server/tests/integration/device-touch-upload-race.integration.spec.ts  | Excluded by root ESLint; package build/format checks used |
+| packages/super-sync-server/tests/integration/old-ops-boundary-plan.integration.spec.ts     | Excluded by root ESLint; package build/format checks used |
+| packages/super-sync-server/tests/integration/repair-causality.integration.spec.ts          | Excluded by root ESLint; package build/format checks used |
+| packages/super-sync-server/tests/integration/state-replacement-guard.integration.spec.ts   | Excluded by root ESLint; package build/format checks used |
+| src/app/app.guard.spec.ts                                                                  | Passed                                                    |
+| src/app/features/android/android-back-button.service.spec.ts                               | Passed                                                    |
+| src/app/features/android/android-back-button.service.ts                                    | Passed                                                    |
+| src/app/features/boards/board-panel/board-panel.component.spec.ts                          | Passed                                                    |
+| src/app/features/schedule/map-schedule-data/map-to-schedule-days.spec.ts                   | Passed                                                    |
+| src/app/features/schedule/schedule-timed-entry-points.spec.ts                              | Passed                                                    |
+| src/app/op-log/core/action-types.enum.spec.ts                                              | Passed                                                    |
+| src/app/op-log/persistence/operation-log-compaction.service.spec.ts                        | Passed                                                    |
+| src/app/op-log/testing/integration/archive-conflict-resolution.integration.spec.ts         | Passed                                                    |
+| src/app/op-log/testing/integration/hydration-compaction-race.integration.spec.ts           | Passed                                                    |
+| src/app/op-log/validation/data-repair.spec.ts                                              | Passed                                                    |
+| e2e/tests/sync/supersync-project-delete-conflict.spec.ts                                   | Passed                                                    |
+| src/app/op-log/sync-providers/file-based/file-based-sync-adapter.service.ts                | Passed                                                    |
+| src/app/op-log/sync-providers/file-based/planstrand-file-sync-adapter.service.spec.ts      | Passed                                                    |
