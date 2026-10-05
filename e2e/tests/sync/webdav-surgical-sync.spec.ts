@@ -719,7 +719,9 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       expect(
         faultRequests.some((path) => path.endsWith('/planstrand-sync-ops.json')),
       ).toBe(true);
-      expect(faultRequests.some((path) => path.includes('/sync-state'))).toBe(false);
+      expect(faultRequests.some((path) => path.includes('/planstrand-sync-state'))).toBe(
+        false,
+      );
 
       const committedOps = await readSurgicalOpsFile(
         request,
@@ -756,7 +758,9 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       expect(
         restartRequests.some((path) => path.endsWith('/planstrand-sync-ops.json')),
       ).toBe(true);
-      expect(restartRequests.some((path) => path.includes('/sync-state'))).toBe(false);
+      expect(
+        restartRequests.some((path) => path.includes('/planstrand-sync-state')),
+      ).toBe(false);
       expect(
         restartRequests.some((path) => path.endsWith('/planstrand-sync-data.json')),
       ).toBe(false);

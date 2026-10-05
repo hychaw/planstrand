@@ -342,10 +342,14 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
    * 1. Client A removes Task2 from today (reschedule to tomorrow)
    * 2. Client B moves Task2 to first position (before sync)
    * 3. Both sync
-   * 4. Verify: Task2 NOT in today view (dueDay change wins over reorder)
+   * 4. Verify: Task2 NOT in canonical Today (Planning change survives legacy reorder)
    * 5. Verify: TODAY has consistent tasks on both clients
    */
-  test('Remove from today wins over reorder', async ({ browser, baseURL, request }) => {
+  test('Planning removal survives legacy Today reorder', async ({
+    browser,
+    baseURL,
+    request,
+  }) => {
     test.slow();
     const SYNC_FOLDER_NAME = generateSyncFolderName('e2e-today-remove');
     const WEBDAV_CONFIG = {
@@ -397,7 +401,9 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
     console.log('[TODAY Remove] Client B configured');
 
     // Navigate to TODAY view
-    await pageB.goto(`${url}/#/today`);
+    // The keyboard gesture updates legacy Today ordering. Canonical Planning
+    // reorder is a placement command and would be a different concurrent intent.
+    await pageB.goto(`${url}/#/tag/TODAY/tasks`);
     await workViewPageB.waitForTaskList();
 
     // Client B syncs

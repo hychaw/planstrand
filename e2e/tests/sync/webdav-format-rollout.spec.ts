@@ -205,11 +205,23 @@ test.describe('@webdav automatic file format rollout', () => {
       }>(request, `${remote}planstrand-sync-ops.json`, authorization);
       expect(ops.version).toBe(4);
 
-      // Format choice is local-only. The joining client must discover split layout.
+      // Remove the creator's explicit choice to exercise discovery by a client
+      // whose synchronized settings contain no format choice.
+      const snapshotUrl = `${remote}${ops.snapshotRef.file}`;
+      const encoded = await (
+        await request.get(snapshotUrl, { headers: { Authorization: authorization } })
+      ).text();
+      const prefixEnd = encoded.indexOf('__') + 2;
       const snapshot = await readPrefixedFile<{
         state: { globalConfig: { sync: { isUseSplitSyncFiles?: boolean } } };
       }>(request, `${remote}${ops.snapshotRef.file}`, authorization);
-      expect(snapshot.state.globalConfig.sync.isUseSplitSyncFiles).toBeUndefined();
+      expect(snapshot.state.globalConfig.sync.isUseSplitSyncFiles).toBe(true);
+      delete snapshot.state.globalConfig.sync.isUseSplitSyncFiles;
+      const rewritten = await request.put(snapshotUrl, {
+        headers: { Authorization: authorization },
+        data: `${encoded.slice(0, prefixEnd)}${JSON.stringify(snapshot)}`,
+      });
+      expect(rewritten.ok()).toBe(true);
 
       b = await setupSyncClient(browser, baseURL);
       const syncB = new SyncPage(b.page);
