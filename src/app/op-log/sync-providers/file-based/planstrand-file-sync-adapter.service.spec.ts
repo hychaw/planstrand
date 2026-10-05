@@ -853,6 +853,37 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     );
   });
 
+  for (const immutable of [true, false]) {
+    for (const incompatible of [
+      { version: 5 },
+      { compatibility: { requiredOpTypes: [future] } },
+    ]) {
+      it(`rejects an incompatible ${immutable ? 'immutable' : 'fixed'} split snapshot without fallback: ${JSON.stringify(incompatible)}`, async () => {
+        split = true;
+        await service
+          .createAdapter(provider, cfg, undefined)
+          .uploadOps([op()], 'new', 0, state);
+        const commit = await read(P.opsFile);
+        const snapshotPath = immutable ? commit.snapshotRef!.file! : P.stateFile;
+        if (!immutable) {
+          delete commit.snapshotRef!.file;
+          await seed(P.opsFile, commit);
+        }
+        const snapshot = await read(snapshotPath);
+        await seed(P.stateBackupFile, snapshot);
+        await seed(snapshotPath, { ...snapshot, ...incompatible });
+        service.invalidateAllTargets();
+        const before = await provider.downloadFile(snapshotPath);
+        const reader = service.createAdapter(provider, cfg, undefined);
+        await expectAsync(reader.downloadOps(0)).toBeRejectedWithError(
+          PlanstrandFileIncompatibleError,
+        );
+        expect(await reader.getLastServerSeq()).toBe(0);
+        expect(await provider.downloadFile(snapshotPath)).toEqual(before);
+      });
+    }
+  }
+
   it('ignores later legacy backup writes and deletes only Planstrand files', async () => {
     await seed(L.syncFile, legacy());
     await service.startFresh(provider, cfg, undefined, state, 'new', {});
