@@ -284,7 +284,7 @@ test.describe('@supersync SuperSync Models', () => {
         .first();
       const tagId = await tagNavItem.getAttribute('data-tag-id');
       if (tagId) {
-        await clientB.page.goto(`/#/tag/${tagId}/work`);
+        await clientB.page.goto(`/#/tag/${tagId}/tasks`);
       } else {
         await tagNavItem.click({ force: true });
       }

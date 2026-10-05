@@ -171,7 +171,9 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
             ),
           )
           .toBe(true);
-        expect(methods).toEqual(['GET']);
+        // Namespace discovery and semantic screening read the commit before the
+        // engine download. All three reads finish while upload is still locked.
+        expect(methods).toEqual(['GET', 'GET', 'GET']);
         const processedCursor = (await localState(observer.page)).cursor;
         await observer.page.clock.setFixedTime(Date.now() + 60_000);
 
