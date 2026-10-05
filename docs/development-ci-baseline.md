@@ -41,8 +41,8 @@ Hosted validation of revision 8e73fb3 passes Angular in both configured timezone
 and all 97 PostgreSQL integration tests. Server units pass all 65 active files
 (1,391 tests), with eight previously skipped files unchanged. WebDAV improved from
 23 failures/38 passes to seven failures/59 passes; six dependent cases did not run
-after serial prerequisites failed. No skip was added. SuperSync shards 1, 3, 5 and
-6 pass; shard 2 is still running. Shard 4 has one newly reached navigation setup
+after serial prerequisites failed. No skip was added. SuperSync shards 1, 2, 3, 5 and
+6 pass. Shard 4 has one newly reached navigation setup
 failure: a concurrent tab starts at canonical Today, where the legacy Projects tree
 is hidden. The final correction enters its explicit legacy context before opening
 the project, retaining the complete cascade-union and convergence assertions.
