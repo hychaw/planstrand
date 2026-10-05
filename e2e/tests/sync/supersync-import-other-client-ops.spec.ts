@@ -14,7 +14,6 @@ import {
 import { ImportPage } from '../../pages/import.page';
 import { SuperSyncPage } from '../../pages/supersync.page';
 import { WorkViewPage } from '../../pages/work-view.page';
-import { expectTaskOnAllClients } from '../../utils/supersync-assertions';
 import { waitForAppReady } from '../../utils/waits';
 
 /**
@@ -297,12 +296,19 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
-      await expectTaskOnAllClients([clientA, clientB], taskB1);
-      await expectTaskOnAllClients([clientA, clientB], taskB2);
-      await expectTaskOnAllClients(
-        [clientA, clientB],
-        'E2E Import Test - Active Task With Subtask',
-      );
+      // Imported schedules can also render the same Task in a WorkSession
+      // projection. Assert each identity in the context list on both clients.
+      for (const client of [clientA, clientB]) {
+        for (const title of [
+          taskB1,
+          taskB2,
+          'E2E Import Test - Active Task With Subtask',
+        ]) {
+          await expect(
+            client.page.locator('task-list task').filter({ hasText: title }),
+          ).toBeVisible();
+        }
+      }
 
       // No sync errors
       const errorSnackA = clientA.page.locator('simple-snack-bar.error');
