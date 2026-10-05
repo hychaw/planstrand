@@ -375,7 +375,7 @@ describeWithDb('Old-ops boundary scan plan (PostgreSQL)', () => {
       `INSERT INTO "operations" (
          "id","user_id","client_id","server_seq","action_type","op_type","entity_type",
          "entity_id","payload","vector_clock","schema_version","client_timestamp","received_at"
-       ) SELECT 'padding-' || t, 1, 'c-padding', ${OPS_PER_USER} + t, 'ADD', 'CRT',
+       ) SELECT 'padding-' || t, 1, 'c-padding', ${OPS_PER_USER + TAIL_OPS} + t, 'ADD', 'CRT',
                 'TASK', 'padding-' || t, '{}'::jsonb, '{}'::jsonb, 1, ${NOW}, ${NOW}
          FROM generate_series(1, 200) t`,
     );
