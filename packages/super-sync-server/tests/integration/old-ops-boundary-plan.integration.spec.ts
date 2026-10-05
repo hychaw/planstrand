@@ -368,6 +368,17 @@ describeWithDb('Old-ops boundary scan plan (PostgreSQL)', () => {
       `INSERT INTO "users" ("email") SELECT 'boundary-' || g || '@test.invalid' FROM generate_series(1, ${USER_COUNT}) g`,
     );
     await prisma.$executeRawUnsafe(SEED_SQL);
+    // Leave the final heap page occupied only by ordinary operations. Appending
+    // the unvacuumed tail clears visibility on that page too; without padding,
+    // scattered causal seed rows there add layout-dependent heap fetches.
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "operations" (
+         "id","user_id","client_id","server_seq","action_type","op_type","entity_type",
+         "entity_id","payload","vector_clock","schema_version","client_timestamp","received_at"
+       ) SELECT 'padding-' || t, 1, 'c-padding', ${OPS_PER_USER} + t, 'ADD', 'CRT',
+                'TASK', 'padding-' || t, '{}'::jsonb, '{}'::jsonb, 1, ${NOW}, ${NOW}
+         FROM generate_series(1, 200) t`,
+    );
     await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS ${BROAD_IDX}`);
     await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS ${CAUSAL_IDX}`);
     await prisma.$executeRawUnsafe(CREATE_BROAD_IDX);
