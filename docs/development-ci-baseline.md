@@ -37,12 +37,24 @@ and the server TypeScript build passed. Root `checkFile` passes for modified app
 E2E TypeScript; it intentionally refuses the five server spec paths, which use the
 package's formatting/build/test validation instead.
 
-The complete general-browser job and remaining provider results are pending.
-The first WebDAV run improved from 23 failures/38 passes to 10 failures/56 passes;
-six dependent cases did not run after their serial prerequisites failed. No skip
-was added. SuperSync shards 1, 5 and 6 passed; shards 2, 3 and 4 each retained one
-navigation/projection-harness failure corrected in the next revision. Follow-up
-results are available in PR #7 checks; this report records the first hosted pass.
+Hosted validation of revision 8e73fb3 passes Angular in both configured timezones
+and all 97 PostgreSQL integration tests. Server units pass all 65 active files
+(1,391 tests), with eight previously skipped files unchanged. WebDAV improved from
+23 failures/38 passes to seven failures/59 passes; six dependent cases did not run
+after serial prerequisites failed. No skip was added. SuperSync shards 1, 3, 5 and
+6 pass; shard 2 is still running. Shard 4 has one newly reached navigation setup
+failure: a concurrent tab starts at canonical Today, where the legacy Projects tree
+is hidden. The final correction enters its explicit legacy context before opening
+the project, retaining the complete cascade-union and convergence assertions.
+
+Passing Angular also exposes the previously unreachable general-browser baseline:
+24 failures, 409 passes and two existing skips on the first hosted revision. The
+twelve earlier Phase-2 failures and nine unsupported normal WorkSession reminder-UI
+cases are recorded in `PHASE_3_E2E_FAILURE_MATRIX.md`. The other failures are stale
+mobile Planner navigation and Calendar/GitHub import visibility setup. The mobile
+smoke now exercises This Week and canonical Today, retaining touch task creation.
+The import failures are retained; their logs have not established a product defect.
+No accepted-failure waiver or optional gate is introduced.
 
 The WebDAV newer-protocol trace showed an actual bug: an immutable snapshot's
 `PlanstrandFileIncompatibleError` was caught as recoverable corruption, allowing
@@ -87,8 +99,15 @@ Other retained WebDAV failures require separate product work or policy review:
 
 The remaining upload-unseen-operations harness expected one physical GET. Namespace
 discovery and semantic screening add two reads before the engine download. Its
-exact pre-upload expectation is now three GETs, with the lock, cursor, unseen-ID and
-convergence checks retained.
+exact pre-upload expectation is now three GETs. The later stale-baseline download
+and upload preflight each perform that sequence, so the exact combined expectation
+is six GETs. Lock, cursor, unseen-ID and convergence checks remain unchanged.
+
+The final mobile-navigation, concurrent-tab setup and later GET-count corrections
+pass file checks and E2E TypeScript validation. Their hosted results must be checked
+on the final PR head; the seven-failure WebDAV count above precedes those corrections.
+This PR remains draft. The atomic creation defect and backup-only recovery policy
+need separate compatibility-reviewed work before a green baseline can be claimed.
 
 The inherited Today remove-versus-reorder expectation was also stale. The trace
 shows both commands capture `[Planning] Set Placement`. Schema 5's published
@@ -105,6 +124,7 @@ Each changed TypeScript file was passed to checkFile. Server specs are explicitl
 
 | File                                                                                       | Result                                                    |
 | ------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| e2e/tests/mobile/mobile-webkit-smoke.spec.ts                                               | Passed                                                    |
 | e2e/tests/sync/supersync-example-task-fresh-client.spec.ts                                 | Passed                                                    |
 | e2e/tests/sync/supersync-import-other-client-ops.spec.ts                                   | Passed                                                    |
 | e2e/tests/sync/supersync-import-same-client-ops.spec.ts                                    | Passed                                                    |

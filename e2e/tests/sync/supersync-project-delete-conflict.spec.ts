@@ -408,6 +408,9 @@ test.describe('@supersync Project delete-wins conflict resolution', () => {
       installDevErrorDialogHandler(tabB2, 'Client B tab 2');
       await tabB2.goto(appUrl);
       await waitForAppReady(tabB2);
+      // A new tab opens canonical Today, where the legacy Projects tree is hidden.
+      await tabB2.goto(`${appUrl}/#/tag/TODAY/tasks`);
+      await waitForAppReady(tabB2);
       await new ProjectPage(tabB2).navigateToProjectByName(projectName);
       const tab2WorkView = new WorkViewPage(tabB2);
       await tab2WorkView.waitForTaskList();

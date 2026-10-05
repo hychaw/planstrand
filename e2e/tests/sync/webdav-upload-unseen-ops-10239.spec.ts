@@ -250,7 +250,9 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
         await waitForSyncComplete(observer.page, observerSync, 30000, {
           allowResponseOnlyCompletion: true,
         });
-        expect(methods).toEqual(['GET', 'GET']);
+        // Both the download and stale-baseline upload preflight perform the
+        // namespace/commit checks before the engine reads: three reads each.
+        expect(methods).toEqual(['GET', 'GET', 'GET', 'GET', 'GET', 'GET']);
         expect((await localState(observer.page)).cursor).toBe(processedCursor);
         expect((await readFile()).data.syncVersion).toBe(unseen.sv);
 

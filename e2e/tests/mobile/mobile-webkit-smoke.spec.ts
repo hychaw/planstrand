@@ -5,13 +5,13 @@ test.describe('Mobile WebKit smoke', () => {
     const mobileNav = page.locator('mobile-bottom-nav');
     await expect(mobileNav).toBeVisible();
 
-    await mobileNav.getByRole('button', { name: 'Planner', exact: true }).tap();
-    await expect(page).toHaveURL(/\/#\/planner/);
-    await expect(page.locator('planner')).toBeVisible();
+    await mobileNav.getByRole('button', { name: 'This Week', exact: true }).tap();
+    await expect(page).toHaveURL(/\/#\/this-week/);
+    await expect(page.locator('planstrand-page')).toBeVisible();
 
     await mobileNav.getByRole('button', { name: 'Today', exact: true }).tap();
-    await expect(page).toHaveURL(/\/#\/tag\/TODAY\/tasks/);
-    await expect(page.locator('task-list').first()).toBeVisible();
+    await expect(page).toHaveURL(/\/#\/today/);
+    await expect(page.locator('planstrand-task-list').first()).toBeVisible();
 
     await mobileNav.getByRole('button', { name: 'Add new task', exact: true }).tap();
     const taskTitle = `${testPrefix}-MobileWebKit`;
