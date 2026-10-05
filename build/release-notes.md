@@ -1,4 +1,4 @@
-For all current downloads, package links, and platform-specific notes: [check the wiki](https://github.com/super-productivity/super-productivity/wiki/2.01-Downloads-and-Install).
+For current Planstrand downloads and platform status, see [GitHub Releases](https://github.com/hychaw/planstrand/releases). The inherited notes below describe upstream technical-version history.
 
 ### Features
 

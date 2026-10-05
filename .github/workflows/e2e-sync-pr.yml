@@ -19,7 +19,7 @@ name: 'E2E Sync (PR Gate)'
 
 on:
   pull_request:
-    branches: [master, main]
+    branches: [development]
   workflow_dispatch:
 
 permissions:

@@ -1,9 +1,5 @@
-blank_issues_enabled: false
-
+blank_issues_enabled: true
 contact_links:
-  - name: Ask a question
-    url: https://github.com/super-productivity/super-productivity/discussions/categories/q-a
-    about: Please ask and answer questions here.
-  - name: Submit an idea
-    url: https://github.com/super-productivity/super-productivity/discussions/categories/ideas
-    about: Got an non fleshed out improvement idea you want to discuss? Post it here!
+  - name: Security vulnerability
+    url: https://github.com/hychaw/planstrand/security
+    about: Read the security policy and arrange private reporting before sharing exploit details.

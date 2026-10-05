@@ -1,32 +1,31 @@
 # GitHub Actions
 
-Planstrand inherited GitHub Actions from the Super Productivity repository. The active set is limited to validation that is useful to this codebase and does not publish releases, deploy applications, mutate upstream services, or require upstream private deployment credentials.
+Planstrand uses `development` as its default integration branch. Retained validation workflows target that branch where they have branch filters. No store or hosted-service deployment is active.
 
-## Active workflows
+| Workflow                     | Classification and purpose                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                     | Current CI: dependency/lockfile review, lint, unit/Electron/E2E/PWA tests, web build and Lighthouse.                                        |
+| `codeql-analysis.yml`        | Current security scanning.                                                                                                                  |
+| `docs-links.yml`             | Current documentation and source-reference checks.                                                                                          |
+| `e2e-scheduled.yml`          | Current regular, WebDAV, SuperSync, server and released-client compatibility tests. Services run locally on the runner.                     |
+| `e2e-sync-pr.yml`            | Current sync-provider PR gate.                                                                                                              |
+| `supersync-server-tests.yml` | Current server, Helm and PostgreSQL contract checks.                                                                                        |
+| `plugin-tests.yml`           | Current plugin and shared API tests.                                                                                                        |
+| `electron-smoke.yml`         | Useful cross-platform validation: unpublished Linux packaging and startup/persistence smoke. This does not imply a validated Linux release. |
+| `android-tests.yml`          | Useful future platform validation: native JVM/emulator checks. No store publishing.                                                         |
+| `pr-preview-build.yml`       | Current web build check; artifact only, no deployment.                                                                                      |
+| `release-planstrand.yml`     | Current manual Windows RC validation/build flow, with an optional draft step behind the `planstrand-release` environment.                   |
 
-| Workflow | Purpose |
-| --- | --- |
-| `android-tests.yml` | Runs Android JVM, instrumentation, compatibility, and packaged-launch checks. |
-| `ci.yml` | Checks the lockfile, reviews dependency changes, lints, runs unit/Electron/E2E/PWA tests, builds the web app, and runs Lighthouse. Lighthouse results are not sent to temporary public storage. |
-| `codeql-analysis.yml` | Runs CodeQL JavaScript analysis and reports results to this repository's GitHub security scanning. |
-| `docs-links.yml` | Checks local documentation links, images, and source references. |
-| `e2e-scheduled.yml` | Runs regular, WebDAV, SuperSync, server, and released-client compatibility E2E coverage. Services are local to the runner. |
-| `e2e-sync-pr.yml` | Gates relevant pull requests with SuperSync and WebDAV E2E coverage. Services are local to the runner. |
-| `electron-smoke.yml` | Packages an unpublished Linux Electron directory and tests startup, task creation, and persistence. |
-| `plugin-tests.yml` | Runs tests for changed plugin packages and their shared plugin APIs. |
-| `pr-preview-build.yml` | Builds a pull-request web preview and stores it only as a GitHub Actions artifact. It does not deploy the preview. |
-| `supersync-server-tests.yml` | Runs SuperSync server unit, Helm-rendering, and local PostgreSQL integration tests. |
+The release workflow still names RC1 explicitly. RC1 is already public: do not use its draft step to recreate or replace that release. A future release requires separate reviewed release work. See the [release runbook](release-and-publishing.md).
 
-Some retained build and E2E workflows accept optional `UNSPLASH_KEY` and `UNSPLASH_CLIENT_ID` values. They do not require store, signing, hosting, container-registry, wiki, or upstream automation credentials.
+Optional Unsplash keys in build/test workflows belong to configured integrations; the checks do not require inherited deployment credentials.
 
-## Disabled upstream workflows
+## Removed and retained historical configuration
 
-Disabled definitions are preserved under `.github/workflows-disabled/upstream/`, outside the directory GitHub Actions scans for workflows.
+Obsolete disabled store, web, container, wiki, preview deployment and community automation definitions were removed. Their history remains in Git.
 
-- Release and packaging: `build.yml`, `build-android.yml`, `build-create-windows-store-on-release.yml`, `build-ios.yml`, `build-ios-testflight.yml`, `publish-ios-testflight.yml`, `build-publish-to-mac-store-on-release.yml`, `build-publish-to-snap-on-release.yml`, `manual-build.yml`, and `test-mac-dmg-build.yml`.
-- Store, hosting, preview, and container publishing: `auto-publish-google-play-on-release.yml`, `build-update-web-app-on-release.yml`, `pr-preview-deploy.yml`, `publish-to-hub-docker.yml`, and `supersync-docker.yml`.
-- Wiki and community automation: `wiki-sync.yml`, `stale.yml`, `stale-discussions.yml`, `issue-triage.yml`, `issue-reproduce.yml`, `welcome-first-time-contributors.yml`, and `claude.yml`.
+One disabled upstream definition remains under `.github/workflows-disabled/upstream/supersync-docker.yml`: the server migration contract test reads its migration ordering. It is a test fixture outside the active workflow directory and cannot run as GitHub automation. Removing that dependency needs a separate test change.
 
-These workflows contain Super Productivity package identities, accounts, credentials, deployment targets, release assumptions, or community-management behavior that is not Planstrand infrastructure. Their definitions are retained only as reference material.
+## Repository settings
 
-Planstrand release, store, container, preview, and production deployment workflows will be designed separately when those channels are ready. Upstream private credentials must never be copied into Planstrand. Future publishing workflows must use Planstrand package identifiers, accounts, credentials, signing material, and deployment targets.
+Maintainers should verify private vulnerability reporting, branch rules for `development` (including code-owner review for sensitive paths), external-contributor workflow approval, and the existing `planstrand-release` environment's reviewers/branch restrictions. CODEOWNERS alone does not require review. This document does not assert that these settings are enabled.

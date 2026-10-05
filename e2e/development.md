@@ -1,6 +1,6 @@
 # E2E test guidance
 
-Use this guide for tests under `e2e/`. Start with the relevant existing spec, fixture, page object, and [E2E reference](README.md). The root [AGENTS.md](../AGENTS.md) still applies, especially its sync test requirements.
+Use this guide for tests under `e2e/`. Start with the relevant existing spec, fixture, page object, and [E2E reference](README.md). Follow the [project development guidance](../docs/development.md), especially its sync test requirements.
 
 ## Run the right suite
 
@@ -40,4 +40,4 @@ Provider tests use [supersync.fixture.ts](fixtures/supersync.fixture.ts) or [web
 
 For a sync fix, follow the root guide's reproduction-first requirement: make the E2E test fail on the reported real-data case, then pass with the fix. Run the focused file with its matching provider command. Run `npm run checkFile <filepath>` for every changed `.ts` or `.scss` file, including specs. For browser-level test behavior, consult [Playwright configuration](playwright.config.ts) and [global setup](global-setup.ts) before changing timeouts or server startup.
 
-For product videos under `e2e/store-video/`, also read its [task-local guide](store-video/AGENTS.md).
+For product videos under `e2e/store-video/`, also read its [task-local guide](store-video/development.md).

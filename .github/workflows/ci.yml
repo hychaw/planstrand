@@ -2,8 +2,7 @@ name: CI
 on:
   pull_request:
     branches:
-      - master
-      - main
+      - development
     paths-ignore:
       - 'docs/wiki/**'
   workflow_dispatch:
@@ -71,8 +70,6 @@ jobs:
       - name: Install npm Packages
         run: npm i
       - run: npm run lint
-      - name: Test issue-triage helpers
-        run: node --test ".github/scripts/*.test.js"
 
   test-on-linux:
     name: Tests

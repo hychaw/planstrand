@@ -1,9 +1,6 @@
 # Feature & PR Review Guide
 
-The full form of two AGENTS.md _Project rules_ — "Does it earn its place?" and
-"Code review". The short invariants stay in AGENTS.md; the verification
-mechanics live here. Read this before reviewing a feature PR, and when deciding
-whether a feature you are about to build should exist at all.
+Review guidance for feature and pull-request scope, maintenance cost, and compatibility. Use it alongside the [development conventions](development.md) when deciding whether a change earns its complexity.
 
 ## Does it earn its place?
 
@@ -30,6 +27,6 @@ Two real bugs shipped through three review rounds of the task multi-select featu
 
 ## Related
 
-- Product principles (feature creep, calm defaults) → [AGENTS.md](../AGENTS.md) § Product principles
+- Product principles (feature creep, calm defaults) → [development.md](development.md) § Project conventions
 - Load-bearing decisions already made → [ARCHITECTURE-DECISIONS.md](../ARCHITECTURE-DECISIONS.md)
 - Sync-bug severity triage → [sync-and-op-log/sync-severity-triage.md](./sync-and-op-log/sync-severity-triage.md)

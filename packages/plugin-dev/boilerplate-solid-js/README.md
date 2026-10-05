@@ -386,7 +386,7 @@ Modify `src/app/App.css` to customize the appearance.
 
 ## Resources
 
-- [Super Productivity Plugin API Documentation](https://github.com/super-productivity/super-productivity)
+- [Plugin API documentation](../../plugin-api/README.md)
 - [Solid.js Documentation](https://www.solidjs.com/docs/latest)
 - [Vite Documentation](https://vitejs.dev/)
 

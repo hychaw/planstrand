@@ -29,26 +29,26 @@ Operation capture is **Phase 1 of the meta-reducer registry — the outermost wr
                           (SuperSync | file-based)
 ```
 
-A **remote** operation runs this in reverse: `op-log/apply` converts it back into actions and replays them through the identical reducers. That is why effects must inject `LOCAL_ACTIONS` and not `Actions` — otherwise a replayed remote change re-fires local side effects (sync rule 1).
+A **remote** operation runs this in reverse: `op-log/apply` converts it back into actions and replays them through the identical reducers. That is why effects must inject `LOCAL_ACTIONS` and not `Actions` — otherwise a replayed remote change re-fires local side effects (see the [action boundary](../../docs/sync-and-op-log/contributor-sync-model.md#boundary-1--the-action-boundary)).
 
 ## Start here
 
-| You want to…                                          | Start at                                                                                                                                                        |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Change one feature's behavior                         | `features/<name>/` — `tasks/` is the hot core                                                                                                                   |
-| Change state spanning more than one entity type       | `root-store/meta/task-shared-meta-reducers/` — one reducer pass = one op (sync rule 3)                                                                          |
-| Understand or reorder meta-reducers                   | [`root-store/meta/meta-reducer-registry.ts`](root-store/meta/meta-reducer-registry.ts) — documents phases 1, 2, 2.5, 3, 3.5, 4–8 and throws in dev on violation |
-| Know how a change becomes durable and syncable        | `op-log/capture/`, then `op-log/persistence/operation-log-store.service.ts`                                                                                     |
-| Trace how a remote change is applied                  | `op-log/apply/operation-applier.service.ts`                                                                                                                     |
-| Change where bytes actually land                      | `op-log/persistence/` — `indexed-db-op-log-adapter.ts`, behind `op-log-db-adapter.token.ts`                                                                     |
-| Work on sync transport, conflicts, or a provider      | `op-log/sync/`, `op-log/sync-providers/`, plus `packages/sync-core` and `packages/sync-providers`                                                               |
-| Change import/export, backup, or the sync setup UI    | `imex/`                                                                                                                                                         |
-| Add a reusable, feature-agnostic widget               | `ui/`                                                                                                                                                           |
-| Change app chrome (header, nav, layout, shortcuts)    | `core-ui/`                                                                                                                                                      |
-| Add a cross-cutting service (platform, theme, notify) | `core/`                                                                                                                                                         |
-| Add a route or a top-level screen                     | `routes/`, `pages/`, `config/`                                                                                                                                  |
-| Work on the plugin API                                | `plugins/` plus `packages/plugin-api`                                                                                                                           |
-| Add a pure helper                                     | `util/`                                                                                                                                                         |
+| You want to…                                          | Start at                                                                                                                                                          |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change one feature's behavior                         | `features/<name>/` — `tasks/` is the hot core                                                                                                                     |
+| Change state spanning more than one entity type       | `root-store/meta/task-shared-meta-reducers/` — one reducer pass = one op (see the [contributor sync model](../../docs/sync-and-op-log/contributor-sync-model.md)) |
+| Understand or reorder meta-reducers                   | [`root-store/meta/meta-reducer-registry.ts`](root-store/meta/meta-reducer-registry.ts) — documents phases 1, 2, 2.5, 3, 3.5, 4–8 and throws in dev on violation   |
+| Know how a change becomes durable and syncable        | `op-log/capture/`, then `op-log/persistence/operation-log-store.service.ts`                                                                                       |
+| Trace how a remote change is applied                  | `op-log/apply/operation-applier.service.ts`                                                                                                                       |
+| Change where bytes actually land                      | `op-log/persistence/` — `indexed-db-op-log-adapter.ts`, behind `op-log-db-adapter.token.ts`                                                                       |
+| Work on sync transport, conflicts, or a provider      | `op-log/sync/`, `op-log/sync-providers/`, plus `packages/sync-core` and `packages/sync-providers`                                                                 |
+| Change import/export, backup, or the sync setup UI    | `imex/`                                                                                                                                                           |
+| Add a reusable, feature-agnostic widget               | `ui/`                                                                                                                                                             |
+| Change app chrome (header, nav, layout, shortcuts)    | `core-ui/`                                                                                                                                                        |
+| Add a cross-cutting service (platform, theme, notify) | `core/`                                                                                                                                                           |
+| Add a route or a top-level screen                     | `routes/`, `pages/`, `config/`                                                                                                                                    |
+| Work on the plugin API                                | `plugins/` plus `packages/plugin-api`                                                                                                                             |
+| Add a pure helper                                     | `util/`                                                                                                                                                           |
 
 ## Which way the arrows point
 

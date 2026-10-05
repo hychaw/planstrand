@@ -36,7 +36,7 @@ on:
         default: true
 
   push:
-    branches: [master, release/*]
+    branches: [development, release/*]
     paths:
       - 'src/app/imex/sync/**'
       - 'src/app/op-log/**'

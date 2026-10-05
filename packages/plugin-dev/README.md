@@ -409,5 +409,5 @@ PluginAPI.registerHook('taskUpdate', (data: unknown) => {
 
 ## Support
 
-- GitHub Issues: [Super Productivity Issues](https://github.com/super-productivity/super-productivity/issues)
+- GitHub Issues: [Super Productivity Issues](https://github.com/hychaw/planstrand/issues)
 - Plugin API Docs: See `packages/plugin-api/README.md`

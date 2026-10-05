@@ -1,6 +1,6 @@
 # Product video guidance
 
-Use this with the parent [E2E guide](../AGENTS.md). Start with the current [video README](README.md) for variants and commands, the relevant scenario in [scenarios/](scenarios/), and the shared [video-kit guide](../video-kit/README.md). `e2e/video-kit/` owns reusable captions, cards, cursor, camera, transitions, and recording. This directory owns app-specific seed, profiles, scenarios, [logos.ts](logos.ts), and [helpers.ts](helpers.ts). There is no `overlays.ts`.
+Use this with the parent [E2E guide](../development.md). Start with the current [video README](README.md) for variants and commands, the relevant scenario in [scenarios/](scenarios/), and the shared [video-kit guide](../video-kit/README.md). `e2e/video-kit/` owns reusable captions, cards, cursor, camera, transitions, and recording. This directory owns app-specific seed, profiles, scenarios, [logos.ts](logos.ts), and [helpers.ts](helpers.ts). There is no `overlays.ts`.
 
 Keep visible interactions on real controls and assert their results. [helpers.ts](helpers.ts) provides `hold` for editorial pacing, `dispatch` for covered state preparation, and `enableAnimations` because the screenshot seed disables animations. A video hold makes a moment readable; it is not a readiness check. Use `expect` or a locator wait to establish readiness. This differs from ordinary E2E tests, where arbitrary timing waits are undesirable.
 

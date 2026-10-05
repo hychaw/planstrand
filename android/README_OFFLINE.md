@@ -17,8 +17,8 @@ For users performing a **new installation**, setting `LAUNCH_MODE` to `2` ensure
 To set up the project, clone the `super-productivity` repository instead of directly cloning the `super-productivity-android` repository. This ensures that all submodules, including the Android project, are properly initialized.
 
 ```bash
-git clone https://github.com/super-productivity/super-productivity.git
-cd super-productivity
+git clone https://github.com/hychaw/planstrand.git
+cd planstrand
 git submodule init
 git submodule update
 ```
@@ -52,14 +52,12 @@ From the root directory, compile the Android project using the following command
 You can install the compiled Android application using either Android Studio or npm scripts.
 
 - **Using Android Studio:**
-
   1. Open Android Studio.
   2. Select `Open an existing project`.
   3. Navigate to the `android` directory within the cloned repository.
   4. Follow the prompts to build and run the application on your device or emulator.
 
 - **Using NPM Scripts:**
-
   - **For Testing Installation:**
 
     ```bash

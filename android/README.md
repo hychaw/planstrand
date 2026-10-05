@@ -1,6 +1,6 @@
 # super-productivity-android
 
-Android App for Super Productivity (https://super-productivity.com/).
+Inherited Android source for Planstrand development and future validation. Mobile distribution is deferred; application IDs remain compatibility-sensitive. No Planstrand Play Store release is available.
 
 I am not an Android developer, so help would be very welcome!!
 
