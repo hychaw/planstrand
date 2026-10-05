@@ -158,7 +158,7 @@ test.describe('@supersync @regression Superseded Clock Regression', () => {
       console.log('[Superseded Clock] Client B reloaded, hydration complete');
 
       // Navigate to work view and wait for imported task to appear
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
       console.log('[Superseded Clock] Client B showing imported data after reload');
@@ -183,9 +183,9 @@ test.describe('@supersync @regression Superseded Clock Regression', () => {
       console.log('[Superseded Clock] Phase 7: Verifying consistent state');
 
       // Navigate both to work view
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
       // Both clients should have imported tasks
@@ -287,7 +287,7 @@ test.describe('@supersync @regression Superseded Clock Regression', () => {
         });
 
         // Navigate and verify state
-        await clientB.page.goto('/#/work-view');
+        await clientB.page.goto('/#/tag/TODAY/tasks');
         await clientB.page.waitForLoadState('networkidle');
         await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
 
@@ -312,8 +312,8 @@ test.describe('@supersync @regression Superseded Clock Regression', () => {
       // Sync A to get any updates from B
       await clientA.sync.syncAndWait();
 
-      await clientA.page.goto('/#/work-view');
-      await clientB.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
       await clientB.page.waitForLoadState('networkidle');
 

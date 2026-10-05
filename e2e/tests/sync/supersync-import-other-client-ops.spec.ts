@@ -180,7 +180,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       );
 
       await clientB.sync.syncAndWait();
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
       console.log('[Other-Client Import] Client B received SYNC_IMPORT');
@@ -277,7 +277,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       console.log('[Other-Client Import] Client A synced');
 
       // Navigate to work view
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
 
       // ============ PHASE 10: Verify Client A sees B's tasks ============
@@ -294,7 +294,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       console.log('[Other-Client Import] Client A has B post-import tasks');
 
       // Verify on both clients
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
       await expectTaskOnAllClients([clientA, clientB], taskB1);

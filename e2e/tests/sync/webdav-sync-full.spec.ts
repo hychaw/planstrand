@@ -102,17 +102,17 @@ test.describe('@webdav WebDAV Sync Full Flow', () => {
         vectorClock: Record<string, number>;
       };
     }>(request, `${folderUrl}${WEBDAV_SYNC_FILE}`, authorization);
-    expect(remote.version).toBe(WEBDAV_SYNC_FORMAT === 'v3' ? 3 : 2);
+    expect(remote.version).toBe(4);
     if (WEBDAV_SYNC_FORMAT === 'v3') {
       expect(remote.snapshotRef).toBeDefined();
-      const snapshotFile = remote.snapshotRef!.file ?? 'sync-state.json';
+      const snapshotFile = remote.snapshotRef!.file ?? 'planstrand-sync-state.json';
       const snapshot = await readPrefixedFile<{ state: unknown }>(
         request,
         `${folderUrl}${snapshotFile}`,
         authorization,
       );
       expect(snapshot).toMatchObject({
-        version: 3,
+        version: 4,
         syncVersion: remote.snapshotRef!.syncVersion,
         vectorClock: remote.snapshotRef!.vectorClock,
       });

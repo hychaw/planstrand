@@ -13,7 +13,7 @@ import { ProjectPage } from '../../pages/project.page';
 
 // Robust helper to create a tag
 const createTagReliably = async (page: Page, tagName: string): Promise<void> => {
-  await page.goto('/#/tag/TODAY/work');
+  await page.goto('/#/tag/TODAY/tasks');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(1000);
 
@@ -163,7 +163,7 @@ test.describe('@supersync SuperSync Models', () => {
       await createTagReliably(clientA.page, tagName);
 
       // Go back to Today
-      await clientA.page.goto('/#/tag/TODAY/work');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
 
       // Create task
@@ -454,7 +454,7 @@ test.describe('@supersync SuperSync Models', () => {
       console.log(`[BulkTag] Created tag: ${tagName}`);
 
       // Go back to Today view
-      await clientA.page.goto('/#/tag/TODAY/work');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
 
       // 2. Create tasks with the tag using short syntax: "task name #tagname"
@@ -500,7 +500,7 @@ test.describe('@supersync SuperSync Models', () => {
 
       // 5. Client A deletes the tag
       // Navigate to Today view to ensure sidebar is visible
-      await clientA.page.goto('/#/tag/TODAY/work');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
 
       // Use toPass() to make tag deletion more robust
@@ -568,9 +568,9 @@ test.describe('@supersync SuperSync Models', () => {
       await clientB.sync.syncAndWait();
 
       // Navigate both clients to Today view to refresh the UI
-      await clientA.page.goto('/#/tag/TODAY/work');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
-      await clientB.page.goto('/#/tag/TODAY/work');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
       // VERIFICATION: Tag should be gone on both clients

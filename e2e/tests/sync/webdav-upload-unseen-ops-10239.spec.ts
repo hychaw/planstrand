@@ -90,7 +90,7 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
         // This regression seeds a v2 counter/snapshot, regardless of suite mode.
         isUseSplitSyncFiles: false,
       };
-      const fileUrl = `${config.baseUrl}${folder}/DEV/sync-data.json`;
+      const fileUrl = `${config.baseUrl}${folder}/DEV/planstrand-sync-data.json`;
       const headers = {
         Authorization: `Basic ${Buffer.from('admin:admin').toString('base64')}`,
       };
@@ -128,7 +128,7 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
         await authorSync.triggerSync();
         await waitForSyncComplete(author.page, authorSync);
         const initialFile = (await readFile()).data;
-        expect(initialFile.version).toBe(2);
+        expect(initialFile.version).toBe(4);
         const original = initialFile.recentOps.find(
           (op) => op.p?.actionPayload?.task?.title === 'Original author task',
         );

@@ -110,7 +110,13 @@ test.describe('@webdav stale monolith #10256', () => {
         a.page.on('request', (req) => {
           if (
             req.method() === 'PUT' &&
-            req.url().endsWith(isUseSplitSyncFiles ? '/sync-ops.json' : '/sync-data.json')
+            req
+              .url()
+              .endsWith(
+                isUseSplitSyncFiles
+                  ? '/planstrand-sync-ops.json'
+                  : '/planstrand-sync-data.json',
+              )
           ) {
             remoteUrl = req.url();
           }

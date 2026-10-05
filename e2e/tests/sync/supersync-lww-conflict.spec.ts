@@ -809,7 +809,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
     // Helper to create a project
     const createProject = async (page: Page, projectName: string): Promise<void> => {
-      await page.goto('/#/tag/TODAY/work');
+      await page.goto('/#/tag/TODAY/tasks');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(1000);
 
@@ -957,7 +957,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
       // 5. Client A moves task to Project2
       // First go to Project1 on A
-      await clientA.page.goto('/#/tag/TODAY/work');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
       const project1BtnA = clientA.page.getByText(project1Name).first();
       await project1BtnA.click({ force: true });
@@ -990,7 +990,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       // Since B moved later, task should be in Project3
 
       // Check Client A - task should be in Project3 (B won)
-      await clientA.page.goto('/#/tag/TODAY/work');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
       const project3BtnA = clientA.page.getByText(project3Name).first();
       await project3BtnA.waitFor({ state: 'visible' });
@@ -1000,7 +1000,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       console.log('[MoveConflict] Client A sees task in Project3');
 
       // Check Client B - task should also be in Project3
-      await clientB.page.goto('/#/tag/TODAY/work');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
       const project3BtnB = clientB.page.getByText(project3Name).first();
       await project3BtnB.click({ force: true });
@@ -1009,7 +1009,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       console.log('[MoveConflict] Client B sees task in Project3');
 
       // Verify task is NOT in Project2 (A's move lost)
-      await clientA.page.goto('/#/tag/TODAY/work');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
       const project2BtnA = clientA.page.getByText(project2Name).first();
       await project2BtnA.click({ force: true });

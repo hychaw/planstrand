@@ -39,22 +39,24 @@ test.describe('@webdav newer split snapshot format (#8764)', () => {
       await syncA.setupWebdavSync(config);
       await waitForSyncComplete(clientA.page, syncA);
 
-      const opsResponse = await request.get(`${folderUrl}sync-ops.json`, { headers });
+      const opsResponse = await request.get(`${folderUrl}planstrand-sync-ops.json`, {
+        headers,
+      });
       expect(opsResponse.ok()).toBe(true);
       const opsText = await opsResponse.text();
       const ops = JSON.parse(opsText.slice(opsText.indexOf('{'))) as {
         snapshotRef: { file?: string };
       };
-      const stateUrl = `${folderUrl}${ops.snapshotRef.file ?? 'sync-state.json'}`;
-      const backupUrl = `${folderUrl}${ops.snapshotRef.file ? 'sync-state.json' : 'sync-state.json.bak'}`;
+      const stateUrl = `${folderUrl}${ops.snapshotRef.file ?? 'planstrand-sync-state.json'}`;
+      const backupUrl = `${folderUrl}${ops.snapshotRef.file ? 'planstrand-sync-state.json' : 'planstrand-sync-state.json.bak'}`;
       const original = await request.get(stateUrl, { headers });
       expect(original.ok()).toBe(true);
       const originalText = await original.text();
-      expect(originalText).toMatch(/^pf_3__/);
+      expect(originalText).toMatch(/^pf_4__/);
       const state = JSON.parse(originalText.slice(originalText.indexOf('{'))) as {
         version: number;
       };
-      expect(state.version).toBe(3);
+      expect(state.version).toBe(4);
       if (!ops.snapshotRef.file) {
         expect((await request.put(backupUrl, { headers, data: originalText })).ok()).toBe(
           true,
@@ -62,7 +64,7 @@ test.describe('@webdav newer split snapshot format (#8764)', () => {
       }
       expect((await request.get(backupUrl, { headers })).ok()).toBe(true);
 
-      const newerText = `pf_4__${JSON.stringify({ ...state, version: 4 })}`;
+      const newerText = `pf_5__${JSON.stringify({ ...state, version: 5 })}`;
       expect((await request.put(stateUrl, { headers, data: newerText })).ok()).toBe(true);
 
       clientB = await setupSyncClient(browser, baseURL);
@@ -79,7 +81,9 @@ test.describe('@webdav newer split snapshot format (#8764)', () => {
       await syncB.setupWebdavSync(config);
 
       await expect(
-        clientB.page.getByText('Your app version is too old for the synced data.'),
+        clientB.page.getByText(
+          'Unsupported Planstrand file protocol or semantics. Update before syncing.',
+        ),
       ).toBeVisible();
       expect(writes).toEqual([]);
       expect(await (await request.get(stateUrl, { headers })).text()).toBe(newerText);

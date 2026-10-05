@@ -147,7 +147,7 @@ test.describe('@supersync Import client post-import ops sync correctly', () => {
       console.log('[Same-Client Import] Client B synced');
 
       // Navigate to work view
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
       // ============ PHASE 7: Verify both clients have all tasks ============
@@ -163,7 +163,7 @@ test.describe('@supersync Import client post-import ops sync correctly', () => {
       console.log('[Same-Client Import] Client B has import client post-import tasks');
 
       // Verify on both clients
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
 
       await expectTaskOnAllClients([clientA, clientB], taskA1);
@@ -257,7 +257,7 @@ test.describe('@supersync Import client post-import ops sync correctly', () => {
 
       // Client B receives import
       await clientB.sync.syncAndWait();
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
 
@@ -274,7 +274,7 @@ test.describe('@supersync Import client post-import ops sync correctly', () => {
       await clientB.workView.addTask(taskB1);
       await clientB.sync.syncAndWait();
       await clientA.sync.syncAndWait();
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
       await waitForTask(clientA.page, taskB1);
 
@@ -295,9 +295,9 @@ test.describe('@supersync Import client post-import ops sync correctly', () => {
       console.log(`[Multi-Cycle Same-Client] Cycle 3: B received ${taskA3}`);
 
       // Final verification
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
       await expectTaskOnAllClients([clientA, clientB], taskA1);

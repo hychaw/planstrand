@@ -367,7 +367,7 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
     console.log('[TODAY Remove] Client A configured');
 
     // Navigate to TODAY view
-    await pageA.goto(`${url}/#/tag/TODAY/tasks`);
+    await pageA.goto(`${url}/#/today`);
     await workViewPageA.waitForTaskList();
 
     // Client A creates 3 tasks for today
@@ -397,7 +397,7 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
     console.log('[TODAY Remove] Client B configured');
 
     // Navigate to TODAY view
-    await pageB.goto(`${url}/#/tag/TODAY/tasks`);
+    await pageB.goto(`${url}/#/today`);
     await workViewPageB.waitForTaskList();
 
     // Client B syncs
@@ -459,18 +459,15 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
     console.log('[TODAY Remove] Both synced again');
 
     // --- Verify final state ---
-    // dueDay change should win over reorder (LWW on task entity)
-    // Both clients should have Task2 NOT in TODAY
-    // Note: The outcome depends on which operation has a later timestamp
-    // Since A's removal happened before B's reorder, B's reorder might have a later timestamp
-    // But dueDay change removes the task from TODAY membership regardless of taskIds order
+    // Moving the Planning placement to tomorrow must survive an older Today reorder.
+    // Both clients should exclude Task2 from canonical Today.
 
     // Navigate to TODAY view to ensure UI reflects final state
-    await pageB.goto(`${url}/#/tag/TODAY/tasks`);
+    await pageB.goto(`${url}/#/today`);
     await waitForAppReady(pageB);
     await workViewPageB.waitForTaskList();
 
-    // The dueDay change must remove Task2 from virtual TODAY membership on both
+    // The Planning change must remove Task2 from canonical Today on both
     // clients; convergence with the wrong three-task result is still a failure.
     await expect(pageA.locator('task')).toHaveCount(2);
     await expect(pageB.locator('task')).toHaveCount(2);
