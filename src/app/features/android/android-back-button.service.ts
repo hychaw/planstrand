@@ -157,7 +157,16 @@ export class AndroidBackButtonService {
     const path = this._pathOf(url);
     return (
       /^\/(?:tag|project)\/[^/]+\/tasks$/.test(path) ||
-      ['/planner', '/schedule', '/boards', '/habits'].includes(path)
+      [
+        '/today',
+        '/inbox',
+        '/master-tasks',
+        '/this-week',
+        '/planner',
+        '/schedule',
+        '/boards',
+        '/habits',
+      ].includes(path)
     );
   }
 
