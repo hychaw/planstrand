@@ -149,6 +149,8 @@ describe('Hydration-replay vs compaction race (integration, real store, #9084)',
           provide: OperationLogSnapshotService,
           useValue: {
             isValidSnapshot: () => true,
+            backfillLegacyFolders: () => Promise.resolve(),
+            backfillLegacyTaskSchedules: () => Promise.resolve(),
             migrateSnapshotWithBackup: (snapshot: unknown) => Promise.resolve(snapshot),
             saveCurrentStateAsSnapshot: () => Promise.resolve(false),
           },

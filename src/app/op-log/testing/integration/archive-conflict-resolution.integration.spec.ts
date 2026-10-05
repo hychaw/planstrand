@@ -453,6 +453,8 @@ describe('bulk archive conflict resolution integration (#9537)', () => {
           provide: OperationLogSnapshotService,
           useValue: {
             isValidSnapshot: () => true,
+            backfillLegacyFolders: () => Promise.resolve(),
+            backfillLegacyTaskSchedules: () => Promise.resolve(),
             saveCurrentStateAsSnapshot: () => Promise.resolve(false),
           },
         },

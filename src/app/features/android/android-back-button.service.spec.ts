@@ -437,7 +437,7 @@ describe('AndroidBackButtonService (#7972)', () => {
 
       service.handleBackButton();
 
-      expect(navigateByUrl).toHaveBeenCalledWith(TODAY_URL, { replaceUrl: true });
+      expect(navigateByUrl).toHaveBeenCalledWith('/today', { replaceUrl: true });
     });
 
     it('resolves the legacy Inbox start page to the inbox project', () => {
@@ -470,7 +470,7 @@ describe('AndroidBackButtonService (#7972)', () => {
 
       service.handleBackButton();
 
-      expect(navigateByUrl).toHaveBeenCalledWith(TODAY_URL, { replaceUrl: true });
+      expect(navigateByUrl).toHaveBeenCalledWith('/today', { replaceUrl: true });
     });
 
     it('falls back to Today when the project start page is missing', () => {
@@ -480,7 +480,7 @@ describe('AndroidBackButtonService (#7972)', () => {
 
       service.handleBackButton();
 
-      expect(navigateByUrl).toHaveBeenCalledWith(TODAY_URL, { replaceUrl: true });
+      expect(navigateByUrl).toHaveBeenCalledWith('/today', { replaceUrl: true });
     });
 
     it('falls back to Today when misc config is undefined', () => {
@@ -489,7 +489,7 @@ describe('AndroidBackButtonService (#7972)', () => {
 
       service.handleBackButton();
 
-      expect(navigateByUrl).toHaveBeenCalledWith(TODAY_URL, { replaceUrl: true });
+      expect(navigateByUrl).toHaveBeenCalledWith('/today', { replaceUrl: true });
     });
   });
 

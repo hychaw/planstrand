@@ -24,6 +24,7 @@ describe('dataRepair()', () => {
   let mock: AppDataComplete;
   beforeEach(() => {
     mock = createAppDataCompleteMock();
+    mock.event = createEmptyEntity();
     mock.folder = structuredClone(initialFolderState);
     mock.project = {
       ...fakeEntityStateFromArray([

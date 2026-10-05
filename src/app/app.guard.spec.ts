@@ -26,7 +26,7 @@ describe('DefaultStartPageGuard', () => {
   let appFeatures: jasmine.Spy;
   let getByIdOnce$: jasmine.Spy;
 
-  const TODAY_URL = `/tag/${TODAY_TAG.id}/tasks`;
+  const TODAY_URL = '/today';
 
   const runGuard = async (): Promise<UrlTree> => {
     const result = await guard.canActivate({} as any, {} as any).toPromise();
@@ -88,7 +88,7 @@ describe('DefaultStartPageGuard', () => {
 
   it('routes DefaultStartPage.Today → Today', async () => {
     misc$.next({ defaultStartPage: 0 });
-    expectUrl(await runGuard(), TODAY_URL);
+    expectUrl(await runGuard(), `/tag/${TODAY_TAG.id}/tasks`);
   });
 
   it('routes legacy Inbox (1) → /project/INBOX_PROJECT/tasks', async () => {

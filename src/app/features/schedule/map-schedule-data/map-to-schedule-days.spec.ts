@@ -449,16 +449,14 @@ describe('mapToScheduleDays()', () => {
   });
 
   it('should work for NON-scheduled repeat task cases', () => {
-    if (maybeSkipTimezoneDependent('should work for NON-scheduled repeat task cases')) {
-      pending('Skipping timezone-dependent test');
-      return;
-    }
+    // Instants use the display zone; elapsed estimates never include a UTC offset.
+    // Fill today's 23:59 work window so tomorrow's repeat precedes the overflow task.
     const r = mapToScheduleDays(
-      N + TZ_OFFSET,
+      Date.parse('1970-01-01T00:00:00+01:00'),
       [NDS, '1970-01-02'],
       [
         // NOTE: takes us to the next day, since without dayStart and dayEnd it otherwise won't
-        fakeTaskEntry('N1', { timeEstimate: hTz(24) - 60000 }),
+        fakeTaskEntry('N1', { timeEstimate: h(24) - 60000 }),
         fakeTaskEntry('N2', { timeEstimate: h(1) }),
       ],
       [],
@@ -466,7 +464,7 @@ describe('mapToScheduleDays()', () => {
       [
         fakeRepeatCfg('R1', undefined, {
           defaultEstimate: h(2),
-          lastTaskCreationDay: getDbDateStr(N + 60000),
+          lastTaskCreationDay: '1970-01-01',
         }),
       ],
       [],
@@ -474,6 +472,9 @@ describe('mapToScheduleDays()', () => {
       {},
       undefined,
       undefined,
+      undefined,
+      undefined,
+      'Europe/Berlin',
     );
 
     expect(r).toEqual([
@@ -484,9 +485,9 @@ describe('mapToScheduleDays()', () => {
           {
             data: jasmine.any(Object),
             id: 'N1',
-            start: hTz(0),
+            start: Date.parse('1970-01-01T00:00:00+01:00'),
 
-            duration: h(23) - 60000,
+            duration: h(24) - 60000,
             type: 'Task',
           },
         ],
@@ -500,7 +501,7 @@ describe('mapToScheduleDays()', () => {
             data: jasmine.any(Object),
             id: 'R1_1970-01-02',
 
-            start: hTz(24),
+            start: Date.parse('1970-01-02T00:00:00+01:00'),
             duration: h(2),
             type: 'RepeatProjection',
             plannedForDay: '1970-01-02',
@@ -508,8 +509,7 @@ describe('mapToScheduleDays()', () => {
           {
             data: jasmine.any(Object),
             id: 'N2',
-            // eslint-disable-next-line no-mixed-operators
-            start: 26 * H + TZ_OFFSET,
+            start: Date.parse('1970-01-02T02:00:00+01:00'),
             duration: h(1),
             type: 'Task',
           },
