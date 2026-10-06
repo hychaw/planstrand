@@ -3,6 +3,7 @@ import { BoardPanelComponent } from './board-panel.component';
 import { BoardPanelCfg, BoardPanelCfgTaskTypeFilter } from '../boards.model';
 import { TaskCopy } from '../../tasks/task.model';
 import { Store } from '@ngrx/store';
+import { WorkSessionService } from '../../work-session/work-session.service';
 import { TaskService } from '../../tasks/task.service';
 import { MatDialog } from '@angular/material/dialog';
 import { of, ReplaySubject } from 'rxjs';
@@ -32,6 +33,10 @@ import { BoardsActions } from '../store/boards.actions';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 
 const PLANNER_TASK_PROVIDERS = [
+  {
+    provide: WorkSessionService,
+    useValue: { scheduledTaskSession: () => undefined },
+  },
   {
     provide: GlobalConfigService,
     useValue: {

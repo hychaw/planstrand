@@ -11,7 +11,6 @@ import {
   waitForSyncComplete,
   WEBDAV_CONFIG_TEMPLATE,
 } from '../../utils/sync-helpers';
-import { translationRegex, translationText } from '../../utils/i18n-strings';
 import { waitForAppReady, waitForStatePersistence } from '../../utils/waits';
 
 const authorization = `Basic ${Buffer.from('admin:admin').toString('base64')}`;
@@ -46,15 +45,15 @@ test.describe('@webdav automatic file format rollout', () => {
       await waitForSyncComplete(a.page, sync);
 
       // Assert the real commit point before checking reload or another client.
-      // Released clients join v2 without an opt-in, so a new folder stays v2.
+      // The default stays monolithic, in Planstrand's isolated protocol-4 namespace.
       const monolith = await readPrefixedFile<{ version: number; state: unknown }>(
         request,
-        `${remote}sync-data.json`,
+        `${remote}planstrand-sync-data.json`,
         authorization,
       );
-      expect(monolith.version).toBe(2);
+      expect(monolith.version).toBe(4);
       expect(JSON.stringify(monolith.state)).toContain(title);
-      for (const file of ['sync-ops.json', 'sync-state.json']) {
+      for (const file of ['planstrand-sync-ops.json', 'planstrand-sync-state.json']) {
         expect(await remoteStatus(request, `${remote}${file}`)).toBe(404);
       }
 
@@ -69,7 +68,7 @@ test.describe('@webdav automatic file format rollout', () => {
       await syncB.setupWebdavSync(config, { useProductFormatDefault: true });
       await waitForSyncComplete(b.page, syncB);
       await expect(b.page.locator('task').filter({ hasText: title })).toBeVisible();
-      expect(await remoteStatus(request, `${remote}sync-ops.json`)).toBe(404);
+      expect(await remoteStatus(request, `${remote}planstrand-sync-ops.json`)).toBe(404);
     } finally {
       await closeContextsSafely(a.context, b?.context);
     }
@@ -110,12 +109,12 @@ test.describe('@webdav automatic file format rollout', () => {
         version: number;
         state: unknown;
         snapshotBaseClock?: unknown;
-      }>(request, `${nextRemote}sync-data.json`, authorization);
-      expect(monolith.version).toBe(2);
+      }>(request, `${nextRemote}planstrand-sync-data.json`, authorization);
+      expect(monolith.version).toBe(4);
       // Only a snapshot upload records a base clock when it creates the file.
       expect(monolith.snapshotBaseClock).toBeDefined();
       expect(JSON.stringify(monolith.state)).toContain(title);
-      for (const file of ['sync-ops.json', 'sync-state.json']) {
+      for (const file of ['planstrand-sync-ops.json', 'planstrand-sync-state.json']) {
         expect(await remoteStatus(request, `${nextRemote}${file}`)).toBe(404);
       }
     } finally {
@@ -123,7 +122,7 @@ test.describe('@webdav automatic file format rollout', () => {
     }
   });
 
-  test('replaces a legacy v16 folder with v2 after a confirmed force overwrite', async ({
+  test('preserves a legacy-only folder and blocks automatic adoption', async ({
     browser,
     baseURL,
     request,
@@ -132,61 +131,48 @@ test.describe('@webdav automatic file format rollout', () => {
     const remote = `${WEBDAV_CONFIG_TEMPLATE.baseUrl}${folder}/DEV/`;
     await createSyncFolder(request, folder);
     await createSyncFolder(request, `${folder}/DEV`);
-    // A v16.x client left only its pfapi metadata file; the app never parses it.
-    const legacyMeta = await request.put(`${remote}__meta_`, {
-      headers: { Authorization: authorization },
-      data: '{"lastUpdate":1700000000000,"revMap":{}}',
+    const legacyBody = '{"lastUpdate":1700000000000,"revMap":{}}';
+    expect(
+      (
+        await request.put(`${remote}__meta_`, {
+          headers: { Authorization: authorization },
+          data: legacyBody,
+        })
+      ).ok(),
+    ).toBe(true);
+    const a = await setupSyncClient(browser, baseURL);
+    const writes: string[] = [];
+    a.page.on('request', (req) => {
+      if (['PUT', 'DELETE'].includes(req.method()) && req.url().startsWith(remote))
+        writes.push(req.url());
     });
-    expect(legacyMeta.ok()).toBe(true);
-    const a = await setupSyncClient(browser, baseURL, [
-      translationRegex('F.SYNC.C.FORCE_UPLOAD'),
-    ]);
     try {
       const work = new WorkViewPage(a.page);
-      const sync = new SyncPage(a.page);
       await work.waitForTaskList();
-      const title = `Replaces legacy ${folder}`;
+      const title = `Preserved local ${folder}`;
       await work.addTask(title);
       await waitForStatePersistence(a.page);
+      const sync = new SyncPage(a.page);
       await sync.setupWebdavSync(
         { ...WEBDAV_CONFIG_TEMPLATE, syncFolderPath: `/${folder}` },
         { useProductFormatDefault: true },
       );
-
-      // A normal sync still reports the legacy folder before anything is written.
       await expect(waitForSyncComplete(a.page, sync)).rejects.toThrow('Sync failed');
-      const legacySnack = a.page.locator('snack-custom', {
-        hasText: translationText('F.SYNC.S.LEGACY_FORMAT_DETECTED'),
-      });
-      await expect(legacySnack).toBeVisible();
-      expect(await remoteStatus(request, `${remote}sync-data.json`)).toBe(404);
-
-      const forceOverwrite = legacySnack.locator('button.action');
-      await expect(forceOverwrite).toHaveText(
-        translationText('F.SYNC.S.BTN_FORCE_OVERWRITE'),
-      );
-      await forceOverwrite.click();
-      const forceFailed = a.page.locator('snack-custom', {
-        hasText: translationText('F.SYNC.S.FORCE_UPLOAD_FAILED'),
-      });
-      const forceOutcome = async (): Promise<string> =>
-        (await forceFailed.isVisible())
-          ? 'force overwrite failed'
-          : `sync-data.json ${await remoteStatus(request, `${remote}sync-data.json`)}`;
-      await expect.poll(forceOutcome).not.toBe('sync-data.json 404');
-      expect(await forceOutcome()).toBe('sync-data.json 200');
-
-      // As in v19.1, the replacement is a v2 folder that every released client reads.
-      const monolith = await readPrefixedFile<{ version: number; state: unknown }>(
-        request,
-        `${remote}sync-data.json`,
-        authorization,
-      );
-      expect(monolith.version).toBe(2);
-      expect(JSON.stringify(monolith.state)).toContain(title);
-      expect(await remoteStatus(request, `${remote}sync-ops.json`)).toBe(404);
-      await sync.triggerSync();
-      await waitForSyncComplete(a.page, sync);
+      await expect(
+        a.page.locator('snack-custom', {
+          hasText:
+            'Legacy sync data found. Explicitly import it, start fresh, or cancel.',
+        }),
+      ).toBeVisible();
+      expect(writes).toEqual([]);
+      expect(await remoteStatus(request, `${remote}planstrand-sync-data.json`)).toBe(404);
+      expect(
+        await (
+          await request.get(`${remote}__meta_`, {
+            headers: { Authorization: authorization },
+          })
+        ).text(),
+      ).toBe(legacyBody);
       await expect(a.page.locator('task').filter({ hasText: title })).toBeVisible();
     } finally {
       await closeContextsSafely(a.context);
@@ -216,20 +202,19 @@ test.describe('@webdav automatic file format rollout', () => {
       const ops = await readPrefixedFile<{
         version: number;
         snapshotRef: { file: string };
-      }>(request, `${remote}sync-ops.json`, authorization);
-      expect(ops.version).toBe(3);
+      }>(request, `${remote}planstrand-sync-ops.json`, authorization);
+      expect(ops.version).toBe(4);
 
-      // Builds that created v3 folders by default saved no format choice. Remove
-      // the creator's explicit choice so the joining client keeps an absent one.
-      // Readers validate a snapshot by syncVersion and clock, not by its revision.
+      // Remove the creator's explicit choice to exercise discovery by a client
+      // whose synchronized settings contain no format choice.
       const snapshotUrl = `${remote}${ops.snapshotRef.file}`;
       const encoded = await (
         await request.get(snapshotUrl, { headers: { Authorization: authorization } })
       ).text();
       const prefixEnd = encoded.indexOf('__') + 2;
-      const snapshot = JSON.parse(encoded.slice(prefixEnd)) as {
+      const snapshot = await readPrefixedFile<{
         state: { globalConfig: { sync: { isUseSplitSyncFiles?: boolean } } };
-      };
+      }>(request, `${remote}${ops.snapshotRef.file}`, authorization);
       expect(snapshot.state.globalConfig.sync.isUseSplitSyncFiles).toBe(true);
       delete snapshot.state.globalConfig.sync.isUseSplitSyncFiles;
       const rewritten = await request.put(snapshotUrl, {
@@ -257,17 +242,17 @@ test.describe('@webdav automatic file format rollout', () => {
       await waitForSyncComplete(b.page, syncB);
       const joinedOps = await readPrefixedFile<{ version: number; recentOps: unknown[] }>(
         request,
-        `${remote}sync-ops.json`,
+        `${remote}planstrand-sync-ops.json`,
         authorization,
       );
-      expect(joinedOps.version).toBe(3);
+      expect(joinedOps.version).toBe(4);
       expect(JSON.stringify(joinedOps.recentOps)).toContain(added);
       const tombstone = await readPrefixedFile<{ version: number; format: string }>(
         request,
-        `${remote}sync-data.json`,
+        `${remote}planstrand-sync-data.json`,
         authorization,
       );
-      expect(tombstone).toMatchObject({ version: 3, format: 'split' });
+      expect(tombstone).toMatchObject({ version: 4, format: 'split' });
       await syncA.triggerSync();
       await waitForSyncComplete(a.page, syncA);
       await expect(a.page.locator('task').filter({ hasText: added })).toBeVisible();
@@ -310,14 +295,14 @@ test.describe('@webdav automatic file format rollout', () => {
         const legacy = await readPrefixedFile<{
           version: number;
           state: { globalConfig: { sync: { isUseSplitSyncFiles?: boolean } } };
-        }>(request, `${remote}sync-data.json`, authorization);
-        expect(legacy.version).toBe(2);
+        }>(request, `${remote}planstrand-sync-data.json`, authorization);
+        expect(legacy.version).toBe(4);
         // An older persisted config can lack the optional format field entirely.
         if (choice === 'default') {
           delete legacy.state.globalConfig.sync.isUseSplitSyncFiles;
-          const response = await request.put(`${remote}sync-data.json`, {
+          const response = await request.put(`${remote}planstrand-sync-data.json`, {
             headers: { Authorization: authorization },
-            data: `pf_2__${JSON.stringify(legacy)}`,
+            data: `pf_4__${JSON.stringify(legacy)}`,
           });
           expect(response.ok()).toBe(true);
         }
@@ -333,7 +318,7 @@ test.describe('@webdav automatic file format rollout', () => {
         await expect(b.page.locator('task').filter({ hasText: original })).toBeVisible();
         if (choice === 'migrate') {
           // First hydrate the existing config, then explicitly opt into migration.
-          // The format option is synced, so joining may restore the remote false.
+          // Format preference stays local; migration is an explicit choice on B.
           await syncB.setupWebdavSync(
             { ...config, isUseSplitSyncFiles: true },
             { isReconfigure: true },
@@ -348,26 +333,26 @@ test.describe('@webdav automatic file format rollout', () => {
         if (choice === 'migrate') {
           const ops = await readPrefixedFile<{ version: number }>(
             request,
-            `${remote}sync-ops.json`,
+            `${remote}planstrand-sync-ops.json`,
             authorization,
           );
-          expect(ops.version).toBe(3);
+          expect(ops.version).toBe(4);
           const tombstone = await readPrefixedFile<{ format: string }>(
             request,
-            `${remote}sync-data.json`,
+            `${remote}planstrand-sync-data.json`,
             authorization,
           );
           expect(tombstone.format).toBe('split');
         } else {
           const monolith = await readPrefixedFile<{ version: number; state: unknown }>(
             request,
-            `${remote}sync-data.json`,
+            `${remote}planstrand-sync-data.json`,
             authorization,
           );
-          expect(monolith.version).toBe(2);
+          expect(monolith.version).toBe(4);
           expect(JSON.stringify(monolith.state)).toContain(original);
           expect(JSON.stringify(monolith.state)).toContain(added);
-          for (const file of ['sync-ops.json', 'sync-state.json']) {
+          for (const file of ['planstrand-sync-ops.json', 'planstrand-sync-state.json']) {
             expect(
               (
                 await request.get(`${remote}${file}`, {
@@ -420,7 +405,7 @@ test.describe('@webdav automatic file format rollout', () => {
           });
           await waitForSyncComplete(seed.page, seedSync);
           const legacyResponse = await request.get(
-            `${root}${seedFolder}/DEV/sync-data.json`,
+            `${root}${seedFolder}/DEV/planstrand-sync-data.json`,
             {
               headers: { Authorization: authorization },
             },
@@ -437,29 +422,32 @@ test.describe('@webdav automatic file format rollout', () => {
           let legacyReads = 0;
           let concurrentV2Created = false;
           let releaseLegacyRead: (() => void) | undefined;
-          await joining.page.route(`**/${folder}/DEV/sync-data.json`, async (route) => {
-            if (route.request().method() === 'GET' && ++legacyReads === 6) {
-              // Download and migration-check discovery/reads plus upload
-              // discovery saw no v2. Publish before the final upload read.
-              const seeded = await request.put(`${remote}sync-data.json`, {
-                headers: { Authorization: authorization },
-                data: legacy,
-              });
-              expect(seeded.ok()).toBe(true);
-              if (switchTarget) {
-                const response = await route.fetch();
-                const released = new Promise<void>((resolve) => {
-                  releaseLegacyRead = resolve;
+          await joining.page.route(
+            `**/${folder}/DEV/planstrand-sync-data.json`,
+            async (route) => {
+              if (route.request().method() === 'GET' && ++legacyReads === 6) {
+                // Download and migration-check discovery/reads plus upload
+                // discovery saw no v2. Publish before the final upload read.
+                const seeded = await request.put(`${remote}planstrand-sync-data.json`, {
+                  headers: { Authorization: authorization },
+                  data: legacy,
                 });
+                expect(seeded.ok()).toBe(true);
+                if (switchTarget) {
+                  const response = await route.fetch();
+                  const released = new Promise<void>((resolve) => {
+                    releaseLegacyRead = resolve;
+                  });
+                  concurrentV2Created = true;
+                  await released;
+                  await route.fulfill({ response });
+                  return;
+                }
                 concurrentV2Created = true;
-                await released;
-                await route.fulfill({ response });
-                return;
               }
-              concurrentV2Created = true;
-            }
-            await route.continue();
-          });
+              await route.continue();
+            },
+          );
           await sync.setupWebdavSync(
             { ...WEBDAV_CONFIG_TEMPLATE, syncFolderPath: `/${folder}` },
             { useProductFormatDefault: true },
@@ -475,13 +463,13 @@ test.describe('@webdav automatic file format rollout', () => {
             releaseLegacyRead!();
           }
           await expect(sync.syncSpinner).toBeHidden();
-          const preserved = await request.get(`${remote}sync-data.json`, {
+          const preserved = await request.get(`${remote}planstrand-sync-data.json`, {
             headers: { Authorization: authorization },
           });
           expect(await preserved.text()).toBe(legacy);
           expect(
             (
-              await request.get(`${remote}sync-ops.json`, {
+              await request.get(`${remote}planstrand-sync-ops.json`, {
                 headers: { Authorization: authorization },
               })
             ).status(),
@@ -492,12 +480,14 @@ test.describe('@webdav automatic file format rollout', () => {
             const nextRemote = `${root}${nextFolder}/DEV/`;
             const monolith = await readPrefixedFile<{ version: number; state: unknown }>(
               request,
-              `${nextRemote}sync-data.json`,
+              `${nextRemote}planstrand-sync-data.json`,
               authorization,
             );
-            expect(monolith.version).toBe(2);
+            expect(monolith.version).toBe(4);
             expect(JSON.stringify(monolith.state)).toContain(localTitle);
-            expect(await remoteStatus(request, `${nextRemote}sync-ops.json`)).toBe(404);
+            expect(
+              await remoteStatus(request, `${nextRemote}planstrand-sync-ops.json`),
+            ).toBe(404);
           }
           await expect(
             joining.page.locator('task').filter({ hasText: localTitle }),
@@ -530,7 +520,7 @@ test.describe('@webdav automatic file format rollout', () => {
       a.page.on('request', (req) => {
         if (req.url().includes(folder) && req.method() === 'PUT') writes.push(req.url());
       });
-      const routePattern = `**/${folder}/DEV/sync-ops.json`;
+      const routePattern = `**/${folder}/DEV/planstrand-sync-ops.json`;
       await a.page.route(routePattern, async (route) => {
         if (route.request().method() === 'GET') {
           failedProbe = true;
@@ -552,7 +542,11 @@ test.describe('@webdav automatic file format rollout', () => {
       await expect(sync.syncBtn.locator('mat-icon')).toHaveText('sync_problem');
       expect(writes).toEqual([]);
       await expect(a.page.locator('task').filter({ hasText: title })).toBeVisible();
-      for (const file of ['sync-data.json', 'sync-ops.json', 'sync-state.json']) {
+      for (const file of [
+        'planstrand-sync-data.json',
+        'planstrand-sync-ops.json',
+        'planstrand-sync-state.json',
+      ]) {
         expect(
           (
             await request.get(`${remote}${file}`, {
@@ -566,11 +560,11 @@ test.describe('@webdav automatic file format rollout', () => {
       await waitForSyncComplete(a.page, sync);
       const monolith = await readPrefixedFile<{ version: number }>(
         request,
-        `${remote}sync-data.json`,
+        `${remote}planstrand-sync-data.json`,
         authorization,
       );
-      expect(monolith.version).toBe(2);
-      expect(await remoteStatus(request, `${remote}sync-ops.json`)).toBe(404);
+      expect(monolith.version).toBe(4);
+      expect(await remoteStatus(request, `${remote}planstrand-sync-ops.json`)).toBe(404);
       await expect(a.page.locator('task').filter({ hasText: title })).toBeVisible();
     } finally {
       await closeContextsSafely(a.context);

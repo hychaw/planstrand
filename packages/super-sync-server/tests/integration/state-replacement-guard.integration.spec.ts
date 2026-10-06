@@ -24,6 +24,7 @@
  *     npx vitest run --config vitest.integration.config.ts \
  *     tests/integration/state-replacement-guard.integration.spec.ts
  */
+import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { uuidv7 } from 'uuidv7';
 import { prisma } from '../../src/db';
@@ -101,7 +102,7 @@ describeWithDb('State-replacement guard vs history pruning (PostgreSQL)', () => 
     payload: { title: 'built on superseded state' },
     vectorClock: { 'stale-client': 1 },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
   });
 
   const uploadFromCursorZero = (

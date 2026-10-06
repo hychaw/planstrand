@@ -20,7 +20,7 @@ const trackSyncFiles = (page: Page, syncFileUrl: string): Set<string> => {
   const files = new Set([syncFileUrl]);
   if (WEBDAV_SYNC_FORMAT === 'v3') {
     const folderUrl = syncFileUrl.slice(0, syncFileUrl.lastIndexOf('/') + 1);
-    files.add(`${folderUrl}sync-state.json`);
+    files.add(`${folderUrl}planstrand-sync-state.json`);
     page.on('request', (request) => {
       if (
         request.method() === 'PUT' &&

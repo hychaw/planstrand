@@ -90,7 +90,7 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
         // This regression seeds a v2 counter/snapshot, regardless of suite mode.
         isUseSplitSyncFiles: false,
       };
-      const fileUrl = `${config.baseUrl}${folder}/DEV/sync-data.json`;
+      const fileUrl = `${config.baseUrl}${folder}/DEV/planstrand-sync-data.json`;
       const headers = {
         Authorization: `Basic ${Buffer.from('admin:admin').toString('base64')}`,
       };
@@ -128,7 +128,7 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
         await authorSync.triggerSync();
         await waitForSyncComplete(author.page, authorSync);
         const initialFile = (await readFile()).data;
-        expect(initialFile.version).toBe(2);
+        expect(initialFile.version).toBe(4);
         const original = initialFile.recentOps.find(
           (op) => op.p?.actionPayload?.task?.title === 'Original author task',
         );
@@ -171,7 +171,9 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
             ),
           )
           .toBe(true);
-        expect(methods).toEqual(['GET']);
+        // Namespace discovery and semantic screening read the commit before the
+        // engine download. All three reads finish while upload is still locked.
+        expect(methods).toEqual(['GET', 'GET', 'GET']);
         const processedCursor = (await localState(observer.page)).cursor;
         await observer.page.clock.setFixedTime(Date.now() + 60_000);
 
@@ -248,7 +250,9 @@ test.describe('@webdav Upload must not acknowledge unseen operations (#10239)', 
         await waitForSyncComplete(observer.page, observerSync, 30000, {
           allowResponseOnlyCompletion: true,
         });
-        expect(methods).toEqual(['GET', 'GET']);
+        // Both the download and stale-baseline upload preflight perform the
+        // namespace/commit checks before the engine reads: three reads each.
+        expect(methods).toEqual(['GET', 'GET', 'GET', 'GET', 'GET', 'GET']);
         expect((await localState(observer.page)).cursor).toBe(processedCursor);
         expect((await readFile()).data.syncVersion).toBe(unseen.sv);
 

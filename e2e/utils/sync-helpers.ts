@@ -48,7 +48,7 @@ export const WEBDAV_CONFIG_TEMPLATE = {
 // setupWebdavSync({ isUseSplitSyncFiles: ... }). Scheduled runs remain v2.
 export const WEBDAV_SYNC_FORMAT = process.env.E2E_WEBDAV_FORMAT ?? 'v2';
 export const WEBDAV_SYNC_FILE =
-  WEBDAV_SYNC_FORMAT === 'v3' ? 'sync-ops.json' : 'sync-data.json';
+  WEBDAV_SYNC_FORMAT === 'v3' ? 'planstrand-sync-ops.json' : 'planstrand-sync-data.json';
 
 /** Read an unencrypted, uncompressed remote fixture (including its real prefix). */
 export const readPrefixedFile = async <T>(
@@ -65,7 +65,12 @@ export const readPrefixedFile = async <T>(
   if (prefixEnd < 0) {
     throw new Error(`${url} is missing its format prefix`);
   }
-  return JSON.parse(encoded.slice(prefixEnd + 2)) as T;
+  const data = JSON.parse(encoded.slice(prefixEnd + 2));
+  // All callers read current Planstrand commit points, independently of layout.
+  expect(encoded.slice(0, prefixEnd + 2)).toBe('pf_4__');
+  expect(data).toMatchObject({ product: 'planstrand', version: 4 });
+  expect(data.compatibility.requiredOpTypes).toContain('PLANNING_V1');
+  return data as T;
 };
 
 /**

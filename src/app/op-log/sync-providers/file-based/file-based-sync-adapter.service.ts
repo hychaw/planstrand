@@ -32,6 +32,7 @@ import {
   EMPTY_FOLDER_SYNC_FORMAT,
 } from './file-based-sync-format';
 import { assertSyncFileVersion } from './assert-sync-file-version';
+import { PlanstrandFileIncompatibleError } from './planstrand-file-protocol';
 import { OpLog } from '../../../core/log';
 import {
   DecompressError,
@@ -1750,6 +1751,7 @@ export class FileBasedSyncAdapterService {
     } catch (e) {
       // Never overwrite a newer state file or a plaintext encryption downgrade.
       if (
+        e instanceof PlanstrandFileIncompatibleError ||
         e instanceof PlaintextWhenEncryptionExpectedError ||
         (e instanceof SyncDataCorruptedError && e.isRemoteNewer)
       ) {
@@ -1831,6 +1833,7 @@ export class FileBasedSyncAdapterService {
         // The referenced snapshot is primary (GHSA-vrc7-775g-ggqc): never adopt an
         // older copy over a newer format or a plaintext encryption downgrade.
         if (
+          e instanceof PlanstrandFileIncompatibleError ||
           e instanceof PlaintextWhenEncryptionExpectedError ||
           (e instanceof SyncDataCorruptedError && e.isRemoteNewer)
         ) {
@@ -1851,6 +1854,7 @@ export class FileBasedSyncAdapterService {
     } catch (e) {
       // Do not hide a newer format or an encryption downgrade behind an old .bak.
       if (
+        e instanceof PlanstrandFileIncompatibleError ||
         e instanceof PlaintextWhenEncryptionExpectedError ||
         (e instanceof SyncDataCorruptedError && e.isRemoteNewer)
       ) {

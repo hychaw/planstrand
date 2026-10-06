@@ -66,6 +66,8 @@ describe('timed placeholder and day-panel entry points', () => {
         {
           provide: ScheduleService,
           useValue: {
+            getTodayStr: () => day,
+            displayTimeZone: () => 'Asia/Singapore',
             createScheduleDaysComputed: () => signal([]),
             scheduleRefreshTick: signal(0),
           },
@@ -168,7 +170,7 @@ describe('timed placeholder and day-panel entry points', () => {
           ? new TouchEvent('touchend', { changedTouches: [contact] })
           : new MouseEvent('mouseup', { clientX: 100, clientY: y }),
       );
-      assertSession(new Date(2026, 0, 16, 10).getTime(), 900000);
+      assertSession(Date.parse('2026-01-16T10:00:00+08:00'), 900000);
       expect(activeTask()).toBeNull();
       expect(component.isDragging()).toBeFalse();
     });

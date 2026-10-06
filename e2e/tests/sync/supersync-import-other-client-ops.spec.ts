@@ -14,7 +14,6 @@ import {
 import { ImportPage } from '../../pages/import.page';
 import { SuperSyncPage } from '../../pages/supersync.page';
 import { WorkViewPage } from '../../pages/work-view.page';
-import { expectTaskOnAllClients } from '../../utils/supersync-assertions';
 import { waitForAppReady } from '../../utils/waits';
 
 /**
@@ -180,7 +179,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       );
 
       await clientB.sync.syncAndWait();
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
       console.log('[Other-Client Import] Client B received SYNC_IMPORT');
@@ -277,7 +276,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       console.log('[Other-Client Import] Client A synced');
 
       // Navigate to work view
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
 
       // ============ PHASE 10: Verify Client A sees B's tasks ============
@@ -294,15 +293,22 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       console.log('[Other-Client Import] Client A has B post-import tasks');
 
       // Verify on both clients
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
-      await expectTaskOnAllClients([clientA, clientB], taskB1);
-      await expectTaskOnAllClients([clientA, clientB], taskB2);
-      await expectTaskOnAllClients(
-        [clientA, clientB],
-        'E2E Import Test - Active Task With Subtask',
-      );
+      // Imported schedules can also render the same Task in a WorkSession
+      // projection. Assert each identity in the context list on both clients.
+      for (const client of [clientA, clientB]) {
+        for (const title of [
+          taskB1,
+          taskB2,
+          'E2E Import Test - Active Task With Subtask',
+        ]) {
+          await expect(
+            client.page.locator('task-list task').filter({ hasText: title }),
+          ).toBeVisible();
+        }
+      }
 
       // No sync errors
       const errorSnackA = clientA.page.locator('simple-snack-bar.error');

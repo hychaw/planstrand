@@ -14,6 +14,7 @@
  *     npx vitest run --config vitest.integration.config.ts \
  *     tests/integration/clean-slate-atomicity-sql.integration.spec.ts
  */
+import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../../src/db';
 import { SyncService } from '../../src/sync/sync.service';
@@ -39,7 +40,7 @@ describeWithDb('Clean-slate upload atomicity (PostgreSQL)', () => {
     payload: { title: 'Preserve me' },
     vectorClock: { [CLIENT_ID]: 1 },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     ...overrides,
   });
 

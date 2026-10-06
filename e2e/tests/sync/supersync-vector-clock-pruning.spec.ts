@@ -114,7 +114,7 @@ test.describe('@supersync Post-Import Operation Flow', () => {
       console.log('[Post Import] Client B synced (received SYNC_IMPORT)');
 
       // Navigate to work view and verify import applied
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
       console.log('[Post Import] Client B showing imported data');
@@ -157,7 +157,7 @@ test.describe('@supersync Post-Import Operation Flow', () => {
       console.log('[Post Import] Client A synced (downloaded B tasks)');
 
       // Navigate to work view
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
 
       // ============ PHASE 8: Verify Both Clients Have All Tasks ============
@@ -249,7 +249,7 @@ test.describe('@supersync Post-Import Operation Flow', () => {
       console.log('[Multi-Cycle] Cycle 1: B receives import and creates task');
 
       await clientB.sync.syncAndWait();
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
 
@@ -262,7 +262,7 @@ test.describe('@supersync Post-Import Operation Flow', () => {
       console.log('[Multi-Cycle] Cycle 2: A receives B task and creates own');
 
       await clientA.sync.syncAndWait();
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
       await waitForTask(clientA.page, taskB1);
 
@@ -286,9 +286,9 @@ test.describe('@supersync Post-Import Operation Flow', () => {
       console.log('[Multi-Cycle] Final sync and verification');
 
       await clientA.sync.syncAndWait();
-      await clientA.page.goto('/#/work-view');
+      await clientA.page.goto('/#/tag/TODAY/tasks');
       await clientA.page.waitForLoadState('networkidle');
-      await clientB.page.goto('/#/work-view');
+      await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
 
       // All created tasks should be on both clients

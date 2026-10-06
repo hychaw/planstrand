@@ -1422,7 +1422,7 @@ export const createProjectReliably = async (
   page: Page,
   projectName: string,
 ): Promise<void> => {
-  await page.goto('/#/tag/TODAY/work');
+  await page.goto('/#/tag/TODAY/tasks');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(UI_SETTLE_EXTENDED);
 

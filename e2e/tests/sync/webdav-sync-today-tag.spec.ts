@@ -1,4 +1,5 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import type { PlanningRecord } from '@sp/shared-schema';
 import { test } from '../../fixtures/webdav.fixture';
 import { SyncPage } from '../../pages/sync.page';
 import { WorkViewPage } from '../../pages/work-view.page';
@@ -12,6 +13,26 @@ import {
   generateSyncFolderName,
   closeContextsSafely,
 } from '../../utils/sync-helpers';
+
+const planningRecord = (page: Page, id: string): Promise<PlanningRecord> =>
+  page.evaluate((taskId) => {
+    const store = (
+      window as unknown as {
+        __e2eTestHelpers: {
+          store: {
+            selectSignal: (
+              selector: (state: {
+                planning: { entities: Record<string, PlanningRecord> };
+              }) => PlanningRecord,
+            ) => () => PlanningRecord;
+          };
+        };
+      }
+    ).__e2eTestHelpers.store;
+    return structuredClone(
+      store.selectSignal((state) => state.planning.entities[taskId])(),
+    );
+  }, id);
 
 /**
  * WebDAV TODAY Tag Concurrent Updates E2E Tests
@@ -342,10 +363,14 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
    * 1. Client A removes Task2 from today (reschedule to tomorrow)
    * 2. Client B moves Task2 to first position (before sync)
    * 3. Both sync
-   * 4. Verify: Task2 NOT in today view (dueDay change wins over reorder)
+   * 4. Verify: both clients retain the winning revisioned Planning record
    * 5. Verify: TODAY has consistent tasks on both clients
    */
-  test('Remove from today wins over reorder', async ({ browser, baseURL, request }) => {
+  test('Concurrent Planning move and reorder converge by revision', async ({
+    browser,
+    baseURL,
+    request,
+  }) => {
     test.slow();
     const SYNC_FOLDER_NAME = generateSyncFolderName('e2e-today-remove');
     const WEBDAV_CONFIG = {
@@ -367,7 +392,7 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
     console.log('[TODAY Remove] Client A configured');
 
     // Navigate to TODAY view
-    await pageA.goto(`${url}/#/tag/TODAY/tasks`);
+    await pageA.goto(`${url}/#/today`);
     await workViewPageA.waitForTaskList();
 
     // Client A creates 3 tasks for today
@@ -397,6 +422,8 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
     console.log('[TODAY Remove] Client B configured');
 
     // Navigate to TODAY view
+    // Use the context list for its keyboard gesture. In schema 5 this gesture
+    // authors a Planning placement too, rather than independent tag ordering.
     await pageB.goto(`${url}/#/tag/TODAY/tasks`);
     await workViewPageB.waitForTaskList();
 
@@ -414,6 +441,9 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
 
     // Client A removes Task2 from today by clicking the "tomorrow" quick-access button
     const task2OnA = taskPageA.getTaskByText(task2Name).first();
+    const taskId = await task2OnA.getAttribute('data-task-id');
+    expect(taskId).toBeTruthy();
+    const initialRecord = await planningRecord(pageA, taskId!);
     await task2OnA.click({ button: 'right' });
 
     // The quick-access div contains: [TODAY, TOMORROW, NEXT_WEEK, SCHEDULE_DIALOG]
@@ -425,6 +455,8 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
 
     // Task2 should no longer be in TODAY on Client A
     await expect(pageA.locator('task')).toHaveCount(2);
+    const movedRecord = await planningRecord(pageA, taskId!);
+    expect(movedRecord.placement!.target).not.toEqual(initialRecord.placement!.target);
     console.log('[TODAY Remove] Client A scheduled Task2 for tomorrow');
 
     // Client B tries to reorder Task2 (move up)
@@ -439,6 +471,19 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
       task1Name,
     ]);
     console.log('[TODAY Remove] Client B reordered Task2');
+    const reorderedRecord = await planningRecord(pageB, taskId!);
+    expect(reorderedRecord.placement!.target).toEqual(initialRecord.placement!.target);
+    // The documented register compares counter, then lexical clientId and opId.
+    // Select the exact winner before sync; convergence alone must not pass.
+    const a = movedRecord.revision;
+    const b = reorderedRecord.revision;
+    const moveWins =
+      a.counter !== b.counter
+        ? a.counter > b.counter
+        : a.clientId !== b.clientId
+          ? a.clientId > b.clientId
+          : a.opId > b.opId;
+    const winner = moveWins ? movedRecord : reorderedRecord;
 
     // --- Both clients sync ---
     await waitForStatePersistence(pageA);
@@ -459,27 +504,21 @@ test.describe('@webdav WebDAV TODAY Tag Sync', () => {
     console.log('[TODAY Remove] Both synced again');
 
     // --- Verify final state ---
-    // dueDay change should win over reorder (LWW on task entity)
-    // Both clients should have Task2 NOT in TODAY
-    // Note: The outcome depends on which operation has a later timestamp
-    // Since A's removal happened before B's reorder, B's reorder might have a later timestamp
-    // But dueDay change removes the task from TODAY membership regardless of taskIds order
+    // Placement target and order are one register, so concurrent edits resolve
+    // together. A reorder winner keeps Task2 today; a move winner excludes it.
 
     // Navigate to TODAY view to ensure UI reflects final state
-    await pageB.goto(`${url}/#/tag/TODAY/tasks`);
+    await pageB.goto(`${url}/#/today`);
     await waitForAppReady(pageB);
     await workViewPageB.waitForTaskList();
 
-    // The dueDay change must remove Task2 from virtual TODAY membership on both
-    // clients; convergence with the wrong three-task result is still a failure.
-    await expect(pageA.locator('task')).toHaveCount(2);
-    await expect(pageB.locator('task')).toHaveCount(2);
-    await expect(taskPageA.getTaskByText(task1Name)).toBeVisible();
-    await expect(taskPageA.getTaskByText(task3Name)).toBeVisible();
-    await expect(taskPageB.getTaskByText(task1Name)).toBeVisible();
-    await expect(taskPageB.getTaskByText(task3Name)).toBeVisible();
-    await expect(taskPageA.getTaskByText(task2Name)).not.toBeVisible();
-    await expect(taskPageB.getTaskByText(task2Name)).not.toBeVisible();
+    await expect.poll(() => planningRecord(pageA, taskId!)).toEqual(winner);
+    await expect.poll(() => planningRecord(pageB, taskId!)).toEqual(winner);
+    const expectedOrder = moveWins
+      ? [task3Name, task1Name]
+      : [task2Name, task3Name, task1Name];
+    await expect(pageA.locator('task .task-title')).toHaveText(expectedOrder);
+    await expect(pageB.locator('task .task-title')).toHaveText(expectedOrder);
 
     console.log('[TODAY Remove] ✓ Remove from today handled correctly');
 

@@ -35,10 +35,10 @@ import {
  * Run: npm run e2e:supersync:file e2e/tests/sync/supersync-example-task-fresh-client.spec.ts -- --retries=0
  */
 const EXAMPLE_TASK_TITLES = [
-  'Create your first project',
+  'Create your first Folder',
   'Set up Sync',
   'Learn the keyboard shortcuts',
-  'Go further',
+  'Plan your week',
 ];
 
 test.describe('@supersync Fresh-client example tasks vs incoming import (#7976)', () => {

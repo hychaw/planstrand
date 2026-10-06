@@ -5,6 +5,7 @@
  *   DATABASE_URL=postgresql://... npx vitest run --config vitest.integration.config.ts \
  *     tests/integration/repair-causality.integration.spec.ts
  */
+import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { uuidv7 } from 'uuidv7';
@@ -29,7 +30,7 @@ describeWithDb('causal REPAIR serialization (PostgreSQL)', () => {
     payload: { title: 'concurrent delta' },
     vectorClock: { 'delta-client': 1 },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
   });
 
   const makeRepair = (): Operation => ({
@@ -41,7 +42,7 @@ describeWithDb('causal REPAIR serialization (PostgreSQL)', () => {
     payload: { appDataComplete: { task: { ids: [], entities: {} } } },
     vectorClock: { 'repair-client': 1 },
     timestamp: Date.now(),
-    schemaVersion: 1,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     repairBaseServerSeq: 0,
   });
 

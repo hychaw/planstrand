@@ -169,7 +169,7 @@ const isScenarioUpload = (
   switch (scenario.stage) {
     case 'pending-marker':
       return (
-        path.endsWith('/sync-ops.json') &&
+        path.endsWith('/planstrand-sync-ops.json') &&
         uploaded.syncVersion === legacySyncVersion &&
         uploaded.migration?.status === 'pending' &&
         !!uploaded.migration.legacyRev &&
@@ -180,17 +180,19 @@ const isScenarioUpload = (
       );
     case 'state':
       return (
-        path.endsWith('/sync-state.json') &&
+        path.endsWith('/planstrand-sync-state.json') &&
         uploaded.syncVersion === legacySyncVersion &&
         uploaded.state !== undefined
       );
     case 'backup-tombstone':
-      return path.endsWith('/sync-data.json.bak') && uploaded.format === 'split';
+      return (
+        path.endsWith('/planstrand-sync-data.json.bak') && uploaded.format === 'split'
+      );
     case 'primary-tombstone':
-      return path.endsWith('/sync-data.json') && uploaded.format === 'split';
+      return path.endsWith('/planstrand-sync-data.json') && uploaded.format === 'split';
     case 'final-marker':
       return (
-        path.endsWith('/sync-ops.json') &&
+        path.endsWith('/planstrand-sync-ops.json') &&
         uploaded.syncVersion === legacySyncVersion &&
         uploaded.migration === undefined &&
         !!uploaded.snapshotRef?.rev &&
@@ -322,16 +324,16 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
 
       const legacyPrimary = await readPrefixedFile<RemoteSyncFile>(
         request,
-        `${folderUrl}sync-data.json`,
+        `${folderUrl}planstrand-sync-data.json`,
         authorization,
       );
       const legacyBackup = await readPrefixedFile<RemoteSyncFile>(
         request,
-        `${folderUrl}sync-data.json.bak`,
+        `${folderUrl}planstrand-sync-data.json.bak`,
         authorization,
       );
-      expect(legacyPrimary.version).toBe(2);
-      expect(legacyBackup.version).toBe(2);
+      expect(legacyPrimary.version).toBe(4);
+      expect(legacyBackup.version).toBe(4);
       const legacyPrimaryState = JSON.stringify(legacyPrimary.state);
       const legacyBackupState = JSON.stringify(legacyBackup.state);
       expect(legacyPrimaryState).toContain(firstLegacyTask);
@@ -386,7 +388,7 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       // so these assertions cannot accidentally observe an in-memory retry.
       const interruptedOps = await readSurgicalOpsFile(
         request,
-        `${folderUrl}sync-ops.json`,
+        `${folderUrl}planstrand-sync-ops.json`,
         authorization,
       );
       if (scenario.markerPending) {
@@ -414,7 +416,7 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       expect(pendingLocalOperation?.syncedAt).toBeUndefined();
       expect(pendingLocalOperation?.rejectedAt).toBeUndefined();
 
-      const stateUrl = `${folderUrl}sync-state.json`;
+      const stateUrl = `${folderUrl}planstrand-sync-state.json`;
       if (scenario.stateCommitted) {
         const interruptedState = await readPrefixedFile<SplitStateFile>(
           request,
@@ -422,7 +424,7 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
           authorization,
         );
         expect(interruptedState).toMatchObject({
-          version: 3,
+          version: 4,
           syncVersion: legacySyncVersion,
         });
         expect(JSON.stringify(interruptedState.state)).toContain(firstLegacyTask);
@@ -437,21 +439,21 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
 
       const interruptedPrimary = await readPrefixedFile<RemoteSyncFile>(
         request,
-        `${folderUrl}sync-data.json`,
+        `${folderUrl}planstrand-sync-data.json`,
         authorization,
       );
       const interruptedBackup = await readPrefixedFile<RemoteSyncFile>(
         request,
-        `${folderUrl}sync-data.json.bak`,
+        `${folderUrl}planstrand-sync-data.json.bak`,
         authorization,
       );
       if (scenario.primaryTombstoned) {
-        expect(interruptedPrimary).toMatchObject({ version: 3, format: 'split' });
+        expect(interruptedPrimary).toMatchObject({ version: 4, format: 'split' });
       } else {
         expect(interruptedPrimary).toEqual(legacyPrimary);
       }
       if (scenario.backupTombstoned) {
-        expect(interruptedBackup).toMatchObject({ version: 3, format: 'split' });
+        expect(interruptedBackup).toMatchObject({ version: 4, format: 'split' });
       } else {
         expect(interruptedBackup).toEqual(legacyBackup);
       }
@@ -476,7 +478,9 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
         { timeout: 20000 },
       );
 
-      const guardFile = scenario.primaryTombstoned ? 'sync-data.json' : 'sync-ops.json';
+      const guardFile = scenario.primaryTombstoned
+        ? 'planstrand-sync-data.json'
+        : 'planstrand-sync-ops.json';
       const guardedFormatDownload = legacyClient.page.waitForResponse(
         (response) =>
           response.request().method() === 'GET' &&
@@ -497,12 +501,12 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
 
       const opsAfterLegacyAttempt = await readSurgicalOpsFile(
         request,
-        `${folderUrl}sync-ops.json`,
+        `${folderUrl}planstrand-sync-ops.json`,
         authorization,
       );
       const primaryAfterLegacyAttempt = await readPrefixedFile<RemoteSyncFile>(
         request,
-        `${folderUrl}sync-data.json`,
+        `${folderUrl}planstrand-sync-data.json`,
         authorization,
       );
       expect(opsAfterLegacyAttempt).toEqual(interruptedOps);
@@ -524,26 +528,26 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
 
       const recoveredPrimary = await readPrefixedFile<SplitTombstone>(
         request,
-        `${folderUrl}sync-data.json`,
+        `${folderUrl}planstrand-sync-data.json`,
         authorization,
       );
       const recoveredBackup = await readPrefixedFile<SplitTombstone>(
         request,
-        `${folderUrl}sync-data.json.bak`,
+        `${folderUrl}planstrand-sync-data.json.bak`,
         authorization,
       );
       const recoveredOps = await readSurgicalOpsFile(
         request,
-        `${folderUrl}sync-ops.json`,
+        `${folderUrl}planstrand-sync-ops.json`,
         authorization,
       );
       const recoveredState = await readPrefixedFile<SplitStateFile>(
         request,
-        `${folderUrl}sync-state.json`,
+        `${folderUrl}planstrand-sync-state.json`,
         authorization,
       );
-      expect(recoveredPrimary).toMatchObject({ version: 3, format: 'split' });
-      expect(recoveredBackup).toMatchObject({ version: 3, format: 'split' });
+      expect(recoveredPrimary).toMatchObject({ version: 4, format: 'split' });
+      expect(recoveredBackup).toMatchObject({ version: 4, format: 'split' });
       expect(recoveredOps.migration).toBeUndefined();
       expect(recoveredOps.syncVersion).toBeGreaterThan(legacySyncVersion);
       const recoveredPendingOperations = recoveredOps.recentOps.filter(
@@ -565,7 +569,7 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       expect(recoveredLocalOperation?.syncedAt).toBeDefined();
       expect(recoveredLocalOperation?.rejectedAt).toBeUndefined();
       expect(recoveredState).toMatchObject({
-        version: 3,
+        version: 4,
         syncVersion: legacySyncVersion,
       });
       expect(JSON.stringify(recoveredState.state)).toContain(firstLegacyTask);
@@ -649,10 +653,10 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       await syncA.triggerSync();
       await waitForSyncComplete(clientA.page, syncA);
 
-      const opsFile = await request.get(`${folderUrl}sync-ops.json`, {
+      const opsFile = await request.get(`${folderUrl}planstrand-sync-ops.json`, {
         headers: { Authorization: authorization },
       });
-      const stateFile = await request.get(`${folderUrl}sync-state.json`, {
+      const stateFile = await request.get(`${folderUrl}planstrand-sync-state.json`, {
         headers: { Authorization: authorization },
       });
       expect(opsFile.ok()).toBe(true);
@@ -665,7 +669,7 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
 
       const baselineOps = await readSurgicalOpsFile(
         request,
-        `${folderUrl}sync-ops.json`,
+        `${folderUrl}planstrand-sync-ops.json`,
         authorization,
       );
       const baselineOpIds = new Set(
@@ -687,7 +691,7 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       const requestListener = (webDavRequest: { url(): string }): void =>
         recordWebDavRequest(webDavRequest.url());
       clientB.page.on('request', requestListener);
-      await clientB.page.route('**/sync-ops.json', async (route) => {
+      await clientB.page.route('**/planstrand-sync-ops.json', async (route) => {
         if (route.request().method() === 'PUT') {
           if (requestPhase === 'fault') {
             if (!committedOpsWrite) {
@@ -712,12 +716,16 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       await syncB.syncSpinner.waitFor({ state: 'hidden', timeout: 20000 });
 
       expect(committedOpsWrite).toBe(true);
-      expect(faultRequests.some((path) => path.endsWith('/sync-ops.json'))).toBe(true);
-      expect(faultRequests.some((path) => path.includes('/sync-state'))).toBe(false);
+      expect(
+        faultRequests.some((path) => path.endsWith('/planstrand-sync-ops.json')),
+      ).toBe(true);
+      expect(faultRequests.some((path) => path.includes('/planstrand-sync-state'))).toBe(
+        false,
+      );
 
       const committedOps = await readSurgicalOpsFile(
         request,
-        `${folderUrl}sync-ops.json`,
+        `${folderUrl}planstrand-sync-ops.json`,
         authorization,
       );
       const newlyCommittedIds = committedOps.recentOps
@@ -747,16 +755,20 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
         )
         .not.toBeUndefined();
       await expect(clientB.page.locator('task', { hasText: taskB })).toHaveCount(1);
-      expect(restartRequests.some((path) => path.endsWith('/sync-ops.json'))).toBe(true);
-      expect(restartRequests.some((path) => path.includes('/sync-state'))).toBe(false);
-      expect(restartRequests.some((path) => path.endsWith('/sync-data.json'))).toBe(
-        false,
-      );
+      expect(
+        restartRequests.some((path) => path.endsWith('/planstrand-sync-ops.json')),
+      ).toBe(true);
+      expect(
+        restartRequests.some((path) => path.includes('/planstrand-sync-state')),
+      ).toBe(false);
+      expect(
+        restartRequests.some((path) => path.endsWith('/planstrand-sync-data.json')),
+      ).toBe(false);
       expect(restartOpsWrites).toBe(0);
 
       const recoveredOps = await readSurgicalOpsFile(
         request,
-        `${folderUrl}sync-ops.json`,
+        `${folderUrl}planstrand-sync-ops.json`,
         authorization,
       );
       expect(
@@ -773,7 +785,7 @@ test.describe('@webdav @surgical WebDAV Surgical sync', () => {
       clientB.page.off('request', requestListener);
     } finally {
       if (clientB) {
-        await clientB.page.unroute('**/sync-ops.json').catch(() => {});
+        await clientB.page.unroute('**/planstrand-sync-ops.json').catch(() => {});
       }
       await closeContextsSafely(clientA?.context, clientB?.context);
     }

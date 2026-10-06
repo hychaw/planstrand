@@ -188,6 +188,13 @@ const expectProjectAndTasksDeleted = async (
   projectName: string,
   taskNames: string[],
 ): Promise<void> => {
+  // Project deletion returns to canonical Today, which closes legacy navigation.
+  // Enter the supported context view before inspecting the Projects menu.
+  await page.evaluate(() => {
+    window.location.hash = '#/tag/TODAY/tasks';
+  });
+  await page.waitForURL(/tag\/TODAY\/tasks/, { timeout: 15000 });
+  await page.locator('task-list').first().waitFor({ state: 'visible', timeout: 15000 });
   const projectsTree = page
     .locator('nav-list-tree')
     .filter({ hasText: 'Projects' })
@@ -202,12 +209,6 @@ const expectProjectAndTasksDeleted = async (
     page.locator('button[role="menuitemcheckbox"]').filter({ hasText: projectName }),
   ).toHaveCount(0, { timeout: 15000 });
   await page.keyboard.press('Escape');
-
-  await page.evaluate(() => {
-    window.location.hash = '#/tag/TODAY/tasks';
-  });
-  await page.waitForURL(/tag\/TODAY\/tasks/, { timeout: 15000 });
-  await page.locator('task-list').first().waitFor({ state: 'visible', timeout: 15000 });
 
   for (const taskName of taskNames) {
     await expect(page.locator('task', { hasText: taskName })).toHaveCount(0, {
@@ -406,6 +407,9 @@ test.describe('@supersync Project delete-wins conflict resolution', () => {
       tabB2RuntimeErrors = attachPageErrorCollector(tabB2, 'Client B tab 2');
       installDevErrorDialogHandler(tabB2, 'Client B tab 2');
       await tabB2.goto(appUrl);
+      await waitForAppReady(tabB2);
+      // A new tab opens canonical Today, where the legacy Projects tree is hidden.
+      await tabB2.goto(`${appUrl}/#/tag/TODAY/tasks`);
       await waitForAppReady(tabB2);
       await new ProjectPage(tabB2).navigateToProjectByName(projectName);
       const tab2WorkView = new WorkViewPage(tabB2);
