@@ -358,7 +358,7 @@
 }
 
 .current-time {
-  border-top: 2px solid var(--c-accent);
+  border-top: 2px solid var(--brand);
   position: relative;
   top: calc(50% - 1px);
 }
@@ -366,9 +366,9 @@
 .circle {
   width: 12px;
   height: 12px;
-  border: 1px solid var(--c-accent);
+  border: 1px solid var(--brand);
   border-radius: 50%;
-  background: var(--c-accent);
+  background: var(--brand);
   position: relative;
   top: -6px;
   left: -6px;

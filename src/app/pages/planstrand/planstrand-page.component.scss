@@ -2,7 +2,9 @@
   display: block;
 }
 .planstrand-page {
-  padding: var(--s2);
+  padding: var(--planstrand-page-padding);
+  max-width: 1560px;
+  margin-inline: auto;
 }
 header,
 .folder-controls {
@@ -12,18 +14,160 @@ header,
   gap: var(--s);
 }
 section {
-  border-top: 1px solid var(--separator-color);
-  padding-block: var(--s2);
+  position: relative;
+  padding-block: var(--planstrand-section-gap);
   min-width: 0;
+}
+.folder-actions {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 16px;
+  z-index: 4;
+}
+.folder-actions[open] {
+  max-width: min(480px, 100%);
+  background: var(--surface-floating);
+  box-shadow: var(--card-shadow);
+  z-index: 6;
 }
 h1,
 h2 {
   margin: var(--s) 0;
 }
 .planning-sections {
+  min-width: 0;
+  section + section {
+    border-top: 1px solid var(--separator);
+  }
+}
+
+header {
+  margin-bottom: var(--s3);
+}
+h1 {
+  font-size: var(--font-size-3xl);
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+h2 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+.period-label {
+  margin: 0;
+  color: var(--ink-muted);
+}
+.is-inbox > div > .cdk-drop-list > p {
+  display: none;
+}
+.is-inbox section h2,
+.is-inbox section > .folder-actions {
+  display: none;
+}
+.planning-workspace.is-today {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  gap: var(--s2);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: var(--s4);
+}
+.day-schedule {
+  min-width: 0;
+  border-inline-start: 1px solid var(--separator);
+  padding-inline-start: var(--s3);
+}
+.day-schedule schedule-day-panel {
+  display: block;
+  height: min(72vh, 800px);
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  background: var(--surface-primary);
+}
+.workspace-caption {
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+.today-switch {
+  display: none;
+}
+.is-today-heading {
+  color: var(--brand);
+}
+.folder-actions {
+  margin-block: var(--s);
+  color: var(--ink-muted);
+  font-size: var(--font-size-sm);
+}
+.folder-actions summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: var(--s);
+  border-radius: var(--radius-sm);
+}
+.folder-actions[open] {
+  background: var(--surface-hover);
+  border-radius: var(--radius-md);
+  padding-bottom: var(--s);
+}
+.folder-title {
+  font-weight: 600;
+}
+.capture-button {
+  color: var(--brand);
+}
+.quick-capture {
+  display: flex;
+  gap: var(--s);
+  padding: var(--s);
+  margin-block: var(--s);
+  border-bottom: 1px solid var(--separator);
+}
+.quick-capture input {
+  font: inherit;
+  color: var(--ink);
+  border: 0;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+}
+.quick-capture input::placeholder {
+  color: var(--ink-muted);
+}
+section:has(.cdk-drop-list-dragging) {
+  background: var(--surface-selected);
+  border-radius: var(--radius-md);
+}
+.folder-controls button {
+  min-height: 36px;
+}
+
+@media (max-width: 1000px) {
+  .planning-workspace.is-today {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: var(--s2);
+  }
+}
+@media (max-width: 760px) {
+  .today-switch {
+    display: flex;
+    gap: var(--s);
+    border-bottom: 1px solid var(--separator);
+  }
+  .today-switch [aria-pressed='true'] {
+    color: var(--brand);
+    background: var(--surface-selected);
+  }
+  .planning-workspace.is-today {
+    display: block;
+  }
+  .is-today:not(.show-schedule) .day-schedule,
+  .is-today.show-schedule .planning-sections {
+    display: none;
+  }
+  .day-schedule {
+    border: 0;
+    padding: 0;
+  }
 }
 
 .folder-title {

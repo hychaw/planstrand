@@ -1,0 +1,157 @@
+// Blue Thread uses the existing public theme contract. Installed themes remain
+// free to override body primitives; no view preferences enter synced state.
+:root {
+  --planstrand-navy: #0b1220;
+  --planstrand-cobalt: #2563eb;
+  --planstrand-azure: #60a5fa;
+  --planstrand-light-azure: #bfdbfe;
+  --transition-duration-xs: 140ms;
+  --transition-duration-s: 160ms;
+  --transition-duration-m: 200ms;
+  --transition-duration-enter: 200ms;
+  --transition-duration-leave: 180ms;
+  --page-transition-duration: 200ms;
+  --planstrand-row-height: 48px;
+  --planstrand-section-gap: 24px;
+  --planstrand-page-padding: clamp(16px, 3vw, 40px);
+}
+
+body {
+  color-scheme: light;
+  --surface-0: #eaf1fb;
+  --surface-1: #f3f7fd;
+  --surface-2: #fcfdff;
+  --surface-3: #fff;
+  --surface-4: #fff;
+  --ink-strong: #0b1220;
+  --ink: #23334d;
+  --ink-muted: #566780;
+  --ink-on-channel: 11, 18, 32;
+  --separator: #dce5f2;
+  --divider: rgba(37, 99, 235, 0.1);
+  --brand: var(--planstrand-cobalt);
+  --focus-ring: var(--planstrand-cobalt);
+  --task-first-line-min-height: var(--planstrand-row-height);
+  --task-inner-padding-top-bottom: 6px;
+  --task-border-radius: var(--radius-md);
+  --task-shadow: none;
+  --sidenav-bg: var(--surface-0);
+  --sidenav-hover-bg: color-mix(in srgb, var(--brand) 7%, transparent);
+  --sidenav-item-active-bg: color-mix(in srgb, var(--brand) 12%, transparent);
+  --sidenav-active-text: var(--brand);
+  --card-shadow: 0 8px 32px rgba(11, 18, 32, 0.08);
+}
+
+body.isDarkTheme {
+  color-scheme: dark;
+  --surface-0: #080f1d;
+  --surface-1: #0b1220;
+  --surface-2: #111d32;
+  --surface-3: #182740;
+  --surface-4: #20324f;
+  --ink-strong: #f1f6ff;
+  --ink: #dae6f8;
+  --ink-muted: #9cafcb;
+  --ink-on-channel: 218, 230, 248;
+  --separator: #253650;
+  --divider: rgba(96, 165, 250, 0.14);
+  --brand: var(--planstrand-azure);
+  --focus-ring: var(--planstrand-azure);
+  --sidenav-item-active-bg: color-mix(in srgb, var(--brand) 16%, transparent);
+  --card-shadow: 0 12px 40px rgba(0, 7, 20, 0.32);
+  // Bridge inherited Material/elevation consumers into the navy surface ramp.
+  --dark0: #080f1d;
+  --dark1: #0b1220;
+  --dark2: #0e182a;
+  --dark3: #111d32;
+  --dark4: #142138;
+  --dark5: #16243c;
+  --dark6: #182740;
+  --dark8: #192a44;
+  --dark10: #1c2d48;
+  --dark12: #20324f;
+  --dark16: #243956;
+  --dark24: #2a4060;
+}
+
+:where(body, body.isDarkTheme) {
+  --surface-canvas: var(--surface-1);
+  --surface-primary: var(--surface-2);
+  --surface-floating: var(--surface-3);
+  --surface-hover: color-mix(in srgb, var(--brand) 7%, var(--surface-2));
+  --surface-selected: color-mix(in srgb, var(--brand) 13%, var(--surface-2));
+  --accent-primary: var(--brand);
+  --accent-soft: var(--surface-selected);
+}
+
+body[data-density='compact'] {
+  --planstrand-row-height: 36px;
+  --planstrand-section-gap: 16px;
+  --task-inner-padding-top-bottom: 3px;
+}
+
+// Planstrand editors share one floating-surface treatment, with a mobile sheet.
+.mat-mdc-dialog-container:has(
+  dialog-event,
+  planstrand-folder-picker,
+  dialog-schedule-task
+) {
+  --mdc-dialog-container-color: var(--surface-floating);
+  --mdc-dialog-container-shape: 16px;
+}
+planstrand-folder-picker select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-hover);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  width: 100%;
+  margin-top: 12px;
+}
+@media (max-width: 600px) {
+  .cdk-overlay-pane:has(dialog-event, planstrand-folder-picker, dialog-schedule-task) {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    align-self: flex-end;
+  }
+  .mat-mdc-dialog-container:has(
+    dialog-event,
+    planstrand-folder-picker,
+    dialog-schedule-task
+  ) {
+    --mdc-dialog-container-shape: 16px 16px 0 0;
+  }
+}
+
+// Keep practical targets on touch hardware even when Compact was selected.
+@media (pointer: coarse) {
+  body[data-density] {
+    --planstrand-row-height: 48px;
+    --task-inner-padding-top-bottom: 6px;
+  }
+}
+
+:where(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+schedule,
+schedule-month,
+schedule-week,
+schedule-day-panel,
+.planning-sections {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

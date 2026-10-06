@@ -27,7 +27,7 @@ import { debounceTime, map, startWith } from 'rxjs/operators';
 import { safeFormatDate } from '../../../util/safe-format-date';
 import { TaskService } from '../../tasks/task.service';
 import { LayoutService } from '../../../core-ui/layout/layout.service';
-import { MatIconButton } from '@angular/material/button';
+import { MatIconButton, MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
@@ -38,6 +38,7 @@ import { mapScheduleDaysToScheduleEvents } from '../map-schedule-data/map-schedu
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ScheduleWeekComponent } from '../schedule-week/schedule-week.component';
 import { ScheduleMonthComponent } from '../schedule-month/schedule-month.component';
+import { ScheduleYearComponent } from '../schedule-year/schedule-year.component';
 import { ScheduleService } from '../schedule.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { T } from '../../../t.const';
@@ -55,7 +56,9 @@ import { anchorContextNow } from '../anchor-context-now';
   imports: [
     ScheduleWeekComponent,
     ScheduleMonthComponent,
+    ScheduleYearComponent,
     MatIconButton,
+    MatButton,
     MatIcon,
     MatTooltip,
     TranslatePipe,
@@ -120,6 +123,18 @@ export class ScheduleComponent {
   isMonthView = computed(() => this._currentTimeViewMode() === 'month');
   isDayView = computed(() => this._currentTimeViewMode() === 'day');
   isWeekView = computed(() => this._currentTimeViewMode() === 'week');
+  isYearView = computed(() => this._currentTimeViewMode() === 'year');
+  selectedYear = computed(() =>
+    (this._selectedDate() || parseDbDateStr(this._todayDateStr())).getFullYear(),
+  );
+
+  navigateToDate(date: Date, view: 'day' | 'month'): void {
+    this._selectedDate.set(date);
+    this.selectTimeView(view);
+  }
+  navigateToDay(date: string): void {
+    this.navigateToDate(parseDbDateStr(date), 'day');
+  }
 
   // Navigation state - null = viewing today, Date = viewing selected date
   private _selectedDate = signal<Date | null>(null);
@@ -212,6 +227,7 @@ export class ScheduleComponent {
   );
 
   headerTitle = computed(() => {
+    if (this.isYearView()) return String(this.selectedYear());
     const days = this.daysToShow();
     if (!days.length) return '';
     const locale = this._dateTimeFormatService.textLocale();
@@ -330,13 +346,12 @@ export class ScheduleComponent {
   });
 
   goToPreviousPeriod(): void {
-    // Never navigate into the past — the displayed range must include today or later
-    if (this.isViewingToday()) return;
-
     const currentDate = this._selectedDate() || parseDbDateStr(this._todayDateStr());
     const selectedView = this._currentTimeViewMode();
 
-    if (selectedView === 'month') {
+    if (selectedView === 'year') {
+      this._selectedDate.set(new Date(currentDate.getFullYear() - 1, 0, 1, 12));
+    } else if (selectedView === 'month') {
       const previousMonth = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() - 1,
@@ -349,14 +364,7 @@ export class ScheduleComponent {
       previousPeriod.setDate(currentDate.getDate() - daysToSkip);
       previousPeriod.setHours(0, 0, 0, 0);
 
-      // If going back would land on or before today, snap to "today view" (null)
-      const todayMidnight = parseDbDateStr(this._todayDateStr());
-      todayMidnight.setHours(0, 0, 0, 0);
-      if (previousPeriod.getTime() <= todayMidnight.getTime()) {
-        this._selectedDate.set(null);
-      } else {
-        this._selectedDate.set(previousPeriod);
-      }
+      this._selectedDate.set(previousPeriod);
     }
   }
 
@@ -364,7 +372,9 @@ export class ScheduleComponent {
     const currentDate = this._selectedDate() || parseDbDateStr(this._todayDateStr());
     const selectedView = this._currentTimeViewMode();
 
-    if (selectedView === 'month') {
+    if (selectedView === 'year') {
+      this._selectedDate.set(new Date(currentDate.getFullYear() + 1, 0, 1, 12));
+    } else if (selectedView === 'month') {
       // Jump to first day of next month
       const nextMonth = new Date(
         currentDate.getFullYear(),
@@ -432,13 +442,14 @@ export class ScheduleComponent {
     element?.scrollIntoView({ block: 'start', inline: 'start', behavior: 'instant' });
   }
 
-  selectTimeView(view: 'week' | 'month' | 'day'): void {
+  selectTimeView(view: 'week' | 'month' | 'day' | 'year'): void {
     this.layoutService.selectedTimeView.set(view);
     localStorage.setItem(LS.SELECTED_TIME_VIEW, view);
   }
 
-  private getTimeView(): 'week' | 'month' | 'day' {
+  private getTimeView(): 'week' | 'month' | 'day' | 'year' {
     const preservedView = localStorage.getItem(LS.SELECTED_TIME_VIEW);
+    if (preservedView === 'year') return 'year';
     if (preservedView === 'month') return 'month';
     if (preservedView === 'day') return 'day';
     return 'week';
@@ -448,7 +459,7 @@ export class ScheduleComponent {
     this.layoutService.selectedTimeView.set(this.getTimeView());
 
     effect(() => {
-      if (this.isMonthView() === false) {
+      if (!this.isMonthView() && !this.isYearView()) {
         // prefer the current time when it is visible (today is in range),
         // otherwise fall back to work start. NOTE: the signal read must stay
         // inside the setTimeout so it is untracked — otherwise currentTimeRow's

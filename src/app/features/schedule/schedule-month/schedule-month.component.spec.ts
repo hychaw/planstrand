@@ -211,7 +211,11 @@ describe('ScheduleMonthComponent', () => {
       expect(moreEvents).not.toBeNull();
       const visibleCount = moreEvents.querySelector('.month-more-events-count');
       const accessibleCount = moreEvents.querySelector('.cdk-visually-hidden');
-      expect(moreEvents.getAttribute('aria-label')).toBeNull();
+      expect(moreEvents.tagName).toBe('BUTTON');
+      expect(moreEvents.getAttribute('aria-label')).toContain('2026-01-15');
+      const navigate = spyOn(component.dateSelected, 'emit');
+      moreEvents.click();
+      expect(navigate).toHaveBeenCalledWith('2026-01-15');
       expect(visibleCount.textContent.trim()).toBe('+2');
       expect(visibleCount.getAttribute('aria-hidden')).toBe('true');
       expect(accessibleCount.textContent.trim()).toBe('2 more events');

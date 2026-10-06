@@ -120,6 +120,13 @@
   }
 
   .month-day-number {
+    font-family: inherit;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    min-width: 28px;
+    min-height: 28px;
     font-weight: 600;
     font-size: 14px;
 
@@ -160,6 +167,11 @@
 
 .month-more-events {
   display: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 28px;
 }
 
 .month-event {
@@ -183,10 +195,28 @@
     // Hover effect
     &:hover {
       opacity: 0.8;
-      transform: scale(1.02);
       transition: var(--transition-standard);
     }
   }
+}
+
+.weekday-header {
+  border: 0;
+  background: var(--surface-canvas);
+  color: var(--ink-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+.month-day-header {
+  border-bottom: 0;
+}
+.month-day-cell {
+  border-color: var(--separator);
+  background: var(--surface-primary);
+}
+.month-day-cell.today .month-day-number {
+  background: var(--planstrand-cobalt);
+  color: white;
 }
 
 @include mq(xs, max) {

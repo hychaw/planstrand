@@ -31,6 +31,7 @@ import { SnackService } from '../../snack/snack.service';
 import { T } from '../../../t.const';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Log } from '../../log';
+import { DensityService } from '../density.service';
 
 const refToValue = (ref: CustomThemeRef): string => `${ref.kind}:${ref.id}`;
 
@@ -63,6 +64,21 @@ const valueToRef = (value: string): CustomThemeRef => {
   template: `
     <div class="theme-selector-container">
       <h3 class="appearance-title">{{ T.GCF.MISC.APPEARANCE | translate }}</h3>
+      <div class="dark-mode-select">
+        <span class="setting-label">{{ 'PLANSTRAND.DENSITY' | translate }}</span>
+        <mat-button-toggle-group
+          [attr.aria-label]="'PLANSTRAND.DENSITY' | translate"
+          [value]="densityService.density()"
+          (change)="densityService.setDensity($event.value)"
+        >
+          <mat-button-toggle value="comfortable">{{
+            'PLANSTRAND.COMFORTABLE' | translate
+          }}</mat-button-toggle>
+          <mat-button-toggle value="compact">{{
+            'PLANSTRAND.COMPACT' | translate
+          }}</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
 
       <div class="dark-mode-select">
         <span class="setting-label">{{ T.GCF.MISC.DARK_MODE | translate }}</span>
@@ -380,6 +396,7 @@ const valueToRef = (value: string): CustomThemeRef => {
 })
 export class ThemeSelectorComponent {
   readonly globalThemeService = inject(GlobalThemeService);
+  readonly densityService = inject(DensityService);
   readonly customThemeService = inject(CustomThemeService);
   private readonly _themeStorage = inject(ThemeStorageService);
   private readonly _snackService = inject(SnackService);

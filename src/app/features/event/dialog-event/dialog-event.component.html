@@ -9,55 +9,58 @@
         required
         cdkFocusInitial
     /></label>
-    <label
-      ><input
-        type="checkbox"
-        name="allDay"
-        [(ngModel)]="isAllDay"
-      />{{ T.F.EVENT.ALL_DAY | translate }}</label
-    >
-    <label
-      >{{ T.F.EVENT.DATE | translate
-      }}<input
-        type="date"
-        name="date"
-        [(ngModel)]="date"
-        (ngModelChange)="endDate = $event"
-        required
-    /></label>
-    @if (!isAllDay) {
+    <fieldset>
+      <legend>{{ 'PLANSTRAND.WHEN' | translate }}</legend>
       <label
-        >{{ T.F.EVENT.START | translate
-        }}<input
-          type="time"
-          name="start"
-          [(ngModel)]="startTime"
-          required
-      /></label>
+        ><input
+          type="checkbox"
+          name="allDay"
+          [(ngModel)]="isAllDay"
+        />{{ T.F.EVENT.ALL_DAY | translate }}</label
+      >
       <label
-        >{{ T.F.EVENT.END_DATE | translate
+        >{{ T.F.EVENT.DATE | translate
         }}<input
           type="date"
-          name="endDate"
-          [(ngModel)]="endDate"
+          name="date"
+          [(ngModel)]="date"
+          (ngModelChange)="endDate = $event"
           required
       /></label>
-      <label
-        >{{ T.F.EVENT.END | translate
-        }}<input
-          type="time"
-          name="end"
-          [(ngModel)]="endTime"
-          required
-      /></label>
-      <label
-        >{{ T.F.EVENT.TIME_ZONE | translate
-        }}<input
-          name="timeZone"
-          [(ngModel)]="timeZone"
-          required
-      /></label>
-    }
+      @if (!isAllDay) {
+        <label
+          >{{ T.F.EVENT.START | translate
+          }}<input
+            type="time"
+            name="start"
+            [(ngModel)]="startTime"
+            required
+        /></label>
+        <label
+          >{{ T.F.EVENT.END_DATE | translate
+          }}<input
+            type="date"
+            name="endDate"
+            [(ngModel)]="endDate"
+            required
+        /></label>
+        <label
+          >{{ T.F.EVENT.END | translate
+          }}<input
+            type="time"
+            name="end"
+            [(ngModel)]="endTime"
+            required
+        /></label>
+        <label
+          >{{ T.F.EVENT.TIME_ZONE | translate
+          }}<input
+            name="timeZone"
+            [(ngModel)]="timeZone"
+            required
+        /></label>
+      }
+    </fieldset>
     @if (invalid) {
       <p role="alert">{{ T.F.EVENT.INVALID | translate }}</p>
     }

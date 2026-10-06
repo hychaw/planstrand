@@ -1,8 +1,8 @@
 {
   "name": "Planstrand",
   "short_name": "Planstrand",
-  "theme_color": "#6495ED",
-  "background_color": "#fff",
+  "theme_color": "#0B1220",
+  "background_color": "#0B1220",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",

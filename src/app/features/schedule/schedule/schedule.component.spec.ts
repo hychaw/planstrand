@@ -415,15 +415,17 @@ describe('ScheduleComponent', () => {
       expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
-    it('should not navigate backward when already viewing today', () => {
+    it('allows past-date navigation from today for long-range calendar awareness', () => {
       // Arrange - viewing today (null selected date)
       component['_selectedDate'].set(null);
 
       // Act
       component.goToPreviousPeriod();
 
-      // Assert - prev nav is disabled when today is in view
-      expect(component['_selectedDate']()).toBeNull();
+      expect(component['_selectedDate']()).not.toBeNull();
+      expect(component['_selectedDate']()!.getTime()).toBeLessThan(
+        new Date(component['_todayDateStr']() + 'T00:00:00').getTime(),
+      );
     });
 
     it('should go to previous month in month view', () => {

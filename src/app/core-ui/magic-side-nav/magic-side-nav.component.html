@@ -96,14 +96,21 @@
       </button>
     }
 
-    @if (showText()) {
-      <a
-        class="product-name"
-        routerLink="/today"
-        (click)="isMobile() && toggleMobileNav()"
-        >Planstrand</a
-      >
-    }
+    <a
+      class="product-name"
+      routerLink="/today"
+      aria-label="Planstrand"
+      (click)="isMobile() && toggleMobileNav()"
+      ><img
+        src="assets/icons/strand-p.svg"
+        width="32"
+        height="32"
+        alt=""
+      />
+      @if (showText()) {
+        <span>Planstrand</span>
+      }
+    </a>
     @if (isDataLoaded()) {
       <!-- Navigation Items -->
       <ul

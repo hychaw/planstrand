@@ -48,13 +48,30 @@ import { PlanstrandService } from './planstrand.service';
       display: flex;
       align-items: center;
       gap: var(--s-half);
-      min-height: var(--s4);
+      min-height: var(--planstrand-row-height);
+      border-radius: var(--radius-sm);
+    }
+    .folder-link:hover,
+    .folder-link:focus-within {
+      background: var(--sidenav-hover-bg);
+    }
+    .folder-link button {
+      font: inherit;
+      color: var(--ink-muted);
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      min-height: 32px;
+      min-width: 28px;
     }
     a {
       color: var(--text-color);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      text-decoration: none;
+      font-size: var(--font-size-sm);
+      color: var(--ink-muted);
     }
   `,
 })

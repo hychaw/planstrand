@@ -79,6 +79,8 @@ const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
     '[style.--title-line-clamp]': '_titleLineClamp()',
     '[style.--project-color]': 'calEventColor() || projectColor()',
     '[style.height]': '_resizeHeight()',
+    '[class.blue-thread-session]': 'isWorkSession()',
+    '[class.blue-thread-event]': 'isLocalEvent()',
     '(click)': 'clickHandler($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
@@ -92,6 +94,8 @@ const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
   ],
 })
 export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
+  readonly isWorkSession = computed(() => !!editableWorkSession(this.se(), 'canDelete'));
+  readonly isLocalEvent = computed(() => this.se().type === SVEType.LocalEvent);
   private _store = inject(Store);
   private _elRef = inject(ElementRef);
   private _matDialog = inject(MatDialog);

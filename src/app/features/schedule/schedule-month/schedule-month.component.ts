@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   input,
+  output,
 } from '@angular/core';
 import { ScheduleEvent } from '../schedule.model';
 import { ScheduleEventComponent } from '../schedule-event/schedule-event.component';
@@ -33,6 +34,7 @@ const HOST_BINDINGS = {
   host: HOST_BINDINGS,
 })
 export class ScheduleMonthComponent {
+  readonly dateSelected = output<string>();
   private _scheduleService = inject(ScheduleService);
   private _dateTimeFormatService = inject(DateTimeFormatService);
   private _translateService = inject(TranslateService);

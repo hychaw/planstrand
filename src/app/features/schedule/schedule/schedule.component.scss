@@ -183,3 +183,54 @@
   margin: var(--s) var(--s2);
   color: var(--text-color-muted);
 }
+
+.schedule-nav-controls {
+  padding: 12px 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--separator);
+  .title {
+    order: -3;
+    margin: 0 auto 0 0;
+    text-align: start;
+    font-size: var(--font-size-xl);
+    letter-spacing: -0.025em;
+  }
+  .date-nav-group {
+    order: -2;
+  }
+  .time-view-selector {
+    order: -1;
+    border: 0;
+    background: var(--surface-canvas);
+    padding: 3px;
+    border-radius: var(--radius-md);
+  }
+  .time-view-btn {
+    border: 0 !important;
+    border-radius: var(--radius-sm);
+    min-width: 52px;
+  }
+  .time-view-btn.active {
+    background: var(--surface-selected);
+    color: var(--brand);
+  }
+  .e2e-new-event {
+    color: white;
+    background: var(--planstrand-cobalt);
+    border-radius: var(--radius-md);
+  }
+}
+@media (max-width: 760px) {
+  .schedule-nav-controls {
+    padding: 8px;
+    gap: 6px;
+    .title {
+      flex-basis: calc(100% - 150px);
+    }
+    .time-view-selector {
+      margin: 0;
+    }
+  }
+}

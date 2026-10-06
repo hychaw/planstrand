@@ -416,6 +416,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
     // In the mobile bottom sheet the scroll container is the sheet's direct
     // content child, i.e. this component's host element.
     const selectors = [
+      '.day-schedule > schedule-day-panel',
       '.side-inner',
       '.right-panel',
       '.bottom-panel-content > *',

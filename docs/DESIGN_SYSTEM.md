@@ -1,5 +1,32 @@
 # Planstrand Design System
 
+## V1.1 — Blue Thread
+
+Blue Thread is the default Planstrand identity on every platform. V1.1 supersedes
+the initial neutral palette, system-first typography and temporary calendar icon
+described in the original V1 guidance below.
+
+- Deep Navy `#0B1220`, Cobalt `#2563EB`, Azure `#60A5FA`, Light Azure `#BFDBFE`.
+- Light: cool pale-blue canvas, near-white working surfaces, blue selection.
+- Dark: blue-black canvas, layered navy working and floating surfaces.
+- Inter Variable, bundled locally with its SIL Open Font License; use weight and
+  spacing for hierarchy and tabular numerals for calendar/time/duration.
+- Canvas → Working Surface → Floating Surface. Reuse the existing `--surface-*`,
+  ink and Material token contract. `src/styles/blue-thread.scss` supplies defaults;
+  user-installed themes can still override public body-scoped primitives.
+- Comfortable uses 48px task rows; Compact uses 36px rows with unchanged type.
+  Coarse-pointer devices keep 48px rows. Appearance stores density on this device,
+  outside synced config, domain entities and the operation log.
+- State transitions: 140–160ms; panel entry: 200ms; exit: 180ms. Honor the existing
+  disable-animation preference and `prefers-reduced-motion`.
+- The Strand P master is `src/assets/icons/strand-p.svg`: a single flowing blue
+  strand on a navy rounded square. Run `node tools/generate-planstrand-icons.cjs`
+  from the repository root to regenerate web/PWA and desktop artwork. macOS uses
+  a larger transparent inset; Safari uses a monochrome strand mask.
+
+Retain upstream attribution and application/profile/protocol identifiers. The
+technical release version and V1.0.0-rc.1 tag are independent of this visual work.
+
 ## 1. Design Intent
 
 Planstrand should feel like a thoughtfully designed personal planning tool, not a generic dashboard.
@@ -142,6 +169,7 @@ Avoid outlining every container.
 Dark mode should be genuinely dark and comfortable.
 
 Avoid:
+
 - pure black for every surface,
 - neon category colors,
 - low-contrast grey-on-grey text.
@@ -164,18 +192,23 @@ Priorities:
 Suggested hierarchy:
 
 ### Page title
+
 Prominent but not oversized.
 
 ### Section heading
+
 Medium weight, compact spacing.
 
 ### Task title
+
 Normal/medium weight.
 
 ### Metadata
+
 Smaller and muted.
 
 ### Calendar time
+
 Compact, stable-width where possible.
 
 Use weight and spacing before introducing additional colors.
@@ -224,6 +257,7 @@ Avoid making every element look like a capsule.
 Use shadows sparingly.
 
 Appropriate uses:
+
 - floating inspector,
 - modal,
 - mobile bottom sheet,
@@ -259,6 +293,7 @@ Typical duration:
 ```
 
 Use motion for:
+
 - panel entry,
 - expand/collapse,
 - drag feedback,
@@ -284,6 +319,7 @@ For touch devices and relaxed desktop use.
 For users who want more tasks and calendar detail visible simultaneously.
 
 Density should affect:
+
 - row height,
 - vertical gaps,
 - sidebar spacing,
@@ -399,6 +435,7 @@ A task row should prioritize:
 3. compact metadata.
 
 Potential metadata:
+
 - priority,
 - due date,
 - planned state,
@@ -408,6 +445,7 @@ Potential metadata:
 Do not show every optional field all the time.
 
 Completed task:
+
 - strikethrough title,
 - muted text,
 - reduced emphasis,
@@ -420,6 +458,7 @@ Completed task:
 Priority should use a small consistent indicator.
 
 Examples:
+
 - tiny colored marker,
 - compact `P1` label,
 - flag icon.
@@ -431,9 +470,11 @@ Do not color the entire task background according to priority.
 ## 21. Task Inspector
 
 Desktop:
+
 - right-side inspector.
 
 Mobile:
+
 - bottom sheet or full-screen editor.
 
 The initial view should show only common fields.
@@ -463,6 +504,7 @@ as distinct states.
 ## 23. Calendar Views
 
 Support:
+
 - Year
 - Month
 - Week
@@ -491,18 +533,23 @@ Detailed execution timeline.
 Visually distinguish:
 
 ### Normal event
+
 Solid or softly filled calendar block.
 
 ### Work session
+
 Task indicator plus category accent.
 
 ### Deadline
+
 Compact marker/banner, not a fake duration block.
 
 ### Weekly-template item
+
 Normal calendar presence with subtle recurring/template indicator.
 
 ### External event
+
 Source-aware styling or icon.
 
 Color must not be the only distinguishing mechanism.
@@ -527,15 +574,18 @@ Resize handles should be easy to discover without permanently cluttering the blo
 Quick Add should be reachable globally.
 
 Desktop:
+
 - top-bar button,
 - keyboard shortcut.
 
 Mobile:
+
 - prominent but restrained action.
 
 Opening Quick Add should focus the title field immediately.
 
 Creating a basic task should require only:
+
 - type,
 - Enter.
 
@@ -608,6 +658,7 @@ Suggested primary bottom navigation:
 - Calendar
 
 Additional destinations:
+
 - Weekly Templates
 - Settings
 - Account
@@ -621,6 +672,7 @@ may live under a menu/profile entry.
 Use single-column layouts.
 
 Prefer:
+
 - native-feeling sheets,
 - swipe navigation between days,
 - large enough touch targets,
@@ -634,9 +686,11 @@ Do not expose desktop hover-only actions.
 ## 33. iPad Layout
 
 ### Landscape
+
 Near-desktop experience.
 
 ### Portrait
+
 Two-pane layout where useful.
 
 Sidebars may become overlays to preserve workspace width.
@@ -723,6 +777,7 @@ The name may appear as a simple wordmark initially.
 Do not create a complex logo system before the core UI is stable.
 
 A future icon may explore:
+
 - a subtle woven line,
 - intersecting timeline strands,
 - linked planning paths.

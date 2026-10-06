@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { ScheduleDayPanelComponent } from '../../features/schedule/schedule-day-panel/schedule-day-panel.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -33,6 +41,8 @@ import { getDbDateStr } from '../../util/get-db-date-str';
   selector: 'planstrand-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    DatePipe,
+    ScheduleDayPanelComponent,
     PlanstrandTaskListComponent,
     CdkDropListGroup,
     CdkDrag,
@@ -45,6 +55,7 @@ import { getDbDateStr } from '../../util/get-db-date-str';
   styleUrl: './planstrand-page.component.scss',
 })
 export class PlanstrandPageComponent {
+  readonly todayPane = signal<'plan' | 'schedule'>('plan');
   readonly Math = Math;
   readonly ui = inject(PlanstrandService);
   private readonly route = inject(ActivatedRoute);

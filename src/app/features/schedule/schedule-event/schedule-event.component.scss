@@ -33,6 +33,22 @@
   overflow: visible !important;
   min-width: 0;
 
+  &.blue-thread-session {
+    background: color-mix(in srgb, var(--brand) 18%, var(--surface-primary));
+    border-color: color-mix(in srgb, var(--brand) 30%, transparent);
+    border-inline-start: 4px solid var(--brand);
+    font-weight: 500;
+  }
+  &.blue-thread-event {
+    background: color-mix(
+      in srgb,
+      var(--project-color, var(--brand)) 8%,
+      var(--surface-primary)
+    );
+    border-color: transparent;
+    border-inline-start: 2px solid var(--project-color, var(--brand));
+  }
+
   // Ensure resize handle has space and is clickable
   &.resizable {
     margin-bottom: calc(var(--margin-bottom) + 4px);

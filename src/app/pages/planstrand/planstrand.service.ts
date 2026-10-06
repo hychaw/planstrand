@@ -174,8 +174,9 @@ export class PlanstrandService {
     if (typeof folderId === 'string') this.moveTask(task, folderId);
   }
 
-  async createTask(folderId: string): Promise<void> {
-    const title = await this.prompt('ADD_TASK');
+  async createTask(folderId: string, capturedTitle?: string): Promise<void> {
+    const title =
+      capturedTitle === undefined ? await this.prompt('ADD_TASK') : capturedTitle.trim();
     if (!title || !this.folders().entities[folderId]) return;
     const task = this.tasks.createNewTaskWithDefaults({
       title,

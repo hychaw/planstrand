@@ -5,7 +5,6 @@ import { LS } from '../persistence/storage-keys.const';
 import { StoredTheme, ThemeStorageService } from './theme-storage.service';
 import { validateThemeCss } from './validate-theme-css.util';
 import { ThemeCssWarning } from './theme-contract.const';
-import { IS_APPLE_SILICON } from '../../app.constants';
 
 /**
  * A theme entry surfaced in the picker.
@@ -40,8 +39,6 @@ const STYLESHEET_ID = 'custom-theme-stylesheet';
 
 const DEFAULT_REF: CustomThemeRef = { kind: 'builtin', id: 'default' };
 
-const LIQUID_GLASS_REF: CustomThemeRef = { kind: 'builtin', id: 'liquid-glass' };
-
 const parseRef = (raw: string | null): CustomThemeRef => {
   if (!raw) return DEFAULT_REF;
   const idx = raw.indexOf(':');
@@ -61,9 +58,8 @@ const refsEqual = (a: CustomThemeRef, b: CustomThemeRef): boolean =>
 
 /**
  * Pick the cold-start theme. Honors any stored selection first; otherwise
- * Apple Silicon Macs land on Liquid Glass (backdrop-filter is cheap on
- * M-series GPUs, the macOS aesthetic feels at home), everyone else stays
- * on the default theme.
+ * all platforms start with Blue Thread. Previously selected themes remain
+ * available, including Liquid Glass.
  *
  * Deliberately does *not* write to LS on first run — leaving LS untouched
  * lets `migrateLegacyCustomTheme` still detect the "no choice yet" state
@@ -71,15 +67,11 @@ const refsEqual = (a: CustomThemeRef, b: CustomThemeRef): boolean =>
  * future change to this rule will silently re-pick for users who never
  * touched the picker, which is the expected behavior of a default.
  *
- * Exported so tests can exercise both branches without monkey-patching
- * the module-level `IS_APPLE_SILICON` constant.
+ * Exported so cold-start and stored-choice behavior can be tested directly.
  */
-export const pickInitialActiveRef = (
-  stored: string | null,
-  isAppleSilicon: boolean,
-): CustomThemeRef => {
+export const pickInitialActiveRef = (stored: string | null): CustomThemeRef => {
   if (stored) return parseRef(stored);
-  return isAppleSilicon ? LIQUID_GLASS_REF : DEFAULT_REF;
+  return DEFAULT_REF;
 };
 
 export const BUILT_IN_THEMES: CustomTheme[] = [
@@ -208,7 +200,7 @@ export class CustomThemeService {
   private _loadRequestGeneration = 0;
 
   private _activeRef = signal<CustomThemeRef>(
-    pickInitialActiveRef(localStorage.getItem(LS.CUSTOM_THEME), IS_APPLE_SILICON),
+    pickInitialActiveRef(localStorage.getItem(LS.CUSTOM_THEME)),
   );
   private _appliedThemeVersion = signal(0);
 

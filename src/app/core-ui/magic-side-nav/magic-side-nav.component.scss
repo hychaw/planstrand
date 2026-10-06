@@ -355,10 +355,15 @@
 }
 
 .product-name {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--s);
   padding: var(--s2);
   color: var(--text-color);
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   text-decoration: none;
+}
+.compactMode .product-name {
+  padding: var(--s);
 }

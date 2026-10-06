@@ -14,7 +14,13 @@
         style="grid-row: {{ weekIndex + 2 }}; grid-column: {{ dayIndex + 1 }}"
       >
         <div class="month-day-header">
-          <span class="month-day-number">{{ dayNumberByDay()[day] }}</span>
+          <button
+            class="month-day-number"
+            [attr.aria-label]="('PLANSTRAND.OPEN_DAY' | translate) + ': ' + day"
+            (click)="dateSelected.emit(day)"
+          >
+            {{ dayNumberByDay()[day] }}
+          </button>
         </div>
         <div class="month-day-events">
           @for (ev of dayEvents; track ev.id) {
@@ -32,7 +38,11 @@
           }
           @if (dayEvents.length > 1) {
             @let hiddenEventCount = dayEvents.length - 1;
-            <span class="month-more-events">
+            <button
+              class="month-more-events"
+              (click)="dateSelected.emit(day)"
+              [attr.aria-label]="('PLANSTRAND.OPEN_DAY' | translate) + ': ' + day"
+            >
               <span
                 class="month-more-events-count"
                 aria-hidden="true"
@@ -42,7 +52,7 @@
                 getMoreEventsKey(hiddenEventCount)
                   | translate: { count: hiddenEventCount }
               }}</span>
-            </span>
+            </button>
           }
         </div>
       </div>

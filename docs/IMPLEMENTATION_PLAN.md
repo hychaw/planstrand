@@ -1,5 +1,28 @@
 # Planstrand Implementation Plan
 
+## Active strategy: V1.1 Blue Thread (2026-10-06)
+
+Baseline: `a03805daf9b4cb2bd4cb483d7731c253fe9cb429` on `development`.
+Implementation branch: `feature/v1.1-blue-thread`. Preserve published RC1.
+
+Work in order: A foundations/branding; B shell/navigation; C reusable task and
+Folder presentation; D Inbox/Master/Folders; E Today/This Week; F Day/Week/Month
+and Event/WorkSession presentation; G shared-projection Year view; H editors;
+I responsive/density/accessibility; J compatibility and release audit.
+
+Milestone A introduces the default light/dark Blue Thread token layer, offline
+Inter, motion/focus primitives, device-local density and generated Strand P assets.
+Subsequent milestones consume these reusable tokens. No persisted domain shape,
+operation semantics, schema version, sync or backup architecture changes are needed.
+
+Milestones A–I are implemented. Milestone J implementation validation and platform
+limitations are recorded in [the V1.1 audit](PLANSTRAND_V1_1_AUDIT.md). Native
+release certification remains separate from this implementation branch.
+
+V1.1 excludes Event recurrence, WeeklyTemplate, recurrence editing, normalized
+reminders, Trash, account/device/E2EE changes and external calendar export. The
+historical V1 plan and audit evidence below remain a record of the released base.
+
 ## Active strategy: Fast-Track V1 (2026-10-04)
 
 Milestone A is merged. Milestone B delivers minimal standalone local Events and

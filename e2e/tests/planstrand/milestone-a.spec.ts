@@ -1,5 +1,6 @@
 import { expect, test } from '../../fixtures/test.fixture';
 import { Locator, Page } from '@playwright/test';
+import { openPlanstrandActions } from '../../utils/planstrand-actions';
 
 const savePrompt = async (page: Page, title: string): Promise<void> => {
   const dialog = page.locator('dialog-prompt');
@@ -33,12 +34,14 @@ test.describe('Planstrand Milestone A', () => {
     const row = page
       .locator('planstrand-task-list .task-entry')
       .filter({ hasText: 'Milestone canonical Task' });
+    await openPlanstrandActions(row);
     await row
       .getByRole('combobox', { name: 'Plan Task' })
       .selectOption({ label: 'Today' });
     await page.goto('/#/today');
     const planned = page.locator('planstrand-page section').first();
     await expect(planned).toContainText('Milestone canonical Task');
+    await openPlanstrandActions(planned);
     await planned
       .getByRole('button', { name: 'Schedule WorkSession', exact: true })
       .click();
@@ -57,6 +60,7 @@ test.describe('Planstrand Milestone A', () => {
     await page.goto('/#/this-week');
     const week = page.locator('planstrand-page section').first();
     await expect(week).toContainText('Milestone canonical Task');
+    await openPlanstrandActions(week);
     const nextDay = await week
       .getByRole('combobox', { name: 'Plan Task' })
       .locator('option')
@@ -66,11 +70,19 @@ test.describe('Planstrand Milestone A', () => {
     await expect(week).not.toContainText('Milestone canonical Task');
     const day = page
       .locator('planstrand-page section')
-      .filter({ has: page.getByRole('heading', { name: nextDay!, exact: true }) });
+      .filter({ has: page.locator('option[value="' + nextDay + '"]') })
+      .filter({ hasText: 'Milestone canonical Task' });
     await expect(day).toContainText('Milestone canonical Task');
+    const dayHeading = await day.getByRole('heading').innerText();
+    await openPlanstrandActions(day);
     await day.getByRole('combobox', { name: 'Plan Task' }).selectOption('UNPLAN');
-    await expect(day).not.toContainText('Milestone canonical Task');
+    await expect(
+      page.locator('planstrand-page section').filter({
+        has: page.getByRole('heading', { name: dayHeading, exact: true }),
+      }),
+    ).not.toContainText('Milestone canonical Task');
     const unplanned = page.locator('planstrand-page section').last();
+    await openPlanstrandActions(unplanned);
     await unplanned
       .getByRole('button', { name: 'Schedule WorkSession', exact: true })
       .click();
@@ -87,6 +99,7 @@ test.describe('Planstrand Milestone A', () => {
       'Milestone Folder',
     );
     await page.goto('/#/master-tasks');
+    await openPlanstrandActions(row);
     await row.getByRole('button', { name: /Move Task to Folder/ }).click();
     await page
       .locator('planstrand-folder-picker select')
@@ -107,6 +120,7 @@ test.describe('Planstrand Milestone A', () => {
   }) => {
     await page.goto('/#/master-tasks');
     const parent = await createFolder(page, 'Parent');
+    await openPlanstrandActions(parent, 'folder');
     await parent.getByRole('button', { name: 'Create Folder', exact: true }).click();
     await savePrompt(page, 'Child');
     const child = sectionFor(page, 'Child');
@@ -119,12 +133,14 @@ test.describe('Planstrand Milestone A', () => {
     await page.reload();
     await expect(child).toBeHidden();
     await page.getByRole('button', { name: '▸ Parent', exact: true }).click();
+    await openPlanstrandActions(child, 'folder');
     await child.getByRole('button', { name: 'Move Folder', exact: true }).click();
     await page.locator('planstrand-folder-picker select').selectOption('');
     await page
       .locator('planstrand-folder-picker')
       .getByRole('button', { name: 'Save', exact: true })
       .click();
+    await openPlanstrandActions(parent, 'folder');
     await expect(
       parent.getByRole('button', { name: 'Delete Folder', exact: true }),
     ).toBeEnabled();
