@@ -178,6 +178,12 @@ describe('timed placeholder and day-panel entry points', () => {
       assertSession(Date.parse('2026-01-16T10:00:00+08:00'), 900000);
       expect(activeTask()).toBeNull();
       expect(component.isDragging()).toBeFalse();
+      // A second native/CDK release after cleanup must not schedule again.
+      pointerUp.next(new MouseEvent('mouseup', { clientX: 100, clientY: y }));
+      expect(writes).toHaveBeenCalledTimes(1);
+      expect(Object.keys(store.selectSignal(selectWorkSessionEntities)())).toEqual([
+        taskScheduledWorkSessionId(task),
+      ]);
     });
   }
 });

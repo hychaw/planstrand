@@ -73,9 +73,16 @@ export const mapToScheduleDays = (
     return [];
   }
 
-  const initialTasks: Task[] = currentId
-    ? resortTasksWithCurrentFirst(currentId, tasks)
-    : tasks;
+  // CalendarDisplayItem owns Planstrand's reserved time. Planning membership
+  // must not also enter the inherited automatic Task-flow scheduler, which
+  // otherwise projects a second block alongside the persisted WorkSession.
+  // Callers without the canonical projection retain the legacy flow behavior.
+  const hasCalendarProjection = calendarDisplayItems !== undefined;
+  const initialTasks: Task[] = hasCalendarProjection
+    ? []
+    : currentId
+      ? resortTasksWithCurrentFirst(currentId, tasks)
+      : tasks;
 
   const nonScheduledTasks: TaskWithoutReminder[] = initialTasks.filter(
     (task) => !(typeof task.dueWithTime === 'number'),
@@ -103,9 +110,9 @@ export const mapToScheduleDays = (
 
   const v = createScheduleDays(
     nonScheduledTasks,
-    unScheduledTaskRepeatCfgs,
+    hasCalendarProjection ? [] : unScheduledTaskRepeatCfgs,
     dayDates,
-    plannerDayMap,
+    hasCalendarProjection ? {} : plannerDayMap,
     blockerBlocksDayMap,
     workStartEndCfg,
     now,

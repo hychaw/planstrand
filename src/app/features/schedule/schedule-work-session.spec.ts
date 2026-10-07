@@ -7,7 +7,7 @@ import { DateService } from '../../core/date/date.service';
 import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
 import { HiddenCalendarProvidersService } from '../calendar-integration/hidden-calendar-providers.service';
 import { TaskService } from '../tasks/task.service';
-import { DEFAULT_TASK, TaskWithDueTime } from '../tasks/task.model';
+import { DEFAULT_TASK, TaskWithDueTime, TaskWithSubTasks } from '../tasks/task.model';
 import { WorkSession } from '../work-session/work-session.model';
 import { legacyTaskWorkSessionId } from '../work-session/legacy-task-work-session-backfill';
 import {
@@ -118,6 +118,47 @@ describe('Schedule WorkSession read integration', () => {
       realNow: now,
       currentTaskId: null,
     });
+
+  it('keeps day Planning out of reserved time before and after a WorkSession exists', () => {
+    const planned: TaskWithSubTasks = { ...task, dueWithTime: undefined, subTasks: [] };
+    store.overrideSelector(selectTimelineTasks, { planned: [], unPlanned: [planned] });
+    store.overrideSelector(selectPlannerDayMap, { ['2026-01-15']: [planned] });
+    const updateProjection = (sessions: WorkSession[]): void => {
+      store.overrideSelector(
+        selectPersistedCalendarDisplayItems,
+        selectLocalCalendarDisplayItems.projector(
+          sessions,
+          { [task.id]: planned },
+          { planned: [], unPlanned: [planned] },
+          {
+            ids: sessions.map((s) => s.id),
+            entities: Object.fromEntries(sessions.map((s) => [s.id, s])),
+          },
+        ),
+      );
+      store.refreshState();
+    };
+    const taskEntries = (): ScheduleDay['entries'] =>
+      read()
+        .flatMap((day) => day.entries)
+        .filter(
+          (entry) =>
+            ('id' in entry.data && entry.data.id === task.id) ||
+            ('taskId' in entry.data && entry.data.taskId === task.id),
+        );
+    updateProjection([]);
+    expect(taskEntries()).toEqual([]);
+    updateProjection([session]);
+    expect(taskEntries().map((entry) => [entry.type, entry.id])).toEqual([
+      [SVEType.WorkSession, 'workSession:session'],
+    ]);
+    // Multiple intentional sessions remain distinct; never deduplicate by Task title/id.
+    updateProjection([session, { ...session, id: 'second' }]);
+    expect(taskEntries().map((entry) => entry.id)).toEqual([
+      'workSession:session',
+      'workSession:second',
+    ]);
+  });
 
   it('renders distinct sessions including completion with exact range and current title', () => {
     project([session, { ...session, id: 'second', completedAt: session.end }]);
