@@ -44,9 +44,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { T } from '../../t.const';
 import { FolderNavigationComponent } from '../../pages/planstrand/folder-navigation.component';
 
-// 56px = 24px icon + 16px (var(--s2)) padding on each side, so the left-aligned
-// nav icons sit centered in the collapsed rail.
-const COLLAPSED_WIDTH = 56;
+// Includes the detached rail and its outer gutters; icons center in the inner 72px.
+const COLLAPSED_WIDTH = 88;
 const MOBILE_NAV_WIDTH = 300;
 const FOCUS_DELAY_MS = 10;
 const INITIAL_ENTER_ANIMATION_DURATION_MS = 425;

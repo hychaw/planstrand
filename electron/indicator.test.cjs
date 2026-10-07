@@ -350,12 +350,15 @@ test('macOS hands the tray 16pt template images regardless of source asset size'
   );
 
   const trayImages = [createdTrayArgs[0][0], ...traySetImageCalls];
-  // Sanity check: the fixture really covers both source sizes.
+  // All Strand P tray states use 16px artwork with a paired 32px high-DPI image.
   const sourceSizes = new Set(createdFromPath.map((p) => readPngSize(p).width));
   assert.deepEqual(
     [...sourceSizes].sort((a, b) => a - b),
-    [16, 24],
+    [16],
   );
+  for (const iconPath of createdFromPath) {
+    assert.equal(readPngSize(iconPath.replace('.png', '@2x.png')).width, 32);
+  }
 
   for (const image of trayImages) {
     assert.equal(image.kind, 'native-image', image.iconPath);

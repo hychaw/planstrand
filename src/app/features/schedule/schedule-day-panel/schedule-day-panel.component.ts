@@ -1,3 +1,4 @@
+import { selectConfigFeatureState } from '../../config/store/global-config.reducer';
 import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
@@ -18,7 +19,7 @@ import { ScheduleWeekComponent } from '../schedule-week/schedule-week.component'
 import { DateService } from '../../../core/date/date.service';
 import { getPointerPosition } from '../../../util/get-pointer-position';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { selectTimelineWorkStartEndHours } from '../../config/store/global-config.reducer';
+import { WorkingHoursDisplayService } from '../../../core/theme/working-hours-display.service';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { mapScheduleDaysToScheduleEvents } from '../map-schedule-data/map-schedule-days-to-schedule-events';
 import { FH, SVEType } from '../schedule.const';
@@ -122,8 +123,10 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
     return !hasVisibleEvents && !hasBeyondBudgetEvents;
   });
 
-  private _workStartEndHours = toSignal(
-    this._store.select(selectTimelineWorkStartEndHours),
+  private readonly _workingHours = inject(WorkingHoursDisplayService);
+  private readonly _scheduleConfig = inject(Store).selectSignal(selectConfigFeatureState);
+  private readonly _workStartEndHours = computed(() =>
+    this._workingHours.hoursFor(this._scheduleConfig()?.schedule),
   );
 
   workStartEnd = computed(() => {
@@ -301,6 +304,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
 
     // Disable snap-back animation when successfully dropped on panel
     if (wasDroppedSuccessfully) {
+      this._externalDragService.setCancelNextDrop(true);
       this._disableSnapBackAnimation();
     }
   }
@@ -584,7 +588,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   private _applySchedulePreviewStyling(isEnable: boolean): void {
     this._withDragPreview((previewEl) => {
       const tagName = previewEl.tagName.toLowerCase();
-      if (tagName === 'task') {
+      if (tagName === 'task' || previewEl.classList.contains('task-entry')) {
         this._applyTaskPreviewStyling(previewEl, isEnable);
       } else if (tagName === 'schedule-event') {
         this._applyScheduleEventPreviewStyling(previewEl, isEnable);

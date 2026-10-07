@@ -9,6 +9,10 @@
     [routerLink]="[type() === 'TAG' ? 'tag' : 'project', workContext()!.id, 'tasks']"
     routerLinkActive="active"
     class="nav-link"
+    [attr.aria-label]="label() || workContext()?.title || '' | translate"
+    [attr.title]="
+      !showLabels() ? (label() || workContext()?.title || '' | translate) : null
+    "
     [class.has-tasks]="nrOfOpenTasks() > 0"
     mat-menu-item
     (click)="clicked.emit()"
@@ -59,6 +63,10 @@
   <button
     #folderBtn
     class="nav-link"
+    [attr.aria-label]="label() || workContext()?.title || '' | translate"
+    [attr.title]="
+      !showLabels() ? (label() || workContext()?.title || '' | translate) : null
+    "
     mat-menu-item
     [attr.aria-expanded]="expanded()"
     [attr.aria-controls]="ariaControls()"
@@ -108,6 +116,10 @@
       routerLinkActive="active"
       mat-menu-item
       class="nav-link"
+      [attr.aria-label]="label() || workContext()?.title || '' | translate"
+      [attr.title]="
+        !showLabels() ? (label() || workContext()?.title || '' | translate) : null
+      "
       [class.expanded]="expanded()"
       [class]="tourClass()"
       (click)="clicked.emit()"
@@ -178,6 +190,10 @@
       mat-menu-item
       rel="noopener noreferrer"
       class="nav-link"
+      [attr.aria-label]="label() || workContext()?.title || '' | translate"
+      [attr.title]="
+        !showLabels() ? (label() || workContext()?.title || '' | translate) : null
+      "
       [class.expanded]="expanded()"
       (click)="clicked.emit()"
     >
@@ -216,6 +232,10 @@
   } @else if (container() === 'action' || container() === 'group') {
     <button
       class="nav-link"
+      [attr.aria-label]="label() || workContext()?.title || '' | translate"
+      [attr.title]="
+        !showLabels() ? (label() || workContext()?.title || '' | translate) : null
+      "
       mat-menu-item
       [class.expanded]="container() === 'group' && expanded()"
       [attr.aria-expanded]="container() === 'group' ? expanded() : null"

@@ -400,6 +400,10 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  onGridLeave(): void {
+    if (!this.isCreateTaskActive()) this.newTaskPlaceholder.set(null);
+  }
+
   // Throttle to 30ms to reduce computational overhead during rapid mouse movements.
   @throttle(30)
   onMoveOverGrid(ev: MouseEvent): void {
@@ -408,7 +412,10 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isDragging()) {
       return;
     }
-    if (this.isAnyEventResizing()) {
+    if (
+      this.isAnyEventResizing() ||
+      (ev.target instanceof Element && ev.target.closest('schedule-event'))
+    ) {
       this.newTaskPlaceholder.set(null);
       return;
     }

@@ -6,7 +6,14 @@ import {
   input,
   output,
 } from '@angular/core';
-import { CdkDrag, CdkDragHandle, CdkDropList, CdkDragDrop } from '@angular/cdk/drag-drop';
+import {
+  CdkDrag,
+  CdkDragHandle,
+  CdkDropList,
+  CdkDragDrop,
+  CdkDragStart,
+} from '@angular/cdk/drag-drop';
+import { ScheduleExternalDragService } from '../../features/schedule/schedule-week/schedule-external-drag.service';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -49,6 +56,8 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
         <div
           cdkDrag
           [cdkDragData]="task"
+          (cdkDragStarted)="startDrag(task, $event)"
+          (cdkDragEnded)="endDrag()"
           class="task-entry"
         >
           <task
@@ -271,6 +280,14 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
   `,
 })
 export class PlanstrandTaskListComponent {
+  private readonly _externalDrag = inject(ScheduleExternalDragService);
+  startDrag(task: TaskWithSubTasks, event: CdkDragStart): void {
+    this._externalDrag.setCancelNextDrop(false);
+    this._externalDrag.setActiveTask(task, event.source._dragRef);
+  }
+  endDrag(): void {
+    this._externalDrag.setActiveTask(null);
+  }
   readonly ui = inject(PlanstrandService);
   private readonly store = inject(Store);
   private readonly dialog = inject(MatDialog);
@@ -293,6 +310,10 @@ export class PlanstrandTaskListComponent {
   readonly reordered = output<{ task: TaskWithSubTasks; direction: -1 | 1 }>();
 
   drop(event: CdkDragDrop<TaskWithSubTasks[]>): void {
+    if (!event.isPointerOverContainer || this._externalDrag.isCancelNextDrop()) {
+      this._externalDrag.setCancelNextDrop(false);
+      return;
+    }
     const task: unknown = event.item.data;
     if (task && typeof task === 'object' && 'id' in task)
       this.dropped.emit({ task: task as TaskWithSubTasks, index: event.currentIndex });

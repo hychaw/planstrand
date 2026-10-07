@@ -9,7 +9,10 @@
 
 .schedule-day-drop-zone {
   position: relative;
-  height: 100%;
+  // The hour grid must define the hit-testing bounds even inside a fixed-height,
+  // scrolled My Day viewport. A 100% height leaves visible later hours outside it.
+  min-height: 100%;
+  height: auto;
 }
 
 .empty-state {
@@ -59,4 +62,9 @@
   --nr-of-days: 1;
   /* grid-template-columns uses these vars in schedule-week */
   --schedule-event-bg: var(--schedule-event-bg-in-side-panel);
+}
+
+// Today already supplies the date. Keep the header only when it carries content.
+:host ::ng-deep .week-header:not(:has(schedule-event, .over-budget-badge)) {
+  display: none;
 }

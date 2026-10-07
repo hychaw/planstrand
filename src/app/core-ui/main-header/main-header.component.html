@@ -38,33 +38,39 @@
     [class.action-nav-right--can-scroll]="canScrollFurther()"
     [class.action-nav-right--can-scroll-back]="canScrollBack()"
   >
-    <!--
-      The action row scrolls rather than hiding anything (#9480). Every action
-      the app offers is rendered here at every width; when they stop fitting the
-      row becomes a horizontal scroller and the fade below says there is more.
-
-      That replaces a fit that moved actions into an overflow panel by
-      arithmetic over button counts. The panel worked, but it cost a solver, a
-      CSS-token reader, a second popup surface with its own dismissal and
-      focus-restore rules, and a duplicate mount point for every demotable
-      action -- to reach a worse end state than "scroll it": an action behind a
-      tap, with the trigger republishing sync's error state so collapsing sync
-      would not hide that it was broken.
-
-      Anchored at the inline START, and that direction is not a preference:
-      `justify-content: flex-end` would push the overflow off the start edge,
-      and left-of-origin overflow cannot be scrolled back (`scrollLeft` clamps
-      at 0). DOM order runs play -> add -> focus -> counters -> sync -> plugins
-      -> profile -> panels, so what scrolls out of view first is what used to
-      demote first.
-    -->
+    <button
+      mat-icon-button
+      class="utility-trigger"
+      (keydown.escape)="closeUtilities($event)"
+      popovertarget="planstrand-utilities"
+      [attr.aria-label]="'PLANSTRAND.UTILITIES' | translate"
+      [matTooltip]="'PLANSTRAND.UTILITIES' | translate"
+    >
+      <mat-icon>tune</mat-icon>
+    </button>
+    <!-- Keep original controls mounted once, including counter reminders and plugins.
+         The native popover supplies light-dismiss and restores trigger focus. -->
     <div
       class="action-nav-scroll"
+      id="planstrand-utilities"
+      popover="auto"
+      (keydown.escape)="closeUtilities($event)"
+      (click)="onUtilityAction($event)"
       cdkScrollable
       #actionScroll
       (scroll)="onActionScroll()"
       (wheel)="onActionWheel($event)"
     >
+      <span class="utility-caption">{{ 'PLANSTRAND.UTILITIES' | translate }}</span>
+      <button
+        mat-icon-button
+        autofocus
+        class="utility-close"
+        [attr.aria-label]="T.G.CLOSE | translate"
+        (click)="closeUtilities($event)"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
       <div class="header-action-group primary-action-group">
         @if (isDataLoaded() && isTimeTrackingEnabled()) {
           <play-button

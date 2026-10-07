@@ -22,7 +22,8 @@ import { APP_ROUTES } from '../../app.routes';
 import { moveFolder, removeFolder } from '../../features/folder/store/folder.actions';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { PlanstrandTaskListComponent } from './planstrand-task-list.component';
-import { CdkDragDrop } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
+import { ScheduleExternalDragService } from '../../features/schedule/schedule-week/schedule-external-drag.service';
 import { DialogScheduleTaskComponent } from '../../features/planner/dialog-schedule-task/dialog-schedule-task.component';
 
 describe('Fast-Track Milestone A commands and selectors', () => {
@@ -183,16 +184,44 @@ describe('Fast-Track Milestone A commands and selectors', () => {
   it('translates a Task drop into one destination intent and ignores Folder drags', () => {
     const list = TestBed.runInInjectionContext(() => new PlanstrandTaskListComponent());
     const emit = spyOn(list.dropped, 'emit');
-    list.drop({ item: { data: 'folder-a' }, currentIndex: 0 } as unknown as CdkDragDrop<
-      TaskWithSubTasks[]
-    >);
+    list.drop({
+      isPointerOverContainer: true,
+      item: { data: 'folder-a' },
+      currentIndex: 0,
+    } as unknown as CdkDragDrop<TaskWithSubTasks[]>);
     expect(emit).not.toHaveBeenCalled();
     const entry = task('task', 'a');
-    list.drop({ item: { data: entry }, currentIndex: 2 } as unknown as CdkDragDrop<
-      TaskWithSubTasks[]
-    >);
+    list.drop({
+      isPointerOverContainer: true,
+      item: { data: entry },
+      currentIndex: 2,
+    } as unknown as CdkDragDrop<TaskWithSubTasks[]>);
     expect(emit).toHaveBeenCalledOnceWith({ task: entry, index: 2 });
     expect(dispatch).not.toHaveBeenCalled();
+  });
+  it('registers scheduling drags and never emits a placement for an external drop', () => {
+    const list = TestBed.runInInjectionContext(() => new PlanstrandTaskListComponent());
+    const external = TestBed.inject(ScheduleExternalDragService);
+    const entry = task('task', 'a');
+    const ref = {};
+    list.startDrag(entry, { source: { _dragRef: ref } } as CdkDragStart);
+    expect(external.activeTask()).toBe(entry);
+    const emit = spyOn(list.dropped, 'emit');
+    list.drop({
+      isPointerOverContainer: false,
+      item: { data: entry },
+      currentIndex: 0,
+    } as unknown as CdkDragDrop<TaskWithSubTasks[]>);
+    expect(emit).not.toHaveBeenCalled();
+    external.setCancelNextDrop(true);
+    list.drop({
+      isPointerOverContainer: true,
+      item: { data: entry },
+      currentIndex: 0,
+    } as unknown as CdkDragDrop<TaskWithSubTasks[]>);
+    expect(emit).not.toHaveBeenCalled();
+    list.endDrag();
+    expect(external.activeTask()).toBeNull();
   });
   it('opens the existing scheduling dialog and keeps quick date selection open for time placement', () => {
     const list = TestBed.runInInjectionContext(() => new PlanstrandTaskListComponent());

@@ -423,3 +423,33 @@
 .nav-sidenav.mobile {
   border-radius: 22px 0 0 22px;
 }
+
+.nav-sidenav.fullMode {
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--brand) 11%, var(--surface-primary)),
+    var(--planstrand-panel) 72%
+  );
+}
+.nav-sidenav.compactMode {
+  .product-name {
+    padding: 48px 0 24px;
+  }
+  .product-name img {
+    width: 34px;
+    height: 34px;
+  }
+  .nav-list {
+    padding-inline: 8px;
+  }
+  .secondary-navigation summary {
+    text-align: center;
+    padding: 16px 0;
+  }
+  .mode-toggle {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    top: 8px;
+  }
+}

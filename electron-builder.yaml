@@ -27,11 +27,15 @@ directories:
 beforePack: ./tools/beforePack.js
 afterPack: ./tools/afterPack.js
 win:
+  icon: build/icon.ico
   target:
     - nsis
     - portable
   signAndEditExecutable: true
 nsis:
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
   artifactName: Planstrand-Setup.${ext}
   oneClick: false
   perMachine: false

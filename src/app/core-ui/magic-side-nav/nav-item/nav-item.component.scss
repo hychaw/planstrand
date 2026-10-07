@@ -382,3 +382,34 @@ button[mat-menu-item].nav-link.active {
     0 4px 16px -10px var(--brand);
   color: var(--ink-strong);
 }
+
+:host-context(.nav-sidenav.compactMode) {
+  .nav-link,
+  button:first-of-type {
+    padding-inline: 0 !important;
+    gap: 0;
+    justify-content: center;
+  }
+  .nav-link ::ng-deep .mat-mdc-menu-item-text {
+    justify-content: center;
+  }
+  .nav-icon,
+  .ico-wrapper {
+    margin: 0 !important;
+    width: 22px;
+    flex: 0 0 22px;
+  }
+}
+:host .nav-link.active,
+:host.isActiveContext .nav-link,
+:host.isActiveContext button {
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--brand) 45%, var(--surface-primary)),
+    color-mix(in srgb, var(--brand) 22%, var(--surface-primary))
+  ) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--planstrand-azure) 62%, transparent),
+    0 4px 14px -8px var(--brand);
+  color: var(--ink-strong);
+}

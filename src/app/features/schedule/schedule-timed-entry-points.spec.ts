@@ -61,7 +61,11 @@ describe('timed placeholder and day-panel entry points', () => {
         { provide: DragDropRegistry, useValue: { pointerUp } },
         {
           provide: ScheduleExternalDragService,
-          useValue: { activeTask, setActiveTask: activeTask.set },
+          useValue: {
+            activeTask,
+            setActiveTask: activeTask.set,
+            setCancelNextDrop: jasmine.createSpy('setCancelNextDrop'),
+          },
         },
         {
           provide: ScheduleService,

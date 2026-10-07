@@ -1,5 +1,8 @@
 {
   "PLANSTRAND": {
+    "WORKING_HOURS": "Calendar working hours",
+    "SHOW_WORKING_HOURS": "Show working-hour markers on this device",
+    "UTILITIES": "Utilities",
     "FOCUS": "Focus",
     "COMPLETED": "Completed",
     "CALENDAR_PREVIEW": "Schedule a WorkSession or add an Event",

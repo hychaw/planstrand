@@ -1,3 +1,4 @@
+import { selectConfigFeatureState } from '../../config/store/global-config.reducer';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
 /* eslint-disable */
@@ -32,7 +33,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { LS } from 'src/app/core/persistence/storage-keys.const';
-import { selectTimelineWorkStartEndHours } from '../../config/store/global-config.reducer';
+import { WorkingHoursDisplayService } from '../../../core/theme/working-hours-display.service';
 import { FH } from '../schedule.const';
 import { mapScheduleDaysToScheduleEvents } from '../map-schedule-data/map-schedule-days-to-schedule-events';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -315,8 +316,10 @@ export class ScheduleComponent {
     return mapScheduleDaysToScheduleEvents(days, FH, this.displayTimeZone());
   });
 
-  private _workStartEndHours = toSignal(
-    this._store.pipe(select(selectTimelineWorkStartEndHours)),
+  private readonly _workingHours = inject(WorkingHoursDisplayService);
+  private readonly _scheduleConfig = inject(Store).selectSignal(selectConfigFeatureState);
+  private readonly _workStartEndHours = computed(() =>
+    this._workingHours.hoursFor(this._scheduleConfig()?.schedule),
   );
 
   workStartEnd = computed(() => {

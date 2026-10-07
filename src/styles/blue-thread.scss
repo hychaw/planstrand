@@ -96,6 +96,8 @@ body[data-density='compact'] {
   planstrand-folder-picker,
   dialog-schedule-task
 ) {
+  --mat-dialog-container-color: var(--surface-floating);
+  --mat-dialog-container-shape: 20px;
   --mdc-dialog-container-color: var(--surface-floating);
   --mdc-dialog-container-shape: 16px;
 }
@@ -241,6 +243,8 @@ planstrand-task-list .task-entry:focus-within .hasNoTimeSpentOrEstimate {
   opacity: 1;
 }
 .mat-mdc-dialog-container {
+  --mat-dialog-container-color: var(--surface-floating);
+  --mat-dialog-container-shape: 20px;
   --mdc-dialog-container-color: var(--surface-floating);
   --mdc-dialog-container-shape: 20px;
   --mat-dialog-subhead-color: var(--ink-strong);
@@ -264,4 +268,60 @@ planstrand-task-list done-toggle .done-shape {
   stroke: var(--ink-muted);
   rx: 50%;
   ry: 50%;
+}
+
+// Static, project-owned cloud banks remain visible around the working surfaces.
+body {
+  --planstrand-sky-veil: rgba(237, 245, 255, 0.56);
+}
+body.isDarkTheme {
+  --planstrand-sky-veil: rgba(5, 21, 50, 0.62);
+  --planstrand-panel: rgba(13, 35, 65, 0.92);
+  --planstrand-panel-border: rgba(131, 185, 244, 0.23);
+}
+.app-container {
+  background:
+    linear-gradient(var(--planstrand-sky-veil), var(--planstrand-sky-veil)),
+    url('../assets/sky-atmosphere.svg') center / cover no-repeat;
+}
+planstrand-task-list .task-entry {
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+planstrand-task-list .task-entry:hover {
+  background: color-mix(in srgb, var(--brand) 9%, var(--surface-primary));
+  box-shadow: 0 4px 15px -9px var(--brand);
+}
+planstrand-task-list .task-entry:focus-within {
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-primary));
+  box-shadow:
+    inset 3px 0 var(--planstrand-azure),
+    0 0 0 1px color-mix(in srgb, var(--brand) 70%, transparent),
+    0 4px 20px -10px var(--brand);
+}
+planstrand-task-list .task-entry:has(:focus-visible) {
+  outline: 2px solid var(--planstrand-azure);
+  outline-offset: 2px;
+}
+.task-entry.cdk-drag-preview {
+  background: var(--surface-floating);
+  color: var(--ink);
+  border: 1px solid var(--brand);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px -8px rgba(0, 32, 95, 0.5);
+}
+planstrand-task-list .task-list.cdk-drop-list-receiving {
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  outline: 1px solid var(--brand);
+  border-radius: 12px;
+}
+@media (max-width: 600px) {
+  .app-container {
+    background: linear-gradient(
+      150deg,
+      var(--surface-canvas),
+      color-mix(in srgb, var(--brand) 14%, var(--surface-canvas))
+    );
+  }
 }

@@ -32,6 +32,8 @@ import { T } from '../../../t.const';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Log } from '../../log';
 import { DensityService } from '../density.service';
+import { WorkingHoursDisplayService } from '../working-hours-display.service';
+import { MatCheckbox } from '@angular/material/checkbox';
 
 const refToValue = (ref: CustomThemeRef): string => `${ref.kind}:${ref.id}`;
 
@@ -49,6 +51,7 @@ const valueToRef = (value: string): CustomThemeRef => {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MatCheckbox,
     MatButtonToggleGroup,
     MatButtonToggle,
     MatIcon,
@@ -64,6 +67,14 @@ const valueToRef = (value: string): CustomThemeRef => {
   template: `
     <div class="theme-selector-container">
       <h3 class="appearance-title">{{ T.GCF.MISC.APPEARANCE | translate }}</h3>
+      <div class="dark-mode-select">
+        <span class="setting-label">{{ 'PLANSTRAND.WORKING_HOURS' | translate }}</span>
+        <mat-checkbox
+          [checked]="workingHours.enabled()"
+          (change)="workingHours.setEnabled($event.checked)"
+          >{{ 'PLANSTRAND.SHOW_WORKING_HOURS' | translate }}</mat-checkbox
+        >
+      </div>
       <div class="dark-mode-select">
         <span class="setting-label">{{ 'PLANSTRAND.DENSITY' | translate }}</span>
         <mat-button-toggle-group
@@ -422,6 +433,7 @@ const valueToRef = (value: string): CustomThemeRef => {
   ],
 })
 export class ThemeSelectorComponent {
+  readonly workingHours = inject(WorkingHoursDisplayService);
   readonly globalThemeService = inject(GlobalThemeService);
   readonly densityService = inject(DensityService);
   readonly customThemeService = inject(CustomThemeService);

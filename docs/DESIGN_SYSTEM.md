@@ -22,7 +22,10 @@ described in the original V1 guidance below.
 - The Strand P master is `src/assets/icons/strand-p.svg`: a flowing cobalt/azure ribbon P with
   a transparent background. Run `node tools/generate-planstrand-icons.cjs`
   from the repository root to regenerate web/PWA and desktop artwork. macOS uses
-  a larger transparent inset; Safari uses a monochrome strand mask.
+  a larger transparent inset; Safari uses a monochrome strand mask. The generator
+  also updates Electron indicator stopped/running/progress assets at 16px and 32px,
+  plus Windows ICO sizes 16/24/32/48/64/256. Window, executable and installer icon
+  paths are separate and must all reference regenerated artwork.
 
 Retain upstream attribution and application/profile/protocol identifiers. The
 technical release version and V1.0.0-rc.1 tag are independent of this visual work.
@@ -30,13 +33,24 @@ technical release version and V1.0.0-rc.1 tag are independent of this visual wor
 ### Approved visual redesign (October 2026)
 
 - The static high-altitude canvas combines pale/cobalt or navy gradients with the
-  original local `src/assets/sky-route.svg`. No scenery, photography, slogans,
-  animated aircraft, runtime image services or screenshot backgrounds. The mobile
-  canvas is solid for readability. Decorative paths never connect Folders or days.
+  project-owned `src/assets/sky-atmosphere.svg`: soft cloud banks, tonal sky depth,
+  and a small distant aircraft. Theme-specific veils keep text dominant. No mountains,
+  photography, slogans, animation, runtime image services or screenshot backgrounds.
+  Small mobile screens use a simple gradient for readability. Decorative paths never connect Folders or days.
 - Expanded desktop navigation floats within its reserved column and always shows
   the ribbon P plus **Planstrand**. Primary order is **Today / This Week / Tasks /
   Calendar**. Inbox stays a special capture collection, first in the Tasks hierarchy
   and accessible below Folders; its canonical `/inbox` route and domain semantics stay intact.
+- The collapsed layout reserves 88px, including gutters around a 72px floating rail.
+  Center navigation icons and the expand button; show the Strand P alone. Avoid
+  clipped labels and leftover expanded-mode padding.
+- Global capabilities live in one Utilities popover: tracking, capture, focus,
+  counters, sync, plugins and secondary panels. Keep their components mounted once;
+  preserve counter reminders and plugin lifecycle while visually quiet at rest.
+- Task hover is tinted/elevated; focus uses a blue edge and a visible keyboard outline.
+  Elevate drag previews and highlight valid drop targets. Never glow every idle row.
+  Task drag registration belongs to the existing scheduling bridge; external drops
+  must not also dispatch a Planning or Folder move.
 - Titles use one editorial header, with a secondary date or range. Avoid repeating
   the route name in the global toolbar. The existing Inter and surface contract remain authoritative.
 - Tasks uses a continuous hierarchy surface: small Folder glyphs, disclosure,
@@ -51,7 +65,8 @@ technical release version and V1.0.0-rc.1 tag are independent of this visual wor
 - Calendar shares the same working surface and integrates period navigation, Today,
   Day / Week / Month / Year and New Event. WorkSessions have stronger blue depth and
   a wider leading edge; Events stay softer with their existing type glyphs.
-  Work boundaries default off; existing explicit schedule preferences remain valid.
+  Work boundaries require the explicit device-local Appearance opt-in. Inherited
+  `isWorkStartEndEnabled: true` values are preserved but never interpreted as consent.
   Grid preview wording describes WorkSession selection and the explicit Event action.
 - Settings keeps its current tabs/search/forms architecture, with an editorial
   shell, rounded section navigation, quiet panels and consistent appearance controls.

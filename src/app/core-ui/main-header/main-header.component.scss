@@ -568,3 +568,53 @@ button {
     outline-offset: -2px;
   }
 }
+
+// A single utility entry point keeps the planning workspace visually quiet.
+.utility-trigger {
+  color: var(--ink-muted);
+  background: var(--planstrand-panel);
+  border: 1px solid var(--planstrand-panel-border);
+  border-radius: 12px;
+  -webkit-app-region: no-drag;
+}
+.action-nav-scroll[popover] {
+  position: fixed;
+  inset: 58px 20px auto auto;
+  margin: 0;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 100px);
+  padding: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  overflow: auto;
+  background: var(--surface-floating);
+  color: var(--ink);
+  border: 1px solid var(--planstrand-panel-border);
+  border-radius: 18px;
+  box-shadow: var(--card-shadow);
+  -webkit-app-region: no-drag;
+}
+.action-nav-scroll[popover]:not(:popover-open) {
+  display: none !important;
+}
+.utility-caption {
+  flex-basis: 100%;
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+  padding-bottom: 4px;
+}
+.utility-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+.action-nav-right::before,
+.action-nav-right::after {
+  display: none;
+}
+.action-nav-scroll[popover] ::ng-deep play-button .mat-mdc-fab {
+  width: 40px;
+  height: 40px;
+  box-shadow: none;
+}

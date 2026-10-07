@@ -58,6 +58,20 @@ describe('ScheduleWeekComponent', () => {
     fixture = TestBed.createComponent(ScheduleWeekComponent);
   });
 
+  it('clears idle creation previews on exit but preserves an open editor', () => {
+    const component = fixture.componentInstance;
+    const preview = { style: '', time: '09:00', date: '2026-05-11' };
+    component.newTaskPlaceholder.set(preview);
+    component.onGridLeave();
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    component.isCreateTaskActive.set(true);
+    component.onGridLeave();
+    expect(component.newTaskPlaceholder()).toEqual(preview);
+    component.isCreateTaskActive.set(false);
+    component.onGridLeave();
+  });
+
   it('uses the UI language for weekday headers with ISO formatting enabled', () => {
     fixture.componentRef.setInput('daysToShow', ['2026-05-11']);
 

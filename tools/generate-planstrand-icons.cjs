@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   // macOS artwork needs a larger transparent inset than PWA/Windows artwork.
   const macSvg = svg.replace(
     /(<svg[^>]*>)([\s\S]*)(<\/svg>)/,
-    '$1<g transform="translate(61.44 61.44) scale(.88)">$2</g>$3',
+    '$1<g transform="translate(3.84 3.84) scale(.88)">$2</g>$3',
   );
   fs.writeFileSync('build/icon-mac.svg', macSvg + '\n');
   const browser = await chromium.launch({
@@ -46,15 +46,52 @@ const { chromium } = require('playwright');
     svg
       .replace(/<defs>[\s\S]*?<\/defs>/, '')
       .replace(/<rect[^>]*\/>/, '')
-      .replace('stroke="url(#strand)"', 'stroke="#000"')
+      .replace(/fill="url\(#[^)]+\)"/g, 'fill="#000"')
       .replace(/^\s+$/gm, '') + '\n',
   );
   for (const f of ['tray-ico-d.png', 'tray-ico-l.png'])
     save('electron/assets/icons/' + f, 16);
   for (const f of ['tray-ico-d@2x.png', 'tray-ico-l@2x.png'])
     save('electron/assets/icons/' + f, 32);
+  // indicator.ts loads this separate asset family, including timer progress frames.
+  // Keep the P legible at 16px; a small dot/ring conveys running/progress state.
+  for (const theme of ['d', 'l']) {
+    const silhouette = svg
+      .replace(/<defs>[\s\S]*?<\/defs>/, '')
+      .replace(
+        /fill="url\(#[^)]+\)"/g,
+        `fill="${theme === 'd' ? '#d2edff' : '#164b91'}"`,
+      );
+    for (const state of [
+      'stopped',
+      'running',
+      ...Array.from({ length: 16 }, (_, i) => i),
+    ]) {
+      const marker =
+        state === 'stopped'
+          ? ''
+          : `<circle cx="51" cy="51" r="9" fill="#2563eb" stroke="#d2edff" stroke-width="2"/>` +
+            (typeof state === 'number'
+              ? `<circle cx="51" cy="51" r="6" fill="none" stroke="#fff" stroke-width="2" pathLength="16" stroke-dasharray="${state + 1} 16" transform="rotate(-90 51 51)"/>`
+              : '');
+      for (const size of [16, 32]) {
+        await page.setViewportSize({ width: size, height: size });
+        await page.setContent(
+          `<style>html,body{margin:0;background:transparent}svg{display:block;width:100vw;height:100vh}</style>${silhouette.replace('</svg>', marker + '</svg>')}`,
+        );
+        const target =
+          typeof state === 'number'
+            ? `running-anim-${theme}/${state}`
+            : `${state}-${theme}`;
+        fs.writeFileSync(
+          `electron/assets/icons/indicator/${target}${size === 32 ? '@2x' : ''}.png`,
+          await page.screenshot({ omitBackground: true }),
+        );
+      }
+    }
+  }
   // Windows ICO embeds PNG at multiple standard dimensions.
-  const sizes = [16, 32, 48, 256];
+  const sizes = [16, 24, 32, 48, 64, 256];
   let offset = 6 + 16 * sizes.length;
   const header = Buffer.alloc(offset);
   header.writeUInt16LE(1, 2);

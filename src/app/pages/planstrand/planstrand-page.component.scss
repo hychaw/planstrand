@@ -329,3 +329,12 @@ section:has(.cdk-drop-list-dragging) {
   background: color-mix(in srgb, var(--brand) 3%, transparent);
   border-radius: 12px;
 }
+
+@media (min-width: 801px) and (max-width: 1150px) {
+  .planning-workspace.is-today {
+    grid-template-columns: 1fr;
+  }
+  .day-schedule {
+    min-height: 500px;
+  }
+}

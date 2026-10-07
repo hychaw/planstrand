@@ -86,6 +86,16 @@ const ACTION_ROW_REVEAL_PIN_MS = 400;
   ],
 })
 export class MainHeaderComponent implements OnDestroy {
+  closeUtilities(event: Event): void {
+    this._actionScroll().nativeElement.hidePopover();
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  onUtilityAction(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('button, a')) {
+      this._actionScroll().nativeElement.hidePopover();
+    }
+  }
   private readonly _elRef = inject(ElementRef<HTMLElement>);
   private readonly _destroyRef = inject(DestroyRef);
   private _teleportedNav: HTMLElement | null = null;
