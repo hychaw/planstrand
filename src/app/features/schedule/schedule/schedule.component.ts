@@ -31,7 +31,7 @@ import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { MatIconButton, MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
-import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
+import { CurrentDateService } from '../../../core/date/current-date.service';
 import { LS } from 'src/app/core/persistence/storage-keys.const';
 import { WorkingHoursDisplayService } from '../../../core/theme/working-hours-display.service';
 import { FH } from '../schedule.const';
@@ -49,7 +49,7 @@ import { DEFAULT_FIRST_DAY_OF_WEEK } from '../../../core/locale.constants';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
 import { getWeekNumber } from '../../../util/get-week-number';
 import { parseDbDateStr } from '../../../util/parse-db-date-str';
-import { calendarDate, calendarDisplayZone, calendarTimeRow } from '../calendar-time';
+import { calendarDate, calendarTimeRow } from '../calendar-time';
 import { anchorContextNow } from '../anchor-context-now';
 
 @Component({
@@ -89,7 +89,7 @@ export class ScheduleComponent {
   layoutService = inject(LayoutService);
   scheduleService = inject(ScheduleService);
   private _store = inject(Store);
-  private _globalTrackingIntervalService = inject(GlobalTrackingIntervalService);
+  private _dates = inject(CurrentDateService);
   private _globalConfigService = inject(GlobalConfigService);
   private _dateTimeFormatService = inject(DateTimeFormatService);
   private _translate = inject(TranslateService);
@@ -148,13 +148,12 @@ export class ScheduleComponent {
     return todayStr ? this.daysToShow().includes(todayStr) : false;
   });
 
-  private _todayTick = toSignal(this._globalTrackingIntervalService.todayDateStr$);
-  readonly displayTimeZone = computed(() =>
-    calendarDisplayZone(this._globalConfigService.localization()?.timeZone),
-  );
+  readonly displayTimeZone = this.scheduleService.displayTimeZone;
   protected _todayDateStr = computed(() => {
-    this._todayTick();
+    this._dates.now();
     this.scheduleService.scheduleRefreshTick();
+    // Keep Calendar's existing civil-date calculation; the shared clock only
+    // invalidates it at midnight or after activation/resume.
     return calendarDate(Date.now(), this.displayTimeZone());
   });
   private _windowSize = toSignal(
@@ -397,6 +396,7 @@ export class ScheduleComponent {
   }
 
   goToToday(): void {
+    this._dates.refresh();
     this._selectedDate.set(null); // Resets to "today" mode
   }
 

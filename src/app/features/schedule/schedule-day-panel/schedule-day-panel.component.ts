@@ -16,11 +16,8 @@ import {
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { ScheduleWeekComponent } from '../schedule-week/schedule-week.component';
-import { DateService } from '../../../core/date/date.service';
 import { getPointerPosition } from '../../../util/get-pointer-position';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { WorkingHoursDisplayService } from '../../../core/theme/working-hours-display.service';
-import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { mapScheduleDaysToScheduleEvents } from '../map-schedule-data/map-schedule-days-to-schedule-events';
 import { FH, SVEType } from '../schedule.const';
 import { calculateTimeFromYPosition } from '../schedule-utils';
@@ -70,8 +67,6 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   @ViewChild('dropZone', { read: ElementRef }) dropZoneRef!: ElementRef<HTMLElement>;
 
   private _store = inject(Store);
-  private _dateService = inject(DateService);
-  private _globalTrackingIntervalService = inject(GlobalTrackingIntervalService);
   private _dragDropRegistry = inject(DragDropRegistry);
   private _externalDragService = inject(ScheduleExternalDragService);
   private _cdr = inject(ChangeDetectorRef);
@@ -90,16 +85,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   private _dragPointerOffsetY: number | null = null;
   private _lastKnownTopY: number | null = null;
 
-  private _todayDateStr = toSignal(this._globalTrackingIntervalService.todayDateStr$, {
-    initialValue: this._dateService.todayStr(Date.now()),
-  });
-
-  daysToShow = computed(() => {
-    this._todayDateStr();
-    this._scheduleService.scheduleRefreshTick();
-    const d = this._scheduleService.getTodayStr();
-    return d ? [d] : [];
-  });
+  daysToShow = computed(() => [this._scheduleService.today()]);
 
   scheduleDays = this._scheduleService.createScheduleDaysComputed(this.daysToShow);
 

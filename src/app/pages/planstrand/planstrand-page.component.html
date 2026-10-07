@@ -260,7 +260,7 @@
               }}</span>
               <button
                 mat-button
-                (click)="ui.createTask(inboxId, undefined, section.target)"
+                (click)="addTask(section.target)"
                 [attr.aria-label]="
                   'Add Task: ' +
                   (section.target.type === 'WEEK'

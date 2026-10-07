@@ -1,0 +1,48 @@
+# Planstrand V1.1 local-date correction
+
+Baseline: `66464d41beedbb8b27c2b2449c38700c4f1dc0dc`, branch `feature/v1.1-blue-thread` (clean before edits).
+
+## Diagnosis
+
+The baseline already checked the date every second and on focus/resume; it was not simply a Date created once at startup. However, that stream and TaskService commands used `DateService.todayStr()`, which subtracted the inherited configurable workday offset. Existing tests explicitly expected the previous calendar day after midnight with a nonzero offset. Loading, changing or replaying legacy settings reinstated that policy. A nonzero saved boundary therefore reproduces the reported wrong Today header **and** wrong Planning target. The original installed profile was not inspected, so its exact saved offset is not asserted here.
+
+There were additional stale-state paths: the app-state effect skipped its first shared/replayed date, a hydration queue could carry an old date, Planstrand derived cached signals from that state, and a Task menu encoded Today as a concrete date. Calendar and My Day also disagreed about whether to subtract the workday offset. A fixed Month view did not receive a reactive current-date input for its highlight.
+
+The additional evidence that Calendar Day was already correct narrows the failure to these separate date sources. Calendar's component used `calendarDate(Date.now(), displayTimeZone)` and did not subtract the inherited boundary. That calculation and its existing schedule-refresh trigger are retained; the shared clock adds midnight/activation invalidation. Today and This Week were already reactive to NgRx, so this was not a static `new Date()` or a once-only week anchor. They were reacting to the wrong workday policy and could also receive stale runtime state. No Calendar date arithmetic or view architecture was redesigned.
+
+## Audited consumers and changes
+
+| Consumer                                                                                      | Resolution                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DateService `todayStr`, `isToday`, `isYesterday`                                              | Fresh system-local civil date; inherited offset does not apply. Explicit legacy logical-clock helpers remain internal.                                                                            |
+| GlobalTrackingIntervalService `todayDateStr$` / shared signal                                 | Bridge to the shared civil-date clock; no one-second date polling. Tracking ticks remain separate.                                                                                                |
+| AppStateEffects and `selectTodayStr`                                                          | Reconcile the initial emission and rollover, wait for hydration, then resolve the current date again. Runtime offset is zero.                                                                     |
+| GlobalConfigEffects load/change/bulk replay                                                   | Retain saved legacy fields for compatibility, ignore their workday policy at runtime, never migrate Tasks as a side effect. Hide the boundary setting.                                            |
+| Planstrand Today header, Focus/completed membership, This Week range/current-day heading      | Direct reactive current-date signal. Week uses the existing configured first weekday and local calendar arithmetic.                                                                               |
+| Task-list Today / This Week actions                                                           | Semantic `TODAY` menu value; date/week resolved when selected, including a menu held open overnight. Explicit dates remain explicit.                                                              |
+| Today Add and drop; Anytime This Week Add                                                     | Resolve Today/current week at submission/drop. Task capture resolves after its prompt closes. Creation still carries initial Planning in one Task operation.                                      |
+| TaskService add/plan/capture/deadline/short-syntax commands and task context menus            | Existing fresh DateService calls now return civil Today; absolute operation payloads are unchanged.                                                                                               |
+| Planning/task/planner/work-context selectors, retained work view and Android widget selectors | Receive the corrected non-persistent NgRx current-day state through `selectTodayStr`.                                                                                                             |
+| CalendarDisplayService, ScheduleService, My Day                                               | Shared reactive zone-aware date; remove inherited workday subtraction.                                                                                                                            |
+| Calendar Today navigation, Day/Week/Month/Year                                                | Fresh clock on Today navigation; reactive current-date input also reaches fixed Month and Year highlighting.                                                                                      |
+| Schedule-task dialog Today/tomorrow quick access                                              | Existing fresh local-Date quick access retained; replace the cached `todayStr` field with a fresh accessor. Picker selections/minimum dates are editor state, not Planning's definition of Today. |
+| Local date-key and IANA utilities                                                             | Local keys use local year/month/day, without ISO UTC truncation. Existing IANA date/day-start helpers moved unchanged to a shared utility and re-exported for Calendar compatibility.             |
+
+## Shared rollover and timezone behavior
+
+`CurrentDateService` owns one timeout, a reactive instant and local-date signal, and a replayable date stream. It schedules the earliest next system-local or registered Calendar-zone midnight. Local midnight uses `setHours(24, 0, 0, 0)`; configured Calendar zones use the existing IANA conversion, including DST gaps/skipped midnight. No fixed UTC offset is introduced.
+
+Focus, visible-tab activation and Electron's native resume IPC all refresh and reschedule immediately. A coarse hourly checkpoint detects clock/timezone changes while continuously foregrounded; there is no second/minute date polling. Activation re-reads local fields even if the timestamp is unchanged. DestroyRef cancels the timeout and subscriptions; zone registrations follow their effect lifetime.
+
+Planstrand Today/Planning follow the system-local calendar. An explicitly configured Calendar display timezone continues to control Calendar's coordinates/current-day highlight; this does not rewrite persisted instants or Planning dates.
+
+## Validation
+
+307 targeted unit tests passed. All 23 Planstrand browser tests passed in the final parallel run, including the additional ordinary-midnight/week-range regression. App/spec TypeScript checks, formatting and full lint passed.
+
+- Controlled-time unit coverage: Oct 6 to Oct 7 and multiple days; immediate intent-time resolution; focus/visibility recovery after sleep; unchanged-instant local-date remapping; initial/hydration reconciliation; real NgRx Today membership; one Planning operation; configuration load/change/replay without Task writes; IANA zone changes; 23/25-hour days and skipped midnight; timer/subscription teardown.
+- Browser regression coverage: Today rollover and membership without reload; a capture prompt and a Task menu held across midnight; persistence after reload; ordinary midnight changes This Week's current day without changing its range; focus recovery updates both This Week and Today; exact Wednesday Add placement remains Wednesday on Thursday; Sunday-to-Monday week rollover and Add, including an Anytime This Week capture prompt held open from Sunday until Monday; fixed Month/Year highlight; Calendar Today. Chromium rejected live replacement of a CDP timezone override, so local-date remapping is covered with controlled local Date fields in the unit suite; IANA conversions are tested directly.
+- Production frontend build and Windows unpacked package succeeded. The frontend retains the existing approximately 5.57 MB initial-bundle warning against the 5.50 MB warning budget.
+- Actual packaged Electron smoke passed: Oct 6 to Oct 7 without restart; Task to Today on Oct 7; placement after reload; native `powerMonitor` resume recovery to Oct 8; Calendar Month highlight; no renderer errors. This was before the final unchanged-timestamp invalidation adjustment. A subsequent final-package launch was blocked by Windows Code Integrity (events 3077/3033: enterprise signing requirements). That policy was not bypassed; the final package's Electron rerun is unverified.
+
+Schema version 5, IndexedDB, NgRx, Task/Folder/Planning/Event/WorkSession persistence, CalendarDisplayItem, operation-log encoding and sync/replay semantics are unchanged. Existing incorrectly placed Tasks are not silently migrated. Nothing was merged or published; `v1.0.0-rc.1` remains unchanged.

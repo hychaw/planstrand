@@ -25,8 +25,7 @@ import { TaskWithSubTasks } from '../../features/tasks/task.model';
 import { DialogScheduleTaskComponent } from '../../features/planner/dialog-schedule-task/dialog-schedule-task.component';
 import { planningCommands } from '../../features/planning/planning-commands';
 import { PlanstrandService } from './planstrand.service';
-import { DateService } from '../../core/date/date.service';
-import { selectTodayStr } from '../../root-store/app-state/app-state.selectors';
+import { CurrentDateService } from '../../core/date/current-date.service';
 import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership';
 
 @Component({
@@ -110,7 +109,7 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
                   (ngModelChange)="plan(task, $event); actions.open = false"
                 >
                   <option value="">{{ 'PLANSTRAND.CHOOSE' | translate }}</option>
-                  <option [value]="today()">{{ 'PLANSTRAND.TODAY' | translate }}</option>
+                  <option value="TODAY">{{ 'PLANSTRAND.TODAY' | translate }}</option>
                   <option value="WEEK">{{ 'PLANSTRAND.THIS_WEEK' | translate }}</option>
                   @for (day of days(); track day) {
                     <option [value]="day">{{ day }}</option>
@@ -291,9 +290,8 @@ export class PlanstrandTaskListComponent {
   readonly ui = inject(PlanstrandService);
   private readonly store = inject(Store);
   private readonly dialog = inject(MatDialog);
-  private readonly dateService = inject(DateService);
-  private readonly logicalToday = this.store.selectSignal(selectTodayStr);
-  readonly today = computed(() => this.logicalToday() || this.dateService.todayStr());
+  private readonly dates = inject(CurrentDateService);
+  readonly today = this.dates.today;
   readonly tasks = input<TaskWithSubTasks[]>([]);
   readonly entries = computed(() => {
     const paths = this.ui.paths();
@@ -327,8 +325,12 @@ export class PlanstrandTaskListComponent {
     const commands = planningCommands(this.store);
     if (target === 'UNPLAN') commands.unplan(task.id);
     else if (target === 'WEEK')
-      commands.planWeek(task.id, new Date(this.today() + 'T12:00:00'));
-    else if (target) commands.planTaskForDay({ task, day: target });
+      commands.planWeek(task.id, new Date(this.dates.resolveToday() + 'T12:00:00'));
+    else if (target)
+      commands.planTaskForDay({
+        task,
+        day: target === 'TODAY' ? this.dates.resolveToday() : target,
+      });
   }
   schedule(task: TaskWithSubTasks): void {
     this.dialog.open(DialogScheduleTaskComponent, {

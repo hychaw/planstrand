@@ -179,11 +179,12 @@ export class PlanstrandService {
   async createTask(
     folderId: string,
     capturedTitle?: string,
-    target?: PlanningPlacement['target'],
+    target?: PlanningPlacement['target'] | (() => PlanningPlacement['target']),
   ): Promise<void> {
     const title =
       capturedTitle === undefined ? await this.prompt('ADD_TASK') : capturedTitle.trim();
     if (!title || !this.folders().entities[folderId]) return;
+    const resolvedTarget = typeof target === 'function' ? target() : target;
     const task = this.tasks.createNewTaskWithDefaults({
       title,
       workContextId: INBOX_PROJECT.id,
@@ -192,9 +193,14 @@ export class PlanstrandService {
     });
     // Capture the absolute register before dispatch: creation and placement replay
     // together, without a follow-up local effect or a second operation.
-    const initialPlanning = target
-      ? (await planningCommands(this.store).placementAction(task.id, target, Infinity))
-          .record
+    const initialPlanning = resolvedTarget
+      ? (
+          await planningCommands(this.store).placementAction(
+            task.id,
+            resolvedTarget,
+            Infinity,
+          )
+        ).record
       : undefined;
     this.store.dispatch(
       TaskSharedActions.addTask({

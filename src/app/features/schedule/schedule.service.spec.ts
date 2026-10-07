@@ -23,6 +23,7 @@ describe('ScheduleService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
+      teardown: { destroyAfterEach: true },
       providers: [
         ScheduleService,
         DateService,
@@ -120,17 +121,15 @@ describe('ScheduleService', () => {
       expect(referenceDate.getTime()).toBe(before);
     });
 
-    it('should start on the logical today between midnight and the start-of-next-day offset', () => {
-      // 00:30 on Jan 15 with a 04:00 start-of-next-day is logically still Jan
-      // 14; a window anchored on the raw clock would drop (logical) today's
-      // column right after midnight while todayStr() still names it.
+    it('should start on the calendar today despite an inherited workday offset', () => {
+      // Saved workday boundaries must not postpone Planstrand's calendar day.
       jasmine.clock().install();
       try {
         jasmine.clock().mockDate(new Date(2026, 0, 15, 0, 30));
         dateService.setStartOfNextDayDiff('04:00');
         const result = service.getDaysToShow(3, null);
-        expect(result[0]).toBe('2026-01-14');
-        expect(result[1]).toBe('2026-01-15');
+        expect(result[0]).toBe('2026-01-15');
+        expect(result[1]).toBe('2026-01-16');
       } finally {
         jasmine.clock().uninstall();
       }
@@ -138,16 +137,14 @@ describe('ScheduleService', () => {
   });
 
   describe('getDayClass', () => {
-    it('should ring the logical today between midnight and the start-of-next-day offset', () => {
-      // Same clock setup as the window specs: at 00:30 with a 04:00 offset the
-      // ring must sit on Jan 14, the column todayStr() names and the window
-      // anchor produces, not on calendar-today.
+    it('should ring the calendar today despite an inherited workday offset', () => {
+      // Highlight Jan 15 immediately, even if inherited settings specify 04:00.
       jasmine.clock().install();
       try {
         jasmine.clock().mockDate(new Date(2026, 0, 15, 0, 30));
         dateService.setStartOfNextDayDiff('04:00');
-        expect(service.getDayClass('2026-01-14')).toContain('today');
-        expect(service.getDayClass('2026-01-15')).not.toContain('today');
+        expect(service.getDayClass('2026-01-14')).not.toContain('today');
+        expect(service.getDayClass('2026-01-15')).toContain('today');
       } finally {
         jasmine.clock().uninstall();
       }
@@ -162,16 +159,14 @@ describe('ScheduleService', () => {
       expect(result.length).toBe(numberOfWeeks * 7);
     });
 
-    it('should show the logical month between midnight and the start-of-next-day offset', () => {
-      // 00:30 on Feb 1 with a 04:00 start-of-next-day is logically still Jan
-      // 31, so the grid must be January's (starting Mon Dec 29), not
-      // February's (starting Mon Jan 26).
+    it('should show the calendar month despite an inherited workday offset', () => {
+      // February begins at civil midnight despite a saved 04:00 workday boundary.
       jasmine.clock().install();
       try {
         jasmine.clock().mockDate(new Date(2026, 1, 1, 0, 30));
         dateService.setStartOfNextDayDiff('04:00');
         const result = service.getMonthDaysToShow(5, 1, null);
-        expect(result[0]).toBe('2025-12-29');
+        expect(result[0]).toBe('2026-01-26');
       } finally {
         jasmine.clock().uninstall();
       }
@@ -839,6 +834,7 @@ describe('ScheduleService – calendar visibility filter', () => {
     calendarEvents$.next([]);
 
     TestBed.configureTestingModule({
+      teardown: { destroyAfterEach: true },
       providers: [
         ScheduleService,
         DateService,

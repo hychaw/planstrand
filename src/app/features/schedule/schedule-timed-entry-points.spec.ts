@@ -70,6 +70,7 @@ describe('timed placeholder and day-panel entry points', () => {
         {
           provide: ScheduleService,
           useValue: {
+            today: signal(day),
             getTodayStr: () => day,
             displayTimeZone: () => 'Asia/Singapore',
             createScheduleDaysComputed: () => signal([]),

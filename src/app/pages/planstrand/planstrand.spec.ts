@@ -68,6 +68,7 @@ describe('Fast-Track Milestone A commands and selectors', () => {
       ...p.additional,
     }));
     TestBed.configureTestingModule({
+      teardown: { destroyAfterEach: true },
       providers: [
         provideMockStore({ initialState: state }),
         PlanstrandService,
@@ -82,6 +83,23 @@ describe('Fast-Track Milestone A commands and selectors', () => {
     ui = TestBed.inject(PlanstrandService);
     dispatch = spyOn(store, 'dispatch');
     configurePlanningWrites({ getOrGenerateClientId: async () => 'milestone-test' });
+  });
+
+  it('resolves Plan for Today at selection time after a midnight boundary', async () => {
+    const clock = spyOn(Date, 'now').and.returnValue(
+      new Date(2026, 9, 6, 23, 59, 59).getTime(),
+    );
+    const list = TestBed.runInInjectionContext(() => new PlanstrandTaskListComponent());
+    expect(list.today()).toBe('2026-10-06');
+    clock.and.returnValue(new Date(2026, 9, 7, 0, 0, 1).getTime());
+    list.plan(task('task'), 'TODAY');
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(list.today()).toBe('2026-10-07');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch.calls.mostRecent().args[0].record.placement.target).toEqual({
+      type: 'DAY',
+      key: '2026-10-07',
+    });
   });
 
   it('groups stale, missing and explicit Inbox ownership without consulting Project', () => {

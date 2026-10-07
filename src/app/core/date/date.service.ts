@@ -62,28 +62,22 @@ export class DateService {
   }
 
   /**
-   * Returns today's date string with offset applied.
-   * NOTE: When a date argument is provided, the offset is NOT applied to it —
-   * the caller is responsible for adjusting the date if needed.
+   * Current system-local calendar date. Legacy workday offsets must never shift
+   * Planstrand Today or the absolute date captured by a Planning command.
    */
   todayStr(date?: Date | number): string {
-    if (!date) {
-      date = new Date(Date.now() - this.startOfNextDayDiff);
-    }
-    return getDbDateStr(date);
+    return getDbDateStr(date ?? Date.now());
   }
 
   isToday(date: number | Date): boolean {
     const ts = typeof date === 'number' ? date : date.getTime();
-    return getDbDateStr(new Date(ts - this.startOfNextDayDiff)) === this.todayStr();
+    return getDbDateStr(ts) === this.todayStr();
   }
 
   isYesterday(date: number | Date): boolean {
     const ts = typeof date === 'number' ? date : date.getTime();
-    const yesterday = new Date(Date.now() - this.startOfNextDayDiff);
+    const yesterday = new Date(Date.now());
     yesterday.setDate(yesterday.getDate() - 1);
-    return (
-      getDbDateStr(new Date(ts - this.startOfNextDayDiff)) === getDbDateStr(yesterday)
-    );
+    return getDbDateStr(ts) === getDbDateStr(yesterday);
   }
 }

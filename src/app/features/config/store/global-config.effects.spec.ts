@@ -21,7 +21,7 @@ import { AppStateActions } from '../../../root-store/app-state/app-state.actions
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { DEFAULT_GLOBAL_CONFIG } from '../default-global-config.const';
 import { KeyboardConfig } from '@sp/keyboard-config';
-import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
+import { bulkApplyOperations } from '../../../op-log/apply/bulk-hydration.action';
 import { selectAllTasks } from '../../tasks/store/task.selectors';
 import { IS_ELECTRON_TOKEN } from '../../../app.constants';
 import { IS_MAC_TOKEN } from '../../../util/is-mac';
@@ -82,234 +82,72 @@ describe('GlobalConfigEffects', () => {
     }
   });
 
-  describe('setStartOfNextDayDiffOnChange', () => {
+  describe('civil calendar date policy', () => {
     beforeEach(() => setup());
-    it('should call setStartOfNextDayDiff when startOfNextDay is set to a non-zero value', () => {
+    it('ignores a loaded legacy workday boundary without migrating tasks', () => {
       const dispatched: Action[] = [];
-      effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
-
+      effects.setStartOfNextDayDiffOnLoad.subscribe((a) => dispatched.push(a));
       actions$.next(
-        updateGlobalConfigSection({
-          sectionKey: 'misc',
-          sectionCfg: { startOfNextDay: 4 },
+        loadAllData({
+          appDataComplete: {
+            globalConfig: {
+              ...DEFAULT_GLOBAL_CONFIG,
+              misc: {
+                ...DEFAULT_GLOBAL_CONFIG.misc,
+                startOfNextDay: 4,
+                startOfNextDayTime: '04:00',
+              },
+            },
+          } as any,
         }),
       );
-
-      expect(dateServiceSpy.setStartOfNextDayDiff).toHaveBeenCalledWith('04:00', 4);
-    });
-
-    it('should call setStartOfNextDayDiff when startOfNextDay is set to 0', () => {
-      const dispatched: Action[] = [];
-      effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
-
-      actions$.next(
-        updateGlobalConfigSection({
-          sectionKey: 'misc',
-          sectionCfg: { startOfNextDay: 0 },
-        }),
-      );
-
-      expect(dateServiceSpy.setStartOfNextDayDiff).toHaveBeenCalledWith('00:00', 0);
-    });
-
-    it('should not call setStartOfNextDayDiff for other config sections', () => {
-      const dispatched: Action[] = [];
-      effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
-
-      actions$.next(
-        updateGlobalConfigSection({
-          sectionKey: 'keyboard',
-          sectionCfg: { globalShowHide: 'Ctrl+Shift+X' },
-        }),
-      );
-
-      expect(dateServiceSpy.setStartOfNextDayDiff).not.toHaveBeenCalled();
-      expect(dispatched.length).toBe(0);
-    });
-
-    it('should dispatch setTodayString when startOfNextDay changes', () => {
-      const dispatched: Action[] = [];
-      effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
-
-      actions$.next(
-        updateGlobalConfigSection({
-          sectionKey: 'misc',
-          sectionCfg: { startOfNextDay: 4 },
-        }),
-      );
-
-      expect(dispatched).toContain(
+      expect(dateServiceSpy.setStartOfNextDayDiff).toHaveBeenCalledWith(0);
+      expect(dispatched).toEqual([
         AppStateActions.setTodayString({
           todayStr: '2026-02-20',
           startOfNextDayDiffMs: 0,
         }),
-      );
-    });
-
-    it('should dispatch updateTasks when todayStr shifts and tasks have old dueDay', () => {
-      // First call returns old date, second call (after setStartOfNextDayDiff) returns new date
-      dateServiceSpy.todayStr.and.returnValues('2026-02-20', '2026-02-19');
-
-      store.overrideSelector(selectAllTasks, [
-        { id: 'task1', dueDay: '2026-02-20' } as any,
-        { id: 'task2', dueDay: '2026-02-20' } as any,
-        { id: 'task3', dueDay: '2026-02-18' } as any,
       ]);
-      store.refreshState();
-
+    });
+    it('changing an inherited boundary only reconciles non-persistent calendar state', () => {
       const dispatched: Action[] = [];
       effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
-
       actions$.next(
         updateGlobalConfigSection({
           sectionKey: 'misc',
           sectionCfg: { startOfNextDay: 4 },
         }),
       );
-
-      const updateTasksAction = dispatched.find(
-        (a) => a.type === TaskSharedActions.updateTasks.type,
-      );
-      expect(updateTasksAction).toBeTruthy();
-      expect((updateTasksAction as any).tasks).toEqual([
-        { id: 'task1', changes: { dueDay: '2026-02-19' } },
-        { id: 'task2', changes: { dueDay: '2026-02-19' } },
-      ]);
-    });
-
-    it('should not dispatch updateTasks when todayStr does not change', () => {
-      // Both calls return the same date
-      dateServiceSpy.todayStr.and.returnValue('2026-02-20');
-
-      store.overrideSelector(selectAllTasks, [
-        { id: 'task1', dueDay: '2026-02-20' } as any,
-      ]);
-      store.refreshState();
-
-      const dispatched: Action[] = [];
-      effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
-
-      actions$.next(
-        updateGlobalConfigSection({
-          sectionKey: 'misc',
-          sectionCfg: { startOfNextDay: 0 },
-        }),
-      );
-
-      const updateTasksAction = dispatched.find(
-        (a) => a.type === TaskSharedActions.updateTasks.type,
-      );
-      expect(updateTasksAction).toBeUndefined();
-    });
-
-    it('should dispatch setTodayString with todayStr and startOfNextDayDiffMs', () => {
-      dateServiceSpy.getStartOfNextDayDiffMs.and.returnValue(14400000);
-      const dispatched: Action[] = [];
-      effects.setStartOfNextDayDiffOnChange.subscribe((action) => {
-        dispatched.push(action);
-      });
-
-      actions$.next(
-        updateGlobalConfigSection({
-          sectionKey: 'misc',
-          sectionCfg: { startOfNextDay: 4 },
-        }),
-      );
-
-      expect(dispatched).toContain(
+      expect(dispatched).toEqual([
         AppStateActions.setTodayString({
           todayStr: '2026-02-20',
-          startOfNextDayDiffMs: 14400000,
+          startOfNextDayDiffMs: 0,
         }),
-      );
+      ]);
+      expect(dateServiceSpy.setStartOfNextDayDiff).toHaveBeenCalledWith(0);
     });
-
-    it('should normalize invalid startOfNextDayTime before updating DateService', () => {
+    it('bulk replay reconciles the date without generating a Task or Planning write', () => {
       const dispatched: Action[] = [];
-      effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
-
+      effects.setStartOfNextDayDiffOnBulkApply.subscribe((a) => dispatched.push(a));
       actions$.next(
-        updateGlobalConfigSection({
-          sectionKey: 'misc',
-          sectionCfg: {
-            startOfNextDay: 4,
-            startOfNextDayTime: '24:00',
-          },
-        }),
+        bulkApplyOperations({
+          operations: [{ entityType: 'GLOBAL_CONFIG', entityId: 'misc' }],
+        } as any),
       );
-
-      expect(dateServiceSpy.setStartOfNextDayDiff).toHaveBeenCalledWith('00:00', 0);
-    });
-  });
-
-  describe('setStartOfNextDayDiffOnLoad', () => {
-    beforeEach(() => setup());
-    it('should call setStartOfNextDayDiff when loadAllData is dispatched', () => {
-      actions$.next(
-        loadAllData({
-          appDataComplete: {
-            globalConfig: {
-              ...DEFAULT_GLOBAL_CONFIG,
-              misc: {
-                ...DEFAULT_GLOBAL_CONFIG.misc,
-                startOfNextDay: 4,
-                startOfNextDayTime: undefined,
-              },
-            },
-          } as any,
-        }),
-      );
-
-      expect(dateServiceSpy.setStartOfNextDayDiff).toHaveBeenCalledWith('04:00', 4);
-    });
-
-    it('should dispatch setTodayString when loadAllData is dispatched', () => {
-      dateServiceSpy.getStartOfNextDayDiffMs.and.returnValue(14400000);
-      let emittedAction: Action | undefined;
-      effects.setStartOfNextDayDiffOnLoad.subscribe((action) => {
-        emittedAction = action;
-      });
-
-      actions$.next(
-        loadAllData({
-          appDataComplete: {
-            globalConfig: {
-              ...DEFAULT_GLOBAL_CONFIG,
-              misc: {
-                ...DEFAULT_GLOBAL_CONFIG.misc,
-                startOfNextDay: 4,
-                startOfNextDayTime: undefined,
-              },
-            },
-          } as any,
-        }),
-      );
-
-      expect(emittedAction).toEqual(
+      expect(dispatched).toEqual([
         AppStateActions.setTodayString({
           todayStr: '2026-02-20',
-          startOfNextDayDiffMs: 14400000,
+          startOfNextDayDiffMs: 0,
         }),
-      );
+      ]);
     });
-
-    it('should normalize invalid loaded startOfNextDayTime before updating DateService', () => {
+    it('does not react to unrelated settings', () => {
+      const dispatched: Action[] = [];
+      effects.setStartOfNextDayDiffOnChange.subscribe((a) => dispatched.push(a));
       actions$.next(
-        loadAllData({
-          appDataComplete: {
-            globalConfig: {
-              ...DEFAULT_GLOBAL_CONFIG,
-              misc: {
-                ...DEFAULT_GLOBAL_CONFIG.misc,
-                startOfNextDay: 4,
-                startOfNextDayTime: '24:00',
-              },
-            },
-          } as any,
-        }),
+        updateGlobalConfigSection({ sectionKey: 'keyboard', sectionCfg: {} }),
       );
-
-      expect(dateServiceSpy.setStartOfNextDayDiff).toHaveBeenCalledWith('00:00', 0);
+      expect(dispatched).toEqual([]);
     });
   });
 

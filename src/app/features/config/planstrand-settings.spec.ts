@@ -35,6 +35,7 @@ describe('Planstrand product policy', () => {
       (section) => section.items?.map((item) => item.key) ?? [],
     );
     for (const key of [
+      'startOfNextDayTime',
       'isTimeTrackingEnabled',
       'isEnableIdleTimeTracking',
       'isTakeABreakEnabled',

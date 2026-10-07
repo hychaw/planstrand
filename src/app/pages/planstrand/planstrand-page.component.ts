@@ -31,8 +31,7 @@ import {
 import { planningCommands } from '../../features/planning/planning-commands';
 import { PlanningPlacement } from '../../features/planning/planning.model';
 import { TaskWithSubTasks } from '../../features/tasks/task.model';
-import { DateService } from '../../core/date/date.service';
-import { selectTodayStr } from '../../root-store/app-state/app-state.selectors';
+import { CurrentDateService } from '../../core/date/current-date.service';
 import { selectLocalizationConfig } from '../../features/config/store/global-config.reducer';
 import { getWeekRange } from '../../util/get-week-range';
 import { getDbDateStr } from '../../util/get-db-date-str';
@@ -64,9 +63,8 @@ export class PlanstrandPageComponent {
   private readonly params = toSignal(this.route.paramMap);
   readonly mode = computed(() => this.data()?.['planstrand'] as string);
   readonly inboxId = INBOX_FOLDER_ID;
-  private readonly dateService = inject(DateService);
-  private readonly logicalToday = this.store.selectSignal(selectTodayStr);
-  readonly today = computed(() => this.logicalToday() || this.dateService.todayStr());
+  private readonly dates = inject(CurrentDateService);
+  readonly today = this.dates.today;
   private readonly localization = this.store.selectSignal(selectLocalizationConfig);
   private readonly groups = this.store.selectSignal(selectMasterTaskGroups);
   private readonly placements = this.store.selectSignal(selectAllPlacements);
@@ -121,6 +119,26 @@ export class PlanstrandPageComponent {
     return this.allTasks().filter((t) => !planned.has(t.id) && !t.isDone);
   });
 
+  addTask(target: PlanningPlacement['target']): void {
+    void this.ui.createTask(
+      this.inboxId,
+      undefined,
+      this.mode() === 'today'
+        ? () => ({ type: 'DAY', key: this.dates.resolveToday() })
+        : target.type === 'WEEK'
+          ? () => ({
+              type: 'WEEK',
+              key: getDbDateStr(
+                getWeekRange(
+                  new Date(this.dates.resolveToday() + 'T12:00:00'),
+                  this.localization().firstDayOfWeek ?? 1,
+                ).start,
+              ),
+            })
+          : target,
+    );
+  }
+
   moveTask(event: { task: TaskWithSubTasks; index: number }, folderId: string): void {
     this.ui.moveTask(event.task, folderId);
   }
@@ -136,7 +154,11 @@ export class PlanstrandPageComponent {
       const anchor = others.filter((task) => !task.isDone)[index];
       index = anchor ? others.findIndex((task) => task.id === anchor.id) : others.length;
     }
-    planningCommands(this.store).placeAt(event.task.id, target, index);
+    planningCommands(this.store).placeAt(
+      event.task.id,
+      this.mode() === 'today' ? { type: 'DAY', key: this.dates.resolveToday() } : target,
+      index,
+    );
   }
   unplan(id: string): void {
     planningCommands(this.store).unplan(id);

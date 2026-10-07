@@ -18,7 +18,6 @@ export const PLANSTRAND_GENERAL_SETTINGS: ConfigFormConfig = [
     'isConfirmBeforeExit',
     'isMinimizeToTray',
     'isCheckForUpdates',
-    'startOfNextDayTime',
     'isDisableAnimations',
     'isDisableCelebration',
     'isUseCustomWindowTitleBar',

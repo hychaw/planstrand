@@ -21,11 +21,10 @@ import {
   shareReplay,
   startWith,
   switchMap,
-  tap,
 } from 'rxjs/operators';
 import { Tick } from './tick.model';
 import { DateService } from 'src/app/core/date/date.service';
-import { Log } from '../log';
+import { CurrentDateService } from '../date/current-date.service';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports -- grandfathered layer-boundary debt
 import { androidInterface } from '../../features/android/android-interface';
@@ -79,7 +78,7 @@ export class GlobalTrackingIntervalService {
     this._wakeUpTick$,
   ).pipe(share());
 
-  todayDateStr$: Observable<string> = this._createTodayDateStrObservable();
+  todayDateStr$: Observable<string> = inject(CurrentDateService).today$;
 
   /**
    * Coarse tick aligned to the wall-clock minute, for consumers whose result
@@ -162,32 +161,5 @@ export class GlobalTrackingIntervalService {
         this._createAppActiveObservable(),
       ).pipe(startWith(0)),
     ).pipe(shareReplay({ bufferSize: 1, refCount: true }));
-  }
-
-  private _createTodayDateStrObservable(): Observable<string> {
-    const timerBased$ = this.globalInterval$.pipe(
-      map(() => this._dateService.todayStr()),
-    );
-
-    const appActiveBased$ = this._createAppActiveObservable().pipe(
-      map(() => this._dateService.todayStr()),
-    );
-
-    const startOfNextDayDiffChange$ = (
-      this._dateService as {
-        startOfNextDayDiffChange$?: Observable<unknown>;
-      }
-    ).startOfNextDayDiffChange$;
-    const startOfNextDayChangeBased$ = (startOfNextDayDiffChange$ ?? EMPTY).pipe(
-      map(() => this._dateService.todayStr()),
-    );
-
-    return merge(timerBased$, appActiveBased$, startOfNextDayChangeBased$).pipe(
-      startWith(this._dateService.todayStr()),
-      distinctUntilChanged(),
-      tap((v) => Log.log('DAY_CHANGE ' + v)),
-      // needs to be shareReplay otherwise some instances will never receive an update until a change occurs
-      shareReplay(1),
-    );
   }
 }
