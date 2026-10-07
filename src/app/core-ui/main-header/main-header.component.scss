@@ -574,7 +574,7 @@ button {
   color: var(--ink-muted);
   background: var(--planstrand-panel);
   border: 1px solid var(--planstrand-panel-border);
-  border-radius: 12px;
+  border-radius: 50%;
   -webkit-app-region: no-drag;
 }
 .action-nav-scroll[popover] {
@@ -612,9 +612,4 @@ button {
 .action-nav-right::before,
 .action-nav-right::after {
   display: none;
-}
-.action-nav-scroll[popover] ::ng-deep play-button .mat-mdc-fab {
-  width: 40px;
-  height: 40px;
-  box-shadow: none;
 }

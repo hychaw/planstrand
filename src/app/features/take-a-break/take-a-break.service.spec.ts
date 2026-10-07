@@ -1,3 +1,4 @@
+import { LEGACY_TRACKING_ENABLED } from '../config/legacy-tracking-enabled.token';
 import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import { Action } from '@ngrx/store';
@@ -49,6 +50,7 @@ describe('TakeABreakService', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        { provide: LEGACY_TRACKING_ENABLED, useValue: true },
         TakeABreakService,
         { provide: TaskService, useValue: taskService },
         { provide: SnackService, useValue: snackService },

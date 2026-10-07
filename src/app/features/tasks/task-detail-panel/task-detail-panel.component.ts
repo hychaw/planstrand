@@ -380,7 +380,8 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
     return task && !task.parentId;
   });
 
-  showTimeEstimate = computed(() => !this.task().subTasks?.length);
+  readonly isLegacyControlsEnabled = false;
+  showTimeEstimate = computed(() => false);
 
   hasTimeData = computed(() => !!(this.task().timeSpent || this.task().timeEstimate));
 

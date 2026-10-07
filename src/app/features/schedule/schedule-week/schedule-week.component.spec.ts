@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { registerLocaleData } from '@angular/common';
 import localeSv from '@angular/common/locales/sv';
 import { TranslateModule } from '@ngx-translate/core';
@@ -70,6 +70,45 @@ describe('ScheduleWeekComponent', () => {
     expect(component.newTaskPlaceholder()).toEqual(preview);
     component.isCreateTaskActive.set(false);
     component.onGridLeave();
+  });
+
+  it('does not resurrect a queued hover after the pointer leaves', fakeAsync(() => {
+    fixture.componentRef.setInput('daysToShow', ['2026-10-05']);
+    fixture.detectChanges();
+    const grid = fixture.nativeElement.querySelector('.grid-container') as HTMLElement;
+    const col = grid.querySelector('.col') as HTMLElement;
+    const move = (): void => {
+      const event = new MouseEvent('mousemove', { bubbles: true });
+      Object.defineProperty(event, 'offsetY', { value: 100 });
+      col.dispatchEvent(event);
+    };
+    move();
+    expect(fixture.componentInstance.newTaskPlaceholder()).not.toBeNull();
+    move();
+    grid.dispatchEvent(new MouseEvent('mouseleave'));
+    tick(40);
+    expect(fixture.componentInstance.newTaskPlaceholder()).toBeNull();
+  }));
+
+  it('clears hover state on scroll, changed days, task drag and teardown', () => {
+    fixture.componentRef.setInput('daysToShow', ['2026-10-05']);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const preview = { style: '', time: '09:00', date: '2026-10-05' };
+    component.newTaskPlaceholder.set(preview);
+    document.dispatchEvent(new Event('scroll'));
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    fixture.componentRef.setInput('daysToShow', ['2026-10-06']);
+    fixture.detectChanges();
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    fixture.componentRef.setInput('isTaskDragActive', true);
+    fixture.detectChanges();
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    fixture.destroy();
+    expect(component.newTaskPlaceholder()).toBeNull();
   });
 
   it('uses the UI language for weekday headers with ISO formatting enabled', () => {

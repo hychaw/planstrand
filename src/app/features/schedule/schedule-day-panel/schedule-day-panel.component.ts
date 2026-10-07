@@ -157,6 +157,8 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this._stopScheduleMode();
+    this._toggleGlobalPointerListeners(false);
     if (this._pointerUpSubscription) {
       this._pointerUpSubscription.unsubscribe();
       this._pointerUpSubscription = null;

@@ -12,6 +12,14 @@ import {
 import { TagTaskPageComponent } from './pages/tag-task-page/tag-task-page.component';
 
 export const APP_ROUTES: Routes = [
+  ...['help', 'about'].map((path) => ({
+    path,
+    loadComponent: () =>
+      import('./pages/planstrand/product-info.component').then(
+        (m) => m.ProductInfoComponent,
+      ),
+    data: { productInfo: path },
+  })),
   ...[
     ['inbox', 'inbox'],
     ['master-tasks', 'master'],

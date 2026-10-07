@@ -154,7 +154,7 @@ test.describe('Planstrand Milestone A', () => {
     );
   });
 
-  test('captures through the shared add-task bar into the Folder being browsed', async ({
+  test('captures through the shared task prompt into the Folder being browsed', async ({
     page,
   }) => {
     await page.goto('/#/master-tasks');
@@ -164,10 +164,7 @@ test.describe('Planstrand Milestone A', () => {
       .getByRole('link', { name: 'Capture destination', exact: true })
       .click();
     await page.keyboard.press('Shift+A');
-    const bar = page.locator('add-task-bar');
-    await expect(bar).toBeVisible();
-    await bar.locator('textarea').first().fill('Shared bar Folder capture');
-    await bar.locator('textarea').first().press('Enter');
+    await savePrompt(page, 'Shared bar Folder capture');
     await expect(page.locator('planstrand-page section')).toContainText(
       'Shared bar Folder capture',
     );

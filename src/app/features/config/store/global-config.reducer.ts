@@ -84,9 +84,15 @@ export const selectMiscConfig = createConfigSectionSelector('misc');
 export const selectShortSyntaxConfig = createConfigSectionSelector('shortSyntax');
 export const selectSoundConfig = createConfigSectionSelector('sound');
 export const selectEvaluationConfig = createConfigSectionSelector('evaluation');
-export const selectIdleConfig = createConfigSectionSelector('idle');
+export const selectIdleConfig = createSelector(
+  createConfigSectionSelector('idle'),
+  (cfg) => ({ ...cfg, isEnableIdleTimeTracking: false }),
+);
 export const selectSyncConfig = createConfigSectionSelector('sync');
-export const selectTakeABreakConfig = createConfigSectionSelector('takeABreak');
+export const selectTakeABreakConfig = createSelector(
+  createConfigSectionSelector('takeABreak'),
+  (cfg) => ({ ...cfg, isTakeABreakEnabled: false }),
+);
 // NOTE: the schedule slice is historically surfaced under the "Timeline" name.
 export const selectTimelineConfig = createConfigSectionSelector('schedule');
 
@@ -104,12 +110,24 @@ export const selectClipboardImagesConfig = createSelector(
 export const selectPomodoroConfig = createConfigSectionSelector('pomodoro');
 export const selectFlowtimeConfig = createConfigSectionSelector('flowtime');
 export const selectReminderConfig = createConfigSectionSelector('reminder');
-export const selectAppFeaturesConfig = createConfigSectionSelector('appFeatures');
+export const selectAppFeaturesConfig = createSelector(
+  createConfigSectionSelector('appFeatures'),
+  (cfg) => ({
+    ...cfg,
+    isTimeTrackingEnabled: false,
+    isFocusModeEnabled: false,
+    isPlannerEnabled: false,
+    isBoardsEnabled: false,
+    isHabitsEnabled: false,
+    isDonatePageEnabled: false,
+    isIssuesPanelEnabled: false,
+    isProjectNotesEnabled: false,
+    isFinishDayEnabled: false,
+  }),
+);
 export const selectIsFocusModeEnabled = createSelector(
   selectConfigFeatureState,
-  (cfg): boolean =>
-    cfg?.appFeatures?.isFocusModeEnabled ??
-    DEFAULT_GLOBAL_CONFIG.appFeatures.isFocusModeEnabled,
+  (_cfg): boolean => false,
 );
 
 export const initialGlobalConfigState: GlobalConfigState = {

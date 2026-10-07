@@ -128,7 +128,7 @@ export class DefaultStartPageGuard {
     return this._dataInitStateService.isAllDataLoadedInitially$.pipe(
       concatMap(() => this._globalConfigService.misc$),
       take(1),
-      concatMap((miscCfg) => this._resolve(miscCfg?.defaultStartPage)),
+      map(() => this._router.parseUrl('/today')),
     );
   }
 

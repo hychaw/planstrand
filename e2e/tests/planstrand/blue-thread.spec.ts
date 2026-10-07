@@ -126,6 +126,7 @@ test.describe('Blue Thread V1.1', () => {
     page,
   }) => {
     await page.goto('/#/config');
+    await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
     const appearance = page.locator('theme-selector');
     await appearance.getByRole('radio', { name: 'Compact', exact: true }).click();
     await expect(page.locator('body')).toHaveAttribute('data-density', 'compact');
@@ -142,6 +143,7 @@ test.describe('Blue Thread V1.1', () => {
       animations: 'disabled',
     });
     await page.goto('/#/config');
+    await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
     await appearance.getByRole('radio', { name: 'Comfortable', exact: true }).click();
     await appearance.getByRole('radio', { name: 'Light', exact: true }).click();
     for (const width of [1440, 1024, 768, 390]) {

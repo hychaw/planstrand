@@ -16,8 +16,9 @@
 }
 
 .empty-state {
-  position: sticky;
+  position: absolute;
   top: 50%;
+  inset-inline: 0;
   margin-left: var(--s5);
   margin-right: var(--s);
   transform: translate(0, -50%);

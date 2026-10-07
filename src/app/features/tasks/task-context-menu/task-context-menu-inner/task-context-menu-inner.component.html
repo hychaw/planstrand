@@ -251,6 +251,7 @@
     !task.parentId &&
     !isBacklog &&
     task.projectId &&
+    isLegacyControlsEnabled &&
     (isShowMoveFromAndToBacklogBtns$ | async)
   ) {
     <button
@@ -269,6 +270,7 @@
     !task.parentId &&
     isBacklog &&
     task.projectId &&
+    isLegacyControlsEnabled &&
     (isShowMoveFromAndToBacklogBtns$ | async)
   ) {
     <button
@@ -313,22 +315,28 @@
     </span>
   </button>
 
-  <button
-    #tagMenuTrigger="matMenuTrigger"
-    [matMenuTriggerFor]="tagMenu"
-    mat-menu-item
-    [menuTouchFix]="tagMenuTrigger"
-    (menuOpened)="focusFirstSubmenuItem(tagMenu)"
-    class="e2e-edit-tags-btn"
-  >
-    <span class="menuItemLeft">
-      <mat-icon>label</mat-icon>
-      {{ T.F.TASK.CMP.TOGGLE_TAGS | translate }}
-    </span>
-    <span class="key-i">{{ kb.taskEditTags }}</span>
-  </button>
+  @if (isLegacyControlsEnabled) {
+    <button
+      #tagMenuTrigger="matMenuTrigger"
+      [matMenuTriggerFor]="tagMenu"
+      mat-menu-item
+      [menuTouchFix]="tagMenuTrigger"
+      (menuOpened)="focusFirstSubmenuItem(tagMenu)"
+      class="e2e-edit-tags-btn"
+    >
+      <span class="menuItemLeft">
+        <mat-icon>label</mat-icon>
+        {{ T.F.TASK.CMP.TOGGLE_TAGS | translate }}
+      </span>
+      <span class="key-i">{{ kb.taskEditTags }}</span>
+    </button>
+  }
 
-  @if (!task.parentId && ((moveToProjectList$ | async)?.length || 0) > 0) {
+  @if (
+    isLegacyControlsEnabled &&
+    !task.parentId &&
+    ((moveToProjectList$ | async)?.length || 0) > 0
+  ) {
     <button
       #projectMenuTrigger="matMenuTrigger"
       [matMenuTriggerFor]="projectMenu"
@@ -358,7 +366,7 @@
     </button>
   }
 
-  @if (pluginTaskContextMenuEntries().length) {
+  @if (isLegacyControlsEnabled && pluginTaskContextMenuEntries().length) {
     <button
       #pluginTaskActionsMenuTrigger="matMenuTrigger"
       [matMenuTriggerFor]="pluginTaskActionsMenu"

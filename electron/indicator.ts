@@ -526,14 +526,15 @@ function createIndicatorMessage(
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 function createContextMenu(msg?: string): Menu {
   const template: any[] = [];
+  const isLegacyTrackingEnabled = false;
 
   // Either show the time string (if task is running) or "Super Productivity"
-  if (msg) {
+  if (isLegacyTrackingEnabled && msg) {
     template.push({ label: msg, enabled: false });
     template.push({ type: 'separator' });
   }
 
-  if (_todayTasks && _todayTasks.length > 0) {
+  if (isLegacyTrackingEnabled && _todayTasks && _todayTasks.length > 0) {
     _todayTasks.forEach((t) => {
       template.push({
         label: t.title.length > 40 ? t.title.substring(0, 37) + '...' : t.title,

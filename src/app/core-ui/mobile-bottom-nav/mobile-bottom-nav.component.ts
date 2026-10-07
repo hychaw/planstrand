@@ -1,3 +1,5 @@
+import { PlanstrandService } from '../../pages/planstrand/planstrand.service';
+import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -144,8 +146,9 @@ export class MobileBottomNavComponent {
   );
 
   // Navigation methods
+  private readonly _planstrand = inject(PlanstrandService);
   showAddTaskBar(): void {
-    this._layoutService.showAddTaskBar();
+    this._planstrand.createTask(INBOX_FOLDER_ID);
   }
 
   toggleMobileNav(): void {

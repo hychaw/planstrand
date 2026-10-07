@@ -258,6 +258,18 @@
               <span class="section-count">{{
                 mode() === 'today' ? focusTasks().length : section.tasks.length
               }}</span>
+              <button
+                mat-button
+                (click)="ui.createTask(inboxId, undefined, section.target)"
+                [attr.aria-label]="
+                  'Add Task: ' +
+                  (section.target.type === 'WEEK'
+                    ? 'Anytime This Week'
+                    : (section.target.key | date: 'EEEE'))
+                "
+              >
+                + Add
+              </button>
             </div>
             <planstrand-task-list
               [tasks]="mode() === 'today' ? focusTasks() : section.tasks"

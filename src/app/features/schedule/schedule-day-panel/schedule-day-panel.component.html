@@ -5,7 +5,7 @@
   (mousemove)="onDragMove($event)"
   (touchmove)="onDragMove($event)"
 >
-  @if (hasNoEvents()) {
+  @if (isDragging()) {
     <div class="empty-state">
       <div class="empty-state-text">
         {{ T.F.SCHEDULE.DROP_TASKS_HERE_TO_SCHEDULE | translate }}

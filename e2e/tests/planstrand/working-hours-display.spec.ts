@@ -41,13 +41,15 @@ test('restored legacy working hours require explicit Planstrand display opt-in',
     await expect(markers).toHaveCount(0);
   }
   await page.goto('/#/config');
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   const optIn = page.getByRole('checkbox', {
-    name: 'Show working-hour markers on this device',
+    name: 'Show Work Start / End on this device',
     exact: true,
   });
   await expect(optIn).not.toBeChecked();
   await optIn.check();
   await page.reload();
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(optIn).toBeChecked();
   for (const view of ['Day', 'Week']) {
     await page.goto('/#/schedule');
@@ -57,6 +59,7 @@ test('restored legacy working hours require explicit Planstrand display opt-in',
     await expect(markers).toHaveCount(2);
   }
   await page.goto('/#/config');
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await optIn.uncheck();
   await page.goto('/#/schedule');
   await expect(markers).toHaveCount(0);

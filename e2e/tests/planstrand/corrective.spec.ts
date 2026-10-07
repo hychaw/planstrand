@@ -75,7 +75,7 @@ test('utility controls remain accessible and collapsed icons stay inside their r
           const railHalfWidth = rail!.width / 2;
           const railCenter = rail!.x + railHalfWidth;
           return (
-            icons.length >= 7 &&
+            icons.length === 4 &&
             icons.every((box) => {
               const halfWidth = box.width / 2;
               const center = box.x + halfWidth;

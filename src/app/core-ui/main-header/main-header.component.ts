@@ -1,3 +1,7 @@
+import { RouterLink } from '@angular/router';
+import { MatMenuModule } from '@angular/material/menu';
+import { PlanstrandService } from '../../pages/planstrand/planstrand.service';
+import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -29,25 +33,14 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { SimpleCounterButtonComponent } from '../../features/simple-counter/simple-counter-button/simple-counter-button.component';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { LongPressDirective } from '../../ui/longpress/longpress.directive';
 import { isOnline$ } from '../../util/is-online';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 import { SyncStatus } from '../../op-log/sync-exports';
-import { PluginHeaderBtnsComponent } from '../../plugins/ui/plugin-header-btns.component';
-import { PluginWorkContextHeaderBtnsComponent } from '../../plugins/ui/plugin-work-context-header-btns.component';
-import { PluginSidePanelBtnsComponent } from '../../plugins/ui/plugin-side-panel-btns.component';
-import { CdkScrollable } from '@angular/cdk/scrolling';
 import { PageTitleComponent } from './page-title/page-title.component';
-import { PlayButtonComponent } from './play-button/play-button.component';
-import { TrackedTaskPillComponent } from './tracked-task-pill/tracked-task-pill.component';
-import { RemoteTrackingPillComponent } from '../../features/tracking-presence/remote-tracking-pill/remote-tracking-pill.component';
 import { TrackingPresenceService } from '../../features/tracking-presence/tracking-presence.service';
-import { DesktopPanelButtonsComponent } from './desktop-panel-buttons/desktop-panel-buttons.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FocusButtonComponent } from './focus-button/focus-button.component';
-import { EmlDropDirective } from '../../core/drop-paste-input/eml-drop.directive';
 
 /** One `DOM_DELTA_LINE` notch, in CSS pixels. Matches the row's icon metrics. */
 const WHEEL_LINE_HEIGHT_PX = 16;
@@ -66,26 +59,19 @@ const ACTION_ROW_REVEAL_PIN_MS = 400;
   styleUrls: ['./main-header.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    RouterLink,
+    MatMenuModule,
     MatIconButton,
     MatIcon,
     MatTooltip,
     TranslatePipe,
-    SimpleCounterButtonComponent,
     LongPressDirective,
-    EmlDropDirective,
-    PluginHeaderBtnsComponent,
-    PluginWorkContextHeaderBtnsComponent,
-    PluginSidePanelBtnsComponent,
-    CdkScrollable,
     PageTitleComponent,
-    PlayButtonComponent,
-    TrackedTaskPillComponent,
-    RemoteTrackingPillComponent,
-    DesktopPanelButtonsComponent,
-    FocusButtonComponent,
   ],
 })
 export class MainHeaderComponent implements OnDestroy {
+  readonly planstrand = inject(PlanstrandService);
+  readonly inboxId = INBOX_FOLDER_ID;
   closeUtilities(event: Event): void {
     this._actionScroll().nativeElement.hidePopover();
     event.preventDefault();
@@ -298,9 +284,7 @@ export class MainHeaderComponent implements OnDestroy {
   private _subs: Subscription = new Subscription();
 
   // Vertical action bar is desktop-only and opt-in via misc config.
-  private readonly _isVerticalActionBar = computed(
-    () => !this.isXs() && !!this.globalConfigService.misc()?.isVerticalActionBar,
-  );
+  private readonly _isVerticalActionBar = computed(() => false);
 
   private readonly _actionScroll =
     viewChild.required<ElementRef<HTMLElement>>('actionScroll');

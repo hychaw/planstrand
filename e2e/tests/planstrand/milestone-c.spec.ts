@@ -136,13 +136,7 @@ test.describe('Planstrand V1 shipping smoke', () => {
       await expect(
         nav.getByRole('menuitem', { name: 'Planner', exact: true }),
       ).toBeHidden();
-      const more = nav.locator('summary');
-      await more.focus();
-      await page.keyboard.press('Enter');
-      await expect(
-        nav.getByRole('menuitem', { name: 'Planner', exact: true }),
-      ).toBeVisible();
-      await more.click();
+      await expect(nav.locator('summary')).toHaveCount(0);
       if (width === 390)
         await nav.getByRole('button', { name: 'Close', exact: true }).click();
       await page.getByRole('button', { name: 'New Event', exact: true }).first().click();

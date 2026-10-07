@@ -47,8 +47,6 @@ import { UpdateCheckService } from '../update-check/update-check.service';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports -- grandfathered layer-boundary debt
 import { JiraElectronBridgeService } from '../../features/issue/providers/jira/jira-electron-bridge.service';
 
-const w = window as Window & { productivityTips?: string[][]; randomIndex?: number };
-
 /** Delay before running deferred initialization tasks (plugins, storage checks, etc.) */
 const DEFERRED_INIT_DELAY_MS = 1000;
 
@@ -148,7 +146,7 @@ export class StartupService {
 
     // deferred init
     window.setTimeout(async () => {
-      this._trackingReminderService.init();
+      // Inherited tracking reminders are inactive in Planstrand.
       this._updateCheckService.init();
       this._checkAvailableStorage();
       this._initOfflineBanner();
@@ -158,8 +156,7 @@ export class StartupService {
       // One-time migration for users syncing from a device that still
       // wrote the theme into `globalConfig.misc.customTheme`. Brief flash
       // of default → preferred is acceptable and only happens once.
-      // Wrapped because a failure here must not skip the productivity-tip
-      // snack and `_initPlugins` further down in this deferred-init body.
+      // A theme migration failure must not prevent data recovery below.
       if (miscCfg?.customTheme) {
         try {
           await this._customThemeService.migrateLegacyCustomTheme(miscCfg.customTheme);
@@ -171,26 +168,9 @@ export class StartupService {
         }
       }
 
-      if (miscCfg?.isShowProductivityTipLonger && !this._isTourLikelyToBeShown()) {
-        if (w.productivityTips && w.randomIndex !== undefined) {
-          this._snackService.open({
-            ico: 'lightbulb',
-            config: {
-              duration: 16000,
-            },
-            msg:
-              '<strong>' +
-              w.productivityTips[w.randomIndex][0] +
-              ':</strong> ' +
-              w.productivityTips[w.randomIndex][1],
-          });
-        }
-      }
-
-      this._ratePromptService.init();
-      await this._initPlugins();
-      // Last in the deferred body: the snack it may open is persistent and the
-      // single snack slot must not be reclaimed by the productivity tip above.
+      // Store rating prompts belong to the upstream distribution.
+      // Plugin infrastructure is retained for compatibility, without activation.
+      // Last in the deferred body so its persistent recovery snack remains visible.
       await this._offerInterruptedRebuildRecoveryIfNeeded();
     }, DEFERRED_INIT_DELAY_MS);
 

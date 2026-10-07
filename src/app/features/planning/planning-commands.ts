@@ -91,7 +91,7 @@ class PlanningCommands {
       )
       .sort(comparePlacements);
   }
-  private placementAction(
+  placementAction(
     id: string,
     target: PlanningPlacement['target'],
     index: number,

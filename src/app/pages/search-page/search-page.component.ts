@@ -16,7 +16,6 @@ import { DEFAULT_TAG, TODAY_TAG } from '../../features/tag/tag.const';
 import { NoteService } from '../../features/note/note.service';
 import { Note } from '../../features/note/note.model';
 import { Router } from '@angular/router';
-import { LayoutService } from '../../core-ui/layout/layout.service';
 import { Project } from '../../features/project/project.model';
 import { Tag } from '../../features/tag/tag.model';
 import { ProjectService } from '../../features/project/project.service';
@@ -24,7 +23,6 @@ import { TagService } from '../../features/tag/tag.service';
 import { Task } from '../../features/tasks/task.model';
 import { resolveDisplayTagIds } from '../../features/tasks/util/resolve-display-tag-ids.util';
 import { SearchItem } from './search-page.model';
-import { NavigateToTaskService } from '../../core-ui/navigate-to-task/navigate-to-task.service';
 import { AsyncPipe } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
 import { MatIconButton } from '@angular/material/button';
@@ -72,12 +70,11 @@ export class SearchPageComponent implements OnInit {
   private _taskService = inject(TaskService);
   private _projectService = inject(ProjectService);
   private _tagService = inject(TagService);
-  private _navigateToTaskService = inject(NavigateToTaskService);
   private _matDialog = inject(MatDialog);
   private _noteService = inject(NoteService);
   private _router = inject(Router);
-  private _layoutService = inject(LayoutService);
   private _menuTreeService = inject(MenuTreeService);
+  private readonly _folders = this._store.selectSignal(selectFolderFeatureState);
 
   readonly inputEl = viewChild.required<ElementRef>('inputEl');
 
@@ -157,12 +154,14 @@ export class SearchPageComponent implements OnInit {
           ),
           ...this._mapNotesToSearchItems(notes, projects, projectFolderMap),
           ...this._cachedArchiveItems,
-        ].map((item) => {
-          const task = !item.isNote && taskMap.get(item.id);
-          return task
-            ? { ...item, folderPath: paths.get(resolveTaskFolderId(task, folders)) }
-            : item;
-        });
+        ]
+          .filter((item) => !item.isNote)
+          .map((item) => {
+            const task = !item.isNote && taskMap.get(item.id);
+            return task
+              ? { ...item, folderPath: paths.get(resolveTaskFolderId(task, folders)) }
+              : item;
+          });
       },
     ),
   );
@@ -334,21 +333,26 @@ export class SearchPageComponent implements OnInit {
     return result.slice(0, MAX_RESULTS);
   }
 
-  navigateToItem(item: SearchItem): void {
-    if (!item) return;
-    if (item.isNote) {
-      const path = item.projectId
-        ? `/project/${item.projectId}/tasks`
-        : `/tag/TODAY/tasks`;
-      this._router.navigate([path], { queryParams: { focusItem: item.id } }).then(() => {
-        if (!this._layoutService.isShowNotes()) {
-          this._layoutService.toggleNotes();
-        }
-      });
-    } else {
-      this._navigateToTaskService
-        .navigate(item.id, item.isArchiveTask, { isFromSearch: true })
-        .then(() => {});
+  async navigateToItem(item: SearchItem): Promise<void> {
+    if (!item || item.isNote) return;
+    if (item.isArchiveTask) {
+      await this.viewArchivedTaskDetails(item);
+      return;
+    }
+    try {
+      const task = await this._taskService.getByIdFromEverywhere(item.id);
+      if (!task) return;
+      const parent = task.parentId
+        ? await this._taskService.getByIdFromEverywhere(task.parentId)
+        : task;
+      const context = parent ?? task;
+      await this._router.navigate(
+        ['/folder', resolveTaskFolderId(context, this._folders())],
+        { queryParams: { focusItem: context.id, isFromSearch: true } },
+      );
+      this._taskService.setSelectedId(task.id);
+    } catch (error) {
+      Log.warn('Could not open search result', error);
     }
   }
 
@@ -357,8 +361,8 @@ export class SearchPageComponent implements OnInit {
     this.inputEl().nativeElement.focus();
   }
 
-  async viewArchivedTaskDetails(item: SearchItem, event: MouseEvent): Promise<void> {
-    event.stopPropagation();
+  async viewArchivedTaskDetails(item: SearchItem, event?: MouseEvent): Promise<void> {
+    event?.stopPropagation();
     let task: Task;
     try {
       task = await this._taskService.getByIdFromEverywhere(item.id, true);

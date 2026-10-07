@@ -97,6 +97,23 @@ describe('Fast-Track Milestone A commands and selectors', () => {
     expect(groups.get(INBOX_FOLDER_ID)).toEqual([explicit, missing, legacy]);
     expect(groups.get('a')?.map((t) => t.id)).toEqual(['a']);
   });
+
+  it('creates a task and exact day/week placement in one persistent action', async () => {
+    for (const target of [
+      { type: 'WEEK' as const, key: '2026-10-05' },
+      { type: 'DAY' as const, key: '2026-10-05' },
+      { type: 'DAY' as const, key: '2026-10-08' },
+    ]) {
+      dispatch.calls.reset();
+      await ui.createTask(INBOX_FOLDER_ID, 'Planned capture', target);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const action = dispatch.calls.mostRecent().args[0];
+      expect(action.type).toBe(TaskSharedActions.addTask.type);
+      expect(action.initialPlanning.id).toBe(action.task.id);
+      expect(action.initialPlanning.placement.target).toEqual(target);
+      expect(JSON.parse(JSON.stringify(action))).toEqual(action);
+    }
+  });
   it('keeps subtasks with their top-level task', () => {
     const parent = {
       ...task('parent', 'a'),

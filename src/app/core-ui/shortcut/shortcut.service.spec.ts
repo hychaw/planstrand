@@ -1,3 +1,4 @@
+import { PlanstrandService } from '../../pages/planstrand/planstrand.service';
 import { TestBed } from '@angular/core/testing';
 import { ShortcutService } from './shortcut.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
@@ -63,6 +64,10 @@ describe('ShortcutService', () => {
     TestBed.configureTestingModule({
       providers: [
         ShortcutService,
+        {
+          provide: PlanstrandService,
+          useValue: { createTask: jasmine.createSpy('createTask') },
+        },
         { provide: TaskShortcutService, useValue: mockTaskShortcutService },
         { provide: Router, useValue: mockRouter },
         { provide: GlobalConfigService, useValue: mockConfigService },
@@ -149,7 +154,7 @@ describe('ShortcutService', () => {
       expect(mockPluginBridgeService.executeShortcut).not.toHaveBeenCalled();
     });
 
-    it('should open the shortcut cheat sheet on "?"', async () => {
+    it('should open the Planstrand Help on "?"', async () => {
       const ev = new KeyboardEvent('keydown', {
         key: '?',
         code: 'Slash',
@@ -159,10 +164,10 @@ describe('ShortcutService', () => {
 
       await service.handleKeyDown(ev);
 
-      expect(mockMatDialog.open).toHaveBeenCalled();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/help']);
     });
 
-    it('should NOT open the shortcut cheat sheet when a modifier is held', async () => {
+    it('should NOT open the Planstrand Help when a modifier is held', async () => {
       const ev = new KeyboardEvent('keydown', {
         key: '?',
         code: 'Slash',
@@ -173,10 +178,10 @@ describe('ShortcutService', () => {
 
       await service.handleKeyDown(ev);
 
-      expect(mockMatDialog.open).not.toHaveBeenCalled();
+      expect(mockRouter.navigate).not.toHaveBeenCalled();
     });
 
-    it('should open the shortcut cheat sheet for "?" produced via AltGr', async () => {
+    it('should open the Planstrand Help for "?" produced via AltGr', async () => {
       const ev = new KeyboardEvent('keydown', {
         key: '?',
         code: 'Digit3',
@@ -187,10 +192,10 @@ describe('ShortcutService', () => {
 
       await service.handleKeyDown(ev);
 
-      expect(mockMatDialog.open).toHaveBeenCalled();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/help']);
     });
 
-    it('should NOT open the shortcut cheat sheet when showHelp is unbound', async () => {
+    it('should NOT open the Planstrand Help when showHelp is unbound', async () => {
       mockConfigService.cfg.set({
         keyboard: { goToScheduledView: 'Shift+S', showHelp: null },
       });
@@ -203,10 +208,10 @@ describe('ShortcutService', () => {
 
       await service.handleKeyDown(ev);
 
-      expect(mockMatDialog.open).not.toHaveBeenCalled();
+      expect(mockRouter.navigate).not.toHaveBeenCalled();
     });
 
-    it('should open the shortcut cheat sheet for a custom showHelp combo', async () => {
+    it('should open the Planstrand Help for a custom showHelp combo', async () => {
       mockConfigService.cfg.set({
         keyboard: { goToScheduledView: 'Shift+S', showHelp: 'Ctrl+K' },
       });
@@ -219,10 +224,10 @@ describe('ShortcutService', () => {
 
       await service.handleKeyDown(ev);
 
-      expect(mockMatDialog.open).toHaveBeenCalled();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/help']);
     });
 
-    it('should only open one cheat sheet for rapid repeated presses', async () => {
+    it('routes repeated Help presses to the same destination', async () => {
       mockMatDialog.open.and.callFake(() => {
         mockMatDialog.openDialogs.push({});
         return { afterClosed: () => of(undefined) };
@@ -243,7 +248,8 @@ describe('ShortcutService', () => {
         service.handleKeyDown(createEv()),
       ]);
 
-      expect(mockMatDialog.open).toHaveBeenCalledTimes(1);
+      expect(mockRouter.navigate).toHaveBeenCalledTimes(3);
+      expect(mockMatDialog.open).not.toHaveBeenCalled();
     });
   });
 });
