@@ -228,7 +228,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     dueDateNotificationHour: 9,
   },
   schedule: {
-    isWorkStartEndEnabled: true,
+    isWorkStartEndEnabled: false,
     workStart: DEFAULT_DAY_START,
     workEnd: '17:00',
     isLunchBreakEnabled: false,

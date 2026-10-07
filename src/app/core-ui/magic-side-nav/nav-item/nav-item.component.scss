@@ -366,3 +366,19 @@ button[mat-menu-item].nav-link.active {
     display: none;
   }
 }
+
+:host button:first-of-type {
+  border-radius: 12px;
+  min-height: 46px;
+}
+:host.isActiveContext button {
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--brand) 22%, var(--surface-primary)),
+    var(--surface-selected)
+  );
+  box-shadow:
+    inset 3px 0 var(--brand),
+    0 4px 16px -10px var(--brand);
+  color: var(--ink-strong);
+}

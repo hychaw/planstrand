@@ -563,3 +563,24 @@
   height: 0;
   visibility: hidden;
 }
+
+:host.blue-thread-session {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--planstrand-cobalt) 27%, var(--surface-primary)),
+    color-mix(in srgb, var(--brand) 14%, var(--surface-primary))
+  );
+  border-radius: 9px;
+  box-shadow: 0 4px 12px -8px var(--brand);
+  border-inline-start-width: 4px;
+}
+:host.blue-thread-event {
+  border-radius: 8px;
+  font-weight: 400;
+  border-inline-start-width: 2px;
+}
+:host.month-schedule-event {
+  line-height: 1.35;
+  margin: 2px 0 4px;
+  padding: 5px;
+}

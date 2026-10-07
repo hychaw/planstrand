@@ -110,6 +110,12 @@ export class PlanstrandPageComponent {
         .filter((t): t is TaskWithSubTasks => !!t),
     }));
   });
+  readonly focusTasks = computed(
+    () => this.sections()[0]?.tasks.filter((t) => !t.isDone) ?? [],
+  );
+  readonly completedTasks = computed(
+    () => this.sections()[0]?.tasks.filter((t) => t.isDone) ?? [],
+  );
   readonly captureTasks = computed(() => {
     const planned = new Set(this.placements().map((p) => p.id));
     return this.allTasks().filter((t) => !planned.has(t.id) && !t.isDone);
@@ -122,7 +128,15 @@ export class PlanstrandPageComponent {
     event: { task: TaskWithSubTasks; index: number },
     target: PlanningPlacement['target'],
   ): void {
-    planningCommands(this.store).placeAt(event.task.id, target, event.index);
+    let index = event.index;
+    if (this.mode() === 'today') {
+      const others = (this.sections()[0]?.tasks ?? []).filter(
+        (task) => task.id !== event.task.id,
+      );
+      const anchor = others.filter((task) => !task.isDone)[index];
+      index = anchor ? others.findIndex((task) => task.id === anchor.id) : others.length;
+    }
+    planningCommands(this.store).placeAt(event.task.id, target, index);
   }
   unplan(id: string): void {
     planningCommands(this.store).unplan(id);

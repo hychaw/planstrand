@@ -278,3 +278,14 @@ mat-sidenav {
     }
   }
 }
+
+@include mq(xs) {
+  magic-side-nav ::ng-deep .nav-sidenav {
+    margin: 16px 0 16px 16px;
+    width: calc(100% - 16px) !important;
+    height: calc(100% - 32px) !important;
+  }
+}
+.header-wrapper {
+  border-bottom: 0;
+}

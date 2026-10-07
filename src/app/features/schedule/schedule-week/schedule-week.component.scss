@@ -582,3 +582,19 @@
 .cdk-drag-preview {
   opacity: 0 !important;
 }
+
+:host {
+  --grid-color: var(--planstrand-panel-border);
+}
+.week-header {
+  background: var(--surface-primary);
+}
+.time {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.current-time {
+  border-color: var(--brand);
+  color: var(--brand);
+}

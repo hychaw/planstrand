@@ -1,6 +1,9 @@
 <div class="page-settings page-wrapper">
   @if (globalCfg) {
     <div class="settings-container">
+      <header class="settings-page-header">
+        <h1>{{ T.MH.SETTINGS | translate }}</h1>
+      </header>
       <!-- Shared by every tab's `mat-tab-label`: an icon + translated title. -->
       <ng-template
         #tabLabel
@@ -350,11 +353,11 @@
   <a
     href="https://super-productivity.com/privacy/"
     target="_blank"
-    >{{ T.PS.PRIVACY_POLICY | translate }}</a
+    >Upstream privacy policy</a
   >
   –
   <a
-    href="https://github.com/super-productivity/super-productivity/discussions/new"
+    href="https://github.com/hychaw/planstrand/issues"
     target="_blank"
     >{{ T.PS.PROVIDE_FEEDBACK | translate }}</a
   >

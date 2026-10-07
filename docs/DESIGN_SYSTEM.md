@@ -14,18 +14,51 @@ described in the original V1 guidance below.
 - Canvas → Working Surface → Floating Surface. Reuse the existing `--surface-*`,
   ink and Material token contract. `src/styles/blue-thread.scss` supplies defaults;
   user-installed themes can still override public body-scoped primitives.
-- Comfortable uses 48px task rows; Compact uses 36px rows with unchanged type.
+- Comfortable uses 52px task rows; Compact uses 36px rows with unchanged type.
   Coarse-pointer devices keep 48px rows. Appearance stores density on this device,
   outside synced config, domain entities and the operation log.
 - State transitions: 140–160ms; panel entry: 200ms; exit: 180ms. Honor the existing
   disable-animation preference and `prefers-reduced-motion`.
-- The Strand P master is `src/assets/icons/strand-p.svg`: a single flowing blue
-  strand on a navy rounded square. Run `node tools/generate-planstrand-icons.cjs`
+- The Strand P master is `src/assets/icons/strand-p.svg`: a flowing cobalt/azure ribbon P with
+  a transparent background. Run `node tools/generate-planstrand-icons.cjs`
   from the repository root to regenerate web/PWA and desktop artwork. macOS uses
   a larger transparent inset; Safari uses a monochrome strand mask.
 
 Retain upstream attribution and application/profile/protocol identifiers. The
 technical release version and V1.0.0-rc.1 tag are independent of this visual work.
+
+### Approved visual redesign (October 2026)
+
+- The static high-altitude canvas combines pale/cobalt or navy gradients with the
+  original local `src/assets/sky-route.svg`. No scenery, photography, slogans,
+  animated aircraft, runtime image services or screenshot backgrounds. The mobile
+  canvas is solid for readability. Decorative paths never connect Folders or days.
+- Expanded desktop navigation floats within its reserved column and always shows
+  the ribbon P plus **Planstrand**. Primary order is **Today / This Week / Tasks /
+  Calendar**. Inbox stays a special capture collection, first in the Tasks hierarchy
+  and accessible below Folders; its canonical `/inbox` route and domain semantics stay intact.
+- Titles use one editorial header, with a secondary date or range. Avoid repeating
+  the route name in the global toolbar. The existing Inter and surface contract remain authoritative.
+- Tasks uses a continuous hierarchy surface: small Folder glyphs, disclosure,
+  recursive indentation and tonal grouping. Overflow disclosures contain secondary
+  commands. Keep CDK groups, task drag handles and Folder drag predicates intact.
+- Today pairs Focus / Unplanned / Completed with My Day. Completed means completed
+  Tasks in today's plan, never completed WorkSessions. Tablet/phone switch between
+  Plan and Schedule rather than compressing both panes.
+- This Week is a two-column editorial planning list on wide screens and one column
+  on narrower screens. Anytime this week spans the width. Days use compact day/date
+  markers; quiet empty targets replace repeated empty-state instructions.
+- Calendar shares the same working surface and integrates period navigation, Today,
+  Day / Week / Month / Year and New Event. WorkSessions have stronger blue depth and
+  a wider leading edge; Events stay softer with their existing type glyphs.
+  Work boundaries default off; existing explicit schedule preferences remain valid.
+  Grid preview wording describes WorkSession selection and the explicit Event action.
+- Settings keeps its current tabs/search/forms architecture, with an editorial
+  shell, rounded section navigation, quiet panels and consistent appearance controls.
+  Preserve upstream plugin authorship, MIT/OFL licenses and labelled upstream links;
+  host feedback belongs to Planstrand.
+- No persisted schema change, new synced appearance state, new inspector domain,
+  operation-log changes or calendar projection fork belongs in a visual pass.
 
 ## 1. Design Intent
 
@@ -772,17 +805,9 @@ Product name:
 
 **Planstrand**
 
-The name may appear as a simple wordmark initially.
-
-Do not create a complex logo system before the core UI is stable.
-
-A future icon may explore:
-
-- a subtle woven line,
-- intersecting timeline strands,
-- linked planning paths.
-
-It should remain legible at small app-icon sizes.
+Expanded navigation always pairs the Strand P ribbon with the Planstrand wordmark.
+The mark must remain legible at small sizes; collapsed navigation may use the mark alone.
+Use local vector assets, never a crop of a concept screenshot.
 
 ---
 

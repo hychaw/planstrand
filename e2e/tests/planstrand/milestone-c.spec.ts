@@ -22,6 +22,8 @@ const moveDown = async (page: Page, event: Locator): Promise<void> => {
   // Direct mouse gestures also need to wait for the editor backdrop to leave.
   await event.click({ trial: true });
   await event.scrollIntoViewIfNeeded();
+  // Leave room for the gesture inside the scrollable grid below the page header.
+  await event.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   const box = (await event.boundingBox())!;
   const halfWidth = box.width / 2;
   const centerX = box.x + halfWidth;
@@ -39,6 +41,7 @@ const resize = async (page: Page, event: Locator): Promise<void> => {
   const handle = event.locator('.resize-handle');
   await handle.click({ trial: true });
   await handle.scrollIntoViewIfNeeded();
+  await handle.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   const box = (await handle.boundingBox())!;
   const halfWidth = box.width / 2;
   const centerX = box.x + halfWidth;
@@ -69,9 +72,7 @@ test.describe('Planstrand V1 shipping smoke', () => {
       try {
         await page.goto('/');
         await expect(page).toHaveURL(/#\/today$/);
-        await expect(page.locator('planstrand-page')).toContainText(
-          'Open Actions on an unplanned task',
-        );
+        await expect(page.locator('planstrand-page')).toContainText('Unplanned');
         await expect(page.locator('onboarding-hint')).toHaveCount(0);
         await page.goto('/#/inbox');
         const inbox = page.locator('planstrand-page section');
@@ -123,9 +124,15 @@ test.describe('Planstrand V1 shipping smoke', () => {
           .getByRole('button', { name: 'Navigation', exact: true })
           .click();
       const nav = page.locator('magic-side-nav nav');
-      for (const name of ['Inbox', 'Master Tasks', 'Today', 'This Week', 'Calendar']) {
+      for (const name of ['Today', 'This Week', 'Tasks', 'Calendar']) {
         await expect(nav.getByRole('menuitem', { name, exact: true })).toBeVisible();
       }
+      await expect(nav.getByRole('menuitem', { name: 'Inbox', exact: true })).toHaveCount(
+        0,
+      );
+      await expect(
+        nav.locator('planstrand-folder-navigation').getByRole('link', { name: /Inbox/ }),
+      ).toBeVisible();
       await expect(
         nav.getByRole('menuitem', { name: 'Planner', exact: true }),
       ).toBeHidden();

@@ -50,3 +50,28 @@ input:not([type='checkbox']) {
     align-items: stretch;
   }
 }
+
+:host {
+  display: block;
+  color: var(--ink);
+}
+label {
+  color: var(--ink-muted);
+  font-size: 13px;
+  gap: 8px;
+}
+input:not([type='checkbox']),
+textarea,
+select {
+  background: var(--surface-hover);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--ink);
+  font: inherit;
+  box-sizing: border-box;
+}
+input:focus,
+textarea:focus {
+  border-color: var(--brand);
+}

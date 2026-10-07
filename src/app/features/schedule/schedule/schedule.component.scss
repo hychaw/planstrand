@@ -234,3 +234,70 @@
     }
   }
 }
+
+:host {
+  padding: var(--planstrand-page-padding);
+  box-sizing: border-box;
+}
+.calendar-page-header {
+  margin-bottom: 28px;
+}
+.calendar-page-header h1 {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 54px);
+  font-weight: 550;
+  letter-spacing: -0.055em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+}
+.schedule-nav-controls {
+  padding: 16px;
+  background: var(--planstrand-panel);
+  border: 1px solid var(--planstrand-panel-border);
+  border-radius: 20px 20px 0 0;
+  gap: 10px;
+}
+.scroll-wrapper {
+  min-height: 0;
+  border: 1px solid var(--planstrand-panel-border);
+  border-top: 0;
+  border-radius: 0 0 20px 20px;
+  background: var(--planstrand-panel);
+  box-shadow: var(--card-shadow);
+}
+.schedule-nav-controls .time-view-btn.active {
+  background: var(--surface-floating);
+  box-shadow:
+    0 2px 8px -4px var(--brand),
+    inset 0 -2px var(--brand);
+  color: var(--ink-strong);
+}
+.calendar-hint {
+  margin: 0;
+  padding: 10px 20px;
+  background: var(--planstrand-panel);
+  border-inline: 1px solid var(--planstrand-panel-border);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  :host {
+    padding: 16px 8px 8px;
+  }
+  .calendar-page-header {
+    padding-inline: 8px;
+    margin-bottom: 20px;
+  }
+  .schedule-nav-controls .title {
+    flex-basis: 100%;
+  }
+  .schedule-nav-controls .time-view-selector {
+    order: 1;
+    flex: 1 0 auto;
+  }
+  .schedule-nav-controls .time-view-btn {
+    flex: 1;
+    min-width: 42px;
+    padding: 0 8px;
+  }
+}

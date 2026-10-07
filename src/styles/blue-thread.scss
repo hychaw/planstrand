@@ -155,3 +155,113 @@ schedule-day-panel,
     scroll-behavior: auto !important;
   }
 }
+
+// High-altitude atmosphere: local vectors and static gradients, no image service.
+body {
+  --planstrand-section-gap: 22px;
+  --planstrand-row-height: 52px;
+  --planstrand-page-padding: clamp(20px, 3vw, 44px);
+  --planstrand-panel: color-mix(in srgb, var(--surface-primary) 92%, transparent);
+  --planstrand-panel-border: color-mix(in srgb, var(--brand) 12%, transparent);
+  --task-separator: none;
+  --task-border: 0;
+  --task-list-row-gap: 4px;
+  --task-c-bg: transparent;
+  --task-c-bg-done: transparent;
+  --sidenav-bg: var(--planstrand-panel);
+  --sidenav-text: var(--ink);
+  --sidenav-text-secondary: var(--ink-muted);
+  --card-shadow: 0 12px 36px -18px rgba(16, 48, 93, 0.22);
+  background-color: var(--surface-canvas);
+}
+.app-container {
+  background:
+    url('../assets/sky-route.svg') top right / min(90vw, 1200px) auto no-repeat,
+    radial-gradient(
+      ellipse at 82% 0,
+      color-mix(in srgb, var(--brand) 17%, transparent),
+      transparent 57%
+    ),
+    radial-gradient(
+      ellipse at 35% 90%,
+      color-mix(in srgb, var(--planstrand-azure) 12%, transparent),
+      transparent 58%
+    ),
+    var(--surface-canvas);
+}
+// Three levels: atmospheric canvas, quiet working panel, solid interactive overlay.
+body.isDarkTheme {
+  --surface-0: #070f1e;
+  --surface-1: #0a1528;
+  --surface-2: #11233c;
+  --surface-3: #182e4b;
+  --surface-4: #203b5d;
+  --separator: #29415e;
+  --card-shadow: 0 16px 44px -18px rgba(0, 5, 18, 0.55);
+}
+body:not(.isDarkTheme) {
+  --surface-0: #e1ecfa;
+  --surface-1: #edf4fc;
+  --surface-2: #fafdff;
+  --surface-3: #fff;
+  --ink-strong: #102849;
+  --ink: #203b5c;
+  --ink-muted: #516b89;
+}
+// Avoid duplicate route titles above editorial page headers.
+.app-container:has(planstrand-page, config-page, schedule) page-title .page-title,
+.app-container:has(planstrand-page, config-page, schedule)
+  page-title
+  .page-title-actions {
+  display: none;
+}
+planstrand-task-list task {
+  --task-c-bg: transparent;
+  --task-separator: none;
+  --task-border: 0;
+}
+planstrand-task-list task .box {
+  background: transparent;
+}
+planstrand-task-list task .first-line {
+  min-height: var(--planstrand-row-height);
+}
+planstrand-task-list task .task-title {
+  font-weight: 500;
+}
+planstrand-task-list task .time-wrapper {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+planstrand-task-list task .hasNoTimeSpentOrEstimate {
+  opacity: 0;
+}
+planstrand-task-list .task-entry:hover .hasNoTimeSpentOrEstimate,
+planstrand-task-list .task-entry:focus-within .hasNoTimeSpentOrEstimate {
+  opacity: 1;
+}
+.mat-mdc-dialog-container {
+  --mdc-dialog-container-color: var(--surface-floating);
+  --mdc-dialog-container-shape: 20px;
+  --mat-dialog-subhead-color: var(--ink-strong);
+  --mat-dialog-supporting-text-color: var(--ink);
+}
+.mat-mdc-menu-panel {
+  --mat-menu-container-color: var(--surface-floating);
+}
+@media (max-width: 600px) {
+  .app-container {
+    background: var(--surface-canvas);
+  }
+  body {
+    --planstrand-page-padding: 16px;
+    --planstrand-section-gap: 16px;
+  }
+}
+
+planstrand-task-list done-toggle .done-shape {
+  opacity: 0.85;
+  stroke: var(--ink-muted);
+  rx: 50%;
+  ry: 50%;
+}

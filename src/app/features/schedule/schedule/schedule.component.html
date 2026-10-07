@@ -1,3 +1,6 @@
+<header class="calendar-page-header">
+  <h1>{{ 'PLANSTRAND.SCHEDULE' | translate }}</h1>
+</header>
 <div class="schedule-nav-controls">
   <button
     mat-button
@@ -120,14 +123,14 @@
     </button>
 
     <button
-      mat-icon-button
+      mat-button
       class="today-btn"
       (click)="goToToday()"
       [disabled]="isViewingToday()"
       [attr.aria-label]="T.G.TODAY_TAG_TITLE | translate"
       [matTooltip]="T.G.TODAY_TAG_TITLE | translate"
     >
-      <mat-icon>wb_sunny</mat-icon>
+      {{ T.G.TODAY_TAG_TITLE | translate }}
     </button>
 
     <button

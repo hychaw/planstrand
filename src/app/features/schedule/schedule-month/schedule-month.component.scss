@@ -250,3 +250,48 @@
     display: none;
   }
 }
+
+.month-grid-container {
+  height: max(550px, calc(100dvh - 265px));
+  gap: 0;
+}
+.weekday-header {
+  background: var(--surface-hover);
+  padding: 12px 4px;
+  font-size: 12px;
+}
+.month-day-cell {
+  border: 0;
+  border-inline-end: 1px solid var(--planstrand-panel-border);
+  border-top: 1px solid var(--planstrand-panel-border);
+  background: transparent;
+}
+.month-day-cell.other-month {
+  opacity: 0.55;
+  background: var(--surface-hover);
+}
+.month-day-header {
+  padding: 10px;
+}
+.month-day-header .month-day-number {
+  font-size: 15px;
+  font-weight: 500;
+}
+.month-day-cell.today {
+  background: color-mix(in srgb, var(--brand) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+.month-day-events {
+  padding: 2px 6px;
+}
+@media (max-width: 600px) {
+  .month-grid-container {
+    height: max(460px, calc(100dvh - 320px));
+  }
+  .month-day-header {
+    padding: 5px 2px;
+  }
+  .month-day-events {
+    padding: 2px;
+  }
+}

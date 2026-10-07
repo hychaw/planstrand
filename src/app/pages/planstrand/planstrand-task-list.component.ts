@@ -42,6 +42,7 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
       [cdkDropListEnterPredicate]="taskDragPredicate"
       (cdkDropListDropped)="drop($event)"
       class="task-list"
+      [class.is-folder-list]="!!folderId()"
     >
       @for (entry of entries(); track entry.task.id) {
         @let task = entry.task;
@@ -54,6 +55,13 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
             [task]="task"
             [isShowProjectTagNever]="true"
           />
+          @if (planning() && entry.path) {
+            <span
+              class="task-folder"
+              [title]="entry.path"
+              >{{ entry.path }}</span
+            >
+          }
           <button
             cdkDragHandle
             type="button"
@@ -129,17 +137,26 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
           </details>
         </div>
       } @empty {
-        <p>
-          {{
-            (planning() ? 'PLANSTRAND.EMPTY_PLANNING' : 'PLANSTRAND.EMPTY') | translate
-          }}
+        <p
+          class="empty-drop-target"
+          [attr.aria-label]="'PLANSTRAND.EMPTY_PLANNING' | translate"
+        >
+          {{ planning() ? '—' : ('PLANSTRAND.EMPTY' | translate) }}
         </p>
       }
     </div>
   `,
   styles: `
+    .empty-drop-target {
+      color: var(--ink-muted);
+      margin: 4px 12px;
+      font-size: var(--font-size-sm);
+    }
     .task-list {
       min-height: var(--s4);
+    }
+    .task-list.is-folder-list {
+      min-height: calc(var(--planstrand-row-height) + 36px);
     }
     .commands {
       display: flex;
@@ -171,9 +188,19 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
       gap: var(--s-half);
       min-width: 0;
     }
+    .task-folder {
+      display: block;
+      margin: -6px 0 10px 48px;
+      color: var(--ink-muted);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .task-entry {
       position: relative;
       padding-inline-end: 72px;
+      margin-block: 4px;
       border-radius: var(--radius-md);
       transition: background var(--transition-duration-s);
     }
@@ -184,13 +211,13 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
     .task-actions {
       position: absolute;
       inset-inline-end: 0;
-      top: 4px;
+      top: 12px;
       z-index: 3;
     }
     .task-drag-handle {
       position: absolute;
       inset-inline-end: 36px;
-      top: 4px;
+      top: 12px;
       border: 0;
       background: transparent;
       color: var(--ink-muted);
@@ -261,6 +288,7 @@ export class PlanstrandTaskListComponent {
   readonly folderId = input('');
   readonly days = input<string[]>([]);
   readonly planning = input(false);
+  readonly acceptDrops = input(true);
   readonly dropped = output<{ task: TaskWithSubTasks; index: number }>();
   readonly reordered = output<{ task: TaskWithSubTasks; direction: -1 | 1 }>();
 
@@ -270,7 +298,10 @@ export class PlanstrandTaskListComponent {
       this.dropped.emit({ task: task as TaskWithSubTasks, index: event.currentIndex });
   }
   readonly taskDragPredicate = (drag: CdkDrag<unknown>): boolean =>
-    !!drag.data && typeof drag.data === 'object' && 'id' in drag.data;
+    this.acceptDrops() &&
+    !!drag.data &&
+    typeof drag.data === 'object' &&
+    'id' in drag.data;
   plan(task: TaskWithSubTasks, target: string): void {
     const commands = planningCommands(this.store);
     if (target === 'UNPLAN') commands.unplan(task.id);
