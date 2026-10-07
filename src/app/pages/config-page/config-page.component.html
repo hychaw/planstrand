@@ -257,7 +257,10 @@
         <mat-tab label="About"
           ><div class="tab-content">
             <h2>Planstrand</h2>
-            <p>{{ appVersion }}</p>
+            <p>Version {{ appVersion }}</p>
+            @if (buildRevision) {
+              <p>Build {{ buildRevision }}</p>
+            }
             <a
               mat-button
               routerLink="/about"
@@ -272,7 +275,7 @@
 
 <footer
   class="version-footer"
-  title="Rev {{ versions?.revision }} {{ versions?.branch }} {{ versions?.version }}"
+  [attr.title]="buildRevision ? 'Build ' + buildRevision : null"
 >
   Planstrand
   <a

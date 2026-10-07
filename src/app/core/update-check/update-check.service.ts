@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { EMPTY, firstValueFrom, timer } from 'rxjs';
 import { distinctUntilChanged, map, switchMap, timeout } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
+import { PLANSTRAND_PRODUCT_VERSION } from '../../util/planstrand-product-version';
 import { T } from '../../t.const';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports -- grandfathered layer-boundary debt
 import { GlobalConfigService } from '../../features/config/global-config.service';
@@ -79,12 +79,12 @@ export class UpdateCheckService {
         throw new Error('Malformed release data');
       }
 
-      if (!isNewerVersion(tagName, environment.version)) {
+      if (!isNewerVersion(tagName, PLANSTRAND_PRODUCT_VERSION)) {
         if (isUserTriggered) {
           this._snackService.open({
             type: 'SUCCESS',
             msg: T.APP.UPDATE_CHECK.UP_TO_DATE,
-            translateParams: { version: environment.version },
+            translateParams: { version: PLANSTRAND_PRODUCT_VERSION },
           });
         }
         return;

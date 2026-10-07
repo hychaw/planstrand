@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { getAppVersionStr } from '../../util/get-app-version-str';
 import { versions } from '../../../environments/versions';
+import { planstrandBuildRevision } from '../../util/planstrand-product-version';
 
 @Component({
   selector: 'planstrand-product-info',
@@ -39,8 +40,10 @@ import { versions } from '../../../environments/versions';
           </p>
         } @else {
           <h2>Planstrand</h2>
-          <p>V1.1 preview · Application build {{ version }}</p>
-          <p>Build {{ build.revision }} · {{ build.branch }}</p>
+          <p>Version {{ version }}</p>
+          @if (buildRevision) {
+            <p>Build {{ buildRevision }}</p>
+          }
           <p>Local-first tasks, Folders, Planning, WorkSessions and Events.</p>
           <p>
             <a
@@ -85,5 +88,5 @@ import { versions } from '../../../environments/versions';
 export class ProductInfoComponent {
   readonly isHelp = inject(ActivatedRoute).snapshot.data['productInfo'] === 'help';
   readonly version = getAppVersionStr();
-  readonly build = versions;
+  readonly buildRevision = planstrandBuildRevision(versions.revision);
 }

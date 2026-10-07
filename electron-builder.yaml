@@ -1,4 +1,5 @@
 # Planstrand desktop packaging. Publishing and store uploads are intentionally disabled.
+extends: ./tools/planstrand-product-build.cjs
 appId: io.github.hychaw.planstrand
 productName: Planstrand
 artifactName: Planstrand-${arch}.${ext}

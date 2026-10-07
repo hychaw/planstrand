@@ -4,6 +4,7 @@ import { IS_ELECTRON } from '../app.constants';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports -- grandfathered layer-boundary debt
 import { androidInterface } from '../features/android/android-interface';
 import { environment } from '../../environments/environment';
+import { PLANSTRAND_PRODUCT_VERSION } from './planstrand-product-version';
 
 /**
  * Every distribution target the app ships to. Mobile/web are detected in the
@@ -25,9 +26,8 @@ export type DistChannel =
   | 'web';
 
 /**
- * Channel marker appended to the (display-only) version string so bug reports
- * and the config footer reveal which build a user runs, e.g. `18.6.0AI` for
- * the Linux AppImage. Display-only: no caller does a semver compare on this.
+ * Retained channel marker helper for compatibility diagnostics. Planstrand's
+ * user-facing product version is intentionally independent of these markers.
  */
 export const distChannelSuffix = (channel: DistChannel | null | undefined): string => {
   switch (channel) {
@@ -99,5 +99,5 @@ export const extractSemver = (raw: string): string | undefined =>
  */
 export const getAppSemver = (): string | undefined => extractSemver(rawAppVersion());
 
-export const getAppVersionStr = (): string =>
-  `${rawAppVersion()}${distChannelSuffix(detectChannel())}`;
+/** User-facing identity; channel detection and compatibility semver stay separate. */
+export const getAppVersionStr = (): string => PLANSTRAND_PRODUCT_VERSION;

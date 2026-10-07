@@ -49,6 +49,7 @@ import { IS_ELECTRON } from '../../app.constants';
 import { IS_ANDROID_WEB_VIEW_TOKEN } from '../../util/is-android-web-view';
 import { getAutomaticBackUpFormCfg } from '../../features/config/form-cfgs/automatic-backups-form.const';
 import { getAppVersionStr } from '../../util/get-app-version-str';
+import { planstrandBuildRevision } from '../../util/planstrand-product-version';
 import { UpdateCheckService } from '../../core/update-check/update-check.service';
 import { isUpdateCheckPossible } from '../../core/update-check/is-update-check-possible.util';
 import { ConfigSectionComponent } from '../../features/config/config-section/config-section.component';
@@ -199,7 +200,7 @@ export class ConfigPageComponent implements OnInit {
   );
 
   appVersion: string = getAppVersionStr();
-  versions?: typeof versions = versions;
+  readonly buildRevision = planstrandBuildRevision(versions.revision);
   isUpdateCheckPossible: boolean = isUpdateCheckPossible();
 
   private readonly _destroyRef = inject(DestroyRef);
