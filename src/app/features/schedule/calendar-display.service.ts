@@ -1,3 +1,4 @@
+import { CurrentDateService } from '../../core/date/current-date.service';
 import { selectLocalizationConfig } from '../config/store/global-config.reducer';
 import { calendarDisplayZone } from './calendar-time';
 import { computed, inject, Injectable } from '@angular/core';
@@ -15,9 +16,12 @@ import { CalendarDisplayItem } from './calendar-display-item.model';
 @Injectable({ providedIn: 'root' })
 export class CalendarDisplayService {
   private readonly _localization = inject(Store).selectSignal(selectLocalizationConfig);
-  readonly displayTimeZone = computed(() =>
-    calendarDisplayZone(this._localization()?.timeZone),
-  );
+  private readonly _dates = inject(CurrentDateService);
+  readonly displayTimeZone = computed(() => {
+    this._dates.now();
+    return calendarDisplayZone(this._localization()?.timeZone);
+  });
+  readonly today = this._dates.dateInZone(this.displayTimeZone);
 
   private readonly _localItems = inject(Store).selectSignal(
     selectPersistedCalendarDisplayItems,

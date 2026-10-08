@@ -1,14 +1,21 @@
+import { RouterLink } from '@angular/router';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { WorkingHoursDisplayService } from '../../core/theme/working-hours-display.service';
+import { SCHEDULE_FORM_CFG } from '../../features/config/form-cfgs/schedule-form.const';
+import {
+  PLANSTRAND_GENERAL_SETTINGS,
+  PLANSTRAND_TASK_SETTINGS,
+} from '../../features/config/planstrand-settings';
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
   DestroyRef,
-  effect,
   ElementRef,
   inject,
   OnInit,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { getChangedAppFeatures } from '../../features/config/get-changed-app-features.util';
 import { TaskWidgetSettingsService } from '../../features/config/task-widget-settings.service';
@@ -18,12 +25,10 @@ import {
   TaskWidgetConfig,
 } from '../../features/config/global-config.model';
 import {
-  GLOBAL_GENERAL_FORM_CONFIG,
   GLOBAL_IMEX_FORM_CONFIG,
   GLOBAL_PLUGINS_FORM_CONFIG,
   GLOBAL_PRODUCTIVITY_FORM_CONFIG,
   GLOBAL_TIME_TRACKING_FORM_CONFIG,
-  GLOBAL_TASKS_FORM_CONFIG,
 } from '../../features/config/global-config-form-config.const';
 import {
   AppFeaturesConfig,
@@ -44,14 +49,13 @@ import { IS_ELECTRON } from '../../app.constants';
 import { IS_ANDROID_WEB_VIEW_TOKEN } from '../../util/is-android-web-view';
 import { getAutomaticBackUpFormCfg } from '../../features/config/form-cfgs/automatic-backups-form.const';
 import { getAppVersionStr } from '../../util/get-app-version-str';
+import { planstrandBuildRevision } from '../../util/planstrand-product-version';
 import { UpdateCheckService } from '../../core/update-check/update-check.service';
 import { isUpdateCheckPossible } from '../../core/update-check/is-update-check-possible.util';
 import { ConfigSectionComponent } from '../../features/config/config-section/config-section.component';
-import { ConfigSoundFormComponent } from '../../features/config/config-sound-form/config-sound-form.component';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { SyncConfigService } from '../../imex/sync/sync-config.service';
-import { PluginManagementComponent } from '../../plugins/ui/plugin-management/plugin-management.component';
 import { PluginBridgeService } from '../../plugins/plugin-bridge.service';
 import { createPluginShortcutFormItems } from '../../features/config/form-cfgs/plugin-keyboard-shortcuts';
 import { PluginShortcutCfg } from '../../plugins/plugin-api.model';
@@ -89,11 +93,11 @@ const TAB_ANIMATION_DURATION_MS = 200;
   styleUrls: ['./config-page.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    RouterLink,
+    MatCheckbox,
     ThemeSelectorComponent,
     ConfigSectionComponent,
-    ConfigSoundFormComponent,
     TranslatePipe,
-    PluginManagementComponent,
     MatTabGroup,
     MatTab,
     MatTabLabel,
@@ -101,7 +105,6 @@ const TAB_ANIMATION_DURATION_MS = 200;
     MatTooltip,
     MatButton,
     MatIconButton,
-    RouterLink,
     NgTemplateOutlet,
     FormsModule,
     MatFormField,
@@ -135,6 +138,15 @@ export class ConfigPageComponent implements OnInit {
 
   T: typeof T = T;
 
+  readonly workingHours = inject(WorkingHoursDisplayService);
+  readonly calendarFormCfg = [
+    {
+      ...SCHEDULE_FORM_CFG,
+      items: SCHEDULE_FORM_CFG.items
+        ?.filter((item) => ['workStart', 'workEnd'].includes(String(item.key)))
+        .map((item) => ({ ...item, hideExpression: undefined })),
+    },
+  ];
   selectedTabIndex = 0;
   expandedSection: string | null = null;
 
@@ -188,14 +200,14 @@ export class ConfigPageComponent implements OnInit {
   );
 
   appVersion: string = getAppVersionStr();
-  versions?: typeof versions = versions;
+  readonly buildRevision = planstrandBuildRevision(versions.revision);
   isUpdateCheckPossible: boolean = isUpdateCheckPossible();
 
   private readonly _destroyRef = inject(DestroyRef);
 
   constructor() {
     // Initialize tab-specific form configurations
-    this.generalFormCfg = GLOBAL_GENERAL_FORM_CONFIG.slice();
+    this.generalFormCfg = PLANSTRAND_GENERAL_SETTINGS.slice();
     this.timeTrackingFormCfg = GLOBAL_TIME_TRACKING_FORM_CONFIG.slice();
     this.pluginsShortcutsFormCfg = GLOBAL_PLUGINS_FORM_CONFIG.slice();
     // "Browse backups" lives on the Import/Export section so every platform
@@ -220,7 +232,7 @@ export class ConfigPageComponent implements OnInit {
         : section,
     );
     this.globalProductivityConfigFormCfg = GLOBAL_PRODUCTIVITY_FORM_CONFIG.slice();
-    this.globalTasksFormCfg = GLOBAL_TASKS_FORM_CONFIG.slice();
+    this.globalTasksFormCfg = PLANSTRAND_TASK_SETTINGS.slice();
 
     // NOTE: needs special handling cause of the async stuff
     if (this._isAndroidWebView) {
@@ -248,14 +260,6 @@ export class ConfigPageComponent implements OnInit {
         this._cd.detectChanges();
       });
     }
-
-    // Use effect to react to plugin shortcuts changes for live updates
-    effect(() => {
-      const shortcuts = this._pluginBridgeService.shortcuts();
-      // eslint-disable-next-line local-rules/no-user-content-in-logs -- grandfathered log baseline (2026-09), not yet triaged
-      Log.log('Plugin shortcuts changed:', { shortcuts });
-      this._updateKeyboardFormWithPluginShortcuts(shortcuts);
-    });
   }
 
   /**
@@ -280,6 +284,7 @@ export class ConfigPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this._destroyRef))
       .subscribe((cfg) => {
         this.globalCfg = cfg;
+        this._cd.markForCheck();
       });
 
     // Check for tab query parameter and set selected tab
@@ -288,7 +293,7 @@ export class ConfigPageComponent implements OnInit {
       .subscribe((params) => {
         if (params['tab'] !== undefined) {
           const tabIndex = parseInt(params['tab'], 10);
-          if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex < 5) {
+          if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex < 6) {
             this.selectedTabIndex = tabIndex;
             this._cd.detectChanges();
           }
@@ -422,17 +427,28 @@ export class ConfigPageComponent implements OnInit {
     this.searchResults = searchSettings(
       [
         { labelKey: T.PS.TABS.GENERAL, sections: this.generalFormCfg },
+        { labelKey: 'GCF.MISC.APPEARANCE', sections: [] },
         { labelKey: T.PS.TABS.TASKS, sections: this.globalTasksFormCfg },
-        { labelKey: T.PS.TABS.TIME_TRACKING, sections: this.timeTrackingFormCfg },
-        {
-          labelKey: T.PS.TABS.PRODUCTIVITY,
-          sections: this.globalProductivityConfigFormCfg,
-        },
-        { labelKey: T.PS.TABS.PLUGINS, sections: this.pluginsShortcutsFormCfg },
+        { labelKey: 'PLANSTRAND.SCHEDULE', sections: this.calendarFormCfg },
         { labelKey: T.PS.TABS.SYNC_BACKUP, sections: this.globalImexFormCfg },
+        { labelKey: 'About', sections: [] },
       ],
       this.searchQuery,
       (key) => this._translateService.instant(key),
+      [
+        {
+          labelKey: 'GCF.MISC.APPEARANCE',
+          tabLabelKey: 'GCF.MISC.APPEARANCE',
+          tabIndex: 1,
+          scrollSelector: '.appearance-section',
+        },
+        {
+          labelKey: T.PS.SYNC.SET_UP_SYNC,
+          tabLabelKey: T.PS.TABS.SYNC_BACKUP,
+          tabIndex: 4,
+          scrollSelector: '.sync-summary',
+        },
+      ],
     );
   }
 

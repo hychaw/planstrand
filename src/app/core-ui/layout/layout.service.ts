@@ -70,7 +70,7 @@ export class LayoutService {
     select(selectIsShowIssuePanel),
   );
 
-  readonly selectedTimeView = signal<'week' | 'month' | 'day'>('week');
+  readonly selectedTimeView = signal<'week' | 'month' | 'day' | 'year'>('week');
   readonly isWorkViewScrolled = signal<boolean>(false);
   readonly isShowAddTaskBar = toSignal(this.isShowAddTaskBar$, { initialValue: false });
 

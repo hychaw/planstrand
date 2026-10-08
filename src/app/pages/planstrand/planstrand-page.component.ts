@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { ScheduleDayPanelComponent } from '../../features/schedule/schedule-day-panel/schedule-day-panel.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -23,8 +31,7 @@ import {
 import { planningCommands } from '../../features/planning/planning-commands';
 import { PlanningPlacement } from '../../features/planning/planning.model';
 import { TaskWithSubTasks } from '../../features/tasks/task.model';
-import { DateService } from '../../core/date/date.service';
-import { selectTodayStr } from '../../root-store/app-state/app-state.selectors';
+import { CurrentDateService } from '../../core/date/current-date.service';
 import { selectLocalizationConfig } from '../../features/config/store/global-config.reducer';
 import { getWeekRange } from '../../util/get-week-range';
 import { getDbDateStr } from '../../util/get-db-date-str';
@@ -33,6 +40,8 @@ import { getDbDateStr } from '../../util/get-db-date-str';
   selector: 'planstrand-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    DatePipe,
+    ScheduleDayPanelComponent,
     PlanstrandTaskListComponent,
     CdkDropListGroup,
     CdkDrag,
@@ -45,6 +54,7 @@ import { getDbDateStr } from '../../util/get-db-date-str';
   styleUrl: './planstrand-page.component.scss',
 })
 export class PlanstrandPageComponent {
+  readonly todayPane = signal<'plan' | 'schedule'>('plan');
   readonly Math = Math;
   readonly ui = inject(PlanstrandService);
   private readonly route = inject(ActivatedRoute);
@@ -53,9 +63,8 @@ export class PlanstrandPageComponent {
   private readonly params = toSignal(this.route.paramMap);
   readonly mode = computed(() => this.data()?.['planstrand'] as string);
   readonly inboxId = INBOX_FOLDER_ID;
-  private readonly dateService = inject(DateService);
-  private readonly logicalToday = this.store.selectSignal(selectTodayStr);
-  readonly today = computed(() => this.logicalToday() || this.dateService.todayStr());
+  private readonly dates = inject(CurrentDateService);
+  readonly today = this.dates.today;
   private readonly localization = this.store.selectSignal(selectLocalizationConfig);
   private readonly groups = this.store.selectSignal(selectMasterTaskGroups);
   private readonly placements = this.store.selectSignal(selectAllPlacements);
@@ -99,10 +108,36 @@ export class PlanstrandPageComponent {
         .filter((t): t is TaskWithSubTasks => !!t),
     }));
   });
+  readonly focusTasks = computed(
+    () => this.sections()[0]?.tasks.filter((t) => !t.isDone) ?? [],
+  );
+  readonly completedTasks = computed(
+    () => this.sections()[0]?.tasks.filter((t) => t.isDone) ?? [],
+  );
   readonly captureTasks = computed(() => {
     const planned = new Set(this.placements().map((p) => p.id));
     return this.allTasks().filter((t) => !planned.has(t.id) && !t.isDone);
   });
+
+  addTask(target: PlanningPlacement['target']): void {
+    void this.ui.createTask(
+      this.inboxId,
+      undefined,
+      this.mode() === 'today'
+        ? () => ({ type: 'DAY', key: this.dates.resolveToday() })
+        : target.type === 'WEEK'
+          ? () => ({
+              type: 'WEEK',
+              key: getDbDateStr(
+                getWeekRange(
+                  new Date(this.dates.resolveToday() + 'T12:00:00'),
+                  this.localization().firstDayOfWeek ?? 1,
+                ).start,
+              ),
+            })
+          : target,
+    );
+  }
 
   moveTask(event: { task: TaskWithSubTasks; index: number }, folderId: string): void {
     this.ui.moveTask(event.task, folderId);
@@ -111,7 +146,19 @@ export class PlanstrandPageComponent {
     event: { task: TaskWithSubTasks; index: number },
     target: PlanningPlacement['target'],
   ): void {
-    planningCommands(this.store).placeAt(event.task.id, target, event.index);
+    let index = event.index;
+    if (this.mode() === 'today') {
+      const others = (this.sections()[0]?.tasks ?? []).filter(
+        (task) => task.id !== event.task.id,
+      );
+      const anchor = others.filter((task) => !task.isDone)[index];
+      index = anchor ? others.findIndex((task) => task.id === anchor.id) : others.length;
+    }
+    planningCommands(this.store).placeAt(
+      event.task.id,
+      this.mode() === 'today' ? { type: 'DAY', key: this.dates.resolveToday() } : target,
+      index,
+    );
   }
   unplan(id: string): void {
     planningCommands(this.store).unplan(id);

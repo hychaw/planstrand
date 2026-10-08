@@ -54,10 +54,10 @@ describe('DateService timezone test', () => {
           startOfNextDayDiffMs: service.getStartOfNextDayDiffMs(),
           localTime: new Date().toString(),
           result: result,
-          expectedBehavior: 'Should treat 1 AM as previous day due to 2-hour offset',
+          expectedBehavior: 'Calendar Today must ignore the inherited offset',
         });
 
-        expect(result).toBe('2025-01-16');
+        expect(result).toBe('2025-01-17');
       } finally {
         jasmine.clock().uninstall();
       }

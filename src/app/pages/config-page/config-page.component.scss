@@ -270,3 +270,89 @@
     }
   }
 }
+
+.page-settings {
+  padding: var(--planstrand-page-padding);
+  max-width: 1500px;
+  margin-inline: auto;
+}
+.settings-page-header {
+  margin-bottom: 28px;
+}
+.settings-page-header h1 {
+  font-size: clamp(32px, 4vw, 54px);
+  line-height: 1.15;
+  font-weight: 550;
+  letter-spacing: -0.055em;
+  color: var(--ink-strong);
+  margin: 0;
+  text-transform: uppercase;
+}
+.page-settings .settings-search {
+  margin: 0 0 24px;
+  max-width: 660px;
+  opacity: 1;
+  background: var(--planstrand-panel);
+  border-radius: 14px;
+  --mat-form-field-outlined-container-shape: 14px;
+}
+.page-settings .settings-tabs ::ng-deep .mat-mdc-tab-header {
+  background: var(--planstrand-panel);
+  border: 1px solid var(--planstrand-panel-border);
+  border-radius: 16px;
+  padding: 6px;
+  margin-bottom: 22px;
+}
+.page-settings .settings-tabs ::ng-deep .mat-mdc-tab {
+  border-radius: 10px;
+  min-height: 48px;
+}
+.page-settings .settings-tabs ::ng-deep .mdc-tab--active {
+  background: var(--surface-selected);
+}
+.page-settings .settings-tabs ::ng-deep .mdc-tab-indicator__content--underline {
+  border-color: var(--brand);
+  border-radius: 2px;
+  width: 28px;
+  margin-inline: auto;
+}
+.page-settings .tab-content {
+  max-width: 1100px;
+  padding-top: 0;
+}
+.page-settings .tab-content .section-title {
+  font-size: 24px;
+  margin: 8px 0 22px;
+}
+.page-settings .config-section {
+  border: 1px solid var(--planstrand-panel-border);
+  background: var(--planstrand-panel);
+  border-radius: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--card-shadow);
+}
+.page-settings .config-section ::ng-deep .collapsible-header {
+  padding: 18px 22px;
+  font-size: 16px;
+}
+.version-footer {
+  color: var(--ink-muted);
+  font-style: normal;
+  font-size: 12px;
+  line-height: 2;
+}
+@media (max-width: 600px) {
+  .page-settings {
+    padding: 16px;
+  }
+  .page-settings .settings-tabs .tab-label {
+    display: block;
+    font-size: 12px;
+  }
+  .page-settings .settings-tabs .tab-icon {
+    display: none;
+  }
+  .page-settings .settings-tabs ::ng-deep .mat-mdc-tab {
+    min-width: 82px;
+  }
+}

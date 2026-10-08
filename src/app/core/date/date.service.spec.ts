@@ -30,27 +30,13 @@ describe('DateService', () => {
       expect(service.isToday(tomorrow)).toBe(false);
     });
 
-    it('should return false for logical tomorrow when offset is set', () => {
+    it('uses the local calendar day even with an inherited workday offset', () => {
       jasmine.clock().install();
-      const fixed = new Date(2026, 2, 27, 1, 30, 0);
-      jasmine.clock().mockDate(fixed);
-      service.setStartOfNextDayDiff(3);
-      expect(service.isToday(service.getLogicalTomorrowMs())).toBe(false);
-    });
-
-    it('should treat post-midnight as previous day when offset is set', () => {
-      // offset = 2 hours means the "day" doesn't change until 2 AM
-      service.setStartOfNextDayDiff(2);
-
-      const today = new Date();
-      today.setHours(0, 30, 0, 0); // 00:30 today
-
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(12, 0, 0, 0); // noon yesterday
-
-      // 00:30 with a 2-hour offset should be treated as the previous day
-      expect(service.isToday(today)).toBe(service.isToday(yesterday));
+      jasmine.clock().mockDate(new Date(2026, 9, 7, 0, 30));
+      service.setStartOfNextDayDiff(4);
+      expect(service.isToday(new Date(2026, 9, 7, 0, 5))).toBeTrue();
+      expect(service.isToday(new Date(2026, 9, 6, 23, 55))).toBeFalse();
+      expect(service.isYesterday(new Date(2026, 9, 6, 23, 55))).toBeTrue();
     });
 
     it('should treat late-night time as still today when offset is set', () => {
@@ -92,12 +78,12 @@ describe('DateService', () => {
       expect(service.todayStr()).toBe('2026-03-27');
     });
 
-    it('without args should keep the previous calendar day until start-of-next-day hour', () => {
+    it('without args ignores the legacy workday boundary', () => {
       jasmine.clock().install();
       const fixed = new Date(2026, 2, 27, 2, 30, 0);
       jasmine.clock().mockDate(fixed);
       service.setStartOfNextDayDiff(3);
-      expect(service.todayStr()).toBe('2026-03-26');
+      expect(service.todayStr()).toBe('2026-03-27');
     });
 
     it('without args should use the new calendar day from start-of-next-day hour onward', () => {

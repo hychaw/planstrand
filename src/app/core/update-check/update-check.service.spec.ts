@@ -11,7 +11,7 @@ import { BannerService } from '../banner/banner.service';
 import { BannerId, Banner } from '../banner/banner.model';
 import { SnackService } from '../snack/snack.service';
 import { LS } from '../persistence/storage-keys.const';
-import { environment } from '../../../environments/environment';
+import { PLANSTRAND_PRODUCT_VERSION } from '../../util/planstrand-product-version';
 
 const RELEASES_API_URL = 'https://api.github.com/repos/hychaw/planstrand/releases/latest';
 
@@ -68,7 +68,7 @@ describe('UpdateCheckService', () => {
     });
 
     it('should do nothing when already on the latest version', async () => {
-      await checkAndRespond({ tag_name: `v${environment.version}` });
+      await checkAndRespond({ tag_name: `v${PLANSTRAND_PRODUCT_VERSION}` });
       expect(bannerService.open).not.toHaveBeenCalled();
       expect(snackService.open).not.toHaveBeenCalled();
     });
@@ -78,9 +78,16 @@ describe('UpdateCheckService', () => {
       expect(bannerService.open).not.toHaveBeenCalled();
     });
 
+    it('compares Planstrand releases against the product RC, not the upstream package', async () => {
+      await checkAndRespond({ tag_name: 'v1.0.0-rc.1' });
+      expect(bannerService.open).not.toHaveBeenCalled();
+      await checkAndRespond({ tag_name: 'v1.1.0' });
+      expect(bannerService.open).toHaveBeenCalledTimes(1);
+    });
+
     it('should show an up-to-date snack for a user-triggered check', async () => {
       await checkAndRespond(
-        { tag_name: `v${environment.version}` },
+        { tag_name: `v${PLANSTRAND_PRODUCT_VERSION}` },
         { isUserTriggered: true },
       );
       expect(snackService.open).toHaveBeenCalledWith(

@@ -9,6 +9,7 @@ export interface CalendarDisplayItem {
   timeZone?: string;
   title?: string;
   taskId?: string;
+  completedAt?: number | null;
   isAllDay?: boolean;
   canMove: boolean;
   canResize: boolean;

@@ -1,6 +1,9 @@
 <div class="page-settings page-wrapper">
   @if (globalCfg) {
     <div class="settings-container">
+      <header class="settings-page-header">
+        <h1>{{ T.MH.SETTINGS | translate }}</h1>
+      </header>
       <!-- Shared by every tab's `mat-tab-label`: an icon + translated title. -->
       <ng-template
         #tabLabel
@@ -89,9 +92,7 @@
             <h2 class="mat-h2 section-title">
               {{ 'PS.TABS.GENERAL' | translate }}
             </h2>
-            <section class="config-section appearance-section">
-              <theme-selector></theme-selector>
-            </section>
+
             @for (section of generalFormCfg; track section.key) {
               <section class="config-section section-{{ section.key }}">
                 <config-section
@@ -105,6 +106,13 @@
           </div>
         </mat-tab>
 
+        <mat-tab label="Appearance"
+          ><div class="tab-content">
+            <h2>Appearance</h2>
+            <section class="config-section appearance-section">
+              <theme-selector></theme-selector>
+            </section></div
+        ></mat-tab>
         <!-- Tab: Tasks -->
         <mat-tab>
           <ng-template mat-tab-label>
@@ -133,99 +141,36 @@
             <!-- @todo: Create a single style for forming all the settings elements.
                         Make all as "sections" or as "forms" consistently.
             -->
-            <section class="config-section sound-section">
-              <config-sound-form
-                [cfg]="getGlobalCfgSection('sound')"
-                (save)="saveGlobalCfg($event)"
-              ></config-sound-form>
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Calendar"
+          ><div class="tab-content">
+            <h2>Calendar</h2>
+            <section class="config-section">
+              <mat-checkbox
+                [checked]="workingHours.enabled()"
+                (change)="workingHours.setEnabled($event.checked)"
+                >Show Work Start / End on this device</mat-checkbox
+              >
+              <p>
+                Optional visual guides in Calendar and My Day. WorkSessions remain
+                reserved time.
+              </p>
             </section>
-          </div>
-        </mat-tab>
-
-        <!-- Tab: Time & Tracking -->
-        <mat-tab>
-          <ng-template mat-tab-label>
-            <ng-container
-              *ngTemplateOutlet="
-                tabLabel;
-                context: { $implicit: 'timer', labelKey: 'PS.TABS.TIME_TRACKING' }
-              "
-            ></ng-container>
-          </ng-template>
-          <div class="tab-content">
-            <h2 class="mat-h2 section-title">
-              {{ 'PS.TABS.TIME_TRACKING' | translate }}
-            </h2>
-            @for (section of timeTrackingFormCfg; track section.key) {
-              <section class="config-section section-{{ section.key }}">
-                <config-section
-                  (save)="saveGlobalCfg($event)"
-                  [cfg]="getGlobalCfgSection(section.key)"
-                  [isExpanded]="isSectionExpanded(section)"
-                  [section]="section"
-                ></config-section>
-              </section>
-            }
-          </div>
-        </mat-tab>
-
-        <!-- Tab: Productivity -->
-        <mat-tab>
-          <ng-template mat-tab-label>
-            <ng-container
-              *ngTemplateOutlet="
-                tabLabel;
-                context: { $implicit: 'trending_up', labelKey: 'PS.TABS.PRODUCTIVITY' }
-              "
-            ></ng-container>
-          </ng-template>
-          <div class="tab-content tour-productivityHelper">
-            <h2 class="mat-h2 section-title">
-              {{ 'PS.TABS.PRODUCTIVITY' | translate }}
-            </h2>
-            @for (section of globalProductivityConfigFormCfg; track section.key) {
-              <section class="config-section section-{{ section.key }}">
-                <config-section
-                  (save)="saveGlobalCfg($event)"
-                  [cfg]="getGlobalCfgSection(section.key)"
-                  [isExpanded]="isSectionExpanded(section)"
-                  [section]="section"
-                ></config-section>
-              </section>
-            }
-          </div>
-        </mat-tab>
-
-        <!-- Tab: Plugins -->
-        <mat-tab>
-          <ng-template mat-tab-label>
-            <ng-container
-              *ngTemplateOutlet="
-                tabLabel;
-                context: { $implicit: 'extension', labelKey: 'PS.TABS.PLUGINS' }
-              "
-            ></ng-container>
-          </ng-template>
-          <div class="tab-content">
-            <h2 class="mat-h2 section-title">
-              {{ 'PS.TABS.PLUGINS' | translate }}
-            </h2>
-            <section class="config-section plugin-section">
-              <plugin-management></plugin-management>
-            </section>
-            @for (section of pluginsShortcutsFormCfg; track section.key) {
-              <section class="config-section section-{{ section.key }}">
-                <config-section
-                  (save)="saveGlobalCfg($event)"
-                  [cfg]="getGlobalCfgSection(section.key)"
-                  [isExpanded]="isSectionExpanded(section)"
-                  [section]="section"
-                ></config-section>
-              </section>
-            }
-          </div>
-        </mat-tab>
-
+            @if (workingHours.enabled()) {
+              @for (section of calendarFormCfg; track section.key) {
+                <section class="config-section section-schedule">
+                  <config-section
+                    (save)="saveGlobalCfg($event)"
+                    [cfg]="getGlobalCfgSection('schedule')"
+                    [isExpanded]="true"
+                    [section]="section"
+                  />
+                </section>
+              }
+            }</div
+        ></mat-tab>
         <!-- Tab: Sync & Backup -->
         <mat-tab>
           <ng-template mat-tab-label>
@@ -309,6 +254,20 @@
             }
           </div>
         </mat-tab>
+        <mat-tab label="About"
+          ><div class="tab-content">
+            <h2>Planstrand</h2>
+            <p>Version {{ appVersion }}</p>
+            @if (buildRevision) {
+              <p>Build {{ buildRevision }}</p>
+            }
+            <a
+              mat-button
+              routerLink="/about"
+              >About, open-source acknowledgements and licenses</a
+            >
+          </div></mat-tab
+        >
       </mat-tab-group>
     </div>
   }
@@ -316,7 +275,7 @@
 
 <footer
   class="version-footer"
-  title="Rev {{ versions?.revision }} {{ versions?.branch }} {{ versions?.version }}"
+  [attr.title]="buildRevision ? 'Build ' + buildRevision : null"
 >
   Planstrand
   <a
@@ -326,35 +285,17 @@
     href="#"
     >{{ appVersion }}<mat-icon>content_copy</mat-icon></a
   >
-  –
-  <a
-    href="https://github.com/super-productivity/super-productivity/releases/latest"
-    target="_blank"
-    >Upstream changelog</a
-  >
-  @if (isUpdateCheckPossible) {
-    –
-    <a
-      (click)="checkForUpdates(); $event?.preventDefault()"
-      href="#"
-      >{{ T.PS.CHECK_FOR_UPDATES | translate }}</a
-    >
-  }
+
   –
   <a
     (click)="showLogs(); $event?.preventDefault()"
     href="#"
     >Logs</a
   >
+
   –
   <a
-    href="https://super-productivity.com/privacy/"
-    target="_blank"
-    >{{ T.PS.PRIVACY_POLICY | translate }}</a
-  >
-  –
-  <a
-    href="https://github.com/super-productivity/super-productivity/discussions/new"
+    href="https://github.com/hychaw/planstrand/issues"
     target="_blank"
     >{{ T.PS.PROVIDE_FEEDBACK | translate }}</a
   >

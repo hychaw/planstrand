@@ -1,3 +1,6 @@
+import { selectConfigFeatureState } from '../../config/store/global-config.reducer';
+import { zonedDateTimeFields } from '../../../util/iana-time-zone';
+import { calendarTimeRow } from '../calendar-time';
 import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
@@ -15,11 +18,8 @@ import {
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { ScheduleWeekComponent } from '../schedule-week/schedule-week.component';
-import { DateService } from '../../../core/date/date.service';
 import { getPointerPosition } from '../../../util/get-pointer-position';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { selectTimelineWorkStartEndHours } from '../../config/store/global-config.reducer';
-import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
+import { WorkingHoursDisplayService } from '../../../core/theme/working-hours-display.service';
 import { mapScheduleDaysToScheduleEvents } from '../map-schedule-data/map-schedule-days-to-schedule-events';
 import { FH, SVEType } from '../schedule.const';
 import { calculateTimeFromYPosition } from '../schedule-utils';
@@ -69,8 +69,6 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   @ViewChild('dropZone', { read: ElementRef }) dropZoneRef!: ElementRef<HTMLElement>;
 
   private _store = inject(Store);
-  private _dateService = inject(DateService);
-  private _globalTrackingIntervalService = inject(GlobalTrackingIntervalService);
   private _dragDropRegistry = inject(DragDropRegistry);
   private _externalDragService = inject(ScheduleExternalDragService);
   private _cdr = inject(ChangeDetectorRef);
@@ -89,16 +87,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   private _dragPointerOffsetY: number | null = null;
   private _lastKnownTopY: number | null = null;
 
-  private _todayDateStr = toSignal(this._globalTrackingIntervalService.todayDateStr$, {
-    initialValue: this._dateService.todayStr(Date.now()),
-  });
-
-  daysToShow = computed(() => {
-    this._todayDateStr();
-    this._scheduleService.scheduleRefreshTick();
-    const d = this._scheduleService.getTodayStr();
-    return d ? [d] : [];
-  });
+  daysToShow = computed(() => [this._scheduleService.today()]);
 
   scheduleDays = this._scheduleService.createScheduleDaysComputed(this.daysToShow);
 
@@ -122,8 +111,10 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
     return !hasVisibleEvents && !hasBeyondBudgetEvents;
   });
 
-  private _workStartEndHours = toSignal(
-    this._store.select(selectTimelineWorkStartEndHours),
+  private readonly _workingHours = inject(WorkingHoursDisplayService);
+  private readonly _scheduleConfig = inject(Store).selectSignal(selectConfigFeatureState);
+  private readonly _workStartEndHours = computed(() =>
+    this._workingHours.hoursFor(this._scheduleConfig()?.schedule),
   );
 
   workStartEnd = computed(() => {
@@ -154,6 +145,8 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this._stopScheduleMode();
+    this._toggleGlobalPointerListeners(false);
     if (this._pointerUpSubscription) {
       this._pointerUpSubscription.unsubscribe();
       this._pointerUpSubscription = null;
@@ -283,7 +276,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
         source: dropCalculation?.source ?? 'cached',
         storedTimestamp: dropTime,
         targetTime: targetDate,
-        formattedTime: this._formatTime(targetDate.getHours(), targetDate.getMinutes()),
+        formattedTime: this._formatPreviewTime(dropTime),
       });
       wasDroppedSuccessfully = this._workSessionService.scheduleTask(
         task,
@@ -301,6 +294,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
 
     // Disable snap-back animation when successfully dropped on panel
     if (wasDroppedSuccessfully) {
+      this._externalDragService.setCancelNextDrop(true);
       this._disableSnapBackAnimation();
     }
   }
@@ -360,13 +354,8 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
     return document.querySelector('.cdk-drag-preview') as HTMLElement | null;
   }
 
-  private _formatTime(hours: number, minutes: number): string {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  }
-
   private _formatPreviewTime(timestamp: number): string {
-    const date = new Date(timestamp);
-    return this._formatTime(date.getHours(), date.getMinutes());
+    return zonedDateTimeFields(timestamp, this._scheduleService.displayTimeZone()).time;
   }
 
   private _resolveTopY(
@@ -416,6 +405,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
     // In the mobile bottom sheet the scroll container is the sheet's direct
     // content child, i.e. this component's host element.
     const selectors = [
+      '.day-schedule > schedule-day-panel',
       '.side-inner',
       '.right-panel',
       '.bottom-panel-content > *',
@@ -583,7 +573,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   private _applySchedulePreviewStyling(isEnable: boolean): void {
     this._withDragPreview((previewEl) => {
       const tagName = previewEl.tagName.toLowerCase();
-      if (tagName === 'task') {
+      if (tagName === 'task' || previewEl.classList.contains('task-entry')) {
         this._applyTaskPreviewStyling(previewEl, isEnable);
       } else if (tagName === 'schedule-event') {
         this._applyScheduleEventPreviewStyling(previewEl, isEnable);
@@ -696,14 +686,8 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
       return null;
     }
 
-    const date = new Date(timestamp);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    // eslint-disable-next-line no-mixed-operators
-    const hoursDecimal = hours + minutes / 60;
-
     // Calculate row based on time (FH rows per hour)
-    const row = Math.round(hoursDecimal * FH) + 1;
+    const row = calendarTimeRow(timestamp, this._scheduleService.displayTimeZone(), FH);
     const col = 2; // First day column
     const rowSpan = this._calculateRowSpanFromTask(this._activeExternalTask);
 

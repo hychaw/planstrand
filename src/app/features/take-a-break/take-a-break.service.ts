@@ -1,3 +1,4 @@
+import { LEGACY_TRACKING_ENABLED } from '../config/legacy-tracking-enabled.token';
 import { Injectable, inject } from '@angular/core';
 import { TaskService } from '../tasks/task.service';
 import { GlobalTrackingIntervalService } from '../../core/global-tracking-interval/global-tracking-interval.service';
@@ -222,6 +223,8 @@ export class TakeABreakService {
   > = this._triggerBanner$.pipe(throttleTime(DESKTOP_NOTIFICATION_THROTTLE));
 
   constructor() {
+    // Planstrand reserves WorkSessions; inherited break recovery is inactive.
+    if (!inject(LEGACY_TRACKING_ENABLED)) return;
     // NOTE: deliberately not gated on isTakeABreakEnabled. Dismissing a banner
     // that cannot be open and un-latching subjects that cannot be `true` are
     // both no-ops, whereas skipping the teardown when the feature is toggled

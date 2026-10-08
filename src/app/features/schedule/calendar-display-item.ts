@@ -39,6 +39,7 @@ export const projectWorkSession = (
   timeZone: session.timeZone,
   title: task?.title,
   taskId: session.taskId,
+  completedAt: session.completedAt,
   canMove: true,
   canResize: true,
   canDelete: true,

@@ -22,7 +22,11 @@ const registerShowAppShortCuts = (cfg: KeyboardConfig): void => {
   if (cfg) {
     const mainWin = getWin();
     Object.keys(cfg)
-      .filter((key: string) => GLOBAL_KEY_CFG_KEYS.includes(key as keyof KeyboardConfig))
+      .filter(
+        (key: string) =>
+          GLOBAL_KEY_CFG_KEYS.includes(key as keyof KeyboardConfig) &&
+          ['globalShowHide', 'globalAddTask'].includes(key),
+      )
       .forEach((key: string) => {
         let actionFn: () => void;
         const shortcut = cfg[key as keyof KeyboardConfig];

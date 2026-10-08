@@ -71,6 +71,33 @@ describe('normalized Planning replay', () => {
       plannerSharedMetaReducer(taskSharedCrudMetaReducer(feature)),
     ),
   );
+  it('replays atomic task capture with an initial placement without a second action', () => {
+    for (const type of ['WEEK', 'DAY'] as const) {
+      const initial = base();
+      const action = TaskSharedActions.addTask({
+        task: { ...initial.tasks.entities['X']!, id: 'captured' },
+        workContextId: initial.tasks.entities['X']!.projectId!,
+        workContextType:
+          'PROJECT' as import('../work-context/work-context.model').WorkContextType,
+        isAddToBacklog: false,
+        isAddToBottom: true,
+        isIgnoreShortSyntax: true,
+        initialPlanning: {
+          id: 'captured',
+          placement: { target: { type, key: '2026-10-05' }, orderKey: 'V' },
+          revision: { counter: 1, clientId: 'client-a', opId: 'initial-capture' },
+        },
+      });
+      const replay = JSON.parse(JSON.stringify(action));
+      const next = reduce(initial, replay);
+      expect(next.tasks.entities['captured']).toBeDefined();
+      expect(planningPlacementView(next.planning?.entities['captured'])?.target).toEqual({
+        type,
+        key: '2026-10-05',
+      });
+      expect(reduce(next, replay).planning).toEqual(next.planning);
+    }
+  });
   const placement = (
     id: string,
     day = D,

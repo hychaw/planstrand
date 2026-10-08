@@ -28,6 +28,8 @@ import { uuidv7 } from '../../util/uuid-v7';
 import { lsGetJSON, lsSetItem } from '../../util/ls-util';
 import { FolderPickerComponent } from './folder-picker.component';
 import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership';
+import { planningCommands } from '../../features/planning/planning-commands';
+import { PlanningPlacement } from '../../features/planning/planning.model';
 
 const COLLAPSED_KEY = 'PLANSTRAND_COLLAPSED_FOLDERS';
 
@@ -174,15 +176,32 @@ export class PlanstrandService {
     if (typeof folderId === 'string') this.moveTask(task, folderId);
   }
 
-  async createTask(folderId: string): Promise<void> {
-    const title = await this.prompt('ADD_TASK');
+  async createTask(
+    folderId: string,
+    capturedTitle?: string,
+    target?: PlanningPlacement['target'] | (() => PlanningPlacement['target']),
+  ): Promise<void> {
+    const title =
+      capturedTitle === undefined ? await this.prompt('ADD_TASK') : capturedTitle.trim();
     if (!title || !this.folders().entities[folderId]) return;
+    const resolvedTarget = typeof target === 'function' ? target() : target;
     const task = this.tasks.createNewTaskWithDefaults({
       title,
       workContextId: INBOX_PROJECT.id,
       workContextType: WorkContextType.PROJECT,
       additional: { folderId },
     });
+    // Capture the absolute register before dispatch: creation and placement replay
+    // together, without a follow-up local effect or a second operation.
+    const initialPlanning = resolvedTarget
+      ? (
+          await planningCommands(this.store).placementAction(
+            task.id,
+            resolvedTarget,
+            Infinity,
+          )
+        ).record
+      : undefined;
     this.store.dispatch(
       TaskSharedActions.addTask({
         task,
@@ -190,6 +209,7 @@ export class PlanstrandService {
         workContextType: WorkContextType.PROJECT,
         isAddToBacklog: false,
         isAddToBottom: true,
+        ...(initialPlanning ? { initialPlanning, isIgnoreShortSyntax: true } : {}),
       }),
     );
   }

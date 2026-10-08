@@ -1,3 +1,5 @@
+import { CurrentDateService } from '../date/current-date.service';
+import { BehaviorSubject } from 'rxjs';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideMockStore } from '@ngrx/store/testing';
 import { Subject } from 'rxjs';
@@ -60,7 +62,13 @@ describe('createGlobalInterval$', () => {
 describe('GlobalTrackingIntervalService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideMockStore({ initialState: {} })],
+      providers: [
+        provideMockStore({ initialState: {} }),
+        {
+          provide: CurrentDateService,
+          useValue: { today$: new BehaviorSubject('2026-05-22') },
+        },
+      ],
     });
   });
 
@@ -135,7 +143,7 @@ describe('GlobalTrackingIntervalService', () => {
     expect(observed).toContain(100);
   }));
 
-  it('should refresh todayDateStr$ when the start-of-next-day offset changes', fakeAsync(() => {
+  it('does not shift calendar Today when the legacy workday offset changes', fakeAsync(() => {
     spyOn(Date, 'now').and.returnValue(new Date(2026, 4, 22, 10, 5).getTime());
     const service = TestBed.inject(GlobalTrackingIntervalService);
     const dateService = TestBed.inject(DateService);
@@ -148,7 +156,7 @@ describe('GlobalTrackingIntervalService', () => {
     dateService.setStartOfNextDayDiff('10:10');
     tick(0);
 
-    expect(observed).toEqual(['2026-05-22', '2026-05-21']);
+    expect(observed).toEqual(['2026-05-22']);
     sub.unsubscribe();
   }));
 });

@@ -25,13 +25,13 @@ const originalMessageOf = (error: IndexedDBOpenError): string =>
  */
 const UNIVERSAL_RECOVERY_STEPS =
   '1. Close this window.\n' +
-  '2. Start the newest version of Super Productivity you have installed. If this ' +
+  '2. Start the newest version of Planstrand you have installed. If this ' +
   'keeps happening, you likely have a second, older copy: an outdated shortcut, ' +
   'a portable executable, or an old install folder.\n' +
   '3. If you cannot find it, update the way you installed it — your app store, ' +
   'package manager, or https://github.com/hychaw/planstrand/releases\n' +
   '4. If you run it in a browser: reload with Ctrl+Shift+R (Cmd+Shift+R on Mac) ' +
-  'and close any other tabs running Super Productivity.\n\n';
+  'and close any other tabs running Planstrand.\n\n';
 
 /**
  * The downgrade barrier rejected an intact database: `DB_VERSION` 8-10 exist
@@ -87,7 +87,7 @@ const buildVersionErrorMessage = (
   ctx: IdbOpenErrorContext,
 ): string =>
   'Cannot Open Data - This Version Is Too Old\n\n' +
-  `You are running Super Productivity ${ctx.appVersion}, but your data was ` +
+  `You are running Planstrand ${ctx.appVersion}, but your data was ` +
   'last used by a newer version. Older versions cannot read it.\n\n' +
   // Deliberately factual rather than "your data is safe": all we know is that
   // this failure touched nothing. The app never opened the database, so it has
@@ -103,7 +103,7 @@ const buildVersionErrorMessage = (
   // anti-data-loss advice, so a mis-detected channel must not be able to flip
   // it. The desktop half self-qualifies instead.
   'If you cannot run a newer version, do NOT clear this app data — that is what ' +
-  'makes the loss permanent. On desktop, copy your Super Productivity data ' +
+  'makes the loss permanent. On desktop, copy your Planstrand data ' +
   'folder somewhere safe before changing anything.\n\n' +
   // No "check the console" pointer here: `Technical details` above already
   // carries the whole error, and 5 of the 13 channels have no console a user
@@ -122,7 +122,7 @@ const buildGenericErrorMessage = (
 ): string => {
   let message =
     'Database Error - Cannot Load Data\n\n' +
-    'Super Productivity cannot open its database. ' +
+    'Planstrand cannot open its database. ' +
     'This may be caused by:\n\n' +
     '- Low disk space\n' +
     '- Temporary file lock (try closing other tabs)\n' +

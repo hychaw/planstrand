@@ -31,6 +31,9 @@ import { SnackService } from '../../snack/snack.service';
 import { T } from '../../../t.const';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Log } from '../../log';
+import { DensityService } from '../density.service';
+import { WorkingHoursDisplayService } from '../working-hours-display.service';
+import { MatCheckbox } from '@angular/material/checkbox';
 
 const refToValue = (ref: CustomThemeRef): string => `${ref.kind}:${ref.id}`;
 
@@ -48,6 +51,7 @@ const valueToRef = (value: string): CustomThemeRef => {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    MatCheckbox,
     MatButtonToggleGroup,
     MatButtonToggle,
     MatIcon,
@@ -63,6 +67,29 @@ const valueToRef = (value: string): CustomThemeRef => {
   template: `
     <div class="theme-selector-container">
       <h3 class="appearance-title">{{ T.GCF.MISC.APPEARANCE | translate }}</h3>
+      <div class="dark-mode-select">
+        <span class="setting-label">{{ 'PLANSTRAND.WORKING_HOURS' | translate }}</span>
+        <mat-checkbox
+          [checked]="workingHours.enabled()"
+          (change)="workingHours.setEnabled($event.checked)"
+          >{{ 'PLANSTRAND.SHOW_WORKING_HOURS' | translate }}</mat-checkbox
+        >
+      </div>
+      <div class="dark-mode-select">
+        <span class="setting-label">{{ 'PLANSTRAND.DENSITY' | translate }}</span>
+        <mat-button-toggle-group
+          [attr.aria-label]="'PLANSTRAND.DENSITY' | translate"
+          [value]="densityService.density()"
+          (change)="densityService.setDensity($event.value)"
+        >
+          <mat-button-toggle value="comfortable">{{
+            'PLANSTRAND.COMFORTABLE' | translate
+          }}</mat-button-toggle>
+          <mat-button-toggle value="compact">{{
+            'PLANSTRAND.COMPACT' | translate
+          }}</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
 
       <div class="dark-mode-select">
         <span class="setting-label">{{ T.GCF.MISC.DARK_MODE | translate }}</span>
@@ -189,7 +216,7 @@ const valueToRef = (value: string): CustomThemeRef => {
         display: flex;
         flex-direction: column;
         gap: var(--s2);
-        padding: var(--s2);
+        padding: clamp(16px, 3vw, 28px);
         container-type: inline-size;
       }
 
@@ -197,19 +224,23 @@ const valueToRef = (value: string): CustomThemeRef => {
       .theme-select,
       .wallpaper-select {
         display: grid;
-        grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr);
+        grid-template-columns: minmax(140px, 1fr) minmax(0, 1.8fr);
+        padding: 16px;
+        background: var(--surface-hover);
+        border-radius: 12px;
         align-items: center;
         gap: var(--s2);
       }
 
       .appearance-title {
         margin: 0;
-        font-size: var(--font-size-lg);
+        font-size: var(--font-size-xl);
         font-weight: var(--font-weight-semibold);
       }
 
       .setting-label {
         font-size: var(--font-size-md);
+        font-weight: 500;
       }
 
       mat-form-field {
@@ -324,6 +355,29 @@ const valueToRef = (value: string): CustomThemeRef => {
         text-overflow: ellipsis;
       }
 
+      mat-button-toggle-group {
+        display: flex;
+        width: 100%;
+        padding: 4px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--surface-selected);
+        --mat-button-toggle-selected-state-background-color: var(--surface-floating);
+        --mat-button-toggle-selected-state-text-color: var(--ink-strong);
+        --mat-button-toggle-background-color: transparent;
+      }
+      mat-button-toggle-group mat-button-toggle {
+        flex: 1;
+        border: 0;
+        border-radius: 8px;
+        color: var(--ink-muted);
+      }
+      mat-button-toggle-group .mat-button-toggle-checked {
+        color: var(--ink-strong);
+        box-shadow:
+          inset 0 -2px var(--brand),
+          0 3px 10px -6px var(--brand);
+      }
       .theme-option-row {
         display: flex;
         align-items: center;
@@ -379,7 +433,9 @@ const valueToRef = (value: string): CustomThemeRef => {
   ],
 })
 export class ThemeSelectorComponent {
+  readonly workingHours = inject(WorkingHoursDisplayService);
   readonly globalThemeService = inject(GlobalThemeService);
+  readonly densityService = inject(DensityService);
   readonly customThemeService = inject(CustomThemeService);
   private readonly _themeStorage = inject(ThemeStorageService);
   private readonly _snackService = inject(SnackService);

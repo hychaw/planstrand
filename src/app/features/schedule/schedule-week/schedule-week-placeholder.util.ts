@@ -56,11 +56,13 @@ export const calculatePlaceholderForGridMove = (
     targetRow -= 1;
   }
   const row = targetRow + targetColRowOffset;
+  if (!rowIndex || row < 1 || row > 24 * FH) return null;
   const hours = Math.floor((row - 1) / FH);
   const minutes = Math.floor(((row - 1) % FH) * (60 / FH));
   const time = `${hours}:${minutes.toString().padStart(2, '0')}`;
   const dateIndex = targetColColOffset - 2;
   const date = ctx.days[dateIndex] ?? '';
+  if (!date) return null;
 
   return {
     style: `grid-row: ${row} / span 6; grid-column: ${targetColColOffset} / span 1`,

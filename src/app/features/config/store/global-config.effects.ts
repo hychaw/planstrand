@@ -6,7 +6,6 @@ import {
   distinctUntilChanged,
   filter,
   map,
-  switchMap,
   tap,
   withLatestFrom,
 } from 'rxjs/operators';
@@ -28,14 +27,9 @@ import { updateGlobalConfigSection } from './global-config.actions';
 import {
   selectConfigFeatureState,
   selectLocalizationConfig,
-  selectMiscConfig,
 } from './global-config.reducer';
 import { mapKeyboardConfigToQwerty } from '../keyboard-shortcut.util';
-import { MiscConfig } from '../global-config.model';
 import { AppStateActions } from '../../../root-store/app-state/app-state.actions';
-import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
-import { selectAllTasks } from '../../tasks/store/task.selectors';
-import { normalizeStartOfNextDayConfig } from '../normalize-start-of-next-day-config';
 import { Log } from '../../../core/log';
 import { bulkApplyOperations } from '../../../op-log/apply/bulk-hydration.action';
 import { FULL_STATE_OP_TYPES } from '../../../op-log/core/operation.types';
@@ -156,74 +150,31 @@ export class GlobalConfigEffects {
     { dispatch: false },
   );
 
+  // Keep legacy configuration in saved data for compatibility, but Planstrand
+  // uses civil midnight. Loading/replaying it must never move Tasks or Planning.
+  private _calendarToday(): Action {
+    this._dateService.setStartOfNextDayDiff(0);
+    return AppStateActions.setTodayString({
+      todayStr: this._dateService.todayStr(),
+      startOfNextDayDiffMs: 0,
+    });
+  }
+
   setStartOfNextDayDiffOnChange = createEffect(() =>
     this._actions$.pipe(
       ofType(updateGlobalConfigSection),
       filter(({ sectionKey }) => sectionKey === 'misc'),
-      filter(
-        ({ sectionCfg }) =>
-          sectionCfg &&
-          (typeof (sectionCfg as MiscConfig).startOfNextDay === 'number' ||
-            typeof (sectionCfg as MiscConfig).startOfNextDayTime === 'string'),
-      ),
-      withLatestFrom(this._store.select(selectAllTasks)),
-      switchMap(([{ sectionCfg }, allTasks]) => {
-        const oldTodayStr = this._dateService.todayStr();
-        const miscCfg = normalizeStartOfNextDayConfig(sectionCfg as Partial<MiscConfig>);
-        this._dateService.setStartOfNextDayDiff(
-          miscCfg.startOfNextDayTime,
-          miscCfg.startOfNextDay,
-        );
-        const newTodayStr = this._dateService.todayStr();
-
-        const actions: Action[] = [
-          AppStateActions.setTodayString({
-            todayStr: newTodayStr,
-            startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-          }),
-        ];
-
-        // Migrate active task dueDays so "today" tasks stay "today" after offset change.
-        // Archived tasks are intentionally excluded — their dueDay is historical.
-        if (oldTodayStr !== newTodayStr) {
-          const taskUpdates = allTasks
-            .filter((t) => t.dueDay === oldTodayStr)
-            .map((t) => ({ id: t.id, changes: { dueDay: newTodayStr } }));
-
-          if (taskUpdates.length > 0) {
-            actions.push(TaskSharedActions.updateTasks({ tasks: taskUpdates }));
-          }
-        }
-
-        return actions;
-      }),
+      map(() => this._calendarToday()),
     ),
   );
 
   setStartOfNextDayDiffOnLoad = createEffect(() =>
     this._actions$.pipe(
       ofType(loadAllData),
-      tap(({ appDataComplete }) => {
-        const cfg = appDataComplete.globalConfig || DEFAULT_GLOBAL_CONFIG;
-        const misc = cfg?.misc ?? DEFAULT_GLOBAL_CONFIG.misc;
-        const normalizedMisc = normalizeStartOfNextDayConfig(misc);
-        this._dateService.setStartOfNextDayDiff(
-          normalizedMisc.startOfNextDayTime,
-          normalizedMisc.startOfNextDay,
-        );
-      }),
-      map(() =>
-        AppStateActions.setTodayString({
-          todayStr: this._dateService.todayStr(),
-          startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        }),
-      ),
+      map(() => this._calendarToday()),
     ),
   );
 
-  // Bulk replay intentionally hides its inner actions from effects. Reconcile this
-  // local, non-persistent runtime state after reducers finish, but keep the persistent
-  // dueDay migration in the direct local-change effect above.
   setStartOfNextDayDiffOnBulkApply = createEffect(() =>
     this._actions$.pipe(
       ofType(bulkApplyOperations),
@@ -234,18 +185,7 @@ export class GlobalConfigEffects {
             FULL_STATE_OP_TYPES.has(op.opType),
         ),
       ),
-      withLatestFrom(this._store.select(selectMiscConfig)),
-      map(([, misc]) => {
-        const normalizedMisc = normalizeStartOfNextDayConfig(misc);
-        this._dateService.setStartOfNextDayDiff(
-          normalizedMisc.startOfNextDayTime,
-          normalizedMisc.startOfNextDay,
-        );
-        return AppStateActions.setTodayString({
-          todayStr: this._dateService.todayStr(),
-          startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
-        });
-      }),
+      map(() => this._calendarToday()),
     ),
   );
 

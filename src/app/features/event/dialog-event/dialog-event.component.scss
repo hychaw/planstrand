@@ -4,6 +4,41 @@ label {
   align-items: center;
   margin-bottom: var(--s2);
 }
+fieldset {
+  border: 0;
+  margin: var(--s2) 0 0;
+  padding: 0;
+  min-width: 0;
+}
+legend {
+  color: var(--ink-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  margin-bottom: var(--s2);
+}
+input:not([type='checkbox']) {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-hover);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-variant-numeric: tabular-nums;
+}
+input[name='title'] {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--separator);
+  border-radius: 0;
+}
+mat-dialog-actions button[color='warn'] {
+  margin-inline-end: auto;
+}
+mat-dialog-content {
+  padding-block: var(--s2);
+}
 input:not([type='checkbox']) {
   min-width: 0;
   flex: 1;
@@ -14,4 +49,29 @@ input:not([type='checkbox']) {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+:host {
+  display: block;
+  color: var(--ink);
+}
+label {
+  color: var(--ink-muted);
+  font-size: 13px;
+  gap: 8px;
+}
+input:not([type='checkbox']),
+textarea,
+select {
+  background: var(--surface-hover);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--ink);
+  font: inherit;
+  box-sizing: border-box;
+}
+input:focus,
+textarea:focus {
+  border-color: var(--brand);
 }

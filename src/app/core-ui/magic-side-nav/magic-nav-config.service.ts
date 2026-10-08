@@ -146,10 +146,9 @@ export class MagicNavConfigService {
   readonly navConfig = computed<NavConfig>(() => ({
     items: [
       ...[
-        ['inbox', 'INBOX', 'inbox', '/inbox'],
-        ['master-tasks', 'MASTER_TASKS', 'account_tree', '/master-tasks'],
-        ['today', 'TODAY', 'today', '/today'],
+        ['today', 'TODAY', 'wb_sunny', '/today'],
         ['this-week', 'THIS_WEEK', 'date_range', '/this-week'],
+        ['master-tasks', 'MASTER_TASKS', 'check_circle', '/master-tasks'],
       ].map(
         ([id, label, icon, route]): NavItem => ({
           type: 'route',

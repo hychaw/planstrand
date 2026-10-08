@@ -19,6 +19,10 @@
           "/assets/icons/icon-*.png",
           "/assets/icons/favicon-*.png",
           "/assets/i18n/en.json",
+          "/assets/planstrand-sky.webp",
+          "/media/planstrand-sky-*.webp",
+          "/assets/upstream-license.txt",
+          "/3rdpartylicenses.txt",
           "/media/material-symbols-outlined-*.woff2",
           "/*.(otf|ttf|woff|woff2)"
         ]

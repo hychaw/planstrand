@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" fill="none">
+<!-- Original Planstrand vector: a distant flight path, never an interactive element. -->
+<defs><linearGradient id="fade"><stop stop-color="#72aaff" stop-opacity="0"/><stop offset="1" stop-color="#72aaff" stop-opacity=".25"/></linearGradient></defs>
+<path d="M180 280 Q620 225 1010 88M180 286 Q620 232 1010 94" stroke="url(#fade)" stroke-width="1.3"/>
+<path d="m1010 89 13-2 7-8 3 1-4 7 9-1 4-3 2 1-3 5-14 2-8 10-3-1 5-10-10 1z" fill="#72aaff" fill-opacity=".3"/>
+</svg>

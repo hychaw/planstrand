@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideStore, Store } from '@ngrx/store';
-import { WorkSessionService, taskScheduledWorkSessionId } from './work-session.service';
+import { WorkSessionService } from './work-session.service';
 import { GlobalConfigService } from '../config/global-config.service';
 import { DEFAULT_TASK, Task } from '../tasks/task.model';
 import { selectTaskEntities } from '../tasks/store/task.selectors';
@@ -11,7 +11,7 @@ import {
   initialWorkSessionState,
 } from './store/work-session.reducer';
 import { WorkSession, WorkSessionState } from './work-session.model';
-import { addWorkSession, updateWorkSession } from './store/work-session.actions';
+import { addWorkSession } from './store/work-session.actions';
 import {
   backfillLegacyTaskWorkSessions,
   legacyTaskWorkSessionId,
@@ -92,7 +92,8 @@ describe('Task timed scheduling cutover', () => {
     expect(service.scheduleTask(task, 100)).toBeTrue();
     expect(writes).toHaveBeenCalledTimes(1);
     expect(writes.calls.mostRecent().args[0].type).toBe(addWorkSession.type);
-    expect(entities()[taskScheduledWorkSessionId(task)]).toEqual(
+    expect(service.scheduledTaskSession(task)).toBe(Object.values(entities())[0]);
+    expect(Object.values(entities())[0]).toEqual(
       jasmine.objectContaining({
         taskId: task.id,
         start: 100,
@@ -114,7 +115,7 @@ describe('Task timed scheduling cutover', () => {
       expect(service.scheduleTask(invalid, 100)).toBeFalse();
       expect(writes).not.toHaveBeenCalled();
       expect(service.scheduleTask(invalid, 100, 900000)).toBeTrue();
-      expect(entities()[taskScheduledWorkSessionId(invalid)]?.end).toBe(900100);
+      expect(Object.values(entities())[0]?.end).toBe(900100);
       expect(
         Object.is(
           store.selectSignal(selectTaskEntities)()[task.id]?.timeEstimate,
@@ -145,24 +146,29 @@ describe('Task timed scheduling cutover', () => {
     ]);
   });
 
-  it('updates the deterministic primary block preserving duration and zone without selecting unrelated sessions', () => {
+  it('creates independent sessions for repeated Task scheduling, including an older primary session', () => {
     setup();
-    const unrelated = service.create(task.id, 10, 20, 'Europe/Berlin')!;
+    const oldPrimary = service.create(
+      task.id,
+      10,
+      20,
+      'Europe/Berlin',
+      'task-schedule:4:task',
+    )!;
     service.scheduleTask(task, 100);
-    const other = entities()[unrelated];
-    zone.set({ timeZone: 'Invalid/Zone' });
+    const before = { ...entities() };
     writes.calls.reset();
-    expect(service.scheduleTask({ ...task, timeEstimate: 1 }, 200)).toBeTrue();
+    expect(service.scheduleTask(task, 200)).toBeTrue();
     expect(writes).toHaveBeenCalledTimes(1);
-    expect(writes.calls.mostRecent().args[0].type).toBe(updateWorkSession.type);
-    expect(entities()[taskScheduledWorkSessionId(task)]).toEqual(
-      jasmine.objectContaining({ start: 200, end: 3600200, timeZone: 'Asia/Singapore' }),
-    );
-    expect(entities()[unrelated]).toBe(other);
-    expect(Object.keys(entities()).length).toBe(2);
+    expect(writes.calls.mostRecent().args[0].type).toBe(addWorkSession.type);
+    for (const [id, session] of Object.entries(before))
+      expect(entities()[id]).toBe(session);
+    expect(entities()[oldPrimary]?.start).toBe(10);
+    expect(Object.keys(entities()).length).toBe(3);
+    expect(new Set(Object.values(entities()).map((session) => session!.id)).size).toBe(3);
   });
 
-  it('updates a migrated legacy session with stale Task timing intact and no visual duplicate', () => {
+  it('schedules anew without overwriting a migrated legacy session or restoring its fallback', () => {
     const legacy = { ...task, dueWithTime: 10 };
     const session: WorkSession = {
       id: legacyTaskWorkSessionId(task.id, 10),
@@ -176,40 +182,52 @@ describe('Task timed scheduling cutover', () => {
     };
     setup(legacy, [session]);
     expect(service.scheduleTask(legacy, 100)).toBeTrue();
-    const next = entities()[session.id]!;
+    expect(entities()[session.id]).toBe(session);
+    const next = Object.values(entities()).find((s) => s?.id !== session.id)!;
     expect(next).toEqual(
       jasmine.objectContaining({
         start: 100,
-        end: 130,
-        timeZone: 'Europe/Berlin',
-        completedAt: 40,
+        end: 3600100,
+        timeZone: 'Asia/Singapore',
       }),
     );
     expect(store.selectSignal(selectTaskEntities)()[task.id]?.dueWithTime).toBe(10);
     expect(
-      projectLocalCalendarDisplayItems([next], { task: legacy }, [legacy]).map(
+      projectLocalCalendarDisplayItems([session, next], { task: legacy }, [legacy]).map(
         (i) => i.sourceType,
       ),
-    ).toEqual(['workSession']);
+    ).toEqual(['workSession', 'workSession']);
   });
 
-  it('creates using legacy identity when backfill was absent, so stale timing remains suppressed after startup', () => {
+  it('keeps a new intent distinct from an unbackfilled V1 reservation across hydration', () => {
     const legacy = { ...task, dueWithTime: 10 };
     setup(legacy);
     expect(service.scheduleTask(legacy, 100)).toBeTrue();
-    const next = entities()[legacyTaskWorkSessionId(task.id, 10)]!;
-    expect(
-      projectLocalCalendarDisplayItems([next], { task: legacy }, [legacy]).length,
-    ).toBe(1);
+    const next = Object.values(entities())[0]!;
+    expect(next.id).not.toBe(legacyTaskWorkSessionId(task.id, 10));
     expect(store.selectSignal(selectTaskEntities)()[task.id]).toBe(legacy);
     const persisted = { ids: [next.id], entities: { [next.id]: next } };
+    const hydrated = backfillLegacyTaskWorkSessions(
+      { ...initialTaskState, ids: [legacy.id], entities: { [legacy.id]: legacy } },
+      persisted,
+      'Europe/Berlin',
+    );
+    expect(hydrated.entities[next.id]).toEqual(next);
+    expect(hydrated.ids.length).toBe(2);
+    expect(
+      projectLocalCalendarDisplayItems(
+        Object.values(hydrated.entities) as WorkSession[],
+        { task: legacy },
+        [legacy],
+      ).map((i) => i.sourceType),
+    ).toEqual(['workSession', 'workSession']);
     expect(
       backfillLegacyTaskWorkSessions(
         { ...initialTaskState, ids: [legacy.id], entities: { [legacy.id]: legacy } },
-        persisted,
+        hydrated,
         'Europe/Berlin',
       ),
-    ).toBe(persisted);
+    ).toBe(hydrated);
   });
 
   it('fails without writing for an invalid timezone or range', () => {
@@ -221,6 +239,81 @@ describe('Task timed scheduling cutover', () => {
     expect(service.scheduleTask(task, -1)).toBeFalse();
     expect(writes).not.toHaveBeenCalled();
   });
+
+  for (const folderId of [undefined, 'nested-folder']) {
+    it(`retains independent Vancouver sessions, Planning and idempotent wire replay for ${folderId ?? 'Inbox'}`, () => {
+      const currentTask = { ...task, isDone: false, ...(folderId ? { folderId } : {}) };
+      setup(currentTask);
+      zone.set({ timeZone: 'America/Vancouver' });
+      store.dispatch(
+        setPlacement({
+          record: {
+            id: task.id,
+            placement: { target: { type: 'DAY', key: '2026-10-07' }, orderKey: 'V' },
+            revision: { counter: 1, clientId: 'local', opId: 'today' },
+          },
+        }),
+      );
+      const planning = store.selectSignal((s) => s['planning'])();
+      writes.calls.reset();
+      const morning = Date.parse('2026-10-07T16:00:00Z');
+      const afternoon = Date.parse('2026-10-07T21:00:00Z');
+      expect(service.scheduleTask(currentTask, morning)).toBeTrue();
+      expect(service.scheduleTask(currentTask, afternoon)).toBeTrue();
+      const [first, second] = Object.values(entities()) as WorkSession[];
+      expect(service.scheduledTaskSession(currentTask)).toBeUndefined();
+      expect(first.id).not.toBe(second.id);
+      expect([first.start, second.start]).toEqual([morning, afternoon]);
+      expect(writes.calls.allArgs().map(([action]) => action.type)).toEqual([
+        addWorkSession.type,
+        addWorkSession.type,
+      ]);
+      expect(
+        service.update(first.id, { start: morning + 3600000, end: morning + 7200000 }),
+      ).toBeTrue();
+      expect(entities()[second.id]).toBe(second);
+      expect(service.update(second.id, { end: afternoon + 5400000 })).toBeTrue();
+      expect(entities()[first.id]?.end).toBe(morning + 7200000);
+      expect(service.complete(first.id, afternoon)).toBeTrue();
+      expect(entities()[second.id]?.completedAt).toBeUndefined();
+      expect(store.selectSignal(selectTaskEntities)()[task.id]).toBe(currentTask);
+      expect(currentTask.isDone).toBeFalse();
+      expect(store.selectSignal((s) => s['planning'])()).toBe(planning);
+      const capture = TestBed.inject(OperationCaptureService);
+      const client = new TestClient('local');
+      let replayed = initialWorkSessionState;
+      const remoteActions: ReturnType<typeof convertOpToAction>[] = [];
+      for (const [action] of writes.calls.allArgs()) {
+        const { type, meta, ...actionPayload } = action;
+        const op = client.createOperation({
+          actionType: type,
+          opType: meta.opType,
+          entityType: meta.entityType,
+          entityId: meta.entityId,
+          payload: { actionPayload, entityChanges: capture.extractEntityChanges(action) },
+        });
+        const remote = convertOpToAction(JSON.parse(JSON.stringify(op)));
+        expect(remote.meta.isRemote).toBeTrue();
+        remoteActions.push(remote);
+        replayed = workSessionReducer(replayed, remote);
+      }
+      // Startup replay reconstructs a fresh slice; duplicate delivery is filtered
+      // by the existing operation applier, not by accepting duplicate creates.
+      expect(remoteActions.reduce(workSessionReducer, initialWorkSessionState)).toEqual(
+        replayed,
+      );
+      expect(replayed.entities).toEqual(entities());
+      expect(replayed.ids.length).toBe(2);
+      expect(
+        projectLocalCalendarDisplayItems(
+          Object.values(replayed.entities) as WorkSession[],
+          { task: currentTask },
+          [],
+        ),
+      ).toHaveSize(2);
+      expect(writes).toHaveBeenCalledTimes(5);
+    });
+  }
 
   // Explicit instants and Intl's named zone keep DST coverage independent of the
   // browser/Windows viewing zone. WorkSessions store elapsed time, not wall time.
@@ -234,14 +327,16 @@ describe('Task timed scheduling cutover', () => {
       zone.set({ timeZone: 'America/Los_Angeles' });
       const originalStart = Date.parse('2026-01-15T18:00:00Z');
       expect(service.scheduleTask(task, originalStart)).toBeTrue();
-      const id = taskScheduledWorkSessionId(task);
+      const id = Object.keys(entities())[0];
       const otherId = service.create(task.id, originalStart, originalStart + 1000)!;
       const other = entities()[otherId];
       const target = Date.parse(boundary.start);
       // A changed default must not replace the stored zone during movement.
       zone.set({ timeZone: 'Invalid/Zone' });
       writes.calls.reset();
-      expect(service.scheduleTask(task, target)).toBeTrue();
+      expect(
+        service.update(id, { start: target, end: target + task.timeEstimate }),
+      ).toBeTrue();
       const moved = entities()[id]!;
       expect(moved.end - moved.start).toBe(task.timeEstimate);
       const formatter = new Intl.DateTimeFormat('en-GB', {

@@ -6,6 +6,7 @@ import {
   getAppVersionStr,
 } from './get-app-version-str';
 import { environment } from '../../environments/environment';
+import { PLANSTRAND_PRODUCT_VERSION } from './planstrand-product-version';
 
 describe('distChannelSuffix', () => {
   const cases: [DistChannel, string][] = [
@@ -37,10 +38,9 @@ describe('distChannelSuffix', () => {
 });
 
 describe('getAppVersionStr', () => {
-  // In the Karma/browser env IS_ELECTRON, IS_IOS and IS_ANDROID_WEB_VIEW are
-  // all false, so the channel resolves to web -> "WB".
-  it('appends the web suffix in a browser context', () => {
-    expect(getAppVersionStr()).toBe(`${environment.version}WB`);
+  it('reports the product version without the inherited package/channel suffix', () => {
+    expect(getAppVersionStr()).toBe(PLANSTRAND_PRODUCT_VERSION);
+    expect(getAppVersionStr()).toBe('1.1.0-rc.1');
   });
 });
 

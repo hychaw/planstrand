@@ -24,6 +24,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { IS_TOUCH_ONLY } from '../../util/is-touch-only';
 import { MaterialCssVarsService } from 'angular-material-css-vars';
 import { DOCUMENT } from '@angular/common';
+import { DensityService } from './density.service';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ChromeExtensionInterfaceService } from '../chrome-extension-interface/chrome-extension-interface.service';
@@ -186,6 +187,7 @@ export const resolveBackground = (
 
 @Injectable({ providedIn: 'root' })
 export class GlobalThemeService {
+  private readonly _densityService = inject(DensityService);
   private document = inject<Document>(DOCUMENT);
   private _layoutService = inject(LayoutService);
   private _materialCssVarsService = inject(MaterialCssVarsService);

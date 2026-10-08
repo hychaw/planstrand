@@ -1,1 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect x="96" y="96" width="832" height="832" rx="180" fill="#325e85"/><svg x="220" y="220" width="584" height="584" viewBox="0 0 24 24"><path fill="#ffffff" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5zm2 4h10v2H7v-2z"/></svg></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none"><g transform="translate(3.84 3.84) scale(.88)">
+<defs>
+<linearGradient id="upper" x1="17" y1="33" x2="48" y2="10" gradientUnits="userSpaceOnUse"><stop stop-color="#2563eb"/><stop offset=".55" stop-color="#60a5fa"/><stop offset="1" stop-color="#c0efff"/></linearGradient>
+<linearGradient id="lower" x1="16" y1="56" x2="42" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#67e8f9"/><stop offset=".5" stop-color="#38a9f1"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+</defs>
+<path d="M12 32C17 10 29 4 42 7C53 9 58 17 54 26C51 34 43 37 31 37H23C19 37 15 39 12 43C14 32 22 26 32 26H39C44 26 47 24 47 20C47 16 43 14 38 15C28 15 23 23 22 27L12 32Z" fill="url(#upper)"/>
+<path d="M12 43C16 34 23 31 33 31H45C41 36 36 39 29 40C24 40 22 43 21 48L19 56C18 60 11 61 10 56C9 53 10 47 12 43Z" fill="url(#lower)"/>
+</g></svg>

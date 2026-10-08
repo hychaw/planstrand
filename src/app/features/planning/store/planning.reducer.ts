@@ -7,7 +7,9 @@ import {
   PlanningState,
   isPlanningState,
   comparePlanningStrings,
+  isPlanningRecord,
 } from '../planning.model';
+import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { setPlacement, removePlacement } from './planning.actions';
 export const PLANNING_FEATURE_NAME = 'planning';
@@ -22,6 +24,21 @@ export const normalizePlanningIds = (state: PlanningState): PlanningState => ({
 });
 export const planningReducer = createReducer(
   initialPlanningState,
+  on(TaskSharedActions.addTask, (state, { task, initialPlanning }) => {
+    if (!initialPlanning) return state;
+    if (
+      !isPlanningRecord(initialPlanning) ||
+      initialPlanning.id !== task.id ||
+      !initialPlanning.placement
+    )
+      throw new Error('Invalid initial Planning placement');
+    return normalizePlanningIds(
+      planningAdapter.setOne(
+        mergePlanningRecord(state.entities[task.id], initialPlanning),
+        state,
+      ),
+    );
+  }),
   on(loadAllData, (state, action) => {
     const { appDataComplete } = action;
     if (!Object.hasOwn(appDataComplete, 'planning')) return initialPlanningState;

@@ -1,3 +1,4 @@
+import { LEGACY_TRACKING_ENABLED } from '../../config/legacy-tracking-enabled.token';
 import { inject, Injectable } from '@angular/core';
 import { createEffect, ofType } from '@ngrx/effects';
 import { LOCAL_ACTIONS } from '../../../util/local-actions.token';
@@ -65,6 +66,7 @@ const IDLE_POLL_INTERVAL = 1000;
 @Injectable()
 export class IdleEffects {
   private actions$ = inject(LOCAL_ACTIONS);
+  private readonly _legacyTrackingEnabled = inject(LEGACY_TRACKING_ENABLED);
   private _chromeExtensionInterfaceService = inject(ChromeExtensionInterfaceService);
   private _workContextService = inject(WorkContextService);
   private _taskService = inject(TaskService);
@@ -123,7 +125,7 @@ export class IdleEffects {
           isSuppressIdleDuringFocusMode,
           minIdleTime = DEFAULT_MIN_IDLE_TIME,
         }) =>
-          !isEnableIdleTimeTracking
+          !this._legacyTrackingEnabled || !isEnableIdleTimeTracking
             ? of(resetIdle())
             : this._triggerIdleApis$.pipe(
                 withLatestFrom(
@@ -163,6 +165,7 @@ export class IdleEffects {
 
   handleIdleInit$ = createEffect(() =>
     this._store.select(selectIsIdle).pipe(
+      filter(() => this._legacyTrackingEnabled),
       distinctUntilChanged(),
       // Snapshot EVERY entity this effect mutates BEFORE the wait below. The
       // deferral can outlive the user's return, so anything re-read afterwards
@@ -252,7 +255,7 @@ export class IdleEffects {
   idleDialog$ = createEffect(() =>
     this.actions$.pipe(
       ofType(openIdleDialog),
-      filter(() => !this._isDialogOpen),
+      filter(() => this._legacyTrackingEnabled && !this._isDialogOpen),
       tap(() => (this._isDialogOpen = true)),
       // use exhaustMap to prevent opening up multiple dialogs
       exhaustMap(

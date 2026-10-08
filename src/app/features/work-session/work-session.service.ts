@@ -19,7 +19,8 @@ import {
   legacyTaskWorkSessionId,
 } from './legacy-task-work-session-backfill';
 
-// Generic Task commands own one stable block; other sessions are never selected by taskId.
+// Lookup only for sessions created by older clients / V1 migration. New scheduling
+// intents have independent identities; moving a session requires its explicit ID.
 export const taskScheduledWorkSessionId = (
   task: Pick<Task, 'id' | 'dueWithTime'>,
 ): string =>
@@ -36,7 +37,11 @@ export class WorkSessionService {
 
   scheduledTaskSession(task: Pick<Task, 'id' | 'dueWithTime'>): WorkSession | undefined {
     const session = this._sessions()[taskScheduledWorkSessionId(task)];
-    return session?.taskId === task.id ? session : undefined;
+    if (session?.taskId === task.id) return session;
+    // Preserve the Task dialog's existing prefill when there is one unambiguous
+    // reservation. This lookup never chooses a session to move or replace.
+    const sessions = Object.values(this._sessions()).filter((s) => s?.taskId === task.id);
+    return sessions.length === 1 ? sessions[0] : undefined;
   }
 
   scheduleTask(
@@ -44,25 +49,13 @@ export class WorkSessionService {
     start: number,
     fallbackDuration?: number,
   ): boolean {
-    const current = this.scheduledTaskSession(task);
-    if (current) {
-      // Moving a block preserves its own duration, completion and stored zone.
-      if (!current.timeZone || !isValidIanaTimeZone(current.timeZone)) return false;
-      return this.update(current.id, { start, end: start + current.end - current.start });
-    }
     const duration =
       Number.isFinite(task.timeEstimate) && task.timeEstimate > 0
         ? task.timeEstimate
         : fallbackDuration;
     if (duration === undefined || !Number.isFinite(duration) || duration <= 0)
       return false;
-    return !!this.create(
-      task.id,
-      start,
-      start + duration,
-      undefined,
-      taskScheduledWorkSessionId(task),
-    );
+    return !!this.create(task.id, start, start + duration);
   }
 
   create(

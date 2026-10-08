@@ -1,10 +1,12 @@
 import { editableLocalEvent } from '../schedule.model';
+import { calendarClockLabel, calendarHours } from '../calendar-time';
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   HostListener,
   inject,
@@ -128,19 +130,13 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
 
   times = computed(() => {
     const uses24Hour = this._dateTimeFormatService.is24HourFormat();
-    const formatter = new Intl.DateTimeFormat(
-      this._dateTimeFormatService.currentLocale(),
-      {
-        hour: uses24Hour ? '2-digit' : 'numeric',
-        minute: '2-digit',
-        hour12: !uses24Hour,
-      },
+    return this.rowsByNr.map((_, hourIndex) =>
+      calendarClockLabel(
+        hourIndex,
+        this._dateTimeFormatService.currentLocale(),
+        uses24Hour,
+      ),
     );
-
-    return this.rowsByNr.map((_, hourIndex) => {
-      const date = new Date(2000, 0, 1, hourIndex, 0, 0);
-      return formatter.format(date);
-    });
   });
 
   // Precompute the day-number ('d') and weekday ('EEE') header labels for each
@@ -313,7 +309,12 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
       return formatScheduleDragPreviewLabel({
         startTimestamp: ctx.timestamp,
         durationInHours: currentDraggedEvent?.timeLeftInHours,
-        formatTime: (timestamp) => this._dateTimeFormatService.formatTime(timestamp),
+        formatTime: (timestamp) =>
+          calendarClockLabel(
+            calendarHours(timestamp, this._service.displayTimeZone()),
+            this._dateTimeFormatService.currentLocale(),
+            this._dateTimeFormatService.is24HourFormat(),
+          ),
       });
     }
     if (ctx.kind === 'shift-column') {
@@ -334,6 +335,15 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private _currentAniTimeout: number | undefined;
   private _resizeObserver?: MutationObserver;
+  private readonly _clearPreviewOnScroll = (): void => this.onGridLeave();
+
+  constructor() {
+    effect(() => {
+      this.daysToShow();
+      this.isTaskDragActive();
+      this.newTaskPlaceholder.set(null);
+    });
+  }
 
   ngOnInit(): void {
     const workStartEnd = this.workStartEnd();
@@ -355,9 +365,12 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
     this._setupResizeObserver();
+    document.addEventListener('scroll', this._clearPreviewOnScroll, true);
   }
 
   ngOnDestroy(): void {
+    document.removeEventListener('scroll', this._clearPreviewOnScroll, true);
+    this.newTaskPlaceholder.set(null);
     window.clearTimeout(this._currentAniTimeout);
     // Clean up resize observer
     if (this._resizeObserver) {
@@ -370,6 +383,7 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('wheel', ['$event'])
   onWheel(ev: WheelEvent): void {
+    this.onGridLeave();
     if (!ev.ctrlKey || ev.deltaY === 0) {
       return;
     }
@@ -400,15 +414,30 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  onGridLeave(): void {
+    if (!this.isCreateTaskActive()) this.newTaskPlaceholder.set(null);
+  }
+
+  onGridDragLeave(event: DragEvent): void {
+    if (
+      !(event.relatedTarget instanceof Node) ||
+      !this.gridContainer().nativeElement.contains(event.relatedTarget)
+    )
+      this.onGridLeave();
+  }
+
   // Throttle to 30ms to reduce computational overhead during rapid mouse movements.
-  @throttle(30)
+  @throttle(30, { trailing: false })
   onMoveOverGrid(ev: MouseEvent): void {
     // Prevent showing the "create task" placeholder during or right after a drag
     // to avoid confusing visual feedback during the reset animation.
     if (this.isDragging()) {
       return;
     }
-    if (this.isAnyEventResizing()) {
+    if (
+      this.isAnyEventResizing() ||
+      (ev.target instanceof Element && ev.target.closest('schedule-event'))
+    ) {
       this.newTaskPlaceholder.set(null);
       return;
     }
@@ -440,10 +469,12 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   dragStarted(ev: CdkDragStart<ScheduleEvent>): void {
+    this.newTaskPlaceholder.set(null);
     this._service.handleDragStarted(ev);
   }
 
   dragReleased(ev: CdkDragRelease): void {
+    this.newTaskPlaceholder.set(null);
     this._service.handleDragReleased(ev);
   }
 

@@ -683,22 +683,15 @@ describe('MainHeaderComponent action placement', () => {
     expect(getComputedStyle(nav).overflowX).toBe('visible');
   });
 
-  it('costs the row nothing for the ink its clip buys back', async () => {
-    // The scroller pads its block axis so badges, the active-panel underline
-    // and the play button's elevation still paint once the box clips, and
-    // cancels that padding with an equal negative margin so the row's own
-    // height is untouched. The inline END is deliberately unpadded: cancelling
-    // padding there needs a negative end margin, which would let this box paint
-    // outside the header's own edge.
+  it('keeps utility controls mounted and exposes them in a dismissible panel', async () => {
     const host = await mountAtWidth(1400);
-    const scroller = host.querySelector('.action-nav-scroll') as HTMLElement;
-    const cs = getComputedStyle(scroller);
-
-    expect(parseFloat(cs.paddingBlockStart) + parseFloat(cs.marginBlockStart)).toBe(0);
-    expect(parseFloat(cs.paddingBlockEnd) + parseFloat(cs.marginBlockEnd)).toBe(0);
-    expect(parseFloat(cs.paddingInlineStart) + parseFloat(cs.marginInlineStart)).toBe(0);
-    expect(parseFloat(cs.paddingInlineEnd)).toBe(0);
-    expect(parseFloat(cs.marginInlineEnd)).toBe(0);
+    const panel = host.querySelector('.action-nav-scroll') as HTMLElement;
+    expect(panel.matches(':popover-open')).toBeFalse();
+    expect(host.querySelector('.tour-addBtn')).toBeTruthy();
+    panel.showPopover();
+    expect(panel.matches(':popover-open')).toBeTrue();
+    panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(panel.matches(':popover-open')).toBeFalse();
   });
 
   it('keeps the add-task button in the row however little room is left', async () => {

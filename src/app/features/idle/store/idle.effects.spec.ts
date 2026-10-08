@@ -1,3 +1,4 @@
+import { LEGACY_TRACKING_ENABLED } from '../../config/legacy-tracking-enabled.token';
 import { TestBed } from '@angular/core/testing';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { BehaviorSubject, ReplaySubject, Subject } from 'rxjs';
@@ -35,6 +36,7 @@ describe('IdleEffects', () => {
   };
 
   const setup = (overrides?: {
+    legacyTrackingEnabled?: boolean;
     isSuppressIdleDuringFocusMode?: boolean;
     isFocusSessionRunning?: boolean;
   }): void => {
@@ -74,6 +76,10 @@ describe('IdleEffects', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        {
+          provide: LEGACY_TRACKING_ENABLED,
+          useValue: overrides?.legacyTrackingEnabled ?? true,
+        },
         IdleEffects,
         provideMockActions(() => actions$),
         { provide: LOCAL_ACTIONS, useValue: actions$ },
@@ -121,6 +127,12 @@ describe('IdleEffects', () => {
   });
 
   describe('triggerIdleWhenEnabled$', () => {
+    it('does not subscribe to idle IPC when the host disables tracking, even with saved opt-in', () => {
+      setup({ legacyTrackingEnabled: false });
+      const sub = effects.triggerIdleWhenEnabled$.subscribe();
+      expect(chromeInterfaceMock.addEventListener).not.toHaveBeenCalled();
+      sub.unsubscribe();
+    });
     it('should suppress idle when isSuppressIdleDuringFocusMode is true and a work session is running', (done) => {
       setup({ isSuppressIdleDuringFocusMode: true, isFocusSessionRunning: true });
 
@@ -250,6 +262,15 @@ describe('IdleEffects', () => {
 
       expect(emitted.length).toBe(1);
       expect(emitted[0].type).toBe(openIdleDialog.type);
+    });
+
+    it('does not classify idle time or mutate tracked time in the Planstrand host', () => {
+      setup({ legacyTrackingEnabled: false });
+      listen();
+      goIdle();
+      expect(emitted).toEqual([]);
+      expect(taskSpies().removeTimeSpent).not.toHaveBeenCalled();
+      expect(taskSpies().setCurrentId).not.toHaveBeenCalled();
     });
 
     it('defers - not drops - the idle side effects when the edge lands inside a sync apply window', () => {

@@ -1,16 +1,19 @@
+<header class="calendar-page-header">
+  <h1>{{ 'PLANSTRAND.SCHEDULE' | translate }}</h1>
+</header>
 <div class="schedule-nav-controls">
   <button
-    mat-icon-button
+    mat-button
     class="e2e-new-event"
     (click)="newEvent()"
     [matTooltip]="T.F.EVENT.NEW | translate"
     [attr.aria-label]="T.F.EVENT.NEW | translate"
   >
-    <mat-icon>event_available</mat-icon>
+    <mat-icon>add</mat-icon>{{ T.F.EVENT.NEW | translate }}
   </button>
   <div class="time-view-selector">
     <button
-      mat-icon-button
+      mat-button
       class="time-view-btn e2e-day-view-btn"
       [class.active]="isDayView()"
       [attr.aria-pressed]="isDayView()"
@@ -18,10 +21,10 @@
       [matTooltip]="T.F.SCHEDULE.VIEW_DAY | translate"
       [attr.aria-label]="T.F.SCHEDULE.VIEW_DAY | translate"
     >
-      <mat-icon>calendar_view_day</mat-icon>
+      {{ 'PLANSTRAND.DAY_VIEW' | translate }}
     </button>
     <button
-      mat-icon-button
+      mat-button
       class="time-view-btn"
       [class.active]="isWeekView()"
       [attr.aria-pressed]="isWeekView()"
@@ -29,10 +32,10 @@
       [matTooltip]="T.F.SCHEDULE.VIEW_WEEK | translate"
       [attr.aria-label]="T.F.SCHEDULE.VIEW_WEEK | translate"
     >
-      <mat-icon>view_week</mat-icon>
+      {{ 'PLANSTRAND.WEEK_VIEW' | translate }}
     </button>
     <button
-      mat-icon-button
+      mat-button
       class="time-view-btn"
       [class.active]="isMonthView()"
       [attr.aria-pressed]="isMonthView()"
@@ -40,7 +43,16 @@
       [matTooltip]="T.F.SCHEDULE.VIEW_MONTH | translate"
       [attr.aria-label]="T.F.SCHEDULE.VIEW_MONTH | translate"
     >
-      <mat-icon>calendar_month</mat-icon>
+      {{ 'PLANSTRAND.MONTH_VIEW' | translate }}
+    </button>
+    <button
+      mat-button
+      class="time-view-btn e2e-year-view-btn"
+      [class.active]="isYearView()"
+      [attr.aria-pressed]="isYearView()"
+      (click)="selectTimeView('year')"
+    >
+      {{ 'PLANSTRAND.YEAR_VIEW' | translate }}
     </button>
   </div>
 
@@ -86,21 +98,24 @@
     <button
       mat-icon-button
       (click)="goToPreviousPeriod()"
-      [disabled]="isViewingToday()"
       [attr.aria-label]="
-        (isMonthView()
-          ? T.F.SCHEDULE.PREVIOUS_MONTH
-          : isDayView()
-            ? T.F.SCHEDULE.PREVIOUS_DAY
-            : T.F.SCHEDULE.PREVIOUS_WEEK
+        (isYearView()
+          ? 'PLANSTRAND.PREVIOUS_YEAR'
+          : isMonthView()
+            ? T.F.SCHEDULE.PREVIOUS_MONTH
+            : isDayView()
+              ? T.F.SCHEDULE.PREVIOUS_DAY
+              : T.F.SCHEDULE.PREVIOUS_WEEK
         ) | translate
       "
       [matTooltip]="
-        (isMonthView()
-          ? T.F.SCHEDULE.PREVIOUS_MONTH
-          : isDayView()
-            ? T.F.SCHEDULE.PREVIOUS_DAY
-            : T.F.SCHEDULE.PREVIOUS_WEEK
+        (isYearView()
+          ? 'PLANSTRAND.PREVIOUS_YEAR'
+          : isMonthView()
+            ? T.F.SCHEDULE.PREVIOUS_MONTH
+            : isDayView()
+              ? T.F.SCHEDULE.PREVIOUS_DAY
+              : T.F.SCHEDULE.PREVIOUS_WEEK
         ) | translate
       "
     >
@@ -108,33 +123,37 @@
     </button>
 
     <button
-      mat-icon-button
+      mat-button
       class="today-btn"
       (click)="goToToday()"
       [disabled]="isViewingToday()"
       [attr.aria-label]="T.G.TODAY_TAG_TITLE | translate"
       [matTooltip]="T.G.TODAY_TAG_TITLE | translate"
     >
-      <mat-icon>wb_sunny</mat-icon>
+      {{ T.G.TODAY_TAG_TITLE | translate }}
     </button>
 
     <button
       mat-icon-button
       (click)="goToNextPeriod()"
       [attr.aria-label]="
-        (isMonthView()
-          ? T.F.SCHEDULE.NEXT_MONTH
-          : isDayView()
-            ? T.F.SCHEDULE.NEXT_DAY
-            : T.F.SCHEDULE.NEXT_WEEK
+        (isYearView()
+          ? 'PLANSTRAND.NEXT_YEAR'
+          : isMonthView()
+            ? T.F.SCHEDULE.NEXT_MONTH
+            : isDayView()
+              ? T.F.SCHEDULE.NEXT_DAY
+              : T.F.SCHEDULE.NEXT_WEEK
         ) | translate
       "
       [matTooltip]="
-        (isMonthView()
-          ? T.F.SCHEDULE.NEXT_MONTH
-          : isDayView()
-            ? T.F.SCHEDULE.NEXT_DAY
-            : T.F.SCHEDULE.NEXT_WEEK
+        (isYearView()
+          ? 'PLANSTRAND.NEXT_YEAR'
+          : isMonthView()
+            ? T.F.SCHEDULE.NEXT_MONTH
+            : isDayView()
+              ? T.F.SCHEDULE.NEXT_DAY
+              : T.F.SCHEDULE.NEXT_WEEK
         ) | translate
       "
     >
@@ -145,7 +164,7 @@
   <div class="title">{{ headerTitle() }}</div>
 </div>
 
-@if (monthEvents().length === 0) {
+@if (!isYearView() && monthEvents().length === 0) {
   <p class="calendar-hint">{{ 'PLANSTRAND.EMPTY_CALENDAR' | translate }}</p>
 }
 <div
@@ -154,12 +173,22 @@
   [attr.data-horizontal-scroll]="shouldEnableHorizontalScroll() || null"
   (scroll)="onScrollWrapperScroll($event)"
 >
-  @if (isMonthView()) {
+  @if (isYearView()) {
+    <schedule-year
+      [year]="selectedYear()"
+      [firstDayOfWeek]="firstDayOfWeek()"
+      [today]="_todayDateStr()"
+      (monthSelected)="navigateToDate($event, 'month')"
+      (dateSelected)="navigateToDate($event, 'day')"
+    />
+  } @else if (isMonthView()) {
     <schedule-month
+      [todayDateStr]="_todayDateStr()"
       [events]="monthEvents()"
       [daysToShow]="daysToShow()"
       [weeksToShow]="weeksToShow()"
       [firstDayOfWeek]="firstDayOfWeek()"
+      (dateSelected)="navigateToDay($event)"
     ></schedule-month>
   } @else {
     <schedule-week

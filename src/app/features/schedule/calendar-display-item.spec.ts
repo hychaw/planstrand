@@ -52,6 +52,7 @@ describe('CalendarDisplayItem projection', () => {
       timeZone: session.timeZone,
       title: task.title,
       taskId: task.id,
+      completedAt: undefined,
       canMove: true,
       canResize: true,
       canDelete: true,
@@ -71,6 +72,8 @@ describe('CalendarDisplayItem projection', () => {
     expect(result.length).toBe(2);
     expect(new Set(result.map((item) => item.id)).size).toBe(2);
     expect(result.every((item) => item.taskId === task.id)).toBeTrue();
+    expect(result[0].completedAt).toBeUndefined();
+    expect(result[1].completedAt).toBe(session.end);
   });
 
   it('resolves titles from current Task state without mutating or duplicating persisted data', () => {

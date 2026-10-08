@@ -169,7 +169,9 @@ export class DialogScheduleTaskComponent implements AfterViewInit {
 
   plannedDayForTask: string | null = null;
 
-  todayStr = this._dateService.todayStr();
+  get todayStr(): string {
+    return this._dateService.todayStr();
+  }
   // private _prevSelectedQuickAccessDate: Date | null = null;
   // private _prevQuickAccessAction: number | null = null;
   private _previewTaskId = '__schedule-preview__';

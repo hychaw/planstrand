@@ -1,11 +1,13 @@
 const fs = require('fs');
 const { chromium } = require('playwright');
 (async () => {
-  const calendar = fs
-    .readFileSync('src/assets/icons/calendar.svg', 'utf8')
-    .replace('fill="currentColor"', 'fill="#ffffff"');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect x="96" y="96" width="832" height="832" rx="180" fill="#325e85"/><svg x="220" y="220" width="584" height="584" viewBox="0 0 24 24">${calendar.match(/<path[^>]+\/>/)[0].replace('<path', '<path fill="#ffffff"')}</svg></svg>`;
-  fs.writeFileSync('build/icon-mac.svg', svg + '\n');
+  const svg = fs.readFileSync('src/assets/icons/strand-p.svg', 'utf8').trim();
+  // macOS artwork needs a larger transparent inset than PWA/Windows artwork.
+  const macSvg = svg.replace(
+    /(<svg[^>]*>)([\s\S]*)(<\/svg>)/,
+    '$1<g transform="translate(3.84 3.84) scale(.88)">$2</g>$3',
+  );
+  fs.writeFileSync('build/icon-mac.svg', macSvg + '\n');
   const browser = await chromium.launch({
     headless: true,
     channel: process.env.PLANSTRAND_ICON_BROWSER || 'msedge',
@@ -36,14 +38,60 @@ const { chromium } = require('playwright');
   save('electron/assets/icons/icon_256x256.png', 256);
   for (const f of ['ico.svg', 'ico-white.svg', 'ico-circled.svg'])
     fs.writeFileSync('electron/assets/icons/' + f, svg + '\n');
-  for (const f of ['sp.svg', 'sp-white.svg', 'safari-pinned-tab.svg'])
+  for (const f of ['sp.svg', 'sp-white.svg'])
     fs.writeFileSync('src/assets/icons/' + f, svg + '\n');
+  // Safari mask icons use a single opaque silhouette, without the app tile.
+  fs.writeFileSync(
+    'src/assets/icons/safari-pinned-tab.svg',
+    svg
+      .replace(/<defs>[\s\S]*?<\/defs>/, '')
+      .replace(/<rect[^>]*\/>/, '')
+      .replace(/fill="url\(#[^)]+\)"/g, 'fill="#000"')
+      .replace(/^\s+$/gm, '') + '\n',
+  );
   for (const f of ['tray-ico-d.png', 'tray-ico-l.png'])
     save('electron/assets/icons/' + f, 16);
   for (const f of ['tray-ico-d@2x.png', 'tray-ico-l@2x.png'])
     save('electron/assets/icons/' + f, 32);
+  // indicator.ts loads this separate asset family, including timer progress frames.
+  // Keep the P legible at 16px; a small dot/ring conveys running/progress state.
+  for (const theme of ['d', 'l']) {
+    const silhouette = svg
+      .replace(/<defs>[\s\S]*?<\/defs>/, '')
+      .replace(
+        /fill="url\(#[^)]+\)"/g,
+        `fill="${theme === 'd' ? '#d2edff' : '#164b91'}"`,
+      );
+    for (const state of [
+      'stopped',
+      'running',
+      ...Array.from({ length: 16 }, (_, i) => i),
+    ]) {
+      const marker =
+        state === 'stopped'
+          ? ''
+          : `<circle cx="51" cy="51" r="9" fill="#2563eb" stroke="#d2edff" stroke-width="2"/>` +
+            (typeof state === 'number'
+              ? `<circle cx="51" cy="51" r="6" fill="none" stroke="#fff" stroke-width="2" pathLength="16" stroke-dasharray="${state + 1} 16" transform="rotate(-90 51 51)"/>`
+              : '');
+      for (const size of [16, 32]) {
+        await page.setViewportSize({ width: size, height: size });
+        await page.setContent(
+          `<style>html,body{margin:0;background:transparent}svg{display:block;width:100vw;height:100vh}</style>${silhouette.replace('</svg>', marker + '</svg>')}`,
+        );
+        const target =
+          typeof state === 'number'
+            ? `running-anim-${theme}/${state}`
+            : `${state}-${theme}`;
+        fs.writeFileSync(
+          `electron/assets/icons/indicator/${target}${size === 32 ? '@2x' : ''}.png`,
+          await page.screenshot({ omitBackground: true }),
+        );
+      }
+    }
+  }
   // Windows ICO embeds PNG at multiple standard dimensions.
-  const sizes = [16, 32, 48, 256];
+  const sizes = [16, 24, 32, 48, 64, 256];
   let offset = 6 + 16 * sizes.length;
   const header = Buffer.alloc(offset);
   header.writeUInt16LE(1, 2);
@@ -62,6 +110,7 @@ const { chromium } = require('playwright');
     'build/icon.ico',
     Buffer.concat([header, ...sizes.map((s) => pngs.get(s))]),
   );
+  fs.copyFileSync('build/icon.ico', 'src/favicon.ico');
   const entries = [
     ['icon_16x16.png', 16, 'icp4'],
     ['icon_16x16@2x.png', 32, 'ic11'],
@@ -74,19 +123,27 @@ const { chromium } = require('playwright');
     ['icon_512x512.png', 512, 'ic09'],
     ['icon_512x512@2x.png', 1024, 'ic10'],
   ];
+  const macPngs = new Map();
+  for (const size of new Set(entries.map(([, size]) => size))) {
+    await page.setViewportSize({ width: size, height: size });
+    await page.setContent(
+      `<style>html,body{margin:0;background:transparent}svg{display:block;width:100vw;height:100vh}</style>${macSvg}`,
+    );
+    macPngs.set(size, await page.screenshot({ omitBackground: true }));
+  }
   const chunks = entries.map(([f, size, type]) => {
-    save('build/icon.iconset/' + f, size);
+    fs.writeFileSync('build/icon.iconset/' + f, macPngs.get(size));
     const b = Buffer.alloc(8);
     b.write(type);
-    b.writeUInt32BE(8 + pngs.get(size).length, 4);
-    return Buffer.concat([b, pngs.get(size)]);
+    b.writeUInt32BE(8 + macPngs.get(size).length, 4);
+    return Buffer.concat([b, macPngs.get(size)]);
   });
   const ih = Buffer.alloc(8);
   ih.write('icns');
   ih.writeUInt32BE(8 + chunks.reduce((n, b) => n + b.length, 0), 4);
   fs.writeFileSync('build/icon.icns', Buffer.concat([ih, ...chunks]));
   await browser.close();
-  console.log('Neutral calendar icon assets generated.');
+  console.log('Blue Thread Strand P icon assets generated.');
 })().catch((e) => {
   console.error(e);
   process.exitCode = 1;

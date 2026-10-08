@@ -1,0 +1,327 @@
+// Blue Thread uses the existing public theme contract. Installed themes remain
+// free to override body primitives; no view preferences enter synced state.
+:root {
+  --planstrand-navy: #0b1220;
+  --planstrand-cobalt: #2563eb;
+  --planstrand-azure: #60a5fa;
+  --planstrand-light-azure: #bfdbfe;
+  --transition-duration-xs: 140ms;
+  --transition-duration-s: 160ms;
+  --transition-duration-m: 200ms;
+  --transition-duration-enter: 200ms;
+  --transition-duration-leave: 180ms;
+  --page-transition-duration: 200ms;
+  --planstrand-row-height: 48px;
+  --planstrand-section-gap: 24px;
+  --planstrand-page-padding: clamp(16px, 3vw, 40px);
+}
+
+body {
+  color-scheme: light;
+  --surface-0: #eaf1fb;
+  --surface-1: #f3f7fd;
+  --surface-2: #fcfdff;
+  --surface-3: #fff;
+  --surface-4: #fff;
+  --ink-strong: #0b1220;
+  --ink: #23334d;
+  --ink-muted: #566780;
+  --ink-on-channel: 11, 18, 32;
+  --separator: #dce5f2;
+  --divider: rgba(37, 99, 235, 0.1);
+  --brand: var(--planstrand-cobalt);
+  --focus-ring: var(--planstrand-cobalt);
+  --task-first-line-min-height: var(--planstrand-row-height);
+  --task-inner-padding-top-bottom: 6px;
+  --task-border-radius: var(--radius-md);
+  --task-shadow: none;
+  --sidenav-bg: var(--surface-0);
+  --sidenav-hover-bg: color-mix(in srgb, var(--brand) 7%, transparent);
+  --sidenav-item-active-bg: color-mix(in srgb, var(--brand) 12%, transparent);
+  --sidenav-active-text: var(--brand);
+  --card-shadow: 0 8px 32px rgba(11, 18, 32, 0.08);
+}
+
+body.isDarkTheme {
+  color-scheme: dark;
+  --surface-0: #080f1d;
+  --surface-1: #0b1220;
+  --surface-2: #111d32;
+  --surface-3: #182740;
+  --surface-4: #20324f;
+  --ink-strong: #f1f6ff;
+  --ink: #dae6f8;
+  --ink-muted: #9cafcb;
+  --ink-on-channel: 218, 230, 248;
+  --separator: #253650;
+  --divider: rgba(96, 165, 250, 0.14);
+  --brand: var(--planstrand-azure);
+  --focus-ring: var(--planstrand-azure);
+  --sidenav-item-active-bg: color-mix(in srgb, var(--brand) 16%, transparent);
+  --card-shadow: 0 12px 40px rgba(0, 7, 20, 0.32);
+  // Bridge inherited Material/elevation consumers into the navy surface ramp.
+  --dark0: #080f1d;
+  --dark1: #0b1220;
+  --dark2: #0e182a;
+  --dark3: #111d32;
+  --dark4: #142138;
+  --dark5: #16243c;
+  --dark6: #182740;
+  --dark8: #192a44;
+  --dark10: #1c2d48;
+  --dark12: #20324f;
+  --dark16: #243956;
+  --dark24: #2a4060;
+}
+
+:where(body, body.isDarkTheme) {
+  --surface-canvas: var(--surface-1);
+  --surface-primary: var(--surface-2);
+  --surface-floating: var(--surface-3);
+  --surface-hover: color-mix(in srgb, var(--brand) 7%, var(--surface-2));
+  --surface-selected: color-mix(in srgb, var(--brand) 13%, var(--surface-2));
+  --accent-primary: var(--brand);
+  --accent-soft: var(--surface-selected);
+}
+
+body[data-density='compact'] {
+  --planstrand-row-height: 36px;
+  --planstrand-section-gap: 16px;
+  --task-inner-padding-top-bottom: 3px;
+}
+
+// Planstrand editors share one floating-surface treatment, with a mobile sheet.
+.mat-mdc-dialog-container:has(
+  dialog-event,
+  planstrand-folder-picker,
+  dialog-schedule-task
+) {
+  --mat-dialog-container-color: var(--surface-floating);
+  --mat-dialog-container-shape: 20px;
+  --mdc-dialog-container-color: var(--surface-floating);
+  --mdc-dialog-container-shape: 16px;
+}
+planstrand-folder-picker select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-hover);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  width: 100%;
+  margin-top: 12px;
+}
+@media (max-width: 600px) {
+  .cdk-overlay-pane:has(dialog-event, planstrand-folder-picker, dialog-schedule-task) {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    align-self: flex-end;
+  }
+  .mat-mdc-dialog-container:has(
+    dialog-event,
+    planstrand-folder-picker,
+    dialog-schedule-task
+  ) {
+    --mdc-dialog-container-shape: 16px 16px 0 0;
+  }
+}
+
+// Keep practical targets on touch hardware even when Compact was selected.
+@media (pointer: coarse) {
+  body[data-density] {
+    --planstrand-row-height: 48px;
+    --task-inner-padding-top-bottom: 6px;
+  }
+}
+
+:where(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+schedule,
+schedule-month,
+schedule-week,
+schedule-day-panel,
+.planning-sections {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// High-altitude atmosphere: local vectors and static gradients, no image service.
+body {
+  --planstrand-section-gap: 22px;
+  --planstrand-row-height: 52px;
+  --planstrand-page-padding: clamp(20px, 3vw, 44px);
+  --planstrand-panel: color-mix(in srgb, var(--surface-primary) 92%, transparent);
+  --planstrand-panel-border: color-mix(in srgb, var(--brand) 12%, transparent);
+  --task-separator: none;
+  --task-border: 0;
+  --task-list-row-gap: 4px;
+  --task-c-bg: transparent;
+  --task-c-bg-done: transparent;
+  --sidenav-bg: var(--planstrand-panel);
+  --sidenav-text: var(--ink);
+  --sidenav-text-secondary: var(--ink-muted);
+  --card-shadow: 0 12px 36px -18px rgba(16, 48, 93, 0.22);
+  background-color: var(--surface-canvas);
+}
+.app-container {
+  background:
+    url('../assets/sky-route.svg') top right / min(90vw, 1200px) auto no-repeat,
+    radial-gradient(
+      ellipse at 82% 0,
+      color-mix(in srgb, var(--brand) 17%, transparent),
+      transparent 57%
+    ),
+    radial-gradient(
+      ellipse at 35% 90%,
+      color-mix(in srgb, var(--planstrand-azure) 12%, transparent),
+      transparent 58%
+    ),
+    var(--surface-canvas);
+}
+// Three levels: atmospheric canvas, quiet working panel, solid interactive overlay.
+body.isDarkTheme {
+  --surface-0: #070f1e;
+  --surface-1: #0a1528;
+  --surface-2: #11233c;
+  --surface-3: #182e4b;
+  --surface-4: #203b5d;
+  --separator: #29415e;
+  --card-shadow: 0 16px 44px -18px rgba(0, 5, 18, 0.55);
+}
+body:not(.isDarkTheme) {
+  --surface-0: #e1ecfa;
+  --surface-1: #edf4fc;
+  --surface-2: #fafdff;
+  --surface-3: #fff;
+  --ink-strong: #102849;
+  --ink: #203b5c;
+  --ink-muted: #516b89;
+}
+// Avoid duplicate route titles above editorial page headers.
+.app-container:has(planstrand-page, config-page, schedule) page-title .page-title,
+.app-container:has(planstrand-page, config-page, schedule)
+  page-title
+  .page-title-actions {
+  display: none;
+}
+planstrand-task-list task {
+  --task-c-bg: transparent;
+  --task-separator: none;
+  --task-border: 0;
+}
+planstrand-task-list task .box {
+  background: transparent;
+}
+planstrand-task-list task .first-line {
+  min-height: var(--planstrand-row-height);
+}
+planstrand-task-list task .task-title {
+  font-weight: 500;
+}
+planstrand-task-list task .time-wrapper {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+planstrand-task-list task .hasNoTimeSpentOrEstimate {
+  opacity: 0;
+}
+planstrand-task-list .task-entry:hover .hasNoTimeSpentOrEstimate,
+planstrand-task-list .task-entry:focus-within .hasNoTimeSpentOrEstimate {
+  opacity: 1;
+}
+.mat-mdc-dialog-container {
+  --mat-dialog-container-color: var(--surface-floating);
+  --mat-dialog-container-shape: 20px;
+  --mdc-dialog-container-color: var(--surface-floating);
+  --mdc-dialog-container-shape: 20px;
+  --mat-dialog-subhead-color: var(--ink-strong);
+  --mat-dialog-supporting-text-color: var(--ink);
+}
+.mat-mdc-menu-panel {
+  --mat-menu-container-color: var(--surface-floating);
+}
+@media (max-width: 600px) {
+  .app-container {
+    background: var(--surface-canvas);
+  }
+  body {
+    --planstrand-page-padding: 16px;
+    --planstrand-section-gap: 16px;
+  }
+}
+
+planstrand-task-list done-toggle .done-shape {
+  opacity: 0.85;
+  stroke: var(--ink-muted);
+  rx: 50%;
+  ry: 50%;
+}
+
+// Static, project-owned cloud banks remain visible around the working surfaces.
+body {
+  --planstrand-sky-veil: rgba(237, 245, 255, 0.56);
+}
+body.isDarkTheme {
+  --planstrand-sky-veil: rgba(5, 21, 50, 0.62);
+  --planstrand-panel: rgba(13, 35, 65, 0.92);
+  --planstrand-panel-border: rgba(131, 185, 244, 0.23);
+}
+.app-container {
+  background:
+    linear-gradient(var(--planstrand-sky-veil), var(--planstrand-sky-veil)),
+    url('../assets/planstrand-sky.webp') center / cover no-repeat;
+}
+planstrand-task-list .task-entry {
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+planstrand-task-list .task-entry:hover {
+  background: color-mix(in srgb, var(--brand) 9%, var(--surface-primary));
+  box-shadow: 0 4px 15px -9px var(--brand);
+}
+planstrand-task-list .task-entry:focus-within {
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-primary));
+  box-shadow:
+    inset 3px 0 var(--planstrand-azure),
+    0 0 0 1px color-mix(in srgb, var(--brand) 70%, transparent),
+    0 4px 20px -10px var(--brand);
+}
+planstrand-task-list .task-entry:has(:focus-visible) {
+  outline: 2px solid var(--planstrand-azure);
+  outline-offset: 2px;
+}
+.task-entry.cdk-drag-preview {
+  background: var(--surface-floating);
+  color: var(--ink);
+  border: 1px solid var(--brand);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px -8px rgba(0, 32, 95, 0.5);
+}
+planstrand-task-list .task-list.cdk-drop-list-receiving {
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  outline: 1px solid var(--brand);
+  border-radius: 12px;
+}
+@media (max-width: 600px) {
+  .app-container {
+    background: linear-gradient(
+      150deg,
+      var(--surface-canvas),
+      color-mix(in srgb, var(--brand) 14%, var(--surface-canvas))
+    );
+  }
+}

@@ -14,7 +14,6 @@ import { TaskService } from '../tasks/task.service';
 import { workSessionReducer } from '../work-session/store/work-session.reducer';
 import { selectWorkSessionEntities } from '../work-session/store/work-session.selectors';
 import { addWorkSession } from '../work-session/store/work-session.actions';
-import { taskScheduledWorkSessionId } from '../work-session/work-session.service';
 import { CreateTaskPlaceholderComponent } from './create-task-placeholder/create-task-placeholder.component';
 import { ScheduleDayPanelComponent } from './schedule-day-panel/schedule-day-panel.component';
 import { ScheduleExternalDragService } from './schedule-week/schedule-external-drag.service';
@@ -61,11 +60,16 @@ describe('timed placeholder and day-panel entry points', () => {
         { provide: DragDropRegistry, useValue: { pointerUp } },
         {
           provide: ScheduleExternalDragService,
-          useValue: { activeTask, setActiveTask: activeTask.set },
+          useValue: {
+            activeTask,
+            setActiveTask: activeTask.set,
+            setCancelNextDrop: jasmine.createSpy('setCancelNextDrop'),
+          },
         },
         {
           provide: ScheduleService,
           useValue: {
+            today: signal(day),
             getTodayStr: () => day,
             displayTimeZone: () => 'Asia/Singapore',
             createScheduleDaysComputed: () => signal([]),
@@ -89,9 +93,7 @@ describe('timed placeholder and day-panel entry points', () => {
   afterEach(() => fixture?.destroy());
 
   const assertSession = (start: number, duration = task.timeEstimate): void => {
-    const session = store.selectSignal(selectWorkSessionEntities)()[
-      taskScheduledWorkSessionId(task)
-    ];
+    const session = Object.values(store.selectSignal(selectWorkSessionEntities)())[0];
     expect(session).toEqual(
       jasmine.objectContaining({
         taskId: task.id,
@@ -152,6 +154,13 @@ describe('timed placeholder and day-panel entry points', () => {
       spyOn(grid, 'getBoundingClientRect').and.returnValue(rect);
       component.scheduleWeekRef = new ElementRef(created.nativeElement);
       component.dropZoneRef = new ElementRef(grid);
+      const start = Date.parse('2026-01-16T10:00:00+08:00');
+      const preview = component as unknown as {
+        _calculatePreviewStyleFromTime: (instant: number) => string;
+        _formatPreviewTime: (instant: number) => string;
+      };
+      expect(preview._calculatePreviewStyleFromTime(start)).toContain('grid-row: 121 /');
+      expect(preview._formatPreviewTime(start)).toBe('10:00');
       activeTask.set({ ...task, timeEstimate: 0 });
       const y = 10 * FH * 10;
       const contact = new Touch({
@@ -173,6 +182,10 @@ describe('timed placeholder and day-panel entry points', () => {
       assertSession(Date.parse('2026-01-16T10:00:00+08:00'), 900000);
       expect(activeTask()).toBeNull();
       expect(component.isDragging()).toBeFalse();
+      // A second native/CDK release after cleanup must not schedule again.
+      pointerUp.next(new MouseEvent('mouseup', { clientX: 100, clientY: y }));
+      expect(writes).toHaveBeenCalledTimes(1);
+      expect(Object.keys(store.selectSignal(selectWorkSessionEntities)()).length).toBe(1);
     });
   }
 });

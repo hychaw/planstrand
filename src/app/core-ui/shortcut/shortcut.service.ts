@@ -1,3 +1,5 @@
+import { PlanstrandService } from '../../pages/planstrand/planstrand.service';
+import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
 import { computed, inject, Injectable } from '@angular/core';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { IS_ELECTRON } from '../../app.constants';
@@ -20,7 +22,6 @@ import { first, mapTo, switchMap } from 'rxjs/operators';
 import { fromEvent, merge, Observable, of } from 'rxjs';
 import { PluginBridgeService } from '../../plugins/plugin-bridge.service';
 import { TaskShortcutService } from '../../features/tasks/task-shortcut.service';
-import { TODAY_TAG } from '../../features/tag/tag.const';
 
 // NOTE: Relying on Angular CDK overlay CSS class names keeps shortcut suppression simple.
 // If CDK changes these class names we only need to adjust the helpers below.
@@ -64,6 +65,7 @@ export class ShortcutService {
   private _uiHelperService = inject(UiHelperService);
   private _syncWrapperService = inject(SyncWrapperService);
   private _store = inject(Store);
+  private readonly _planstrand = inject(PlanstrandService);
   private _pluginBridgeService = inject(PluginBridgeService);
   private _taskShortcutService = inject(TaskShortcutService);
   private _overlayContainer = inject(OverlayContainer);
@@ -97,10 +99,10 @@ export class ShortcutService {
         this._taskService.toggleStartTask();
       });
       window.ea.on(IPC.SHOW_ADD_TASK_BAR, () => {
-        this._layoutService.showAddTaskBar();
+        this._planstrand.createTask(INBOX_FOLDER_ID);
       });
       window.ea.on(IPC.ADD_NOTE, () => {
-        if (this._matDialog.openDialogs.length === 0) {
+        if (false && this._matDialog.openDialogs.length === 0) {
           this._matDialog.open(DialogAddNoteComponent, {
             minWidth: '100vw',
             height: '100vh',
@@ -138,7 +140,7 @@ export class ShortcutService {
     }
 
     if (
-      checkKeyCombo(ev, keys.toggleBacklog) &&
+      false &&
       this._workContextService.activeWorkContextType === WorkContextType.PROJECT
     ) {
       let backlogPos = 0;
@@ -158,13 +160,13 @@ export class ShortcutService {
     } else if (checkKeyCombo(ev, keys.goToFocusMode) && this.isFocusModeEnabled()) {
       this._store.dispatch(showFocusOverlay());
     } else if (checkKeyCombo(ev, keys.goToWorkView)) {
-      this._router.navigate(['/active/tasks']).then(() => {
+      this._router.navigate(['/today']).then(() => {
         window.setTimeout(() => {
           this._taskService.focusFirstTaskIfVisible();
         });
       });
     } else if (checkKeyCombo(ev, keys.goToTimeline)) {
-      this._router.navigate(['/tag/' + TODAY_TAG.id + '/tasks']);
+      this._router.navigate(['/schedule']);
     } else if (checkKeyCombo(ev, keys.goToSettings)) {
       this._router.navigate(['/config']);
     } else if (checkKeyCombo(ev, keys.goToScheduledView)) {
@@ -185,35 +187,15 @@ export class ShortcutService {
       this._layoutService.toggleSideNavMode();
       ev.preventDefault();
     } else if (checkKeyCombo(ev, keys.addNewTask)) {
-      this._layoutService.showAddTaskBar();
+      const folderId = /^\/folder\/([^/?]+)/.exec(this._router.url)?.[1];
+      this._planstrand.createTask(
+        folderId ? decodeURIComponent(folderId) : INBOX_FOLDER_ID,
+      );
       ev.preventDefault();
-    } else if (checkKeyCombo(ev, keys.addNewProject)) {
-      if (this._matDialog.openDialogs.length === 0) {
-        ev.preventDefault();
-        const { DialogCreateProjectComponent } =
-          await import('../../features/project/dialogs/create-project/dialog-create-project.component');
-        if (this._matDialog.openDialogs.length === 0) {
-          this._matDialog
-            .open(DialogCreateProjectComponent, { restoreFocus: true })
-            .afterClosed()
-            .subscribe((newProjectId: string | undefined) => {
-              if (newProjectId) {
-                this._router.navigate([`project/${newProjectId}/tasks`]);
-              }
-            });
-        }
-      }
     } else if (isHelpKeyCombo(ev, keys.showHelp)) {
-      if (this._matDialog.openDialogs.length === 0) {
-        ev.preventDefault();
-        const { DialogKeyboardShortcutsComponent } =
-          await import('./dialog-keyboard-shortcuts/dialog-keyboard-shortcuts.component');
-        // re-check, since further presses can arrive while the chunk is still loading
-        if (this._matDialog.openDialogs.length === 0) {
-          this._matDialog.open(DialogKeyboardShortcutsComponent, { restoreFocus: true });
-        }
-      }
-    } else if (checkKeyCombo(ev, keys.addNewNote)) {
+      ev.preventDefault();
+      this._router.navigate(['/help']);
+    } else if (false) {
       if (this._matDialog.openDialogs.length === 0) {
         this._matDialog.open(DialogAddNoteComponent, {
           minWidth: '100vw',
@@ -223,13 +205,13 @@ export class ShortcutService {
         });
         ev.preventDefault();
       }
-    } else if (checkKeyCombo(ev, keys.openProjectNotes)) {
+    } else if (false) {
       ev.preventDefault();
       this._layoutService.toggleNotes();
-    } else if (checkKeyCombo(ev, keys.toggleTaskViewCustomizerPanel)) {
+    } else if (false) {
       ev.preventDefault();
       this._layoutService.toggleTaskViewCustomizerPanel();
-    } else if (checkKeyCombo(ev, keys.toggleIssuePanel)) {
+    } else if (false) {
       ev.preventDefault();
       this._layoutService.toggleAddTaskPanel();
     } else if (checkKeyCombo(ev, keys.triggerSync)) {

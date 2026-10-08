@@ -1,7 +1,6 @@
 import { calendarDate, calendarTimeRow } from './calendar-time';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { computed, inject, Injectable, Signal } from '@angular/core';
-import { DateService } from '../../core/date/date.service';
 import { interval } from 'rxjs';
 import {
   ScheduleCalendarMapEntry,
@@ -33,23 +32,18 @@ import { CalendarDisplayService } from './calendar-display.service';
   providedIn: 'root',
 })
 export class ScheduleService {
-  private _dateService = inject(DateService);
   private _store = inject(Store);
   private readonly _calendarDisplay = inject(CalendarDisplayService);
   private _taskService = inject(TaskService);
   readonly displayTimeZone = this._calendarDisplay.displayTimeZone;
+  readonly today = this._calendarDisplay.today;
 
   currentTimeRow(now = Date.now()): number {
     return calendarTimeRow(now, this.displayTimeZone(), FH);
   }
 
   getCalendarToday(): Date {
-    return parseDbDateStr(
-      calendarDate(
-        Date.now() - this._dateService.getStartOfNextDayDiffMs(),
-        this.displayTimeZone(),
-      ),
-    );
+    return parseDbDateStr(calendarDate(Date.now(), this.displayTimeZone()));
   }
 
   private _timelineTasks = toSignal(this._store.select(selectTimelineTasks));
@@ -176,9 +170,7 @@ export class ScheduleService {
   }
 
   getDaysToShow(nrOfDaysToShow: number, referenceDate: Date | null = null): string[] {
-    // Default anchor is the logical day, not the raw clock: between calendar
-    // midnight and the configured start-of-next-day the window must still
-    // begin at (logical) today, which todayStr() elsewhere keeps naming.
+    // Default anchor is the current civil date in the Calendar display zone.
     // Cloned because the cursor is mutated below and referenceDate is the
     // caller's (a selected-date signal value in the schedule component).
     const cursor = referenceDate ? new Date(referenceDate) : this.getCalendarToday();
@@ -308,11 +300,9 @@ export class ScheduleService {
     return null;
   }
 
-  getDayClass(day: string, referenceMonth?: Date): string {
+  getDayClass(day: string, referenceMonth?: Date, todayStr?: string): string {
     const dayDate = parseDbDateStr(day);
-    // Logical day, same as the window anchors above: the today ring must sit
-    // on the column todayStr() names, not one off during the offset window.
-    const today = this.getCalendarToday();
+    const today = todayStr ? parseDbDateStr(todayStr) : this.getCalendarToday();
 
     // If referenceMonth is provided, use it to determine "current month"
     // Otherwise, use the actual current month

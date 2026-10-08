@@ -50,6 +50,10 @@
   [style.--schedule-row-height-mobile]="scheduleRowHeightMobileCss()"
   (click)="onGridClick($event)"
   (mousemove)="onMoveOverGrid($event)"
+  (mouseleave)="onGridLeave()"
+  (pointerleave)="onGridLeave()"
+  (dragleave)="onGridDragLeave($event)"
+  (drop)="onGridLeave()"
 >
   <!-- Sticky background strip behind the time column (only when horizontally scrolled) -->
   <div class="time-column-bg"></div>

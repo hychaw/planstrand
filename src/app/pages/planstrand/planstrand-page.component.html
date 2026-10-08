@@ -1,50 +1,53 @@
-<main class="planstrand-page">
-  <header>
-    <h1>
-      {{
-        'PLANSTRAND.' +
-          (mode() === 'master'
-            ? 'MASTER_TASKS'
-            : mode() === 'today'
-              ? 'TODAY'
-              : mode() === 'week'
-                ? 'THIS_WEEK'
-                : mode() === 'inbox'
-                  ? 'INBOX'
-                  : 'FOLDERS') | translate
-      }}
-    </h1>
-    <a
-      mat-button
-      routerLink="/inbox"
-      >{{ 'PLANSTRAND.INBOX' | translate }}</a
-    >
-    <a
-      mat-button
-      routerLink="/search"
-      >{{ 'PLANSTRAND.SEARCH' | translate }}</a
-    >
-    <a
-      mat-button
-      routerLink="/schedule"
-      >{{ 'PLANSTRAND.SCHEDULE' | translate }}</a
-    >
-    <button
-      mat-button
-      (click)="ui.createFolder()"
-    >
-      {{ 'PLANSTRAND.CREATE_FOLDER' | translate }}
-    </button>
+<main
+  class="planstrand-page"
+  [class.is-inbox]="mode() === 'inbox'"
+  [class.is-week]="mode() === 'week'"
+>
+  <header class="planstrand-page-header">
+    <div>
+      <h1>
+        {{
+          'PLANSTRAND.' +
+            (mode() === 'master'
+              ? 'MASTER_TASKS'
+              : mode() === 'today'
+                ? 'TODAY'
+                : mode() === 'week'
+                  ? 'THIS_WEEK'
+                  : mode() === 'inbox'
+                    ? 'INBOX'
+                    : 'FOLDERS') | translate
+        }}
+      </h1>
+      @if (mode() === 'today') {
+        <p class="period-label">{{ today() | date: 'fullDate' }}</p>
+      } @else if (mode() === 'week') {
+        <p class="period-label">
+          {{ days()[0] | date: 'MMM d' }} – {{ days()[6] | date: 'MMM d, y' }}
+        </p>
+      }
+    </div>
+    @if (mode() === 'master' || mode() === 'folder') {
+      <button
+        mat-button
+        (click)="ui.createFolder()"
+      >
+        {{ 'PLANSTRAND.CREATE_FOLDER' | translate }}
+      </button>
+    }
   </header>
   @if (mode() === 'master' || mode() === 'inbox' || mode() === 'folder') {
-    <div cdkDropListGroup>
+    <div
+      cdkDropListGroup
+      class="folder-workspace"
+    >
       <div
         cdkDropList
         [cdkDropListEnterPredicate]="folderDragPredicate"
         [cdkDropListSortingDisabled]="true"
         (cdkDropListDropped)="folderDrop($event, null)"
       >
-        <p>{{ 'PLANSTRAND.ROOT_DROP' | translate }}</p>
+        <p class="root-drop-hint">{{ 'PLANSTRAND.ROOT_DROP' | translate }}</p>
       </div>
       @if (mode() === 'folder' && folderRows().length === 0) {
         <p>{{ 'PLANSTRAND.MISSING_FOLDER' | translate }}</p>
@@ -56,6 +59,10 @@
       }
       @for (row of folderRows(); track row.folder.id) {
         <section
+          class="folder-section"
+          [class.is-nested]="row.depth > 0"
+          [style.--folder-depth]="Math.min(row.depth, 4)"
+          [class.capture-section]="row.folder.id === inboxId"
           [style.margin-inline-start]="
             'calc(var(--s2) * ' + (mode() === 'master' ? Math.min(row.depth, 4) : 0) + ')'
           "
@@ -77,6 +84,24 @@
                 [attr.aria-expanded]="!ui.collapsed().has(row.folder.id)"
               >
                 {{ ui.collapsed().has(row.folder.id) ? '▸' : '▾' }}
+                <svg
+                  class="folder-icon"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  aria-hidden="true"
+                >
+                  <path
+                    [attr.d]="
+                      row.folder.id === inboxId
+                        ? 'M4 5h16l2 10v5H2v-5L4 5ZM2 15h6l2 3h4l2-3h6'
+                        : 'M3 5h7l2 3h9v12H3V5Z'
+                    "
+                  />
+                </svg>
                 <span
                   class="folder-title"
                   [title]="row.folder.title"
@@ -85,57 +110,84 @@
               </button>
             </h2>
           </div>
-          <div class="folder-controls">
-            <button
-              mat-button
-              (click)="ui.createTask(row.folder.id)"
+          <details class="folder-actions">
+            <summary
+              [attr.aria-label]="
+                ('PLANSTRAND.ACTIONS' | translate) + ': ' + row.folder.title
+              "
             >
-              {{ 'PLANSTRAND.ADD_TASK' | translate }}
-            </button>
-            <button
-              mat-button
-              (click)="ui.createFolder(row.folder.id)"
-            >
-              {{ 'PLANSTRAND.CREATE_FOLDER' | translate }}
-            </button>
-            @if (row.folder.id !== inboxId) {
+              •••
+            </summary>
+            <div class="folder-controls">
               <button
                 mat-button
-                (click)="ui.rename(row.folder.id)"
+                (click)="ui.createFolder(row.folder.id)"
               >
-                {{ 'PLANSTRAND.RENAME_FOLDER' | translate }}
+                {{ 'PLANSTRAND.CREATE_FOLDER' | translate }}
               </button>
-              <button
-                mat-button
-                (click)="ui.chooseFolderParent(row.folder.id)"
-              >
-                {{ 'PLANSTRAND.MOVE_FOLDER' | translate }}
-              </button>
-              <button
-                mat-button
-                (click)="ui.reorder(row.folder.id, -1)"
-                [attr.aria-label]="'PLANSTRAND.MOVE_UP' | translate"
-              >
-                ↑
-              </button>
-              <button
-                mat-button
-                (click)="ui.reorder(row.folder.id, 1)"
-                [attr.aria-label]="'PLANSTRAND.MOVE_DOWN' | translate"
-              >
-                ↓
-              </button>
-              <button
-                mat-button
-                color="warn"
-                [disabled]="row.hasChildren"
-                (click)="ui.deleteFolder(row.folder.id)"
-              >
-                {{ 'PLANSTRAND.DELETE_FOLDER' | translate }}
-              </button>
-            }
-          </div>
+              @if (row.folder.id !== inboxId) {
+                <button
+                  mat-button
+                  (click)="ui.rename(row.folder.id)"
+                >
+                  {{ 'PLANSTRAND.RENAME_FOLDER' | translate }}
+                </button>
+                <button
+                  mat-button
+                  (click)="ui.chooseFolderParent(row.folder.id)"
+                >
+                  {{ 'PLANSTRAND.MOVE_FOLDER' | translate }}
+                </button>
+                <button
+                  mat-button
+                  (click)="ui.reorder(row.folder.id, -1)"
+                  [attr.aria-label]="'PLANSTRAND.MOVE_UP' | translate"
+                >
+                  ↑
+                </button>
+                <button
+                  mat-button
+                  (click)="ui.reorder(row.folder.id, 1)"
+                  [attr.aria-label]="'PLANSTRAND.MOVE_DOWN' | translate"
+                >
+                  ↓
+                </button>
+                <button
+                  mat-button
+                  color="warn"
+                  [disabled]="row.hasChildren"
+                  (click)="ui.deleteFolder(row.folder.id)"
+                >
+                  {{ 'PLANSTRAND.DELETE_FOLDER' | translate }}
+                </button>
+              }
+            </div>
+          </details>
           @if (!ui.collapsed().has(row.folder.id)) {
+            <form
+              class="quick-capture"
+              (submit)="
+                $event.preventDefault();
+                ui.createTask(row.folder.id, taskTitle.value);
+                taskTitle.value = ''
+              "
+            >
+              <input
+                #taskTitle
+                [placeholder]="'PLANSTRAND.QUICK_CAPTURE' | translate"
+                [attr.aria-label]="'PLANSTRAND.ADD_TASK' | translate"
+              />
+              <button
+                mat-button
+                type="button"
+                (click)="
+                  ui.createTask(row.folder.id, taskTitle.value || undefined);
+                  taskTitle.value = ''
+                "
+              >
+                {{ 'PLANSTRAND.ADD_TASK' | translate }}
+              </button>
+            </form>
             <planstrand-task-list
               [tasks]="row.tasks"
               [folderId]="row.folder.id"
@@ -147,42 +199,130 @@
       }
     </div>
   } @else {
-    <div
-      cdkDropListGroup
-      class="planning-sections"
-    >
-      @for (section of sections(); track section.target.type + section.target.key) {
-        <section>
-          <h2>
-            {{
-              section.target.type === 'WEEK'
-                ? ('PLANSTRAND.WEEK_ONLY' | translate)
-                : section.target.key
-            }}
-          </h2>
-          <planstrand-task-list
-            [tasks]="section.tasks"
-            [days]="days()"
-            [planning]="true"
-            (dropped)="planDrop($event, section.target)"
-            (reordered)="reorder($event, section.tasks, section.target)"
-          />
-        </section>
-      }
-      <section>
-        <h2>{{ 'PLANSTRAND.UNPLANNED' | translate }}</h2>
+    @if (mode() === 'today') {
+      <div
+        class="today-switch"
+        role="group"
+        [attr.aria-label]="'PLANSTRAND.TODAY' | translate"
+      >
         <button
           mat-button
-          (click)="ui.createTask(inboxId)"
+          [attr.aria-pressed]="todayPane() === 'plan'"
+          (click)="todayPane.set('plan')"
         >
-          {{ 'PLANSTRAND.ADD_TASK' | translate }}
+          {{ 'PLANSTRAND.PLAN_PANE' | translate }}
         </button>
-        <planstrand-task-list
-          [tasks]="captureTasks()"
-          [days]="days()"
-          (dropped)="unplan($event.task.id)"
-        />
-      </section>
+        <button
+          mat-button
+          [attr.aria-pressed]="todayPane() === 'schedule'"
+          (click)="todayPane.set('schedule')"
+        >
+          {{ 'PLANSTRAND.SCHEDULE_PANE' | translate }}
+        </button>
+      </div>
+    }
+    <div
+      class="planning-workspace"
+      [class.is-today]="mode() === 'today'"
+      [class.show-schedule]="todayPane() === 'schedule'"
+    >
+      <div
+        cdkDropListGroup
+        class="planning-sections"
+      >
+        @for (section of sections(); track section.target.type + section.target.key) {
+          <section [class.week-anytime]="section.target.type === 'WEEK'">
+            <div class="section-heading">
+              @if (mode() === 'week' && section.target.type === 'DAY') {
+                <div
+                  class="day-marker"
+                  aria-hidden="true"
+                >
+                  <span>{{ section.target.key | date: 'EEE' }}</span>
+                  <strong>{{ section.target.key | date: 'd' }}</strong>
+                </div>
+              }
+              <h2
+                [class.is-today-heading]="
+                  section.target.type === 'DAY' && section.target.key === today()
+                "
+              >
+                {{
+                  section.target.type === 'WEEK'
+                    ? ('PLANSTRAND.WEEK_ONLY' | translate)
+                    : mode() === 'today'
+                      ? ('PLANSTRAND.FOCUS' | translate)
+                      : (section.target.key | date: 'EEEE')
+                }}
+              </h2>
+              <span class="section-count">{{
+                mode() === 'today' ? focusTasks().length : section.tasks.length
+              }}</span>
+              <button
+                mat-button
+                (click)="addTask(section.target)"
+                [attr.aria-label]="
+                  'Add Task: ' +
+                  (section.target.type === 'WEEK'
+                    ? 'Anytime This Week'
+                    : (section.target.key | date: 'EEEE'))
+                "
+              >
+                + Add
+              </button>
+            </div>
+            <planstrand-task-list
+              [tasks]="mode() === 'today' ? focusTasks() : section.tasks"
+              [days]="days()"
+              [planning]="true"
+              (dropped)="planDrop($event, section.target)"
+              (reordered)="
+                reorder(
+                  $event,
+                  mode() === 'today' ? focusTasks() : section.tasks,
+                  section.target
+                )
+              "
+            />
+          </section>
+        }
+        <section class="unplanned-section">
+          <div class="section-heading">
+            <h2>{{ 'PLANSTRAND.UNPLANNED' | translate }}</h2>
+            <button
+              mat-button
+              (click)="ui.createTask(inboxId)"
+            >
+              {{ 'PLANSTRAND.ADD_TASK' | translate }}
+            </button>
+          </div>
+          <planstrand-task-list
+            [tasks]="captureTasks()"
+            [days]="days()"
+            (dropped)="unplan($event.task.id)"
+          />
+        </section>
+        @if (mode() === 'today' && completedTasks().length) {
+          <section class="completed-section">
+            <div class="section-heading">
+              <h2>{{ 'PLANSTRAND.COMPLETED' | translate }}</h2>
+              <span class="section-count">{{ completedTasks().length }}</span>
+            </div>
+            <planstrand-task-list
+              [tasks]="completedTasks()"
+              [acceptDrops]="false"
+              [days]="days()"
+            />
+          </section>
+        }
+      </div>
+      @if (mode() === 'today') {
+        <aside class="day-schedule">
+          <h2>{{ 'PLANSTRAND.DAY_SCHEDULE' | translate }}</h2>
+
+          <schedule-day-panel />
+        </aside>
+      }
     </div>
   }
 </main>

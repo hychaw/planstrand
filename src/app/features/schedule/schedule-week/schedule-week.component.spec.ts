@@ -1,9 +1,14 @@
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { registerLocaleData } from '@angular/common';
 import localeSv from '@angular/common/locales/sv';
 import { TranslateModule } from '@ngx-translate/core';
-import { provideMockStore } from '@ngrx/store/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
+import { selectLocalizationConfig } from '../../config/store/global-config.reducer';
+import { ScheduleWeekDragService } from './schedule-week-drag.service';
+import { calculateTimeFromYPosition } from '../schedule-utils';
+import { calendarTimeRow, calendarClock } from '../calendar-time';
+import { FH } from '../schedule.const';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ScheduleWeekComponent } from './schedule-week.component';
 import { ScheduleEventComponent } from '../schedule-event/schedule-event.component';
@@ -56,6 +61,108 @@ describe('ScheduleWeekComponent', () => {
       .compileComponents();
 
     fixture = TestBed.createComponent(ScheduleWeekComponent);
+  });
+
+  afterEach(() => TestBed.inject(MockStore).resetSelectors());
+
+  it('clears idle creation previews on exit but preserves an open editor', () => {
+    const component = fixture.componentInstance;
+    const preview = { style: '', time: '09:00', date: '2026-05-11' };
+    component.newTaskPlaceholder.set(preview);
+    component.onGridLeave();
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    component.isCreateTaskActive.set(true);
+    component.onGridLeave();
+    expect(component.newTaskPlaceholder()).toEqual(preview);
+    component.isCreateTaskActive.set(false);
+    component.onGridLeave();
+  });
+
+  it('keeps Vancouver DST grid, pointer timestamp and drag labels aligned despite implicit renderer time', () => {
+    const zone = 'America/Vancouver';
+    const store = TestBed.inject(MockStore);
+    store.overrideSelector(selectLocalizationConfig, { timeZone: zone });
+    store.refreshState();
+    const format = TestBed.inject(DateTimeFormatService);
+    (format.currentLocale as ReturnType<typeof signal<string>>).set('en-US');
+    (format.is24HourFormat as ReturnType<typeof signal<boolean>>).set(false);
+    // The baseline Electron renderer formats this instant as 4 PM (fixed UTC-8).
+    // No implicit DateTimeFormatService formatter should be used for grid instants.
+    const implicit = jasmine.createSpy('formatTime').and.returnValue('4:00 PM');
+    Object.assign(format, { formatTime: implicit });
+    fixture.componentRef.setInput('daysToShow', ['2026-10-07']);
+    fixture.detectChanges();
+    const drag = fixture.debugElement.injector.get(ScheduleWeekDragService);
+    const rect = { top: -400, height: 2880 } as DOMRect;
+    for (const hour of [17, 18]) {
+      const offset = hour * FH * 10;
+      const row = hour * FH;
+      const instant = calculateTimeFromYPosition(
+        rect.top + offset,
+        rect,
+        '2026-10-07',
+        zone,
+      )!;
+      expect(instant).toBe(
+        Date.parse(hour === 17 ? '2026-10-08T00:00:00Z' : '2026-10-08T01:00:00Z'),
+      );
+      expect(calendarTimeRow(instant, zone, FH)).toBe(row + 1);
+      drag.showExternalPreview(
+        { ...createTaskEvent('task', '2026-10-07', false), timeLeftInHours: 1 },
+        '',
+        instant,
+      );
+      expect(fixture.componentInstance.dragPreviewLabel()).toBe(
+        `${hour - 12}:00 PM - ${hour - 11}:00 PM (1h)`,
+      );
+      expect(fixture.componentInstance.times()[hour]).toBe(`${hour - 12}:00 PM`);
+    }
+    // Historical winter standard time differs from October's daylight time.
+    expect(calendarClock('2025-12-07', '17:00', zone)).toBe(
+      Date.parse('2025-12-08T01:00:00Z'),
+    );
+    expect(implicit).not.toHaveBeenCalled();
+    drag.hideExternalPreview();
+  });
+
+  it('does not resurrect a queued hover after the pointer leaves', fakeAsync(() => {
+    fixture.componentRef.setInput('daysToShow', ['2026-10-05']);
+    fixture.detectChanges();
+    const grid = fixture.nativeElement.querySelector('.grid-container') as HTMLElement;
+    const col = grid.querySelector('.col') as HTMLElement;
+    const move = (): void => {
+      const event = new MouseEvent('mousemove', { bubbles: true });
+      Object.defineProperty(event, 'offsetY', { value: 100 });
+      col.dispatchEvent(event);
+    };
+    move();
+    expect(fixture.componentInstance.newTaskPlaceholder()).not.toBeNull();
+    move();
+    grid.dispatchEvent(new MouseEvent('mouseleave'));
+    tick(40);
+    expect(fixture.componentInstance.newTaskPlaceholder()).toBeNull();
+  }));
+
+  it('clears hover state on scroll, changed days, task drag and teardown', () => {
+    fixture.componentRef.setInput('daysToShow', ['2026-10-05']);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const preview = { style: '', time: '09:00', date: '2026-10-05' };
+    component.newTaskPlaceholder.set(preview);
+    document.dispatchEvent(new Event('scroll'));
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    fixture.componentRef.setInput('daysToShow', ['2026-10-06']);
+    fixture.detectChanges();
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    fixture.componentRef.setInput('isTaskDragActive', true);
+    fixture.detectChanges();
+    expect(component.newTaskPlaceholder()).toBeNull();
+    component.newTaskPlaceholder.set(preview);
+    fixture.destroy();
+    expect(component.newTaskPlaceholder()).toBeNull();
   });
 
   it('uses the UI language for weekday headers with ISO formatting enabled', () => {

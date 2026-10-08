@@ -101,6 +101,7 @@ export const TaskSharedActions = createActionGroup({
       isAddToBacklog: boolean;
       isAddToBottom: boolean;
       isIgnoreShortSyntax?: boolean;
+      initialPlanning?: import('../../features/planning/planning.model').PlanningRecord;
       autoPlanToday?: string;
       autoPlanStartOfNextDayDiffMs?: number;
       isExampleTask?: boolean;

@@ -53,21 +53,9 @@ const CUSTOM_TARGETS: readonly SettingsSearchTarget[] = [
     scrollSelector: '.wallpaper-select',
   },
   {
-    labelKey: T.GCF.SOUND.TITLE,
-    tabLabelKey: T.PS.TABS.TASKS,
-    tabIndex: 1,
-    scrollSelector: '.sound-section',
-  },
-  {
-    labelKey: T.PS.PLUGINS,
-    tabLabelKey: T.PS.TABS.PLUGINS,
-    tabIndex: 4,
-    scrollSelector: '.plugin-section',
-  },
-  {
     labelKey: T.PS.SYNC.SET_UP_SYNC,
     tabLabelKey: T.PS.TABS.SYNC_BACKUP,
-    tabIndex: 5,
+    tabIndex: 2,
     scrollSelector: '.sync-summary',
   },
 ];
@@ -86,6 +74,7 @@ export const searchSettings = (
   tabs: readonly SettingsSearchTab[],
   query: string,
   translate: (key: string) => string,
+  customTargets: readonly SettingsSearchTarget[] = CUSTOM_TARGETS,
 ): SettingsSearchTarget[] => {
   const q = query.trim().toLowerCase();
   if (!q) {
@@ -120,7 +109,7 @@ export const searchSettings = (
     });
 
     return [
-      ...CUSTOM_TARGETS.filter(
+      ...customTargets.filter(
         (target) => target.tabIndex === tabIndex && (isTabMatch || has(target.labelKey)),
       ),
       ...sectionTargets,

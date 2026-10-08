@@ -505,31 +505,31 @@ describe('CustomThemeService', () => {
     // toggled per test without monkey-patching window.ea.
 
     it('honors a stored selection regardless of platform', () => {
-      expect(pickInitialActiveRef('builtin:dracula', true)).toEqual({
+      expect(pickInitialActiveRef('builtin:dracula')).toEqual({
         kind: 'builtin',
         id: 'dracula',
       });
-      expect(pickInitialActiveRef('builtin:dracula', false)).toEqual({
+      expect(pickInitialActiveRef('builtin:dracula')).toEqual({
         kind: 'builtin',
         id: 'dracula',
       });
     });
 
     it('falls back to default when stored value is missing or malformed', () => {
-      expect(pickInitialActiveRef(null, false)).toEqual({
+      expect(pickInitialActiveRef(null)).toEqual({
         kind: 'builtin',
         id: 'default',
       });
-      expect(pickInitialActiveRef('garbage', false)).toEqual({
+      expect(pickInitialActiveRef('garbage')).toEqual({
         kind: 'builtin',
         id: 'default',
       });
     });
 
-    it('picks Liquid Glass on first run for Apple Silicon Macs', () => {
-      expect(pickInitialActiveRef(null, true)).toEqual({
+    it('uses Blue Thread on first run on every platform', () => {
+      expect(pickInitialActiveRef(null)).toEqual({
         kind: 'builtin',
-        id: 'liquid-glass',
+        id: 'default',
       });
     });
 
@@ -537,7 +537,7 @@ describe('CustomThemeService', () => {
       // `migrateLegacyCustomTheme` short-circuits when LS already has a
       // value. Persisting on first run would lock new Apple Silicon Macs
       // out of inheriting a synced device's theme choice.
-      pickInitialActiveRef(null, true);
+      pickInitialActiveRef(null);
       expect(localStorage.getItem(LS.CUSTOM_THEME)).toBeNull();
     });
   });

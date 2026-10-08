@@ -83,9 +83,13 @@ describe('SearchPageComponent', () => {
     projectFolderMapSignal = signal<Map<string, string>>(new Map());
     tagFolderMapSignal = signal<Map<string, string>>(new Map());
 
-    taskServiceSpy = jasmine.createSpyObj('TaskService', ['getArchivedTasks'], {
-      allTasks$,
-    });
+    taskServiceSpy = jasmine.createSpyObj(
+      'TaskService',
+      ['getArchivedTasks', 'getByIdFromEverywhere', 'setSelectedId'],
+      {
+        allTasks$,
+      },
+    );
     taskServiceSpy.getArchivedTasks.and.callFake(() => Promise.resolve(archivedTasks));
 
     navigateToTaskServiceSpy = jasmine.createSpyObj('NavigateToTaskService', [
@@ -155,6 +159,41 @@ describe('SearchPageComponent', () => {
   };
 
   // --- Behavioral tests ---
+
+  it('focuses Search after rendering without a delayed callback stealing later menu focus', fakeAsync(() => {
+    document.body.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input');
+    expect(document.activeElement).toBe(input);
+    const menu = document.createElement('button');
+    document.body.appendChild(menu);
+    try {
+      menu.focus();
+      tick(100);
+      expect(document.activeElement).toBe(menu);
+    } finally {
+      menu.remove();
+      fixture.nativeElement.remove();
+    }
+  }));
+
+  it('respects a focus change before the Search view finishes rendering', () => {
+    const menu = document.createElement('button');
+    document.body.appendChild(menu);
+    try {
+      menu.focus();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(menu);
+    } finally {
+      menu.remove();
+    }
+  });
+
+  it('does not run a late focus callback after route destruction', fakeAsync(() => {
+    component.ngOnInit();
+    fixture.destroy();
+    expect(() => tick(100)).not.toThrow();
+  }));
 
   it('shows canonical ancestor Folder context and effectively resolves stale ownership to Inbox', fakeAsync(() => {
     TestBed.inject(MockStore).setState({
@@ -381,17 +420,40 @@ describe('SearchPageComponent', () => {
     expect(latestResults[0].isArchiveTask).toBe(true);
   }));
 
-  it('should call NavigateToTaskService.navigate on navigateToItem', () => {
+  it('opens archived results directly without exposing the inherited worklog', async () => {
     const item = {
       id: 'nav-1',
       isArchiveTask: true,
     } as SearchItem;
-    component.navigateToItem(item);
-    // The search flag is what earns the revealed row its attention highlight —
-    // no other caller of navigate() sets it. (#5476)
-    expect(navigateToTaskServiceSpy.navigate).toHaveBeenCalledWith('nav-1', true, {
-      isFromSearch: true,
+    const details = spyOn(component, 'viewArchivedTaskDetails').and.resolveTo();
+    await component.navigateToItem(item);
+    expect(details).toHaveBeenCalledWith(item);
+    expect(navigateToTaskServiceSpy.navigate).not.toHaveBeenCalled();
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
+  });
+
+  it('opens active tasks in their effective Planstrand Folder without Project repair', async () => {
+    taskServiceSpy.getByIdFromEverywhere.and.resolveTo(
+      createTask({ id: 'nav-1', folderId: 'missing', projectId: 'old-project' }),
+    );
+    await component.navigateToItem({ id: 'nav-1' } as SearchItem);
+    expect(routerSpy.navigate).toHaveBeenCalledWith(['/folder', INBOX_FOLDER_ID], {
+      queryParams: { focusItem: 'nav-1', isFromSearch: true },
     });
+    expect(taskServiceSpy.setSelectedId).toHaveBeenCalledWith('nav-1');
+    expect(navigateToTaskServiceSpy.navigate).not.toHaveBeenCalled();
+  });
+
+  it('reveals the parent row and selects the matching subtask without changing its state', async () => {
+    taskServiceSpy.getByIdFromEverywhere.and.callFake(async (id) => {
+      if (!id) throw new Error('Missing test task id');
+      return createTask({ id, parentId: id === 'child' ? 'parent' : undefined });
+    });
+    await component.navigateToItem({ id: 'child' } as SearchItem);
+    expect(routerSpy.navigate).toHaveBeenCalledWith(['/folder', INBOX_FOLDER_ID], {
+      queryParams: { focusItem: 'parent', isFromSearch: true },
+    });
+    expect(taskServiceSpy.setSelectedId).toHaveBeenCalledWith('child');
   });
 
   it('should reset form value on clearSearch', fakeAsync(() => {
@@ -498,7 +560,7 @@ describe('SearchPageComponent', () => {
     expect(latestResults[0].searchText).toContain('some notes');
   }));
 
-  it('should find notes by content (case-insensitive)', fakeAsync(() => {
+  it('does not expose inherited standalone notes in Planstrand Search', fakeAsync(() => {
     notes$.next([
       {
         id: 'n1',
@@ -508,13 +570,10 @@ describe('SearchPageComponent', () => {
     ]);
     initAndFlush();
     typeAndFlush('IMPORTANT');
-    expect(latestResults.length).toBe(1);
-    expect(latestResults[0].id).toBe('n1');
-    expect(latestResults[0].title).toBe('Check out this important note');
-    expect(latestResults[0].isNote).toBe(true);
+    expect(latestResults).toEqual([]);
   }));
 
-  it('should navigate to note correctly in navigateToItem', fakeAsync(() => {
+  it('does not navigate to inherited Project notes', fakeAsync(() => {
     const item = {
       id: 'n1',
       isNote: true,
@@ -522,13 +581,11 @@ describe('SearchPageComponent', () => {
     } as SearchItem;
     component.navigateToItem(item);
     tick();
-    expect(routerSpy.navigate).toHaveBeenCalledWith(['/project/proj-1/tasks'], {
-      queryParams: { focusItem: 'n1' },
-    });
-    expect(layoutServiceSpy.toggleNotes).toHaveBeenCalled();
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
+    expect(layoutServiceSpy.toggleNotes).not.toHaveBeenCalled();
   }));
 
-  it('should navigate to Today notes correctly in navigateToItem when projectId is null', fakeAsync(() => {
+  it('does not navigate to inherited Today notes', fakeAsync(() => {
     const item = {
       id: 'n2',
       isNote: true,
@@ -536,10 +593,8 @@ describe('SearchPageComponent', () => {
     } as SearchItem;
     component.navigateToItem(item);
     tick();
-    expect(routerSpy.navigate).toHaveBeenCalledWith(['/tag/TODAY/tasks'], {
-      queryParams: { focusItem: 'n2' },
-    });
-    expect(layoutServiceSpy.toggleNotes).toHaveBeenCalled();
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
+    expect(layoutServiceSpy.toggleNotes).not.toHaveBeenCalled();
   }));
 
   it('should include full folder path in context tag title for task', fakeAsync(() => {
@@ -552,7 +607,7 @@ describe('SearchPageComponent', () => {
     expect(latestResults[0].ctx.title).toBe('Folder 1 > Subfolder A > My Project');
   }));
 
-  it('should include full folder path in context tag title for note', fakeAsync(() => {
+  it('does not expose inherited Project notes through folder search', fakeAsync(() => {
     projectFolderMapSignal.set(new Map([['proj-1', 'Folder 1 › Subfolder A']]));
     projectList$.next([createProject({ id: 'proj-1', title: 'My Project' })]);
     notes$.next([
@@ -565,8 +620,7 @@ describe('SearchPageComponent', () => {
     ]);
     initAndFlush();
     typeAndFlush('Folder Note');
-    expect(latestResults.length).toBe(1);
-    expect(latestResults[0].ctx.title).toBe('Folder 1 > Subfolder A > My Project');
+    expect(latestResults).toEqual([]);
   }));
 
   it('should update folder path reactively when projectFolderMap changes after init', fakeAsync(() => {

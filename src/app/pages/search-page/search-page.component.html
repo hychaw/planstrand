@@ -61,7 +61,7 @@
                       >{{ item.folderPath }}</span
                     >
                   }
-                  @if (item.ctx) {
+                  @if (item.ctx && !item.folderPath) {
                     <tag
                       [tag]="item.ctx"
                       class="context-tag"

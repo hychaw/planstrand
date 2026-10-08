@@ -1,5 +1,80 @@
 # Planstrand Design System
 
+## V1.1 — Blue Thread
+
+Blue Thread is the default Planstrand identity on every platform. V1.1 supersedes
+the initial neutral palette, system-first typography and temporary calendar icon
+described in the original V1 guidance below.
+
+- Deep Navy `#0B1220`, Cobalt `#2563EB`, Azure `#60A5FA`, Light Azure `#BFDBFE`.
+- Light: cool pale-blue canvas, near-white working surfaces, blue selection.
+- Dark: blue-black canvas, layered navy working and floating surfaces.
+- Inter Variable, bundled locally with its SIL Open Font License; use weight and
+  spacing for hierarchy and tabular numerals for calendar/time/duration.
+- Canvas → Working Surface → Floating Surface. Reuse the existing `--surface-*`,
+  ink and Material token contract. `src/styles/blue-thread.scss` supplies defaults;
+  user-installed themes can still override public body-scoped primitives.
+- Comfortable uses 52px task rows; Compact uses 36px rows with unchanged type.
+  Coarse-pointer devices keep 48px rows. Appearance stores density on this device,
+  outside synced config, domain entities and the operation log.
+- State transitions: 140–160ms; panel entry: 200ms; exit: 180ms. Honor the existing
+  disable-animation preference and `prefers-reduced-motion`.
+- The Strand P master is `src/assets/icons/strand-p.svg`: a flowing cobalt/azure ribbon P with
+  a transparent background. Run `node tools/generate-planstrand-icons.cjs`
+  from the repository root to regenerate web/PWA and desktop artwork. macOS uses
+  a larger transparent inset; Safari uses a monochrome strand mask. The generator
+  also updates Electron indicator stopped/running/progress assets at 16px and 32px,
+  plus Windows ICO sizes 16/24/32/48/64/256. Window, executable and installer icon
+  paths are separate and must all reference regenerated artwork.
+
+Retain upstream attribution and application/profile/protocol identifiers. The
+technical release version and V1.0.0-rc.1 tag are independent of this visual work.
+
+### Approved visual redesign (October 2026)
+
+- The static high-altitude canvas combines pale/cobalt or navy gradients with the
+  project-owned `src/assets/sky-atmosphere.svg`: soft cloud banks, tonal sky depth,
+  and a small distant aircraft. Theme-specific veils keep text dominant. No mountains,
+  photography, slogans, animation, runtime image services or screenshot backgrounds.
+  Small mobile screens use a simple gradient for readability. Decorative paths never connect Folders or days.
+- Expanded desktop navigation floats within its reserved column and always shows
+  the ribbon P plus **Planstrand**. Primary order is **Today / This Week / Tasks /
+  Calendar**. Inbox stays a special capture collection, first in the Tasks hierarchy
+  and accessible below Folders; its canonical `/inbox` route and domain semantics stay intact.
+- The collapsed layout reserves 88px, including gutters around a 72px floating rail.
+  Center navigation icons and the expand button; show the Strand P alone. Avoid
+  clipped labels and leftover expanded-mode padding.
+- Global capabilities live in one Utilities popover: tracking, capture, focus,
+  counters, sync, plugins and secondary panels. Keep their components mounted once;
+  preserve counter reminders and plugin lifecycle while visually quiet at rest.
+- Task hover is tinted/elevated; focus uses a blue edge and a visible keyboard outline.
+  Elevate drag previews and highlight valid drop targets. Never glow every idle row.
+  Task drag registration belongs to the existing scheduling bridge; external drops
+  must not also dispatch a Planning or Folder move.
+- Titles use one editorial header, with a secondary date or range. Avoid repeating
+  the route name in the global toolbar. The existing Inter and surface contract remain authoritative.
+- Tasks uses a continuous hierarchy surface: small Folder glyphs, disclosure,
+  recursive indentation and tonal grouping. Overflow disclosures contain secondary
+  commands. Keep CDK groups, task drag handles and Folder drag predicates intact.
+- Today pairs Focus / Unplanned / Completed with My Day. Completed means completed
+  Tasks in today's plan, never completed WorkSessions. Tablet/phone switch between
+  Plan and Schedule rather than compressing both panes.
+- This Week is a two-column editorial planning list on wide screens and one column
+  on narrower screens. Anytime this week spans the width. Days use compact day/date
+  markers; quiet empty targets replace repeated empty-state instructions.
+- Calendar shares the same working surface and integrates period navigation, Today,
+  Day / Week / Month / Year and New Event. WorkSessions have stronger blue depth and
+  a wider leading edge; Events stay softer with their existing type glyphs.
+  Work boundaries require the explicit device-local Appearance opt-in. Inherited
+  `isWorkStartEndEnabled: true` values are preserved but never interpreted as consent.
+  Grid preview wording describes WorkSession selection and the explicit Event action.
+- Settings keeps its current tabs/search/forms architecture, with an editorial
+  shell, rounded section navigation, quiet panels and consistent appearance controls.
+  Preserve upstream plugin authorship, MIT/OFL licenses and labelled upstream links;
+  host feedback belongs to Planstrand.
+- No persisted schema change, new synced appearance state, new inspector domain,
+  operation-log changes or calendar projection fork belongs in a visual pass.
+
 ## 1. Design Intent
 
 Planstrand should feel like a thoughtfully designed personal planning tool, not a generic dashboard.
@@ -142,6 +217,7 @@ Avoid outlining every container.
 Dark mode should be genuinely dark and comfortable.
 
 Avoid:
+
 - pure black for every surface,
 - neon category colors,
 - low-contrast grey-on-grey text.
@@ -164,18 +240,23 @@ Priorities:
 Suggested hierarchy:
 
 ### Page title
+
 Prominent but not oversized.
 
 ### Section heading
+
 Medium weight, compact spacing.
 
 ### Task title
+
 Normal/medium weight.
 
 ### Metadata
+
 Smaller and muted.
 
 ### Calendar time
+
 Compact, stable-width where possible.
 
 Use weight and spacing before introducing additional colors.
@@ -224,6 +305,7 @@ Avoid making every element look like a capsule.
 Use shadows sparingly.
 
 Appropriate uses:
+
 - floating inspector,
 - modal,
 - mobile bottom sheet,
@@ -259,6 +341,7 @@ Typical duration:
 ```
 
 Use motion for:
+
 - panel entry,
 - expand/collapse,
 - drag feedback,
@@ -284,6 +367,7 @@ For touch devices and relaxed desktop use.
 For users who want more tasks and calendar detail visible simultaneously.
 
 Density should affect:
+
 - row height,
 - vertical gaps,
 - sidebar spacing,
@@ -399,6 +483,7 @@ A task row should prioritize:
 3. compact metadata.
 
 Potential metadata:
+
 - priority,
 - due date,
 - planned state,
@@ -408,6 +493,7 @@ Potential metadata:
 Do not show every optional field all the time.
 
 Completed task:
+
 - strikethrough title,
 - muted text,
 - reduced emphasis,
@@ -420,6 +506,7 @@ Completed task:
 Priority should use a small consistent indicator.
 
 Examples:
+
 - tiny colored marker,
 - compact `P1` label,
 - flag icon.
@@ -431,9 +518,11 @@ Do not color the entire task background according to priority.
 ## 21. Task Inspector
 
 Desktop:
+
 - right-side inspector.
 
 Mobile:
+
 - bottom sheet or full-screen editor.
 
 The initial view should show only common fields.
@@ -463,6 +552,7 @@ as distinct states.
 ## 23. Calendar Views
 
 Support:
+
 - Year
 - Month
 - Week
@@ -491,18 +581,23 @@ Detailed execution timeline.
 Visually distinguish:
 
 ### Normal event
+
 Solid or softly filled calendar block.
 
 ### Work session
+
 Task indicator plus category accent.
 
 ### Deadline
+
 Compact marker/banner, not a fake duration block.
 
 ### Weekly-template item
+
 Normal calendar presence with subtle recurring/template indicator.
 
 ### External event
+
 Source-aware styling or icon.
 
 Color must not be the only distinguishing mechanism.
@@ -527,15 +622,18 @@ Resize handles should be easy to discover without permanently cluttering the blo
 Quick Add should be reachable globally.
 
 Desktop:
+
 - top-bar button,
 - keyboard shortcut.
 
 Mobile:
+
 - prominent but restrained action.
 
 Opening Quick Add should focus the title field immediately.
 
 Creating a basic task should require only:
+
 - type,
 - Enter.
 
@@ -608,6 +706,7 @@ Suggested primary bottom navigation:
 - Calendar
 
 Additional destinations:
+
 - Weekly Templates
 - Settings
 - Account
@@ -621,6 +720,7 @@ may live under a menu/profile entry.
 Use single-column layouts.
 
 Prefer:
+
 - native-feeling sheets,
 - swipe navigation between days,
 - large enough touch targets,
@@ -634,9 +734,11 @@ Do not expose desktop hover-only actions.
 ## 33. iPad Layout
 
 ### Landscape
+
 Near-desktop experience.
 
 ### Portrait
+
 Two-pane layout where useful.
 
 Sidebars may become overlays to preserve workspace width.
@@ -718,16 +820,9 @@ Product name:
 
 **Planstrand**
 
-The name may appear as a simple wordmark initially.
-
-Do not create a complex logo system before the core UI is stable.
-
-A future icon may explore:
-- a subtle woven line,
-- intersecting timeline strands,
-- linked planning paths.
-
-It should remain legible at small app-icon sizes.
+Expanded navigation always pairs the Strand P ribbon with the Planstrand wordmark.
+The mark must remain legible at small sizes; collapsed navigation may use the mark alone.
+Use local vector assets, never a crop of a concept screenshot.
 
 ---
 

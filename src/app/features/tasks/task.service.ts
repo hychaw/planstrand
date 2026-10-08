@@ -320,6 +320,7 @@ export class TaskService {
 
   // ----
   setCurrentId(id: string | null): void {
+    if (id && !this.isTimeTrackingEnabled()) return;
     if (id) {
       this._store.dispatch(setCurrentTask({ id }));
     } else {

@@ -1,5 +1,6 @@
 import { expect, test } from '../../fixtures/test.fixture';
 import { Locator, Page } from '@playwright/test';
+import { openPlanstrandActions } from '../../utils/planstrand-actions';
 import { waitForStatePersistence } from '../../utils/waits';
 import {
   assertNoRuntimeBrowserErrors,
@@ -18,7 +19,11 @@ const eventFor = (page: Page, title: string): Locator =>
 
 const moveDown = async (page: Page, event: Locator): Promise<void> => {
   await expect(event).toHaveClass(/draggable/);
+  // Direct mouse gestures also need to wait for the editor backdrop to leave.
+  await event.click({ trial: true });
   await event.scrollIntoViewIfNeeded();
+  // Leave room for the gesture inside the scrollable grid below the page header.
+  await event.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   const box = (await event.boundingBox())!;
   const halfWidth = box.width / 2;
   const centerX = box.x + halfWidth;
@@ -34,7 +39,9 @@ const moveDown = async (page: Page, event: Locator): Promise<void> => {
 
 const resize = async (page: Page, event: Locator): Promise<void> => {
   const handle = event.locator('.resize-handle');
+  await handle.click({ trial: true });
   await handle.scrollIntoViewIfNeeded();
+  await handle.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   const box = (await handle.boundingBox())!;
   const halfWidth = box.width / 2;
   const centerX = box.x + halfWidth;
@@ -65,9 +72,7 @@ test.describe('Planstrand V1 shipping smoke', () => {
       try {
         await page.goto('/');
         await expect(page).toHaveURL(/#\/today$/);
-        await expect(page.locator('planstrand-page')).toContainText(
-          'Choose Plan Task on an unplanned task below',
-        );
+        await expect(page.locator('planstrand-page')).toContainText('Unplanned');
         await expect(page.locator('onboarding-hint')).toHaveCount(0);
         await page.goto('/#/inbox');
         const inbox = page.locator('planstrand-page section');
@@ -119,19 +124,19 @@ test.describe('Planstrand V1 shipping smoke', () => {
           .getByRole('button', { name: 'Navigation', exact: true })
           .click();
       const nav = page.locator('magic-side-nav nav');
-      for (const name of ['Inbox', 'Master Tasks', 'Today', 'This Week', 'Calendar']) {
+      for (const name of ['Today', 'This Week', 'Tasks', 'Calendar']) {
         await expect(nav.getByRole('menuitem', { name, exact: true })).toBeVisible();
       }
+      await expect(nav.getByRole('menuitem', { name: 'Inbox', exact: true })).toHaveCount(
+        0,
+      );
+      await expect(
+        nav.locator('planstrand-folder-navigation').getByRole('link', { name: /Inbox/ }),
+      ).toBeVisible();
       await expect(
         nav.getByRole('menuitem', { name: 'Planner', exact: true }),
       ).toBeHidden();
-      const more = nav.locator('summary');
-      await more.focus();
-      await page.keyboard.press('Enter');
-      await expect(
-        nav.getByRole('menuitem', { name: 'Planner', exact: true }),
-      ).toBeVisible();
-      await more.click();
+      await expect(nav.locator('summary')).toHaveCount(0);
       if (width === 390)
         await nav.getByRole('button', { name: 'Close', exact: true }).click();
       await page.getByRole('button', { name: 'New Event', exact: true }).first().click();
@@ -159,6 +164,9 @@ test.describe('Planstrand V1 shipping smoke', () => {
     for (const title of ['Ship first Task', 'Ship second Task']) {
       await inbox.getByRole('button', { name: 'Add Task', exact: true }).click();
       await savePrompt(page, title);
+      await openPlanstrandActions(
+        inbox.locator('.task-entry').filter({ hasText: title }),
+      );
       await inbox
         .locator('.task-entry')
         .filter({ hasText: title })
@@ -168,6 +176,7 @@ test.describe('Planstrand V1 shipping smoke', () => {
     await page.goto('/#/today');
     const planned = page.locator('planstrand-page section').first();
     const second = planned.locator('.task-entry').filter({ hasText: 'Ship second Task' });
+    await openPlanstrandActions(second);
     await second.getByRole('button', { name: 'Move up', exact: true }).click();
     await expect(planned.locator('task').first()).toContainText('Ship second Task');
     await second
@@ -197,9 +206,10 @@ test.describe('Planstrand V1 shipping smoke', () => {
     await waitForStatePersistence(page);
     await page.reload();
     await expect(session.locator('.time-badge')).toHaveText(movedClock!);
-    expect(Math.abs((await session.boundingBox())!.height - resizedHeight)).toBeLessThan(
-      3,
-    );
+    // Wait for the route-entry transition before comparing rendered geometry.
+    await expect
+      .poll(async () => Math.abs((await session.boundingBox())!.height - resizedHeight))
+      .toBeLessThan(3);
     await page.goto('/#/today');
     await expect(page.locator('planstrand-page section').first()).not.toContainText(
       'Ship second Task',

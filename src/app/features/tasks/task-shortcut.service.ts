@@ -53,6 +53,7 @@ export class TaskShortcutService {
   private readonly _configService = inject(GlobalConfigService);
   private readonly _multiSelect = inject(TaskMultiSelectService);
   private readonly _bulkActions = inject(TaskBulkActionService);
+  private readonly _legacyControlsEnabled = false;
   readonly isTimeTrackingEnabled = computed(
     () => this._configService.appFeatures().isTimeTrackingEnabled,
   );
@@ -200,7 +201,7 @@ export class TaskShortcutService {
       ev.preventDefault();
       return true;
     }
-    if (checkKeyCombo(ev, keys.taskOpenEstimationDialog)) {
+    if (this._legacyControlsEnabled && checkKeyCombo(ev, keys.taskOpenEstimationDialog)) {
       this._handleTaskShortcut(focusedTaskId, 'estimateTime');
       ev.preventDefault();
       return true;
@@ -262,14 +263,18 @@ export class TaskShortcutService {
     }
 
     // Move to project / Open project menu for project selection (only for non-sub-tasks)
-    if (!isContextMenuOpen && checkKeyCombo(ev, keys.taskMoveToProject)) {
+    if (
+      !isContextMenuOpen &&
+      this._legacyControlsEnabled &&
+      checkKeyCombo(ev, keys.taskMoveToProject)
+    ) {
       this._handleTaskShortcut(focusedTaskId, 'openProjectMenu');
       ev.preventDefault();
       return true;
     }
 
     // Edit tags
-    if (checkKeyCombo(ev, keys.taskEditTags)) {
+    if (this._legacyControlsEnabled && checkKeyCombo(ev, keys.taskEditTags)) {
       this._handleTaskShortcut(focusedTaskId, 'editTags');
       ev.preventDefault();
       return true;

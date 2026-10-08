@@ -66,7 +66,18 @@
 }
 
 :host.isActiveContext button {
-  font-weight: normal;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--sidenav-item-active-bg);
+  border-radius: var(--radius-md);
+  box-shadow: inset 3px 0 var(--brand);
+}
+
+@media (pointer: fine) {
+  :host-context(body[data-density='compact']) button:first-of-type {
+    min-height: 36px;
+    height: 36px;
+  }
 }
 
 @media (hover: hover) {
@@ -354,4 +365,51 @@ button[mat-menu-item].nav-link.active {
   .task-count {
     display: none;
   }
+}
+
+:host button:first-of-type {
+  border-radius: 12px;
+  min-height: 46px;
+}
+:host.isActiveContext button {
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--brand) 22%, var(--surface-primary)),
+    var(--surface-selected)
+  );
+  box-shadow:
+    inset 3px 0 var(--brand),
+    0 4px 16px -10px var(--brand);
+  color: var(--ink-strong);
+}
+
+:host-context(.nav-sidenav.compactMode) {
+  .nav-link,
+  button:first-of-type {
+    padding-inline: 0 !important;
+    gap: 0;
+    justify-content: center;
+  }
+  .nav-link ::ng-deep .mat-mdc-menu-item-text {
+    justify-content: center;
+  }
+  .nav-icon,
+  .ico-wrapper {
+    margin: 0 !important;
+    width: 22px;
+    flex: 0 0 22px;
+  }
+}
+:host .nav-link.active,
+:host.isActiveContext .nav-link,
+:host.isActiveContext button {
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--brand) 45%, var(--surface-primary)),
+    color-mix(in srgb, var(--brand) 22%, var(--surface-primary))
+  ) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--planstrand-azure) 62%, transparent),
+    0 4px 14px -8px var(--brand);
+  color: var(--ink-strong);
 }

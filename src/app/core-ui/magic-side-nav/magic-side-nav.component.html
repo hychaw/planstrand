@@ -96,14 +96,21 @@
       </button>
     }
 
-    @if (showText()) {
-      <a
-        class="product-name"
-        routerLink="/today"
-        (click)="isMobile() && toggleMobileNav()"
-        >Planstrand</a
-      >
-    }
+    <a
+      class="product-name"
+      routerLink="/today"
+      aria-label="Planstrand"
+      (click)="isMobile() && toggleMobileNav()"
+      ><img
+        src="assets/icons/strand-p.svg"
+        width="32"
+        height="32"
+        alt=""
+      />
+      @if (showText()) {
+        <span>Planstrand</span>
+      }
+    </a>
     @if (isDataLoaded()) {
       <!-- Navigation Items -->
       <ul
@@ -120,30 +127,6 @@
           <li>
             <planstrand-folder-navigation (navigated)="isMobile() && toggleMobileNav()" />
           </li>
-        }
-        <li>
-          <details
-            class="secondary-navigation"
-            [open]="isLegacyRoute()"
-          >
-            <summary [attr.aria-label]="'PLANSTRAND.MORE' | translate">
-              {{ showText() ? ('PLANSTRAND.MORE' | translate) : '⋯' }}
-            </summary>
-            <ul class="nav-list">
-              @for (item of secondaryItems(); track item.id) {
-                <ng-container
-                  [ngTemplateOutlet]="navigationItem"
-                  [ngTemplateOutletContext]="{ $implicit: item }"
-                />
-              }
-            </ul>
-          </details>
-        </li>
-        @for (item of utilityItems(); track item.id) {
-          <ng-container
-            [ngTemplateOutlet]="navigationItem"
-            [ngTemplateOutletContext]="{ $implicit: item }"
-          />
         }
         <ng-template
           #navigationItem
