@@ -24,8 +24,10 @@ test('focused shell, useful Utilities and simplified Settings', async ({ page })
     utilities.getByRole('button', { name: 'Add Task', exact: true }),
   ).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(utilities).not.toBeVisible();
   const appMenu = page.getByRole('button', { name: 'App menu', exact: true });
   await appMenu.focus();
+  await expect(appMenu).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(
     page.getByRole('menuitem', { name: 'Settings', exact: true }),
@@ -34,8 +36,40 @@ test('focused shell, useful Utilities and simplified Settings', async ({ page })
   await expect(page.getByRole('menuitem', { name: 'Help', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(appMenu).toBeFocused();
-  await page.getByRole('button', { name: 'App menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+  // Header tab order is reversible; menu Tab/Shift+Tab exits without a focus trap.
+  await page.keyboard.press('Shift+Tab');
+  await expect(
+    page.getByRole('button', { name: 'Utilities', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByRole('link', { name: 'Search', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Utilities', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(appMenu).toBeFocused();
+  for (const exitKey of ['Tab', 'Shift+Tab']) {
+    await page.keyboard.press('Space');
+    await expect(
+      page.getByRole('menuitem', { name: 'Settings', exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press(exitKey);
+    await expect(
+      page.getByRole('menuitem', { name: 'Settings', exact: true }),
+    ).toBeHidden();
+    await appMenu.focus();
+    await expect(appMenu).toBeFocused();
+  }
+  await page.keyboard.press('Space');
+  await expect(
+    page.getByRole('menuitem', { name: 'Settings', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#\/config$/);
+  await expect(
+    page.getByRole('menuitem', { name: 'Settings', exact: true }),
+  ).toBeHidden();
   const tabs = page.getByRole('tab');
   await expect(tabs).toHaveCount(6);
   for (const name of [

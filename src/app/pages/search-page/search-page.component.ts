@@ -1,5 +1,6 @@
 import {
   ChangeDetectionStrategy,
+  afterNextRender,
   Component,
   ElementRef,
   inject,
@@ -23,7 +24,7 @@ import { TagService } from '../../features/tag/tag.service';
 import { Task } from '../../features/tasks/task.model';
 import { resolveDisplayTagIds } from '../../features/tasks/util/resolve-display-tag-ids.util';
 import { SearchItem } from './search-page.model';
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, DOCUMENT } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
 import { MatIconButton } from '@angular/material/button';
 import { MatInput } from '@angular/material/input';
@@ -66,6 +67,7 @@ const MAX_RESULTS = 50;
   ],
 })
 export class SearchPageComponent implements OnInit {
+  private readonly _document = inject(DOCUMENT);
   private readonly _store = inject(Store);
   private _taskService = inject(TaskService);
   private _projectService = inject(ProjectService);
@@ -82,6 +84,18 @@ export class SearchPageComponent implements OnInit {
   searchForm: UntypedFormControl = new UntypedFormControl('');
   includeCompletedForm: UntypedFormControl = new UntypedFormControl(false);
   filteredResults$: Observable<SearchItem[]> = new Observable();
+
+  constructor() {
+    const previousFocus = this._document.activeElement;
+    afterNextRender(() => {
+      // Focus once when the view exists. Never reclaim focus from a control the
+      // user has selected while navigation/rendering was in progress.
+      const active = this._document.activeElement;
+      if (active === previousFocus || active === this._document.body) {
+        this.inputEl().nativeElement.focus();
+      }
+    });
+  }
 
   private _cachedArchiveItems: SearchItem[] | null = null;
   private _archiveCacheInputs?: {
@@ -307,11 +321,6 @@ export class SearchPageComponent implements OnInit {
         this._filter(searchableItems, searchTerm, !!includeCompleted),
       ),
     );
-
-    // Focus the input after view init
-    setTimeout(() => {
-      this.inputEl().nativeElement.focus();
-    }, 100);
   }
 
   private _filter(

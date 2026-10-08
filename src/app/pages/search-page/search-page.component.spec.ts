@@ -160,6 +160,41 @@ describe('SearchPageComponent', () => {
 
   // --- Behavioral tests ---
 
+  it('focuses Search after rendering without a delayed callback stealing later menu focus', fakeAsync(() => {
+    document.body.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input');
+    expect(document.activeElement).toBe(input);
+    const menu = document.createElement('button');
+    document.body.appendChild(menu);
+    try {
+      menu.focus();
+      tick(100);
+      expect(document.activeElement).toBe(menu);
+    } finally {
+      menu.remove();
+      fixture.nativeElement.remove();
+    }
+  }));
+
+  it('respects a focus change before the Search view finishes rendering', () => {
+    const menu = document.createElement('button');
+    document.body.appendChild(menu);
+    try {
+      menu.focus();
+      fixture.detectChanges();
+      expect(document.activeElement).toBe(menu);
+    } finally {
+      menu.remove();
+    }
+  });
+
+  it('does not run a late focus callback after route destruction', fakeAsync(() => {
+    component.ngOnInit();
+    fixture.destroy();
+    expect(() => tick(100)).not.toThrow();
+  }));
+
   it('shows canonical ancestor Folder context and effectively resolves stale ownership to Inbox', fakeAsync(() => {
     TestBed.inject(MockStore).setState({
       folder: {

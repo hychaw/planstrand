@@ -8,7 +8,10 @@ test('Settings and About present the Planstrand product version and retain licen
   await expect(footer).toContainText('Planstrand');
   await expect(footer).toContainText('1.1.0-rc.1');
   await expect(footer).not.toContainText('19.1.0');
-  expect(await footer.getAttribute('title')).not.toMatch(/NO_REV|NO_BRANCH|19\.1\.0/);
+  // A build without a revision intentionally omits the tooltip altogether.
+  expect((await footer.getAttribute('title')) ?? '').not.toMatch(
+    /NO_REV|NO_BRANCH|19\.1\.0/,
+  );
   await page.goto('/#/about');
   await expect(page.locator('planstrand-product-info')).toContainText(
     'Version 1.1.0-rc.1',
