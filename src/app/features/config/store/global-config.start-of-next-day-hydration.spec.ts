@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync } from '@angular/core/testing';
 import { Action, Store, StoreModule } from '@ngrx/store';
 import { Actions, EffectsModule } from '@ngrx/effects';
 import { Subscription, take } from 'rxjs';
@@ -23,16 +23,17 @@ import {
   appStateReducer,
 } from '../../../root-store/app-state/app-state.reducer';
 import { AppStateActions } from '../../../root-store/app-state/app-state.actions';
-import { selectStartOfNextDayDiffMs } from '../../../root-store/app-state/app-state.selectors';
+import {
+  selectStartOfNextDayDiffMs,
+  selectTodayStr,
+} from '../../../root-store/app-state/app-state.selectors';
 import { LanguageService } from '../../../core/language/language.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { KeyboardLayoutService } from '../../../core/keyboard-layout/keyboard-layout.service';
 import { IS_ELECTRON_TOKEN } from '../../../app.constants';
 import { IS_MAC_TOKEN } from '../../../util/is-mac';
 
-describe('start-of-next-day offset across operation replay', () => {
-  const SIX_AM_MS = 6 * 60 * 60 * 1000;
-
+describe('legacy day-start preferences across Planstrand operation replay', () => {
   const misc = (startOfNextDay: number, startOfNextDayTime: string): MiscConfig => ({
     ...DEFAULT_GLOBAL_CONFIG.misc,
     startOfNextDay,
@@ -160,45 +161,59 @@ describe('start-of-next-day offset across operation replay', () => {
     store.dispatch(bulkApplyOperations({ operations, localClientId }));
   };
 
-  it('installs the offset when the config op is replayed at startup', () => {
+  const expectCalendarToday = (): void => {
+    expect(readStoreHour()).toBe(6);
+    expect(dateService.getStartOfNextDayDiffMs()).toBe(0);
+    expect(readAppStateOffset()).toBe(0);
+    expect(dateService.todayStr()).toBe('2026-10-07');
+    store
+      .select(selectTodayStr)
+      .pipe(take(1))
+      .subscribe((today) => {
+        expect(today).toBe('2026-10-07');
+      });
+    expect(
+      observedActions.some(
+        (action) => action.type === TaskSharedActions.updateTasks.type,
+      ),
+    ).toBeFalse();
+  };
+
+  it('retains the preference but uses calendar midnight after startup replay', fakeAsync(() => {
+    spyOn(Date, 'now').and.returnValue(new Date(2026, 9, 7, 1).getTime());
     bootFromSnapshotAt(misc(0, '00:00'));
 
     replay([configOp(misc(6, '06:00'), 'client1')]);
 
-    expect(readStoreHour()).toBe(6);
-    expect(dateService.getStartOfNextDayDiffMs()).toBe(SIX_AM_MS);
-    expect(readAppStateOffset()).toBe(SIX_AM_MS);
-  });
+    expectCalendarToday();
+  }));
 
-  it('installs the offset when the config change arrives from another device', () => {
+  it('retains the preference but uses calendar midnight after remote config replay', fakeAsync(() => {
+    spyOn(Date, 'now').and.returnValue(new Date(2026, 9, 7, 1).getTime());
     bootFromSnapshotAt(misc(0, '00:00'));
 
     replay([configOp(misc(6, '06:00'), 'client2')]);
 
-    expect(readStoreHour()).toBe(6);
-    expect(dateService.getStartOfNextDayDiffMs()).toBe(SIX_AM_MS);
-    expect(readAppStateOffset()).toBe(SIX_AM_MS);
-  });
+    expectCalendarToday();
+  }));
 
-  it('installs the offset when a full-state operation is replayed', () => {
+  it('retains the preference but uses calendar midnight after full-state replay', fakeAsync(() => {
+    spyOn(Date, 'now').and.returnValue(new Date(2026, 9, 7, 1).getTime());
     bootFromSnapshotAt(misc(0, '00:00'));
 
     replay([fullStateOp(misc(6, '06:00'))]);
 
-    expect(readStoreHour()).toBe(6);
-    expect(dateService.getStartOfNextDayDiffMs()).toBe(SIX_AM_MS);
-    expect(readAppStateOffset()).toBe(SIX_AM_MS);
-  });
+    expectCalendarToday();
+  }));
 
-  it('installs the offset when a repair operation is replayed', () => {
+  it('retains the preference but uses calendar midnight after repair replay', fakeAsync(() => {
+    spyOn(Date, 'now').and.returnValue(new Date(2026, 9, 7, 1).getTime());
     bootFromSnapshotAt(misc(0, '00:00'));
 
     replay([repairOp(misc(6, '06:00'))]);
 
-    expect(readStoreHour()).toBe(6);
-    expect(dateService.getStartOfNextDayDiffMs()).toBe(SIX_AM_MS);
-    expect(readAppStateOffset()).toBe(SIX_AM_MS);
-  });
+    expectCalendarToday();
+  }));
 
   it('does not re-mint task updates while replaying the config operation', () => {
     bootFromSnapshotAt(misc(0, '00:00'));

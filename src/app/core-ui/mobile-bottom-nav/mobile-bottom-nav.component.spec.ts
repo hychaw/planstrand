@@ -14,6 +14,9 @@ import { WorkContextService } from '../../features/work-context/work-context.ser
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { AppFeaturesConfig } from '../../features/config/global-config.model';
+import { PlanstrandService } from '../../pages/planstrand/planstrand.service';
+import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
+import { selectAppFeaturesConfig } from '../../features/config/store/global-config.reducer';
 
 /**
  * Below 600px this nav's panels menu is the ONLY route to every right-panel
@@ -48,6 +51,7 @@ describe('MobileBottomNavComponent', () => {
   };
 
   let fixture: ComponentFixture<MobileBottomNavComponent>;
+  let createTask: jasmine.Spy;
 
   const render = async (
     over: Partial<AppFeaturesConfig>,
@@ -59,6 +63,7 @@ describe('MobileBottomNavComponent', () => {
     });
 
     TestBed.resetTestingModule();
+    createTask = jasmine.createSpy('createTask');
     await TestBed.configureTestingModule({
       imports: [
         TranslateModule.forRoot(),
@@ -67,6 +72,7 @@ describe('MobileBottomNavComponent', () => {
       ],
       providers: [
         provideRouter([]),
+        { provide: PlanstrandService, useValue: { createTask } },
         {
           provide: LayoutService,
           useValue: {
@@ -176,5 +182,22 @@ describe('MobileBottomNavComponent', () => {
 
     expect(cmp.hasSidePanelMenuItems()).toBe(true);
     expect(openPanelsMenu()).toEqual(['plugin-icon']);
+  });
+
+  it('uses Planstrand routes and captures one task into Inbox from the mobile FAB', async () => {
+    await render(ALL_OFF);
+    const nav = fixture.nativeElement as HTMLElement;
+    expect(nav.querySelector('[routerLink="/this-week"]')).toBeTruthy();
+    expect(fixture.componentInstance.todayRoute).toBe('/today');
+    nav.querySelector<HTMLButtonElement>('.add-task-button')!.click();
+    expect(createTask).toHaveBeenCalledOnceWith(INBOX_FOLDER_ID);
+  });
+
+  it('exposes only the schedule panel with actual Planstrand feature gating', async () => {
+    // The combinations above preserve internal compatibility. Normal Planstrand
+    // config masks inherited issue/notes features even for a legacy enabled state.
+    const flags = selectAppFeaturesConfig.projector(DEFAULT_GLOBAL_CONFIG.appFeatures);
+    await render(flags);
+    expect(openPanelsMenu()).toEqual(['.e2e-toggle-schedule-day-panel']);
   });
 });

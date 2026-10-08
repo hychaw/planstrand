@@ -174,7 +174,8 @@ describe('StartupService', () => {
       expect(pluginService.initializePlugins).not.toHaveBeenCalled();
     });
 
-    it('should check for stray backups during initialization', fakeAsync(() => {
+    it('initializes backups without activating upstream rating, plugins or tracking reminders', fakeAsync(() => {
+      const initBackups = spyOn<any>(service, '_initBackups').and.callThrough();
       // Mock BroadcastChannel to prevent multi-instance blocking
       const mockChannel = {
         postMessage: jasmine.createSpy(),
@@ -192,8 +193,10 @@ describe('StartupService', () => {
 
       flush();
 
-      // Deferred init hands the rating prompt off to RatePromptService.
-      expect(ratePromptService.init).toHaveBeenCalled();
+      expect(initBackups).toHaveBeenCalledOnceWith();
+      expect(ratePromptService.init).not.toHaveBeenCalled();
+      expect(pluginService.initializePlugins).not.toHaveBeenCalled();
+      expect(TestBed.inject(TrackingReminderService).init).not.toHaveBeenCalled();
 
       // Restore
       (window as any).BroadcastChannel = originalBroadcastChannel;

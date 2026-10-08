@@ -251,7 +251,7 @@ describe('TaskContextMenuInnerComponent', () => {
       expect(onClick).toHaveBeenCalledOnceWith({ taskId: 'task-1' });
     });
 
-    it('renders the plugin submenu and runs the selected entry on click', fakeAsync(() => {
+    it('hides inherited plugin actions in the Planstrand task menu without invoking callbacks', fakeAsync(() => {
       const onClick = jasmine.createSpy('onClick');
       registry.register('plugin-a', {
         id: 'action',
@@ -275,18 +275,13 @@ describe('TaskContextMenuInnerComponent', () => {
       fixture.detectChanges();
       tick();
       const submenuTrigger = findMenuItem(T.PLUGINS.TASK_CONTEXT_MENU_ACTIONS);
-      expect(submenuTrigger).toBeDefined();
-
-      submenuTrigger!.click();
-      fixture.detectChanges();
-      tick();
+      expect(submenuTrigger).toBeUndefined();
       const entryButton = findMenuItem('Run action');
-      expect(entryButton).toBeDefined();
-
-      entryButton!.click();
-      flush();
-
-      expect(onClick).toHaveBeenCalledOnceWith({ taskId: 'task-1' });
+      expect(entryButton).toBeUndefined();
+      // Registration and explicit callback compatibility are tested above; the
+      // daily product menu must not expose the retained internal implementation.
+      expect(component.pluginTaskContextMenuEntries()).toHaveSize(1);
+      expect(onClick).not.toHaveBeenCalled();
       component.contextMenuTrigger()?.closeMenu();
       flush();
     }));

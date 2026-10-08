@@ -78,19 +78,26 @@ describe('formatDayStr', () => {
     });
   });
 
-  // This test helps debug timezone issues
-  describe('timezone diagnostic', () => {
-    it('should log timezone information for debugging', () => {
-      const date = new Date(2024, 0, 15);
-      const diagnostics = {
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        timezoneOffset: date.getTimezoneOffset(),
-        dateString: date.toString(),
-        utcString: date.toUTCString(),
-        isoString: date.toISOString(),
-      };
-      console.log('Timezone diagnostics:', diagnostics);
-      expect(diagnostics.timezone).toBeTruthy();
+  describe('named timezone day boundaries', () => {
+    it('formats each calendar day when the same instant falls on different local days', () => {
+      const instant = Date.parse('2024-01-15T00:30:00Z');
+      for (const [timeZone, dateKey, weekday] of [
+        ['Europe/Berlin', '2024-01-15', 'Mon'],
+        ['America/Vancouver', '2024-01-14', 'Sun'],
+      ]) {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+          timeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+        expect(formatter.resolvedOptions().timeZone).toBe(timeZone);
+        const parts = formatter.formatToParts(instant);
+        const part = (type: string): string => parts.find((p) => p.type === type)!.value;
+        const date = `${part('year')}-${part('month')}-${part('day')}`;
+        expect(date).toBe(dateKey);
+        expect(formatDayStr(date, 'en-US')).toBe(weekday);
+      }
     });
   });
 });

@@ -1206,7 +1206,22 @@ describe('GlobalConfigReducer', () => {
     });
 
     describe('selectIdleConfig', () => {
-      itBehavesLikeConfigSectionSelector(selectIdleConfig, 'idle');
+      it('disables idle classification when the config section is missing', () => {
+        expect(selectIdleConfig({})).toEqual({
+          ...DEFAULT_GLOBAL_CONFIG.idle,
+          isEnableIdleTimeTracking: false,
+        });
+      });
+
+      it('preserves legacy idle preferences without activating tracking', () => {
+        const idle = { ...DEFAULT_GLOBAL_CONFIG.idle, isEnableIdleTimeTracking: true };
+        const state = { ...initialGlobalConfigState, idle };
+        expect(selectIdleConfig({ globalConfig: state })).toEqual({
+          ...idle,
+          isEnableIdleTimeTracking: false,
+        });
+        expect(state.idle.isEnableIdleTimeTracking).toBeTrue();
+      });
     });
 
     describe('selectSyncConfig', () => {
@@ -1214,7 +1229,25 @@ describe('GlobalConfigReducer', () => {
     });
 
     describe('selectTakeABreakConfig', () => {
-      itBehavesLikeConfigSectionSelector(selectTakeABreakConfig, 'takeABreak');
+      it('disables break recovery when the config section is missing', () => {
+        expect(selectTakeABreakConfig({})).toEqual({
+          ...DEFAULT_GLOBAL_CONFIG.takeABreak,
+          isTakeABreakEnabled: false,
+        });
+      });
+
+      it('preserves legacy break preferences without activating reminders', () => {
+        const takeABreak = {
+          ...DEFAULT_GLOBAL_CONFIG.takeABreak,
+          isTakeABreakEnabled: true,
+        };
+        const state = { ...initialGlobalConfigState, takeABreak };
+        expect(selectTakeABreakConfig({ globalConfig: state })).toEqual({
+          ...takeABreak,
+          isTakeABreakEnabled: false,
+        });
+        expect(state.takeABreak.isTakeABreakEnabled).toBeTrue();
+      });
     });
 
     describe('selectTimelineConfig', () => {
@@ -1244,35 +1277,34 @@ describe('GlobalConfigReducer', () => {
     });
 
     describe('selectIsFocusModeEnabled', () => {
-      it('should return default value when state is undefined', () => {
+      it('disables inherited focus mode when state is undefined', () => {
         const result = selectIsFocusModeEnabled.projector(undefined as any);
-        expect(result).toBe(DEFAULT_GLOBAL_CONFIG.appFeatures.isFocusModeEnabled);
+        expect(result).toBeFalse();
       });
 
-      it('should return isFocusModeEnabled when state is defined', () => {
-        const result = selectIsFocusModeEnabled.projector(initialGlobalConfigState);
-        expect(result).toBe(initialGlobalConfigState.appFeatures.isFocusModeEnabled);
+      it('does not activate inherited focus mode from a legacy enabled preference', () => {
+        const result = selectIsFocusModeEnabled.projector(DEFAULT_GLOBAL_CONFIG);
+        expect(result).toBeFalse();
       });
     });
 
     describe('selectTimelineWorkStartEndHours', () => {
       it('should return null when state is undefined and default has work disabled', () => {
         const result = selectTimelineWorkStartEndHours.projector(undefined as any);
-        // The default config has isWorkStartEndEnabled: true, so we need to check the logic
-        if (!DEFAULT_GLOBAL_CONFIG.schedule.isWorkStartEndEnabled) {
-          expect(result).toBeNull();
-        } else {
-          expect(result).toBeTruthy();
-        }
+        expect(result).toBeNull();
       });
 
       it('should return work hours when state is defined and enabled', () => {
-        const result = selectTimelineWorkStartEndHours.projector(
-          initialGlobalConfigState,
-        );
-        expect(result).toBeTruthy();
-        expect(result?.workStart).toBeDefined();
-        expect(result?.workEnd).toBeDefined();
+        const result = selectTimelineWorkStartEndHours.projector({
+          ...initialGlobalConfigState,
+          schedule: {
+            ...initialGlobalConfigState.schedule,
+            isWorkStartEndEnabled: true,
+            workStart: '09:00',
+            workEnd: '17:30',
+          },
+        });
+        expect(result).toEqual({ workStart: 9, workEnd: 17.5 });
       });
 
       it('should return null when work hours are disabled', () => {

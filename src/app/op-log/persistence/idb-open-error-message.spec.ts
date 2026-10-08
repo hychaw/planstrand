@@ -140,13 +140,8 @@ describe('buildIdbOpenErrorMessage', () => {
   });
 
   describe('other open failures keep the existing guidance', () => {
-    // Asserted in FULL, not by fragments. Extracting this text out of
-    // OperationLogHydratorService was required by the 1200-line service cap,
-    // and "the wording is unchanged" was the whole safety argument for that
-    // move — a fragment match would not have detected a dropped line or a
-    // mangled blank line. If this fails, confirm the change to user-facing
-    // copy is intentional before updating the expectation.
-    it('reproduces the pre-extraction generic message exactly', () => {
+    // Keep the complete recovery guidance while using the approved host identity.
+    it('preserves the generic recovery guidance with Planstrand branding', () => {
       const msg = buildIdbOpenErrorMessage(
         new IndexedDBOpenError(new Error('QuotaExceededError')),
         ctx(),
@@ -154,7 +149,7 @@ describe('buildIdbOpenErrorMessage', () => {
 
       expect(msg).toBe(
         'Database Error - Cannot Load Data\n\n' +
-          'Super Productivity cannot open its database. This may be caused by:\n\n' +
+          'Planstrand cannot open its database. This may be caused by:\n\n' +
           '- Low disk space\n' +
           '- Temporary file lock (try closing other tabs)\n' +
           '- Storage corruption\n\n' +

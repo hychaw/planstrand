@@ -8,8 +8,6 @@ import { IS_DONATION_UI_RESTRICTED_TOKEN } from './app.constants';
 import { DataInitStateService } from './core/data-init/data-init-state.service';
 import { GlobalConfigService } from './features/config/global-config.service';
 import { ProjectService } from './features/project/project.service';
-import { TODAY_TAG } from './features/tag/tag.const';
-import { INBOX_PROJECT } from './features/project/project.const';
 import { Project } from './features/project/project.model';
 import { APP_ROUTES } from './app.routes';
 
@@ -88,17 +86,17 @@ describe('DefaultStartPageGuard', () => {
 
   it('routes DefaultStartPage.Today → Today', async () => {
     misc$.next({ defaultStartPage: 0 });
-    expectUrl(await runGuard(), `/tag/${TODAY_TAG.id}/tasks`);
+    expectUrl(await runGuard(), TODAY_URL);
   });
 
-  it('routes legacy Inbox (1) → /project/INBOX_PROJECT/tasks', async () => {
+  it('opens Planstrand Today despite a saved legacy Inbox start page', async () => {
     misc$.next({ defaultStartPage: 1 });
-    expectUrl(await runGuard(), `/project/${INBOX_PROJECT.id}/tasks`);
+    expectUrl(await runGuard(), TODAY_URL);
   });
 
-  it('routes Planner when feature enabled', async () => {
+  it('does not expose the legacy Planner through a saved start page', async () => {
     misc$.next({ defaultStartPage: 2 });
-    expectUrl(await runGuard(), '/planner');
+    expectUrl(await runGuard(), TODAY_URL);
   });
 
   it('falls back to Today when Planner disabled', async () => {
@@ -131,10 +129,11 @@ describe('DefaultStartPageGuard', () => {
     expectUrl(await runGuard(), TODAY_URL);
   });
 
-  it('routes to project when project exists', async () => {
+  it('opens Planstrand Today despite an existing legacy project start page', async () => {
     getByIdOnce$.and.returnValue(of(fakeProject({ id: 'p1' })));
     misc$.next({ defaultStartPage: 'p1' });
-    expectUrl(await runGuard(), '/project/p1/tasks');
+    expectUrl(await runGuard(), TODAY_URL);
+    expect(getByIdOnce$).not.toHaveBeenCalled();
   });
 
   it('falls back to Today when project is missing', async () => {
