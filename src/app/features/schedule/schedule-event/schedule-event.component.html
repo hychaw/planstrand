@@ -12,7 +12,13 @@
       <div class="day-of-month">{{ se().dayOfMonth }}</div>
     }
     @case ('SCHEDULED_TASK') {
-      @if (task()?.remindAt) {
+      @if (isWorkSessionCompleted()) {
+        <mat-icon
+          class="ico"
+          inline="true"
+          >check_circle</mat-icon
+        >
+      } @else if (task()?.remindAt) {
         <mat-icon
           class="ico"
           inline="true"
@@ -114,6 +120,17 @@
     class="cal-menu-trigger"
   ></div>
   <mat-menu #sessionContextMenu="matMenu">
+    <button
+      mat-menu-item
+      (click)="setWorkSessionCompleted(!isWorkSessionCompleted())"
+    >
+      <mat-icon>{{
+        isWorkSessionCompleted() ? 'radio_button_unchecked' : 'check_circle'
+      }}</mat-icon>
+      {{
+        isWorkSessionCompleted() ? 'Mark as incomplete' : 'Mark WorkSession as completed'
+      }}
+    </button>
     <button
       mat-menu-item
       (click)="removeWorkSession()"

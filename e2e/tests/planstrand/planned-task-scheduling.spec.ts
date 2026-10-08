@@ -198,6 +198,92 @@ const audit = async (page: Page, title: string): Promise<SchedulingAudit> => {
   };
 };
 
+test('completes one WorkSession independently in My Day and reopens it in Calendar after reload', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-10-07T16:00:00Z'));
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const title = 'Independent WorkSession completion';
+  await page.goto('/#/inbox');
+  await page
+    .locator('planstrand-page section')
+    .getByRole('button', { name: 'Add Task', exact: true })
+    .click();
+  await savePrompt(page, title);
+  const row = page.locator('.task-entry').filter({ hasText: title });
+  await openPlanstrandActions(row);
+  await row.getByRole('combobox', { name: 'Plan Task' }).selectOption('TODAY');
+  await page.goto('/#/today');
+  await dragTaskToHour(page, title, 9);
+  await dragTaskToHour(page, title, 14);
+  const before = await audit(page, title);
+  expect(before.sessions).toHaveLength(2);
+  expect(before.sessions.every((s) => s!.completedAt == null)).toBe(true);
+  const selectedId = before.sessions[0]!.id;
+  const sibling = before.sessions[1]!;
+  const block = page
+    .locator('schedule-day-panel schedule-event')
+    .filter({ hasText: title })
+    .first();
+  await block.click({ button: 'right' });
+  await page
+    .getByRole('menuitem', { name: 'Mark WorkSession as completed', exact: true })
+    .click();
+  await expect(block).toHaveClass(/is-work-session-completed/);
+  const completed = await audit(page, title);
+  expect(completed.sessions.find((s) => s!.id === selectedId)!.completedAt).toBe(
+    Date.parse('2026-10-07T16:00:00Z'),
+  );
+  expect(completed.sessions.find((s) => s!.id === sibling.id)).toEqual(sibling);
+  expect(completed.isDone).toBe(false);
+  expect(completed.planning).toEqual(before.planning);
+  expect(completed.operations).toHaveLength(before.operations.length + 1);
+  expect(completed.operations.at(-1)).toMatchObject({
+    op: { e: 'WORK_SESSION', o: 'UPD', p: { actionPayload: { id: selectedId } } },
+  });
+  await page.reload();
+  await expect(blocksFor(page, title)).toHaveCount(2);
+  await expect(
+    page.locator('schedule-day-panel schedule-event.is-work-session-completed'),
+  ).toHaveCount(1);
+  const hydrated = await audit(page, title);
+  expect(hydrated.sessions).toEqual(completed.sessions);
+  expect(hydrated.operations).toEqual(completed.operations);
+  expect(hydrated.isDone).toBe(false);
+  expect(hydrated.planning).toEqual(before.planning);
+
+  await page.goto('/#/schedule');
+  for (const view of ['Day', 'Week', 'Month']) {
+    await page.getByRole('button', { name: `View ${view}`, exact: true }).click();
+    const completedBlock = page
+      .locator('schedule-event.is-work-session-completed')
+      .filter({ hasText: title });
+    await expect(completedBlock).toHaveCount(1);
+    await completedBlock.click({ button: 'right' });
+    await expect(
+      page.getByRole('menuitem', { name: 'Mark as incomplete', exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+  }
+  await page
+    .locator('schedule-event.is-work-session-completed')
+    .filter({ hasText: title })
+    .click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Mark as incomplete', exact: true }).click();
+  await expect(page.locator('schedule-event.is-work-session-completed')).toHaveCount(0);
+  await waitForStatePersistence(page);
+  await page.goto('/#/today');
+  const incomplete = await audit(page, title);
+  expect(incomplete.sessions.find((s) => s!.id === selectedId)!.completedAt).toBeNull();
+  expect(incomplete.sessions.find((s) => s!.id === sibling.id)).toEqual(sibling);
+  expect(incomplete.operations).toHaveLength(completed.operations.length + 1);
+  expect(incomplete.isDone).toBe(false);
+  expect(incomplete.planning).toEqual(before.planning);
+  await page.reload();
+  await expect(blocksFor(page, title)).toHaveCount(2);
+  expect((await audit(page, title)).sessions).toEqual(incomplete.sessions);
+});
+
 for (const nested of [false, true]) {
   test(`Today-planned ${nested ? 'nested-Folder' : 'Inbox'} Task schedules exactly once`, async ({
     page,

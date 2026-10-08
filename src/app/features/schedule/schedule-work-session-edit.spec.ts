@@ -25,6 +25,8 @@ import {
   addWorkSession,
   updateWorkSession,
   removeWorkSession,
+  completeWorkSession,
+  uncompleteWorkSession,
 } from '../work-session/store/work-session.actions';
 import { legacyTaskWorkSessionId } from '../work-session/legacy-task-work-session-backfill';
 import { ScheduleWeekDragService } from './schedule-week/schedule-week-drag.service';
@@ -219,7 +221,7 @@ describe('existing WorkSession schedule edits', () => {
     fixture.detectChanges();
     await fixture.componentInstance.clickHandler(new MouseEvent('click'));
     fixture.detectChanges();
-    const button = document.querySelector('.cdk-overlay-container button');
+    const button = document.querySelector('.cdk-overlay-container button:last-child');
     expect(button).not.toBeNull();
     (button as HTMLButtonElement).click();
     expect(entities()[session.id]).toBeUndefined();
@@ -281,6 +283,85 @@ describe('existing WorkSession schedule edits', () => {
     expect(entities()[second.id]).toBeUndefined();
   });
 
+  it('completes and reopens only the selected session through its menu with replayable intents', () => {
+    const service = TestBed.inject(WorkSessionService);
+    service.uncomplete(session.id);
+    const sibling = entities()[session.id]!;
+    writes.calls.reset();
+    fixture = TestBed.createComponent(ScheduleEventComponent);
+    const render = (): void => {
+      fixture.componentRef.setInput('event', eventFor(entities()[second.id]!));
+      fixture.detectChanges();
+    };
+    const menuAction = (label: string): void => {
+      fixture.componentInstance.onContextMenu(new MouseEvent('contextmenu'));
+      fixture.detectChanges();
+      const button = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('.cdk-overlay-container button'),
+      ).find((el) => el.textContent?.includes(label));
+      expect(button).withContext(label).toBeDefined();
+      button!.click();
+      render();
+    };
+    render();
+    expect(fixture.componentInstance.isWorkSessionCompleted()).toBeFalse();
+    menuAction('Mark WorkSession as completed');
+    expect(entities()[second.id]!.completedAt).toEqual(jasmine.any(Number));
+    expect(entities()[session.id]).toBe(sibling);
+    expect(store.selectSignal(selectTaskEntities)()[task.id]).toBe(task);
+    expect(task.isDone).toBeFalse();
+    expect(
+      fixture.nativeElement.classList.contains('is-work-session-completed'),
+    ).toBeTrue();
+    expect(fixture.componentInstance.hoverTitle()).toContain('WorkSession completed');
+    expect(fixture.nativeElement.textContent).toContain('check_circle');
+    expect(writes).toHaveBeenCalledTimes(1);
+    const action = writes.calls.mostRecent().args[0] as ReturnType<
+      typeof completeWorkSession
+    >;
+    expect(action.type).toBe(completeWorkSession.type);
+    expect(action.meta.entityId).toBe(second.id);
+    expect(isPersistentAction(action)).toBeTrue();
+    const op = new TestClient('client-local').createOperation({
+      actionType: action.type,
+      opType: action.meta.opType,
+      entityType: action.meta.entityType,
+      entityId: action.id,
+      payload: {
+        actionPayload: {
+          id: action.id,
+          completedAt: action.completedAt,
+          modified: action.modified,
+        },
+        entityChanges: TestBed.inject(OperationCaptureService).extractEntityChanges(
+          action,
+        ),
+      },
+    });
+    const replay = convertOpToAction(JSON.parse(JSON.stringify(op)));
+    expect(replay.meta.isRemote).toBeTrue();
+    const hydrated = JSON.parse(
+      JSON.stringify({
+        ids: [session.id, second.id],
+        entities: { ...entities() },
+      }),
+    );
+    expect(workSessionReducer(hydrated, replay).entities).toEqual(entities());
+    expect(
+      workSessionReducer(workSessionReducer(hydrated, replay), replay).entities,
+    ).toEqual(entities());
+    writes.calls.reset();
+    menuAction('Mark as incomplete');
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(writes.calls.mostRecent().args[0].type).toBe(uncompleteWorkSession.type);
+    expect(entities()[second.id]!.completedAt).toBeNull();
+    expect(entities()[session.id]).toBe(sibling);
+    expect(store.selectSignal(selectTaskEntities)()[task.id]).toBe(task);
+    expect(
+      fixture.nativeElement.classList.contains('is-work-session-completed'),
+    ).toBeFalse();
+  });
+
   it('rejects removal for wrong sources, read-only blocks, denied capability and drag previews', () => {
     fixture = TestBed.createComponent(ScheduleEventComponent);
     for (const data of [
@@ -290,11 +371,15 @@ describe('existing WorkSession schedule edits', () => {
     ]) {
       fixture.componentRef.setInput('event', { ...eventFor(), data });
       fixture.componentInstance.removeWorkSession();
+      fixture.componentInstance.setWorkSessionCompleted(true);
+      fixture.componentInstance.setWorkSessionCompleted(false);
       expect(fixture.componentInstance.canRemoveWorkSession()).toBeFalse();
     }
     fixture.componentRef.setInput('event', eventFor());
     fixture.componentRef.setInput('isDragPreview', true);
     fixture.componentInstance.removeWorkSession();
+    fixture.componentInstance.setWorkSessionCompleted(true);
+    fixture.componentInstance.setWorkSessionCompleted(false);
     expect(writes).not.toHaveBeenCalled();
   });
 
@@ -334,16 +419,18 @@ describe('existing WorkSession schedule edits', () => {
     expect(writes.calls.mostRecent().args[0].type).toBe(updateWorkSession.type);
   });
 
-  it('routes a legacy timed Task release to its migrated WorkSession', () => {
-    const update = spyOn(TestBed.inject(WorkSessionService), 'update').and.callThrough();
+  it('creates a new session from a Task source without overwriting its legacy reservation', () => {
+    configZone.and.returnValue({ timeZone: 'America/Vancouver' });
     release({ ...eventFor(), id: task.id, type: SVEType.ScheduledTask, data: task });
     expect(writes).toHaveBeenCalledTimes(1);
-    expect(writes.calls.mostRecent().args[0].type).toBe(updateWorkSession.type);
-    expect(update).toHaveBeenCalled();
+    expect(writes.calls.mostRecent().args[0].type).toBe(addWorkSession.type);
+    expect(Object.keys(entities())).toHaveSize(3);
+    expect(entities()[session.id]).toEqual(session);
     expect(entities()[second.id]).toEqual(second);
     expect(store.selectSignal(selectTaskEntities)()[task.id]?.dueWithTime).toBe(
       task.dueWithTime,
     );
+    configZone.calls.reset();
   });
 
   it('creates a WorkSession from a Task drop while retaining unrelated sessions', () => {

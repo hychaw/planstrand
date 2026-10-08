@@ -80,6 +80,7 @@ const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
     '[style.--project-color]': 'calEventColor() || projectColor()',
     '[style.height]': '_resizeHeight()',
     '[class.blue-thread-session]': 'isWorkSession()',
+    '[class.is-work-session-completed]': 'isWorkSessionCompleted()',
     '[class.blue-thread-event]': 'isLocalEvent()',
     '(click)': 'clickHandler($event)',
     '(contextmenu)': 'onContextMenu($event)',
@@ -132,6 +133,17 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   readonly canRemoveWorkSession = computed(
     () => !!editableWorkSession(this.se(), 'canDelete') && !this.isDragPreview(),
   );
+  readonly isWorkSessionCompleted = computed(() => {
+    const item = editableWorkSession(this.se(), 'canDelete');
+    return !!item && item.completedAt != null;
+  });
+
+  setWorkSessionCompleted(completed: boolean): void {
+    const item = editableWorkSession(this.se(), 'canDelete');
+    if (!item || this.isDragPreview()) return;
+    if (completed) this._workSessionService.complete(item.sourceId);
+    else this._workSessionService.uncomplete(item.sourceId);
+  }
 
   removeWorkSession(): void {
     const item = editableWorkSession(this.se(), 'canDelete');
@@ -200,6 +212,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     const t = this.task();
 
     let result = startClockStr + ' - ' + endClockStr + '  ' + titleStr;
+    if (this.isWorkSessionCompleted()) result += ' — WorkSession completed';
     if (
       t &&
       (evt.type === SVEType.Task || evt.type === SVEType.TaskPlannedForDay) &&

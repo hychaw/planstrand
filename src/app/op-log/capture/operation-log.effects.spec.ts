@@ -49,6 +49,8 @@ import { updateGlobalConfigSection } from '../../features/config/store/global-co
 import {
   addWorkSession,
   updateWorkSession,
+  completeWorkSession,
+  uncompleteWorkSession,
 } from '../../features/work-session/store/work-session.actions';
 
 describe('OperationLogEffects', () => {
@@ -312,6 +314,47 @@ describe('OperationLogEffects', () => {
       effects.persistOperation$.subscribe({
         complete: () => {
           expect(mockOpLogStore.appendWithVectorClockOverwrite).not.toHaveBeenCalled();
+          done();
+        },
+        error: done.fail,
+      });
+    });
+  });
+  describe('WorkSession completion operation capture', () => {
+    it('persists one session update per completion intent and never recaptures remote completion', (done) => {
+      const complete = completeWorkSession({
+        id: 'session-1',
+        completedAt: 100,
+        modified: 100,
+      });
+      const uncomplete = uncompleteWorkSession({ id: 'session-1', modified: 200 });
+      actions$ = of(
+        complete,
+        uncomplete,
+        { ...complete, meta: { ...complete.meta, isRemote: true } },
+        { ...uncomplete, meta: { ...uncomplete.meta, isRemote: true } },
+      );
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(2);
+          const operations = mockOpLogStore.appendWithVectorClockOverwrite.calls
+            .allArgs()
+            .map(([op]) => op);
+          expect(operations.map((op) => op.entityType)).toEqual([
+            'WORK_SESSION',
+            'WORK_SESSION',
+          ]);
+          expect(operations.map((op) => op.entityId)).toEqual(['session-1', 'session-1']);
+          expect(operations[0].payload).toEqual(
+            jasmine.objectContaining({
+              actionPayload: { id: 'session-1', completedAt: 100, modified: 100 },
+            }),
+          );
+          expect(operations[1].payload).toEqual(
+            jasmine.objectContaining({
+              actionPayload: { id: 'session-1', modified: 200 },
+            }),
+          );
           done();
         },
         error: done.fail,
