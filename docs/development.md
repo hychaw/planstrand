@@ -1,6 +1,26 @@
 # Development guidance
 
-Use [CONTRIBUTING.md](../CONTRIBUTING.md) for setup, checks, and pull requests. The [repository map](repository-map.md) locates code and focused tests; [architecture decisions](../ARCHITECTURE-DECISIONS.md) explain lasting constraints.
+The [repository map](repository-map.md) locates code and focused tests; [architecture decisions](../ARCHITECTURE-DECISIONS.md) explain lasting constraints.
+
+## Development setup
+
+Use Git, Node.js 22.18.0, and npm 11.18.0. Use the repository's local tools; a global Angular CLI is unnecessary.
+
+```sh
+git clone https://github.com/hychaw/planstrand.git
+cd planstrand
+git switch development
+npm ci
+npm run startFrontend
+```
+
+Run `npm start` in another terminal for Electron. Optional integration keys belong in an untracked `.env`; see [environment setup](ENV_SETUP.md). Docker is needed for local sync-provider tests, and Angular unit tests need a Chrome/Chromium binary.
+
+## Focused validation
+
+Run checks appropriate to your change and report the results. **Run `npm run checkFile <filepath>` for every modified `.ts` or `.scss` file.** Package-specific checks are listed in [packages/README.md](../packages/README.md#validation).
+
+Use `npm run test:file <filepath>` for an Angular spec and `npm run test:electron` for Electron tests. See the [E2E guide](../e2e/development.md) for browser and sync tests; skipped provider tests do not validate a fix. For documentation, run `node tools/check-doc-links.js --docs-only <filepath>` and `git diff --check`. Do not run broad suites merely for documentation edits. Existing Git hooks still run their required checks.
 
 ## Project conventions
 

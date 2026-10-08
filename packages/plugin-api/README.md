@@ -201,4 +201,4 @@ MIT - See the main Super Productivity repository for details.
 
 ## Contributing
 
-Please follow the [Planstrand contribution guide](../../CONTRIBUTING.md).
+See the [Planstrand development guidance](../../docs/development.md).

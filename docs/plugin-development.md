@@ -917,7 +917,7 @@ Happy plugin development! 🚀
 
 ### Tips
 
-- Don't test on your real world data! Use a separate local development instance with test data; see [development setup](../CONTRIBUTING.md#development-setup).
+- Don't test on your real world data! Use a separate local development instance with test data; see [development setup](development.md#development-setup).
 - Be as specific as possible
 - Outline what APIs your plugin should use
 - Test for errors (`Ctrl+Shift+i` opens the console) and iterate until it works. Don't expect that everything works on your first try.

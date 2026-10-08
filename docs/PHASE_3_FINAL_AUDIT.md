@@ -165,7 +165,7 @@ Root/e2e agent guidance requires reproduction-first sync evidence, per-file
 checks and real provider execution; unavailable/skipped providers never validate
 a fix. The [PR checklist](../.github/PULL_REQUEST_TEMPLATE.md) says
 “Existing tests still pass”. Read alongside the
-[contributor rules](../CONTRIBUTING.md) and
+[development guidance](development.md) and
 [feature review guide](feature-review-guide.md), the audit interprets this as
 **B: do not introduce unresolved regressions in the supported feature contract**.
 None of those rules explicitly mandates repairing all historical baseline E2E

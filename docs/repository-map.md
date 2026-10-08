@@ -14,7 +14,7 @@ are proposals or dated evidence, not specifications of current behavior.
 
 App unit tests are co-located as `*.spec.ts`; the last column adds useful starting
 points, not a complete test requirement. Read the [E2E guide](../e2e/development.md)
-before editing or running E2E tests. Test commands live in [Contributing](../CONTRIBUTING.md#focused-validation)
+before editing or running E2E tests. Test commands live in [development guidance](development.md#focused-validation)
 and the [package validation table](../packages/README.md#validation).
 
 For a focused single-provider sync E2E, use `npm run e2e:supersync:file <path>` or

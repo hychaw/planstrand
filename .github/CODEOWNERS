@@ -11,6 +11,5 @@
 /tools/afterPack.js @hychaw
 /tools/planstrand-installer-manifest* @hychaw
 /tools/finalize-windows-release-metadata.js @hychaw
-/SECURITY.md @hychaw
 /.env.example @hychaw
 /tools/load-env.js @hychaw

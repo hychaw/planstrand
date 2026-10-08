@@ -32,4 +32,4 @@ body:
     id: console-output
     attributes:
       label: Additional context
-      description: Add screenshots or relevant logs, with personal data and credentials removed. Follow SECURITY.md for exploitable vulnerabilities.
+      description: Add screenshots or relevant logs, with personal data and credentials removed. For exploitable vulnerabilities, use private vulnerability reporting in the repository's Security tab when available; do not include exploit details here.
