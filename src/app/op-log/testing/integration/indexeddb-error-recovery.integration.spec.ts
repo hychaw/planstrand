@@ -1,11 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
-import { OpType } from '../../core/operation.types';
+import { Operation, OpType } from '../../core/operation.types';
 import { resetTestUuidCounter } from './helpers/test-client.helper';
 import { MockSyncServer } from './helpers/mock-sync-server.helper';
 import { SimulatedClient } from './helpers/simulated-client.helper';
 import { createMinimalTaskPayload } from './helpers/operation-factory.helper';
 import { StorageQuotaExceededError } from '../../core/errors/sync-errors';
+import { addWorkSession } from '../../../features/work-session/store/work-session.actions';
+import { convertOpToAction } from '../../apply/operation-converter.util';
+import {
+  initialWorkSessionState,
+  workSessionReducer,
+} from '../../../features/work-session/store/work-session.reducer';
 
 /**
  * Integration tests for IndexedDB Error Recovery.
@@ -105,6 +111,51 @@ describe('IndexedDB Error Recovery Integration', () => {
   });
 
   describe('Duplicate handling via appendBatchSkipDuplicates', () => {
+    it('retains two same-Task reservations while skipping redelivered WorkSession operations', async () => {
+      const client = new SimulatedClient('session-client', storeService);
+      const operations: Operation[] = [];
+      for (const [id, start] of [
+        ['morning', Date.parse('2026-10-07T16:00:00Z')],
+        ['afternoon', Date.parse('2026-10-07T21:00:00Z')],
+      ] as const) {
+        const workSession = {
+          id,
+          taskId: 'same-task',
+          start,
+          end: start + 3600000,
+          timeZone: 'America/Vancouver',
+          created: start,
+          modified: start,
+        };
+        operations.push(
+          await client.createLocalOp(
+            'WORK_SESSION',
+            id,
+            OpType.Create,
+            addWorkSession.type,
+            { actionPayload: { workSession }, entityChanges: [] },
+          ),
+        );
+      }
+      const retry = await storeService.appendBatchSkipDuplicates(
+        JSON.parse(JSON.stringify(operations)),
+        'remote',
+      );
+      expect(retry.skippedCount).toBe(2);
+      expect(retry.writtenOps).toEqual([]);
+      const persisted = await storeService.getOpsAfterSeq(0);
+      expect(persisted.length).toBe(2);
+      const replayed = persisted
+        .map(({ op }) => convertOpToAction(op))
+        .reduce(workSessionReducer, initialWorkSessionState);
+      expect(replayed.ids).toEqual(['morning', 'afternoon']);
+      expect(Object.values(replayed.entities).map((session) => session?.taskId)).toEqual([
+        'same-task',
+        'same-task',
+      ]);
+      expect(await client.getUnsyncedOps()).toHaveSize(2);
+    });
+
     it('should skip duplicate operations and return correct counts', async () => {
       const client = new SimulatedClient('client-dedup-test', storeService);
 

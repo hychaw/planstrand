@@ -57,6 +57,10 @@ export class ScheduleWeekDragService {
   private readonly _eventService = inject(EventService);
   private readonly _workSessionService = inject(WorkSessionService);
 
+  displayTimeZone(): string {
+    return calendarDisplayZone(this._localization()?.timeZone);
+  }
+
   private readonly _isShiftMode = signal(false);
   readonly isShiftMode: Signal<boolean> = this._isShiftMode.asReadonly();
 
@@ -661,7 +665,7 @@ export class ScheduleWeekDragService {
       adjustedY,
       gridRect,
       targetDay,
-      calendarDisplayZone(this._localization()?.timeZone),
+      this.displayTimeZone(),
     );
   }
 
@@ -765,7 +769,7 @@ export class ScheduleWeekDragService {
       adjustedY,
       gridRect,
       targetDay,
-      calendarDisplayZone(this._localization()?.timeZone),
+      this.displayTimeZone(),
     );
   }
 

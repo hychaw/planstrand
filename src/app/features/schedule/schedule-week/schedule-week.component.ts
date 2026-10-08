@@ -1,4 +1,5 @@
 import { editableLocalEvent } from '../schedule.model';
+import { calendarClockLabel, calendarHours } from '../calendar-time';
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
   AfterViewInit,
@@ -129,19 +130,13 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
 
   times = computed(() => {
     const uses24Hour = this._dateTimeFormatService.is24HourFormat();
-    const formatter = new Intl.DateTimeFormat(
-      this._dateTimeFormatService.currentLocale(),
-      {
-        hour: uses24Hour ? '2-digit' : 'numeric',
-        minute: '2-digit',
-        hour12: !uses24Hour,
-      },
+    return this.rowsByNr.map((_, hourIndex) =>
+      calendarClockLabel(
+        hourIndex,
+        this._dateTimeFormatService.currentLocale(),
+        uses24Hour,
+      ),
     );
-
-    return this.rowsByNr.map((_, hourIndex) => {
-      const date = new Date(2000, 0, 1, hourIndex, 0, 0);
-      return formatter.format(date);
-    });
   });
 
   // Precompute the day-number ('d') and weekday ('EEE') header labels for each
@@ -314,7 +309,12 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
       return formatScheduleDragPreviewLabel({
         startTimestamp: ctx.timestamp,
         durationInHours: currentDraggedEvent?.timeLeftInHours,
-        formatTime: (timestamp) => this._dateTimeFormatService.formatTime(timestamp),
+        formatTime: (timestamp) =>
+          calendarClockLabel(
+            calendarHours(timestamp, this._service.displayTimeZone()),
+            this._dateTimeFormatService.currentLocale(),
+            this._dateTimeFormatService.is24HourFormat(),
+          ),
       });
     }
     if (ctx.kind === 'shift-column') {

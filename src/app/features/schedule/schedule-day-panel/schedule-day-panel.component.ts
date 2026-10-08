@@ -1,4 +1,6 @@
 import { selectConfigFeatureState } from '../../config/store/global-config.reducer';
+import { zonedDateTimeFields } from '../../../util/iana-time-zone';
+import { calendarTimeRow } from '../calendar-time';
 import { WorkSessionService } from '../../work-session/work-session.service';
 import { planningCommands } from '../../planning/planning-commands';
 import {
@@ -274,7 +276,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
         source: dropCalculation?.source ?? 'cached',
         storedTimestamp: dropTime,
         targetTime: targetDate,
-        formattedTime: this._formatTime(targetDate.getHours(), targetDate.getMinutes()),
+        formattedTime: this._formatPreviewTime(dropTime),
       });
       wasDroppedSuccessfully = this._workSessionService.scheduleTask(
         task,
@@ -352,13 +354,8 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
     return document.querySelector('.cdk-drag-preview') as HTMLElement | null;
   }
 
-  private _formatTime(hours: number, minutes: number): string {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  }
-
   private _formatPreviewTime(timestamp: number): string {
-    const date = new Date(timestamp);
-    return this._formatTime(date.getHours(), date.getMinutes());
+    return zonedDateTimeFields(timestamp, this._scheduleService.displayTimeZone()).time;
   }
 
   private _resolveTopY(
@@ -689,14 +686,8 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
       return null;
     }
 
-    const date = new Date(timestamp);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    // eslint-disable-next-line no-mixed-operators
-    const hoursDecimal = hours + minutes / 60;
-
     // Calculate row based on time (FH rows per hour)
-    const row = Math.round(hoursDecimal * FH) + 1;
+    const row = calendarTimeRow(timestamp, this._scheduleService.displayTimeZone(), FH);
     const col = 2; // First day column
     const rowSpan = this._calculateRowSpanFromTask(this._activeExternalTask);
 
