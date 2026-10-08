@@ -8,6 +8,7 @@ const {
   validateIdentity,
   requireNewRelease,
   verifyArtifacts,
+  verifyPackage,
 } = require('./planstrand-release.cjs');
 const valid = {
   version: '1.1.0-rc.1',
@@ -16,6 +17,75 @@ const valid = {
   requestedRef: '1'.repeat(40),
   tagRevision: '1'.repeat(40),
 };
+
+test('packaged licenses must preserve both copyrights and the complete notices', async (t) => {
+  const asar = require('@electron/asar');
+  const root = path.join(__dirname, '..');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'planstrand-licenses-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const source = path.join(directory, 'source');
+  const archive = path.join(directory, 'win-unpacked/resources/app.asar');
+  const base = '.tmp/angular-dist/browser/';
+  const write = (file, content) => {
+    const target = path.join(source, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  };
+  const read = (file) => fs.readFileSync(path.join(root, file));
+  write(
+    'package.json',
+    JSON.stringify({
+      name: 'planstrand',
+      productName: 'Planstrand',
+      version: valid.version,
+    }),
+  );
+  write('LICENSE', read('LICENSE'));
+  write(
+    'LICENSES/SUPER_PRODUCTIVITY_MIT.txt',
+    read('LICENSES/SUPER_PRODUCTIVITY_MIT.txt'),
+  );
+  write(base + 'assets/planstrand-license/LICENSE', read('LICENSE'));
+  write(
+    base + 'assets/upstream-license.txt',
+    read('LICENSES/SUPER_PRODUCTIVITY_MIT.txt'),
+  );
+  write(base + 'assets/fonts/inter/LICENSE', read('src/assets/fonts/inter/LICENSE'));
+  write(base + '3rdpartylicenses.txt', 'Copyright dependency notice fixture');
+  write(base + 'main.js', JSON.stringify(valid.revision));
+  fs.mkdirSync(path.dirname(archive), { recursive: true });
+  const pack = async () => {
+    asar.uncacheAll();
+    await asar.createPackage(source, archive);
+  };
+  await pack();
+  assert.doesNotThrow(() => verifyPackage(directory, valid));
+  for (const file of [
+    'LICENSE',
+    'LICENSES/SUPER_PRODUCTIVITY_MIT.txt',
+    base + 'assets/planstrand-license/LICENSE',
+    base + 'assets/upstream-license.txt',
+  ]) {
+    const original = fs.readFileSync(path.join(source, file));
+    write(file, original.toString().split('Permission')[0]);
+    await pack();
+    assert.throws(
+      () => verifyPackage(directory, valid),
+      undefined,
+      `Must reject truncated ${file}`,
+    );
+    fs.unlinkSync(path.join(source, file));
+    await pack();
+    assert.throws(
+      () => verifyPackage(directory, valid),
+      undefined,
+      `Must reject missing ${file}`,
+    );
+    write(file, original);
+  }
+  await pack();
+  assert.doesNotThrow(() => verifyPackage(directory, valid));
+});
 test('valid RC identity derives versioned artifacts and notes', () => {
   assert.deepEqual(validateIdentity(valid), {
     version: valid.version,

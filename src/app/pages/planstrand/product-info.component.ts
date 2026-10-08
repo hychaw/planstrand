@@ -45,6 +45,7 @@ import { planstrandBuildRevision } from '../../util/planstrand-product-version';
             <p>Build {{ buildRevision }}</p>
           }
           <p>Local-first tasks, Folders, Planning, WorkSessions and Events.</p>
+          <p>Copyright (c) 2026 How Yee Chaw. Original Planstrand contributions.</p>
           <p>
             <a
               href="https://github.com/hychaw/planstrand"
@@ -66,6 +67,12 @@ import { planstrandBuildRevision } from '../../util/planstrand-product-version';
               >, created by Johannes Millan and its contributors, under the MIT License.
             </p>
             <p>
+              <a
+                href="assets/planstrand-license/LICENSE"
+                target="_blank"
+                >Planstrand MIT License</a
+              >
+              ·
               <a
                 href="assets/upstream-license.txt"
                 target="_blank"

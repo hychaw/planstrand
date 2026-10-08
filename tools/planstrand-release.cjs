@@ -97,10 +97,15 @@ function verifyPackage(directory, identity) {
   assert.equal(pkg.productName, 'Planstrand');
   assert.equal(pkg.version, identity.version);
   assert.deepEqual(extract('LICENSE'), read('LICENSE'));
+  assert.deepEqual(
+    extract('LICENSES/SUPER_PRODUCTIVITY_MIT.txt'),
+    read('LICENSES/SUPER_PRODUCTIVITY_MIT.txt'),
+  );
   const base = '.tmp/angular-dist/browser/';
-  assert.match(
-    extract(base + 'assets/upstream-license.txt').toString(),
-    /2018 Johannes Millan/,
+  assert.deepEqual(extract(base + 'assets/planstrand-license/LICENSE'), read('LICENSE'));
+  assert.deepEqual(
+    extract(base + 'assets/upstream-license.txt'),
+    read('LICENSES/SUPER_PRODUCTIVITY_MIT.txt'),
   );
   assert.match(extract(base + '3rdpartylicenses.txt').toString(), /Copyright/);
   assert.match(
@@ -201,6 +206,7 @@ async function main() {
 }
 
 module.exports = {
+  verifyPackage,
   validateIdentity,
   requireNewRelease,
   verifyArtifacts,

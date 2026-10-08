@@ -31,6 +31,11 @@ describe('Planstrand About identity', () => {
     expect(element.querySelector('details')?.textContent).toContain('Super Productivity');
     expect(element.querySelector('details')?.textContent).toContain('MIT License');
     expect(element.querySelector('a[href="3rdpartylicenses.txt"]')).not.toBeNull();
+    expect(element.textContent).toContain('Copyright (c) 2026 How Yee Chaw');
+    expect(
+      element.querySelector('a[href="assets/planstrand-license/LICENSE"]'),
+    ).not.toBeNull();
+    expect(element.querySelector('a[href="assets/upstream-license.txt"]')).not.toBeNull();
   });
 
   it('omits unavailable build information', () => {

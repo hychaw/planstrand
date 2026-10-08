@@ -15,7 +15,7 @@
     "url": "https://github.com/hychaw/planstrand.git"
   },
   "license": "MIT",
-  "author": "Planstrand contributors",
+  "author": "How Yee Chaw",
   "main": "./electron/main.js",
   "scripts": {
     "env": "node ./tools/load-env.js",

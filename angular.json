@@ -33,6 +33,11 @@
             "assets": [
               "src/favicon.ico",
               "src/assets",
+              {
+                "glob": "LICENSE",
+                "input": ".",
+                "output": "assets/planstrand-license/"
+              },
               "src/manifest.json",
               "src/static"
             ],

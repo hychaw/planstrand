@@ -1,14 +1,14 @@
 # Planstrand release and publishing
 
-Planstrand `v1.0.0-rc.1` is publicly released for Windows x64, with installer and portable artifacts. [GitHub Releases](https://github.com/hychaw/planstrand/releases) is the authoritative download location. Keep the published tag, release, and RC1 evidence unchanged.
+Planstrand `v1.1.0-rc.1` is publicly released for Windows x64, with installer and portable artifacts. [GitHub Releases](https://github.com/hychaw/planstrand/releases) is the authoritative download location. Keep both published tags (`v1.0.0-rc.1` and `v1.1.0-rc.1`), releases, assets, and their evidence unchanged.
 
 ## Current release tooling
 
 [release-planstrand.yml](../.github/workflows/release-planstrand.yml) is manually dispatched with an explicitly reviewed commit or tag. It builds unsigned Windows x64 packages, runs release contracts and packaged smoke checks, and produces checksums and source provenance. Its optional draft job uses the `planstrand-release` environment.
 
-The workflow still hardcodes RC1. Do not dispatch its draft step to recreate or replace the public release. Updating it for a future version is separate release work, not part of repository cleanup.
+The workflow requires an exact reviewed commit and matching product-version tag, and refuses to publish an existing release. Do not dispatch it to recreate or replace either public release. Updating it for a future version is separate release work.
 
-Electron publishing is disabled in [electron-builder.yaml](../electron-builder.yaml). Packaged distributions include [LICENSE](../LICENSE). Signing, mobile/store ownership, Linux distributions, macOS notarization, and hosted-service publishing are deferred. Retained platform tooling and tests do not authorize distribution under inherited identities.
+Electron publishing is disabled in [electron-builder.yaml](../electron-builder.yaml). Future packages include Planstrand's [LICENSE](../LICENSE) and the preserved [Super Productivity MIT license](../LICENSES/SUPER_PRODUCTIVITY_MIT.txt). Angular copies the Planstrand license to `assets/planstrand-license/LICENSE`; `assets/upstream-license.txt` retains the original upstream notice. About links to both and to generated dependency licenses. Release verification compares both packaged project licenses and their frontend copies with source, while retaining dependency and Inter font notice checks. Electron/Chromium notices remain part of desktop packaging. Existing published releases are unchanged. Signing, mobile/store ownership, Linux distributions, macOS notarization, and hosted-service publishing are deferred. Retained platform tooling and tests do not authorize distribution under inherited identities.
 
 ## Build and validation
 

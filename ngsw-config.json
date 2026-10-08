@@ -22,6 +22,7 @@
           "/assets/planstrand-sky.webp",
           "/media/planstrand-sky-*.webp",
           "/assets/upstream-license.txt",
+          "/assets/planstrand-license/LICENSE",
           "/3rdpartylicenses.txt",
           "/media/material-symbols-outlined-*.woff2",
           "/*.(otf|ttf|woff|woff2)"

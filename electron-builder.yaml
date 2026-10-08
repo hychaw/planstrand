@@ -5,6 +5,7 @@ productName: Planstrand
 artifactName: Planstrand-${arch}.${ext}
 files:
   - LICENSE
+  - LICENSES/**/*
   - electron/**/*
   - '!electron/**/*.ts'
   - '!electron/**/*.js.map'

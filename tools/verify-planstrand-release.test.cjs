@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const { load } = require('js-yaml');
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -22,8 +23,9 @@ test('Planstrand packaging is distinct and cannot publish to upstream', () => {
   assert.equal(builder.appx, undefined);
   assert.ok(
     builder.files.includes('LICENSE'),
-    'the distributed app must include the original MIT license',
+    'the distributed app must include the Planstrand MIT license',
   );
+  assert.ok(builder.files.includes('LICENSES/**/*'));
   assert.equal(builder.mac.notarize, false);
   assert.equal(builder.mac.identity, null);
   assert.equal(builder.dmg.sign, false);
@@ -82,7 +84,39 @@ test('credentials and compatibility schemas retain deliberate boundaries', () =>
     read('src/app/op-log/sync-providers/sync-providers.factory.ts'),
     /DROPBOX_APP_KEY\s*\?/,
   );
-  assert.match(read('LICENSE'), /Copyright \(c\) 2018 Johannes Millan/);
+  assert.match(read('LICENSE'), /Copyright \(c\) 2026 How Yee Chaw/);
+  assert.doesNotMatch(read('LICENSE'), /Johannes Millan/);
+  assert.match(
+    read('LICENSES/SUPER_PRODUCTIVITY_MIT.txt'),
+    /Copyright \(c\) 2018 Johannes Millan/,
+  );
+  assert.equal(
+    read('src/assets/upstream-license.txt'),
+    read('LICENSES/SUPER_PRODUCTIVITY_MIT.txt'),
+  );
+  // Full upstream notice from the published RC1 source, allowing checkout EOLs.
+  assert.equal(
+    createHash('sha256')
+      .update(read('LICENSES/SUPER_PRODUCTIVITY_MIT.txt').replaceAll('\r\n', '\n'))
+      .digest('hex'),
+    '2e279de19632b5694d24b0ac06fd5b837ec487bf821302d9ce195379850a5fcb',
+  );
+  const assets = JSON.parse(read('angular.json')).projects.sp2.architect.build.options
+    .assets;
+  assert.ok(
+    assets.some(
+      (asset) =>
+        asset.glob === 'LICENSE' &&
+        asset.input === '.' &&
+        asset.output === 'assets/planstrand-license/',
+    ),
+  );
+  const cache = JSON.parse(read('ngsw-config.json'));
+  assert.ok(
+    cache.assetGroups
+      .find((group) => group.name === 'criticalAssets')
+      .resources.files.includes('/assets/planstrand-license/LICENSE'),
+  );
   assert.match(
     read('src/app/op-log/persistence/db-keys.const.ts'),
     /DB_NAME = 'SUP_OPS'/,
