@@ -32,6 +32,7 @@ test('Planstrand packaging is distinct and cannot publish to upstream', () => {
 test('manual release workflow has read-only builds and optional draft only', () => {
   assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
   assert.equal(workflow.on.workflow_dispatch.inputs.ref.required, true);
+  assert.equal(workflow.on.workflow_dispatch.inputs.release_tag.required, true);
   assert.equal(workflow.on.workflow_dispatch.inputs.create_draft.default, false);
   assert.equal(workflow.permissions.contents, 'read');
   assert.equal(workflow.jobs.draft.environment, 'planstrand-release');
@@ -42,6 +43,12 @@ test('manual release workflow has read-only builds and optional draft only', () 
   assert.match(source, /--publish never/);
   assert.match(source, /--repo hychaw\/planstrand/);
   assert.match(source, /--draft --prerelease/);
+  assert.match(source, /--latest=false/);
+  assert.match(source, /--verify-tag/);
+  assert.match(source, /planstrand-release\.cjs verify-ref/);
+  assert.match(source, /planstrand-release\.cjs verify-artifacts artifacts/);
+  assert.equal(workflow.concurrency['cancel-in-progress'], false);
+  assert.doesNotMatch(source, /v1\.0\.0-rc\.1|gh release (edit|upload|delete)/);
   assert.match(source, /SHA256SUMS/);
   assert.doesNotMatch(
     source,

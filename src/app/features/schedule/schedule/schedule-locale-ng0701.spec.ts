@@ -66,6 +66,7 @@ describe('issue #7383 — NG0701 race on /schedule', () => {
       mockScheduleService = jasmine.createSpyObj('ScheduleService', [
         'getDaysToShow',
         'getMonthDaysToShow',
+        'getMonthWeeksToShow',
         'buildScheduleDays',
         'getTodayStr',
         'createScheduleDaysWithContext',
@@ -79,6 +80,7 @@ describe('issue #7383 — NG0701 race on /schedule', () => {
       });
       mockScheduleService.getDaysToShow.and.returnValue(monthDays);
       mockScheduleService.getMonthDaysToShow.and.returnValue(monthDays);
+      mockScheduleService.getMonthWeeksToShow.and.returnValue(6);
       mockScheduleService.buildScheduleDays.and.returnValue([]);
       mockScheduleService.getTodayStr.and.returnValue('2026-04-15');
       mockScheduleService.createScheduleDaysWithContext.and.returnValue([]);
@@ -86,6 +88,7 @@ describe('issue #7383 — NG0701 race on /schedule', () => {
       mockScheduleService.hasEventsForDay.and.returnValue(false);
       mockScheduleService.getEventsForDay.and.returnValue([]);
       (mockScheduleService as any).scheduleRefreshTick = signal(0);
+      (mockScheduleService as any).displayTimeZone = signal('UTC');
 
       const mockGlobalTrackingIntervalService = jasmine.createSpyObj(
         'GlobalTrackingIntervalService',

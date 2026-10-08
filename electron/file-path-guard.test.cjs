@@ -3,6 +3,9 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
+// A Windows directory junction exercises the same realpath/reparse-point
+// boundary without requiring the privilege needed for file symbolic links.
+const DIRECTORY_LINK_TYPE = process.platform === 'win32' ? 'junction' : 'dir';
 
 require('ts-node/register/transpile-only');
 
@@ -78,7 +81,7 @@ test('canonicalizes: a symlink resolving INTO the protected dir is rejected', ()
   const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-out-'));
   try {
     const link = path.join(outsideDir, 'sneaky');
-    fs.symlinkSync(protectedDir, link);
+    fs.symlinkSync(protectedDir, link, DIRECTORY_LINK_TYPE);
     assert.throws(
       () => assertPathOutside(protectedDir, path.join(link, 'simpleSettings')),
       /protected directory/,
@@ -87,7 +90,7 @@ test('canonicalizes: a symlink resolving INTO the protected dir is rejected', ()
     assert.equal(isPathInsideDir(protectedDir, path.join(link, 'simpleSettings')), true);
     // A symlink resolving OUTSIDE is still allowed.
     const linkOut = path.join(protectedDir, 'out');
-    fs.symlinkSync(outsideDir, linkOut);
+    fs.symlinkSync(outsideDir, linkOut, DIRECTORY_LINK_TYPE);
     assert.doesNotThrow(() =>
       assertPathOutside(protectedDir, path.join(linkOut, 'main.json')),
     );

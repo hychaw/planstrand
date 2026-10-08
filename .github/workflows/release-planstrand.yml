@@ -3,31 +3,51 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Existing reviewed commit SHA or tag to build
+        description: Exact reviewed 40-character commit SHA
+        required: true
+        type: string
+      release_tag:
+        description: Existing RC tag matching planstrand-product.json and the reviewed SHA
         required: true
         type: string
       create_draft:
-        description: Create a draft prerelease after validation
+        description: Create a new draft prerelease after validation (never update an existing release)
         default: false
         type: boolean
 permissions:
   contents: read
+concurrency:
+  group: planstrand-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
 jobs:
   windows:
     if: github.repository == 'hychaw/planstrand'
     runs-on: windows-latest
+    env:
+      RELEASE_REF: ${{ inputs.ref }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    outputs:
+      revision: ${{ steps.release.outputs.revision }}
+      artifactName: ${{ steps.release.outputs.artifactName }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22.18.0'
           cache: npm
+      - name: Validate reviewed commit, RC tag, product version, notes and new release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/planstrand-release.cjs verify-ref
       - run: npm ci
       - name: Release contracts
-        run: node --test tools/verify-planstrand-release.test.cjs tools/verify-windows-artifact-contract.test.js tools/verify-linux-wm-class.test.js
+        run: node --test tools/verify-planstrand-release.test.cjs tools/planstrand-release.test.cjs tools/verify-windows-artifact-contract.test.js tools/verify-linux-wm-class.test.js
       - name: Production desktop build
         shell: pwsh
         run: |
@@ -41,28 +61,34 @@ jobs:
         run: node tools/verify-electron-requires.js .tmp/app-builds/win-unpacked/resources/app.asar
       - name: Packaged application smoke
         run: node e2e/electron/planstrand-rc-smoke.cjs .tmp/app-builds/win-unpacked/Planstrand.exe
-      - name: Portable launcher smoke
+      - name: Portable launcher and isolated installer smoke
         run: node e2e/electron/planstrand-portable-smoke.cjs .tmp/app-builds/Planstrand-Portable.exe
-      - name: Checksums and provenance
+      - name: Verify Windows product metadata
         shell: pwsh
         run: |
-          $names = @('Planstrand-Setup.exe', 'Planstrand-Portable.exe')
-          $lines = foreach ($name in $names) {
-            $file = Join-Path '.tmp/app-builds' $name
-            if (!(Test-Path -LiteralPath $file)) { throw "Missing $name" }
-            $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $file
-            "$($hash.Hash.ToLower())  $name"
+          $version = (Get-Content planstrand-product.json -Raw | ConvertFrom-Json).version
+          foreach ($name in @('Planstrand-Setup.exe', 'Planstrand-Portable.exe')) {
+            $file = Get-Item -LiteralPath (Join-Path '.tmp/app-builds' $name)
+            if ($file.VersionInfo.ProductName -ne 'Planstrand' -or $file.VersionInfo.ProductVersion -ne $version) { throw "Product metadata mismatch: $name" }
           }
-          $lines | Set-Content .tmp/app-builds/SHA256SUMS.txt
-          git rev-parse HEAD | Set-Content .tmp/app-builds/SOURCE_SHA.txt
+          $main = Get-Item -LiteralPath '.tmp/app-builds/win-unpacked/Planstrand.exe'
+          $numericVersion = [Version](($version -split '-')[0] + '.0')
+          if ($main.VersionInfo.ProductName -ne 'Planstrand' -or $main.VersionInfo.ProductVersionRaw -ne $numericVersion) { throw 'Numeric Windows product version mismatch' }
+      - name: Validate packaged revision and licenses; record checksums and provenance
+        run: node tools/planstrand-release.cjs record-artifacts .tmp/app-builds
+      - name: Recheck release absence before uploading candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/planstrand-release.cjs verify-ref
       - uses: actions/upload-artifact@v4
         with:
-          name: Planstrand-v1.0.0-rc.1-windows-x64
+          name: ${{ steps.release.outputs.artifactName }}
           path: |
             .tmp/app-builds/Planstrand-Setup.exe
             .tmp/app-builds/Planstrand-Portable.exe
             .tmp/app-builds/SHA256SUMS.txt
             .tmp/app-builds/SOURCE_SHA.txt
+            .tmp/app-builds/release-manifest.json
           if-no-files-found: error
   draft:
     if: github.repository == 'hychaw/planstrand' && inputs.create_draft
@@ -71,20 +97,35 @@ jobs:
     environment: planstrand-release
     permissions:
       contents: write
+    env:
+      RELEASE_REF: ${{ needs.windows.outputs.revision }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.windows.outputs.revision }}
+          fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
       - uses: actions/download-artifact@v4
         with:
-          name: Planstrand-v1.0.0-rc.1-windows-x64
+          name: ${{ needs.windows.outputs.artifactName }}
           path: artifacts
-      - name: Create draft prerelease only
+      - name: Verify downloaded assets against reviewed revision and packaging configuration
+        run: node tools/planstrand-release.cjs verify-artifacts artifacts
+      - name: Recheck tag, product version and release absence
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
+        run: node tools/planstrand-release.cjs verify-ref
+      - name: Create new draft prerelease only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ steps.release.outputs.notes }}
         shell: bash
         run: |
           set -euo pipefail
-          test "$(cat artifacts/SOURCE_SHA.txt | tr -d '\r\n')" = "$(git rev-parse HEAD)"
-          gh release create v1.0.0-rc.1 artifacts/* --repo hychaw/planstrand --target "$(git rev-parse HEAD)" --draft --prerelease --title 'Planstrand v1.0.0-rc.1' --notes-file docs/releases/PLANSTRAND_V1_RC1.md
+          gh release create "$RELEASE_TAG" artifacts/Planstrand-Setup.exe artifacts/Planstrand-Portable.exe artifacts/SHA256SUMS.txt artifacts/SOURCE_SHA.txt artifacts/release-manifest.json --repo hychaw/planstrand --verify-tag --target "$RELEASE_REF" --draft --prerelease --latest=false --title "Planstrand $RELEASE_TAG" --notes-file "$RELEASE_NOTES"

@@ -3,6 +3,8 @@ const path = require('node:path');
 const net = require('node:net');
 const { spawn, execFileSync } = require('node:child_process');
 const { chromium, expect } = require('@playwright/test');
+const { version } = require('../../planstrand-product.json');
+const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const executable = path.resolve(
   process.argv[2] || '.tmp/app-builds/Planstrand-Portable.exe',
 );
@@ -53,15 +55,37 @@ const launch = async () => {
   await page.locator('planstrand-page').waitFor({ timeout: 60000 });
   await expect(page).toHaveTitle(/Planstrand/);
   expect(await page.evaluate(() => window.ea.getUserDataPath())).toBe(profile);
+  await page.evaluate(() => {
+    location.hash = '/about';
+  });
+  const about = page.locator('planstrand-product-info');
+  await expect(about).toContainText(`Version ${version}`);
+  await expect(about).toContainText(`Build ${revision.slice(0, 7)}`);
 };
 const stop = async () => {
-  if (page) await page.evaluate(() => window.ea.shutdownNow()).catch(() => {});
+  // Resolve the automation call before Electron tears down its renderer.
+  if (page)
+    await page
+      .evaluate(() => {
+        setTimeout(() => window.ea.shutdownNow(), 0);
+      })
+      .catch(() => {});
   if (browser) await browser.close().catch(() => {});
   if (child && child.exitCode === null)
     await new Promise((resolve) => {
-      child.once('exit', resolve);
-      setTimeout(resolve, 10000);
+      const timer = setTimeout(resolve, 10000);
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
     });
+  if (child && child.exitCode === null) {
+    if (process.platform === 'win32')
+      execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+        windowsHide: true,
+      });
+    else child.kill();
+  }
   page = undefined;
   browser = undefined;
 };
@@ -70,7 +94,7 @@ const masterTasks = async () => {
     location.hash = '/master-tasks';
   });
   await expect(
-    page.getByRole('heading', { name: 'Master Tasks', exact: true, level: 1 }),
+    page.getByRole('heading', { name: 'Tasks', exact: true, level: 1 }),
   ).toBeVisible();
   await expect(page.locator('planstrand-page')).toHaveCount(1);
 };

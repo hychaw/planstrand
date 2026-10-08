@@ -6,7 +6,7 @@ import { ScheduleService } from '../schedule.service';
 import { MatDialog } from '@angular/material/dialog';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { DateAdapter } from '@angular/material/core';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectCalendarProviders } from '../../issue/store/issue-provider.selectors';
@@ -82,6 +82,9 @@ describe('ScheduleComponent', () => {
     mockScheduleService.hasEventsForDay.and.returnValue(false);
     mockScheduleService.getEventsForDay.and.returnValue([]);
     (mockScheduleService as any).scheduleRefreshTick = signal(0);
+    (mockScheduleService as any).displayTimeZone = computed(
+      () => mockLocalization().timeZone ?? 'UTC',
+    );
 
     mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);
     mockCalendarEventActionsService = jasmine.createSpyObj(

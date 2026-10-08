@@ -2,6 +2,7 @@
 # installation; creates only disposable test content and a temporary default install.
 param(
   [string]$Installer = '.tmp/app-builds/Planstrand-Setup.exe',
+  [string]$PreviousInstaller,
   # For hosts where Device Guard blocks unsigned app launch. CI never uses this.
   [switch]$InstallerOnly
 )
@@ -16,6 +17,9 @@ $exe = Join-Path $destination 'Planstrand.exe'
 $uninstaller = Join-Path $destination 'Uninstall Planstrand.exe'
 $profile = Join-Path $env:APPDATA 'Planstrand'
 $root = Join-Path ([IO.Path]::GetTempPath()) ('Planstrand-safety-' + [guid]::NewGuid())
+$isolatedProfile = Join-Path $root 'installed-test-profile'
+$productVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../planstrand-product.json') -Raw | ConvertFrom-Json).version
+$numericProductVersion = [Version](($productVersion -split '-')[0] + '.0')
 $unsafe = Join-Path $root 'unrelated Planstrand files'
 $sentinel = Join-Path $unsafe 'DO-NOT-DELETE.txt'
 $nested = Join-Path $unsafe 'nested\keep.txt'
@@ -36,6 +40,8 @@ function Assert-Sentinels {
 Assert-True (!(Test-Path -LiteralPath $destination)) "Existing default directory: $destination; use a clean Windows test host"
 Assert-True (!(Test-Path -LiteralPath $installKey)) 'Existing Planstrand registration; use a clean Windows test host'
 Assert-True (!(Test-Path -LiteralPath $uninstallKey)) 'Existing Planstrand uninstall entry; use a clean Windows test host'
+$shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Planstrand.lnk'
+Assert-True (!(Test-Path -LiteralPath $shortcut)) 'Existing Planstrand shortcut; use a clean Windows test host'
 New-Item -ItemType Directory -Path (Split-Path $nested) -Force | Out-Null
 [IO.File]::WriteAllText($sentinel, 'unrelated')
 [IO.File]::WriteAllText($nested, 'nested unrelated')
@@ -64,9 +70,10 @@ Remove-Item -LiteralPath $defaultSentinel
 Assert-True ((Run-Installer $Installer '/S /currentuser') -eq 0) 'Default installation failed'
 Assert-True (Test-Path -LiteralPath $exe) 'Default executable missing'
 Assert-True ((Get-Item -LiteralPath $exe).VersionInfo.ProductName -eq 'Planstrand') 'Wrong executable product name'
-Assert-True ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion -match '^19\.1\.0') 'Wrong technical version'
+Assert-True ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersionRaw -eq $numericProductVersion) 'Wrong numeric Windows product version'
 $metadata = Get-ItemProperty -LiteralPath $uninstallKey
 Assert-True ($metadata.DisplayName -eq 'Planstrand') 'Wrong uninstall display name'
+Assert-True ($metadata.DisplayVersion -eq $productVersion) 'Wrong installer display version'
 Assert-True ((Get-ItemProperty -LiteralPath $installKey).InstallLocation -eq $destination) 'Wrong dedicated install location'
 $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Planstrand.lnk'
 Assert-True (Test-Path -LiteralPath $shortcut) 'Planstrand Start Menu shortcut missing'
@@ -76,7 +83,7 @@ New-Item -ItemType Directory -Path $profile -Force | Out-Null
 [IO.File]::WriteAllText($profileSentinel, 'retain profile')
 # Launch installed application and verify profile isolation in the real runtime.
 if (!$InstallerOnly) {
-node -e 'const { _electron } = require("@playwright/test"); (async () => { const app = await _electron.launch({executablePath: process.argv[1], args: ["--disable-gpu"]}); try { const page = await app.firstWindow(); await page.locator("planstrand-page").waitFor({timeout:60000}); const identity = await app.evaluate(({app}) => ({name:app.getName(), profile:app.getPath("userData")})); if(identity.name !== "Planstrand" || identity.profile !== process.argv[2]) throw Error(JSON.stringify(identity)); } finally { await app.close(); } })().catch(e => {console.error(e);process.exit(1)});' $exe $profile
+node -e 'const { _electron } = require("@playwright/test"); (async () => { const app = await _electron.launch({executablePath: process.argv[1], args: ["--disable-gpu", "--user-data-dir=" + process.argv[2]]}); try { const page = await app.firstWindow(); await page.locator("planstrand-page").waitFor({timeout:60000}); const identity = await app.evaluate(({app}) => ({name:app.getName(), profile:app.getPath("userData")})); if(identity.name !== "Planstrand" || identity.profile !== process.argv[2]) throw Error(JSON.stringify(identity)); } finally { await app.close(); } })().catch(e => {console.error(e);process.exit(1)});' $exe $isolatedProfile
 Assert-True ($LASTEXITCODE -eq 0) 'Installed launch/profile check failed'
 # The existing full packaged flow also exercises imports, export and persistence.
 node e2e/electron/planstrand-rc-smoke.cjs $exe
@@ -160,4 +167,29 @@ if (Test-Path -LiteralPath $uninstaller) { Remove-Item -LiteralPath $uninstaller
 if (Test-Path -LiteralPath $destination) { [IO.Directory]::Delete($destination) }
 Assert-Sentinels
 Write-Output "PASS: safe custom UI and /D=, unsafe UI, mixed owned content, Git marker, custom Installed Apps registration, uninstall and sentinels"
+if ($PreviousInstaller) {
+  $PreviousInstaller = (Resolve-Path -LiteralPath $PreviousInstaller).Path
+  $previousSource = (Get-Content -LiteralPath (Join-Path (Split-Path $PreviousInstaller) 'SOURCE_SHA.txt') -Raw).Trim()
+  $v1Revision = (git rev-parse refs/tags/v1.0.0-rc.1).Trim()
+  Assert-True ($previousSource -eq $v1Revision) 'Previous installer provenance is not the protected V1 RC1 tag'
+  Assert-True (!(Test-Path -LiteralPath $installKey)) 'Upgrade test found an existing registration'
+  Assert-True (!(Test-Path -LiteralPath $uninstallKey)) 'Upgrade test found an existing uninstall entry'
+  Assert-True (!(Test-Path -LiteralPath $destination)) 'Upgrade test requires an empty isolated destination'
+  $upgradeProfile = Join-Path $root 'upgrade-profile'
+  $upgradeEvidence = Join-Path $root 'v1-workspace.json'
+  Assert-True ((Run-Installer $PreviousInstaller "/S /currentuser /D=$destination") -eq 0) 'Isolated V1 installation failed'
+  node (Join-Path $PSScriptRoot 'planstrand-upgrade-data.cjs') seed $exe $upgradeProfile $upgradeEvidence
+  Assert-True ($LASTEXITCODE -eq 0) 'V1 workspace seeding failed'
+  [IO.File]::WriteAllText($profileSentinel, 'retain profile')
+  Assert-True ((Run-Installer $Installer "/S /currentuser /D=$destination") -eq 0) 'V1 to V1.1 upgrade failed'
+  Assert-True ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersionRaw -eq $numericProductVersion) 'Upgrade numeric Windows version mismatch'
+  node (Join-Path $PSScriptRoot 'planstrand-upgrade-data.cjs') verify $exe $upgradeProfile $upgradeEvidence
+  Assert-True ($LASTEXITCODE -eq 0) 'Upgraded V1 workspace verification failed'
+  Assert-True ((Run-Installer $uninstaller "/S /currentuser _?=$destination") -eq 0) 'Upgrade test uninstall failed'
+  Assert-True ((Get-Content -LiteralPath $profileSentinel -Raw) -eq 'retain profile') 'Upgrade deleted existing profile sentinel'
+  Remove-Item -LiteralPath $profileSentinel
+  if (Test-Path -LiteralPath $uninstaller) { Remove-Item -LiteralPath $uninstaller }
+  if (Test-Path -LiteralPath $destination) { [IO.Directory]::Delete($destination) }
+  Write-Output "PASS: protected V1 RC1 upgrade preserved Task identity, Folder, Today Planning, WorkSession and standalone Event; evidence: $root"
+}
 Write-Output "PASS: installer destination/metadata/reinstall/uninstall/profile/sentinels verified. Application smoke executed: $(!$InstallerOnly). Evidence: $root"

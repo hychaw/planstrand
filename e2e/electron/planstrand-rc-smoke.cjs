@@ -2,6 +2,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { _electron: electron, expect } = require('@playwright/test');
+const { execFileSync } = require('node:child_process');
+const { version } = require('../../planstrand-product.json');
+const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const executablePath = path.resolve(
   process.argv[2] || '.tmp/app-builds/win-unpacked/Planstrand.exe',
 );
@@ -35,6 +38,7 @@ const launch = async (profile) => {
   await page.waitForLoadState('domcontentloaded');
   await page.locator('planstrand-page').waitFor({ timeout: 60000 });
   expect(await app.evaluate(({ app }) => app.getName())).toBe('Planstrand');
+  expect(await app.evaluate(({ app }) => app.getVersion())).toBe(version);
   expect(await app.evaluate(({ app }) => app.getPath('userData'))).toBe(profile);
   await expect(page).toHaveTitle(/Planstrand/);
   await page.evaluate(() => {
@@ -48,6 +52,14 @@ const launch = async (profile) => {
   });
   await page.reload();
   await page.locator('planstrand-page').waitFor();
+  await goto(page, '/about');
+  const about = page.locator('planstrand-product-info');
+  await expect(about).toContainText(`Version ${version}`);
+  await expect(about).toContainText(`Build ${revision.slice(0, 7)}`);
+  await expect(about).not.toContainText(/19\.1\.0W|NO_REV|NO_BRANCH/);
+  await goto(page, '/config');
+  await expect(page.locator('.version-footer')).toContainText(`Planstrand ${version}`);
+  await goto(page, '/today');
   return page;
 };
 const stop = async () => {
@@ -62,7 +74,7 @@ const goto = async (page, route) => {
   }, route);
   await page.waitForURL((url) => url.hash === `#${route}`);
   if (route === '/master-tasks' || route === '/today') {
-    const name = route === '/master-tasks' ? 'Master Tasks' : 'Today';
+    const name = route === '/master-tasks' ? 'Tasks' : 'Today';
     await expect(
       page.getByRole('heading', { name, exact: true, level: 1 }),
     ).toBeVisible();
@@ -122,7 +134,7 @@ const checkData = async (page) => {
   await page.getByRole('button', { name: 'View Day', exact: true }).click();
   await expect(
     page
-      .locator('schedule-event.ScheduledTask:not(.custom-drag-preview)')
+      .locator('schedule-event.blue-thread-session:not(.custom-drag-preview)')
       .filter({ hasText: 'RC Task' }),
   ).toHaveCount(1);
   await expect(
@@ -180,15 +192,19 @@ const checkData = async (page) => {
     .filter({ has: page.getByRole('heading', { name: '▾ RC Folder', exact: true }) });
   await folder.getByRole('button', { name: 'Add Task', exact: true }).click();
   await prompt(page, 'RC Task');
-  await page
+  const task = page
     .locator('planstrand-task-list .task-entry')
-    .filter({ hasText: 'RC Task' })
+    .filter({ hasText: 'RC Task' });
+  await task.locator('.task-actions summary').click();
+  await task
     .getByRole('combobox', { name: 'Plan Task' })
     .selectOption({ label: 'Today' });
   await goto(page, '/today');
-  await page
-    .locator('planstrand-page section')
-    .first()
+  const focusTask = page
+    .locator('planstrand-task-list .task-entry')
+    .filter({ hasText: 'RC Task' });
+  await focusTask.locator('.task-actions summary').click();
+  await focusTask
     .getByRole('button', { name: 'Schedule WorkSession', exact: true })
     .click();
   const schedule = page.locator('dialog-schedule-task');

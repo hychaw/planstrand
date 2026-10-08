@@ -24,6 +24,7 @@ import { SnackService } from '../../core/snack/snack.service';
 import { Router } from '@angular/router';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { MatDialog } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
 import { Store } from '@ngrx/store';
 import { TrackingPresenceService } from '../../features/tracking-presence/tracking-presence.service';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
@@ -39,6 +40,7 @@ import { GlobalTrackingIntervalService } from '../../core/global-tracking-interv
 import { BannerService } from '../../core/banner/banner.service';
 import { NavigateToTaskService } from '../navigate-to-task/navigate-to-task.service';
 import { FocusModeService } from '../../features/focus-mode/focus-mode.service';
+import { PlanstrandService } from '../../pages/planstrand/planstrand.service';
 
 // Regression test for #7477: in a project view a long title pushed the
 // right-side header actions (simple-counter / habit buttons) off screen.
@@ -238,6 +240,10 @@ describe('MainHeaderComponent layout', () => {
         TitleFloorHostComponent,
       ],
       providers: [
+        {
+          provide: PlanstrandService,
+          useValue: { createTask: jasmine.createSpy('createTask') },
+        },
         { provide: Store, useValue: { select: () => EMPTY, dispatch: () => undefined } },
         {
           provide: TrackingPresenceService,
@@ -430,6 +436,10 @@ describe('MainHeaderComponent action placement', () => {
       imports: [MainHeaderComponent, TranslateModule.forRoot()],
       providers: [
         {
+          provide: PlanstrandService,
+          useValue: { createTask: jasmine.createSpy('createTask') },
+        },
+        {
           provide: ElementRef,
           useValue: {
             nativeElement: {
@@ -535,7 +545,7 @@ describe('MainHeaderComponent action placement', () => {
       set: {
         // NgTemplateOutlet is real, not stubbed: the sync button is mounted
         // through it, and a stubbed outlet would leave the sync slot empty.
-        imports: [TranslatePipe, NgTemplateOutlet],
+        imports: [TranslatePipe, NgTemplateOutlet, MatMenuModule],
         schemas: [NO_ERRORS_SCHEMA],
       },
     });
@@ -635,13 +645,9 @@ describe('MainHeaderComponent action placement', () => {
     box = undefined;
   });
 
-  it('leaves the bottom nav its own actions, below 600px', async () => {
-    // One action, one home. The nav's panels menu lists the plugin side-panel
-    // buttons and the three desktop panel toggles, so the header must not
-    // render them as well -- rendering both put the same plugin button in two
-    // places on a phone at once. The other end of the rule (a header slot
-    // hidden without the menu listing it) is pinned by
-    // `mobile-bottom-nav.component.spec`.
+  it('keeps mobile capture available without exposing inherited panel controls', async () => {
+    // Planstrand keeps capture in Utilities; inherited panel/plugin controls
+    // stay hidden even if their services still contain configured buttons.
     const btn = { label: 'x', icon: 'x', onClick: () => {} };
     isXs = signal(true);
     pluginSidePanelButtons = signal<unknown[]>([btn]);
@@ -650,19 +656,23 @@ describe('MainHeaderComponent action placement', () => {
 
     expect(host.querySelector('plugin-side-panel-btns')).toBeFalsy();
     expect(host.querySelector('desktop-panel-buttons')).toBeFalsy();
-    expect(host.querySelector('.tour-addBtn')).toBeFalsy();
+    expect(host.querySelector('.tour-addBtn')).toBeTruthy();
+    expect(
+      host
+        .querySelector('.action-nav-scroll')!
+        .contains(host.querySelector('.tour-addBtn')),
+    ).toBeTrue();
   });
 
-  it('keeps every action in the row above 600px', async () => {
-    // The complement of the rule above: with the bottom nav gone, the header is
-    // where all three live again.
+  it('exposes desktop capture while keeping inherited panel controls hidden', async () => {
+    // The same product boundary applies on desktop.
     const btn = { label: 'x', icon: 'x', onClick: () => {} };
     pluginSidePanelButtons = signal<unknown[]>([btn]);
 
     const host = await mountAtWidth(1400);
 
-    expect(host.querySelector('plugin-side-panel-btns')).toBeTruthy();
-    expect(host.querySelector('desktop-panel-buttons')).toBeTruthy();
+    expect(host.querySelector('plugin-side-panel-btns')).toBeFalsy();
+    expect(host.querySelector('desktop-panel-buttons')).toBeFalsy();
     expect(host.querySelector('.tour-addBtn')).toBeTruthy();
   });
 
@@ -825,37 +835,32 @@ describe('MainHeaderComponent action placement', () => {
     ...over,
   });
 
-  it('collapses the counters behind one trigger below 600px', async () => {
+  it('does not expose inherited counters or their tray below 600px', async () => {
     isXs = signal(true);
     enabledSimpleCounters = [counter('a'), counter('b')];
 
     const host = await mountAtWidth(404);
 
-    // Not inline...
+    // Neither inline nor in a secondary tray.
     expect(
       host.querySelectorAll('.counters-action-group simple-counter-button').length,
     ).toBe(0);
-    // ...but all of them still mounted, inside the tray. They own their
-    // countdown-completion subscription, so a counter that existed only while
-    // the tray was open would stop firing reminders.
     expect(
       host.querySelectorAll('#mobile-simple-counter-menu simple-counter-button').length,
-    ).toBe(2);
-    // Outside the scroller, or `overflow-x: auto` would clip the tray to the
-    // row's own height and the trigger would scroll away from a running counter.
+    ).toBe(0);
     const wrapper = host.querySelector('.mobile-dropdown-wrapper');
-    expect(wrapper).toBeTruthy();
+    expect(wrapper).toBeFalsy();
     expect(host.querySelector('.action-nav-scroll')!.contains(wrapper)).toBe(false);
   });
 
-  it('keeps the counters inline above 600px', async () => {
+  it('does not expose inherited counters above 600px', async () => {
     enabledSimpleCounters = [counter('a'), counter('b')];
 
     const host = await mountAtWidth(1400);
 
     expect(
       host.querySelectorAll('.counters-action-group simple-counter-button').length,
-    ).toBe(2);
+    ).toBe(0);
     expect(host.querySelector('.mobile-dropdown-wrapper')).toBeFalsy();
   });
 
