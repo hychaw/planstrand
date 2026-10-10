@@ -1,4 +1,5 @@
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
+import { selectEventSeriesFeatureState } from '../../features/routines/store/event-series.selectors';
 import { selectEventFeatureState } from '../../features/event/store/event.selectors';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import { inject, Injectable } from '@angular/core';
@@ -77,6 +78,7 @@ const SNAPSHOT_SELECTORS: readonly {
   { key: 'section', selector: selectSectionFeatureState },
   { key: 'workSession', selector: selectWorkSessionFeatureState },
   { key: 'event', selector: selectEventFeatureState },
+  { key: 'eventSeries', selector: selectEventSeriesFeatureState },
   { key: 'planning', selector: selectPlanningState },
   { key: 'folder', selector: selectFolderFeatureState },
 ] as const;

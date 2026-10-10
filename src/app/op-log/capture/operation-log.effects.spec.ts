@@ -1,7 +1,11 @@
 import { DEFAULT_TASK } from '../../features/tasks/task.model';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
-import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
+import { TASK_FOLDER_OWNERSHIP_V1, ROUTINES_V1 } from '@sp/shared-schema';
+import {
+  addEventSeries,
+  updateEventSeries,
+} from '../../features/routines/store/event-series.actions';
 import {
   prepareTaskFolderAction,
   rememberTaskFolderCaptureAction,
@@ -224,6 +228,40 @@ describe('OperationLogEffects', () => {
   });
 
   describe('canonical Task ownership capture', () => {
+    it('stamps series creation and subsequent writes with conditional Routines requirements', (done) => {
+      const definition = {
+        title: 'Routine',
+        recurrence: { frequency: 'daily' as const, interval: 1, startDate: '2026-10-10' },
+        timing: { kind: 'allDay' as const },
+      };
+      const eventSeries = {
+        id: 'series',
+        title: definition.title,
+        created: 50,
+        modified: 50,
+        segments: [
+          { id: 'segment', recurrence: definition.recurrence, timing: definition.timing },
+        ] as [import('../../features/routines/event-series.model').EventSeriesSegment],
+      };
+      actions$ = of(
+        addEventSeries({ eventSeries }),
+        updateEventSeries({ id: eventSeries.id, changes: definition, modified: 100 }),
+      );
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(2);
+          for (const [
+            op,
+          ] of mockOpLogStore.appendWithVectorClockOverwrite.calls.allArgs()) {
+            expect(op.entityType).toBe('EVENT_SERIES');
+            expect(op.requiredCapabilities).toEqual([ROUTINES_V1]);
+            expect(op.requiredEntityTypes).toEqual(['EVENT_SERIES']);
+          }
+          done();
+        },
+        error: done.fail,
+      });
+    });
     it('captures the prepared Task creation payload once with semantic requirements', (done) => {
       const current = {
         ...createBaseState(),

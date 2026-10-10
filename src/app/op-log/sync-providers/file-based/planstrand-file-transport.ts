@@ -124,7 +124,9 @@ export class PlanstrandFileTransport {
     }[],
   ): void {
     const entities = ops.flatMap((op) => [
-      ...(op.entityType === 'FOLDER' ? ['FOLDER'] : []),
+      ...(op.entityType === 'FOLDER' || op.entityType === 'EVENT_SERIES'
+        ? [op.entityType]
+        : []),
       ...(op.requiredEntityTypes ?? []),
     ]);
     this._requirements = requiredFileOpTypes(

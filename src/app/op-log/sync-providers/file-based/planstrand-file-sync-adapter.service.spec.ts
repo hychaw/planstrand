@@ -5,6 +5,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   SUPER_SYNC_BASELINE_OP_TYPES,
   TASK_FOLDER_OWNERSHIP_V1,
+  ROUTINES_V1,
 } from '@sp/shared-schema';
 import { PlanstrandFileSyncAdapterService } from './planstrand-file-sync-adapter.service';
 import {
@@ -92,6 +93,61 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     expect((await read()).compatibility.requiredOpTypes).toContain(
       TASK_FOLDER_OWNERSHIP_V1,
     );
+  });
+  it('keeps plain data compatible, activates Routines on first series write and fences cold old readers', async () => {
+    const oldSemantics = new Set(
+      [...KNOWN_FILE_SEMANTICS].filter(
+        (v) => v !== ROUTINES_V1 && v !== 'ENTITY:EVENT_SERIES',
+      ),
+    );
+    expect(PLANSTRAND_REQUIRED_FILE_OP_TYPES).not.toContain('ENTITY:EVENT_SERIES');
+    expect(PLANSTRAND_REQUIRED_FILE_OP_TYPES).not.toContain(ROUTINES_V1);
+    const writer = service.createAdapter(provider, cfg, undefined);
+    await writer.uploadOps([op()], 'new');
+    const old = service.createAdapter(provider, cfg, undefined, {
+      supportedOpTypes: oldSemantics,
+    });
+    const plainDownload = await old.downloadOps(0);
+    expect(plainDownload.ops.length).toBe(1);
+    await old.setLastServerSeq(plainDownload.latestSeq);
+    const routine = {
+      ...op(),
+      id: 'routine-op',
+      entityType: 'EVENT_SERIES',
+      requiredCapabilities: [ROUTINES_V1],
+      requiredEntityTypes: ['EVENT_SERIES'],
+    };
+    await writer.uploadOps([routine], 'new');
+    const cold = service.createAdapter(provider, cfg, undefined, {
+      supportedOpTypes: oldSemantics,
+    });
+    await expectAsync(cold.downloadOps(0)).toBeRejectedWithError(
+      PlanstrandFileIncompatibleError,
+    );
+    const pending = { ...op(), id: 'old-pending' };
+    await expectAsync(cold.uploadOps([pending], 'old')).toBeRejectedWithError(
+      PlanstrandFileIncompatibleError,
+    );
+    const current = service.createAdapter(provider, cfg, undefined);
+    expect(
+      (await current.downloadOps(0)).ops.some((entry) => entry.op.id === pending.id),
+    ).toBeFalse();
+    const transport = new PlanstrandFileTransport(provider, cfg, undefined, {
+      requiredOpTypes: PLANSTRAND_REQUIRED_FILE_OP_TYPES,
+      supportedOpTypes: KNOWN_FILE_SEMANTICS,
+      assertTargetCurrent: () => {},
+    });
+    await transport.provider.uploadFile(
+      L.syncFile,
+      await codec.compressAndEncryptData(cfg, undefined, legacy(), 2),
+      null,
+      true,
+    );
+    expect((await read()).compatibility.requiredOpTypes).toContain(ROUTINES_V1);
+    const restored = await codec.decompressAndDecryptData<{
+      state: { requiredCapabilities: string[] };
+    }>(cfg, undefined, (await transport.provider.downloadFile(L.syncFile)).dataStr);
+    expect(restored.state.requiredCapabilities).toContain(ROUTINES_V1);
   });
   it('keeps a recovery-only semantic floor and projects it into restored state', async () => {
     await seed(P.stateBackupFile, {

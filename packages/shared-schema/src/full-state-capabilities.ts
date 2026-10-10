@@ -31,8 +31,29 @@ export const hasMeaningfulFolderState = (state: unknown): boolean => {
     Object.keys(f).some((k) => !['id', 'title', 'parentId', 'orderKey'].includes(k))
   );
 };
+/** Absent or exact empty additive slices need no new reader capability. Malformed
+ * present slices are fenced too; they must never be silently discarded by readers.
+ */
+export const hasEventSeriesState = (state: unknown): boolean => {
+  if (!state || typeof state !== 'object' || !Object.hasOwn(state, 'eventSeries'))
+    return false;
+  const slice = (state as { eventSeries?: unknown }).eventSeries;
+  if (!slice || typeof slice !== 'object' || Array.isArray(slice)) return true;
+  const v = slice as { ids?: unknown; entities?: unknown };
+  return (
+    !Array.isArray(v.ids) ||
+    v.ids.length > 0 ||
+    !v.entities ||
+    typeof v.entities !== 'object' ||
+    Array.isArray(v.entities) ||
+    Object.keys(v.entities).length > 0 ||
+    Object.keys(v).some((key) => !['ids', 'entities'].includes(key))
+  );
+};
+
 export const getFullStateRequiredEntityTypes = (state: unknown): string[] => {
   const required = hasMeaningfulFolderState(state) ? ['FOLDER'] : [];
+  if (hasEventSeriesState(state)) required.push('EVENT_SERIES');
   if (state && typeof state === 'object' && Object.hasOwn(state, 'event')) {
     const event = (state as { event?: unknown }).event;
     // Only the exact optional empty slice is safe for an unaware reader.

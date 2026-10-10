@@ -1,3 +1,5 @@
+import { EventSeriesState } from '../../features/routines/event-series.model';
+import { isValidEventSeriesState } from '../../features/routines/event-series.validation';
 import { EventState } from '../../features/event/event.model';
 import { FolderState } from '../../features/folder/folder.model';
 import { isFolderState } from '../../features/folder/folder-state';
@@ -149,6 +151,23 @@ export const validateAllData = <R>(
   const r = _wrapValidate(_validateAllData(d), d, false, 'appData');
   if (
     r.success &&
+    Object.hasOwn(d as object, 'eventSeries') &&
+    !isValidEventSeriesState((d as AppDataComplete).eventSeries)
+  ) {
+    return {
+      success: false,
+      data: d,
+      errors: [
+        {
+          expected: 'Valid EventSeries state',
+          path: '$input.eventSeries',
+          value: (d as AppDataComplete).eventSeries,
+        },
+      ],
+    };
+  }
+  if (
+    r.success &&
     Object.hasOwn(d as object, 'folder') &&
     !isFolderState((d as AppDataComplete).folder)
   ) {
@@ -186,6 +205,14 @@ export const appDataValidators: {
     data: AppDataComplete[K] | R,
   ) => ValidationResult<AppDataComplete[K] | R>;
 } = {
+  eventSeries: <R>(d: R | EventSeriesState) =>
+    isValidEventSeriesState(d)
+      ? { success: true as const, data: d }
+      : {
+          success: false as const,
+          data: d,
+          errors: [{ expected: 'Valid EventSeries state', path: '$input', value: d }],
+        },
   task: <R>(d: R | TaskState) => _wrapValidate(_validateTask(d), d, true, 'task'),
   taskRepeatCfg: <R>(d: R | TaskRepeatCfgState) =>
     _wrapValidate(_validateTaskRepeatCfg(d), d, true, 'taskRepeatCfg'),

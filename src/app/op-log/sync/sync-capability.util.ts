@@ -2,6 +2,7 @@ import {
   getFullStateRequiredEntityTypes,
   getFullStateRequiredCapabilities,
   supportsRequiredCapabilities,
+  ROUTINES_V1,
 } from '@sp/shared-schema';
 import { extractFullStateFromPayload } from '../core/operation.types';
 import {
@@ -53,10 +54,10 @@ export const getOperationCapabilityRequirement = (
   if (operation.entityType === 'ALL') {
     for (const entityType of ENTITY_TYPES) {
       if (
-        entityType !== 'FOLDER' ||
+        (entityType !== 'FOLDER' && entityType !== 'EVENT_SERIES') ||
         getFullStateRequiredEntityTypes(
           extractFullStateFromPayload(operation.payload),
-        ).includes('FOLDER')
+        ).includes(entityType)
       )
         entityTypes.add(entityType);
     }
@@ -142,6 +143,7 @@ export const getOperationRequiredCapabilities = (
 ): string[] => [
   ...new Set([
     ...(operation.requiredCapabilities ?? []),
+    ...(operation.entityType === 'EVENT_SERIES' ? [ROUTINES_V1] : []),
     ...(operation.entityType === 'ALL'
       ? getFullStateRequiredCapabilities(extractFullStateFromPayload(operation.payload))
       : []),

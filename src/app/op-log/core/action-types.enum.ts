@@ -157,6 +157,8 @@ export enum ActionType {
 
   // WorkSession actions (V)
   EVENT_ADD = '[Event] Add Event',
+  EVENT_SERIES_ADD = '[EventSeries] Add Event Series',
+  EVENT_SERIES_UPDATE = '[EventSeries] Update Event Series',
   EVENT_UPDATE = '[Event] Update Event',
   EVENT_REMOVE = '[Event] Remove Event',
   WORK_SESSION_ADD = '[WorkSession] Add WorkSession',

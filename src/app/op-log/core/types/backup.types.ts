@@ -26,6 +26,7 @@ export interface AppStateSnapshot {
   section: unknown;
   workSession: unknown;
   event?: unknown;
+  eventSeries?: unknown;
   planning?: unknown;
   folder?: unknown;
   archiveYoung: ArchiveModel;

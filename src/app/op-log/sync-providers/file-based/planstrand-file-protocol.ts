@@ -15,7 +15,9 @@ export const PLANSTRAND_REQUIRED_FILE_OP_TYPES: readonly string[] = Object.freez
   PLANNING_V1,
   // The existing semantic manifest also protects full-state entity vocabulary.
   // Older readers reject these unknown requirements before reading/writing state.
-  ...ENTITY_TYPES.filter((type) => type !== 'FOLDER').map((type) => `ENTITY:${type}`),
+  ...ENTITY_TYPES.filter((type) => type !== 'FOLDER' && type !== 'EVENT_SERIES').map(
+    (type) => `ENTITY:${type}`,
+  ),
 ]);
 export const KNOWN_FILE_SEMANTICS: ReadonlySet<string> = new Set([
   ...SUPER_SYNC_OP_TYPES,

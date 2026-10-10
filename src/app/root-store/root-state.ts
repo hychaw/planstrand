@@ -1,3 +1,4 @@
+import { EventSeriesState } from '../features/routines/event-series.model';
 import { EventState } from '../features/event/event.model';
 import { FolderState } from '../features/folder/folder.model';
 import { PlanningState } from '../features/planning/planning.model';
@@ -45,4 +46,5 @@ export interface RootState {
   [TIME_TRACKING_FEATURE_KEY]: TimeTrackingState;
   [WORK_SESSION_FEATURE_NAME]: WorkSessionState;
   event?: EventState;
+  eventSeries?: EventSeriesState;
 }

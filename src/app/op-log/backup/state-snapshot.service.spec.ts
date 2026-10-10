@@ -1,4 +1,6 @@
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
+import { selectEventSeriesFeatureState } from '../../features/routines/store/event-series.selectors';
+import { EventSeriesState } from '../../features/routines/event-series.model';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder } from '../../features/folder/store/folder.actions';
@@ -116,6 +118,29 @@ describe('StateSnapshotService', () => {
     store.overrideSelector(selectFolderFeatureState, folder);
     expect(service.getStateSnapshot().folder).toEqual(folder);
     expect((await service.getStateSnapshotAsync()).folder).toEqual(folder);
+  });
+  it('includes recurring series in synchronous and asynchronous snapshots', async () => {
+    const eventSeries: EventSeriesState = {
+      ids: ['series'],
+      entities: {
+        series: {
+          id: 'series',
+          title: 'Routine',
+          created: 50,
+          modified: 50,
+          segments: [
+            {
+              id: 'segment',
+              recurrence: { frequency: 'monthly', interval: 1, startDate: '2026-10-31' },
+              timing: { kind: 'allDay' },
+            },
+          ],
+        },
+      },
+    };
+    store.overrideSelector(selectEventSeriesFeatureState, eventSeries);
+    expect(service.getStateSnapshot().eventSeries).toEqual(eventSeries);
+    expect((await service.getStateSnapshotAsync()).eventSeries).toEqual(eventSeries);
   });
 
   beforeEach(() => {

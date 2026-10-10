@@ -1113,6 +1113,7 @@ describe('OperationLogCompactionService', () => {
         section: 'SECTION',
         workSession: 'WORK_SESSION',
         event: 'EVENT',
+        eventSeries: 'EVENT_SERIES',
       };
 
       const missingModels: string[] = [];

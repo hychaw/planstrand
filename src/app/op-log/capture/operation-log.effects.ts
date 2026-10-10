@@ -1,6 +1,10 @@
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { getTaskFolderCaptureAction } from '../../root-store/meta/task-folder-ownership.meta-reducer';
-import { TASK_FOLDER_OWNERSHIP_V1, hasTaskFolderOwnership } from '@sp/shared-schema';
+import {
+  TASK_FOLDER_OWNERSHIP_V1,
+  hasTaskFolderOwnership,
+  ROUTINES_V1,
+} from '@sp/shared-schema';
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
 import type { DeferredLocalActionsPort } from '@sp/sync-core';
@@ -357,6 +361,12 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           vectorClock: newClock,
           timestamp: operationTimestamp,
           schemaVersion: CURRENT_SCHEMA_VERSION,
+          ...(action.meta.entityType === 'EVENT_SERIES'
+            ? {
+                requiredEntityTypes: ['EVENT_SERIES'],
+                requiredCapabilities: [ROUTINES_V1],
+              }
+            : {}),
           ...((hasTaskFolderOwnership(rawActionPayload) &&
             (action.meta.entityType === 'TASK' ||
               action.type === TaskSharedActions.batchUpdateForProject.type)) ||

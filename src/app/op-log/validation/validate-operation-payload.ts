@@ -16,6 +16,11 @@ import { isValidEntityId } from './is-valid-entity-id';
 import type { SyncLogMeta } from '@sp/sync-core';
 import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
 import { isValidDBDateStr } from '../../util/get-db-date-str';
+import {
+  isValidEventSeries,
+  isValidEventSeriesInput,
+  isEventSeriesTimestamp,
+} from '../../features/routines/event-series.validation';
 
 /**
  * Result of validating an operation payload.
@@ -625,6 +630,27 @@ export const validateOperationPayload = (op: Operation): PayloadValidationResult
   // For multi-entity payloads, we validate the actionPayload
   // For legacy payloads, we validate the payload directly
   const actionPayload = extractActionPayloadForValidation(op.payload);
+  if (op.entityType === 'EVENT_SERIES') {
+    const p = actionPayload as Record<string, unknown>;
+    const valid =
+      (op.actionType === ActionType.EVENT_SERIES_ADD &&
+        op.opType === OpType.Create &&
+        isValidEventSeries(p['eventSeries']) &&
+        p['eventSeries'].id === op.entityId) ||
+      (op.actionType === ActionType.EVENT_SERIES_UPDATE &&
+        op.opType === OpType.Update &&
+        p['id'] === op.entityId &&
+        isValidEntityId(p['id']) &&
+        isValidEventSeriesInput(p['changes']) &&
+        isEventSeriesTimestamp(p['modified'])) ||
+      ((op.actionType as string) === '[EVENT_SERIES] LWW Update' &&
+        op.opType === OpType.Update &&
+        isValidEventSeries(p) &&
+        p['id'] === op.entityId);
+    return valid
+      ? { success: true }
+      : { success: false, error: 'Invalid EventSeries operation' };
+  }
 
   // 4. Validate based on operation type
   let result: PayloadValidationResult;

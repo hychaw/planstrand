@@ -1,10 +1,14 @@
+import { hasEventSeriesState } from './full-state-capabilities';
+
 /** Semantic requirements are distinct from entity vocabulary and schema versions. */
 export const TASK_FOLDER_OWNERSHIP_V1 = 'TASK_FOLDER_OWNERSHIP_V1' as const;
-export type SyncReaderCapability = typeof TASK_FOLDER_OWNERSHIP_V1;
+export const ROUTINES_V1 = 'ROUTINES_V1' as const;
+export type SyncReaderCapability = typeof TASK_FOLDER_OWNERSHIP_V1 | typeof ROUTINES_V1;
 
-/** Phase 4E readers implement canonical Task Folder ownership. */
+/** Current readers implement canonical Task Folder ownership and recurring series. */
 export const CLIENT_SYNC_READER_CAPABILITIES: readonly SyncReaderCapability[] = [
   TASK_FOLDER_OWNERSHIP_V1,
+  ROUTINES_V1,
 ];
 
 /** Payloads/snapshots carrying ownership need the same semantic wire fence. */
@@ -37,6 +41,7 @@ export const getFullStateRequiredCapabilities = (state: unknown): string[] => {
   return [
     ...new Set([
       ...(data.requiredCapabilities ?? []),
+      ...(hasEventSeriesState(state) ? [ROUTINES_V1] : []),
       ...([data.task, data.archiveYoung?.task, data.archiveOld?.task].some(
         hasTaskFolderOwnership,
       )
@@ -49,6 +54,7 @@ export const getFullStateRequiredCapabilities = (state: unknown): string[] => {
 /** The server can enforce these requirements without interpreting encrypted data. */
 export const SERVER_SYNC_READER_CAPABILITIES: readonly SyncReaderCapability[] = [
   TASK_FOLDER_OWNERSHIP_V1,
+  ROUTINES_V1,
 ];
 
 export const supportsRequiredCapabilities = (

@@ -1,3 +1,7 @@
+import {
+  EVENT_SERIES_FEATURE_NAME,
+  eventSeriesReducer,
+} from '../features/routines/store/event-series.reducer';
 import { EVENT_FEATURE_NAME, eventReducer } from '../features/event/store/event.reducer';
 import {
   PLANNING_FEATURE_NAME,
@@ -163,6 +167,7 @@ import {
 
     StoreModule.forFeature(WORK_SESSION_FEATURE_NAME, workSessionReducer),
     StoreModule.forFeature(EVENT_FEATURE_NAME, eventReducer),
+    StoreModule.forFeature(EVENT_SERIES_FEATURE_NAME, eventSeriesReducer),
     StoreModule.forFeature(PLANNING_FEATURE_NAME, planningReducer),
 
     StoreModule.forFeature(TAG_FEATURE_NAME, tagReducer),

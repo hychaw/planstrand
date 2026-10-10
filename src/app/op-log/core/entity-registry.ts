@@ -1,4 +1,12 @@
 import {
+  EVENT_SERIES_FEATURE_NAME,
+  eventSeriesAdapter,
+} from '../../features/routines/store/event-series.reducer';
+import {
+  selectEventSeriesEntities,
+  selectEventSeriesById,
+} from '../../features/routines/store/event-series.selectors';
+import {
   EVENT_FEATURE_NAME,
   eventAdapter,
 } from '../../features/event/store/event.reducer';
@@ -301,6 +309,14 @@ export const buildEntityRegistry = (): EntityRegistry<EntityType> =>
       selectById: selectSectionById,
     },
 
+    EVENT_SERIES: {
+      storagePattern: 'adapter',
+      featureName: EVENT_SERIES_FEATURE_NAME,
+      payloadKey: 'eventSeries',
+      adapter: eventSeriesAdapter,
+      selectEntities: selectEventSeriesEntities,
+      selectById: selectEventSeriesById,
+    },
     EVENT: {
       storagePattern: 'adapter',
       featureName: EVENT_FEATURE_NAME,

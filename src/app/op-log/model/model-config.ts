@@ -1,3 +1,5 @@
+import { EventSeriesState } from '../../features/routines/event-series.model';
+import { initialEventSeriesState } from '../../features/routines/store/event-series.reducer';
 import { EventState } from '../../features/event/event.model';
 import { initialEventState } from '../../features/event/store/event.reducer';
 import { FolderState } from '../../features/folder/folder.model';
@@ -69,6 +71,7 @@ export type AllModelConfig = {
   section: ModelCfg<SectionState>;
   workSession: ModelCfg<WorkSessionState>;
   event?: ModelCfg<EventState>;
+  eventSeries?: ModelCfg<EventSeriesState>;
   planning?: ModelCfg<PlanningState>;
   folder?: ModelCfg<FolderState>;
   taskRepeatCfg: ModelCfg<TaskRepeatCfgState>;
@@ -83,6 +86,7 @@ export type AllModelConfig = {
 export type AppDataComplete = AllModelData<AllModelConfig>;
 
 export const MODEL_CONFIGS: AllModelConfig = {
+  eventSeries: { defaultData: initialEventSeriesState, isMainFileModel: true },
   event: { defaultData: initialEventState, isMainFileModel: true },
   folder: { defaultData: initialFolderState, isMainFileModel: true },
   planning: { defaultData: initialPlanningState, isMainFileModel: true },
@@ -223,7 +227,11 @@ export const withDefaultModelSlices = (data: object): AppDataComplete => {
     // WorkSession defaults only when absent. A present null/undefined slice is
     // invalid input and must reach validation rather than become empty data.
     const needsDefault =
-      key === 'event' || key === 'workSession' || key === 'planning' || key === 'folder'
+      key === 'eventSeries' ||
+      key === 'event' ||
+      key === 'workSession' ||
+      key === 'planning' ||
+      key === 'folder'
         ? !Object.hasOwn(result, key)
         : result[key] === undefined || result[key] === null;
     if (needsDefault) {

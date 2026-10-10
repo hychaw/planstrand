@@ -172,6 +172,8 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
 
   // WorkSession actions (V)
   [ActionType.EVENT_ADD]: 'LEA',
+  [ActionType.EVENT_SERIES_ADD]: 'ESA',
+  [ActionType.EVENT_SERIES_UPDATE]: 'ESU',
   [ActionType.EVENT_UPDATE]: 'LEU',
   [ActionType.EVENT_REMOVE]: 'LED',
   [ActionType.WORK_SESSION_ADD]: 'VA',

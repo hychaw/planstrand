@@ -35,6 +35,7 @@ describe('entity-registry', () => {
     'FOLDER',
     'WORK_SESSION',
     'EVENT',
+    'EVENT_SERIES',
     'REMINDER',
     'PLUGIN_USER_DATA',
     'PLUGIN_METADATA',
@@ -57,6 +58,7 @@ describe('entity-registry', () => {
     'SECTION',
     'WORK_SESSION',
     'EVENT',
+    'EVENT_SERIES',
   ];
 
   const SINGLETON_ENTITIES: EntityType[] = [
