@@ -37,7 +37,7 @@ describe('recurring occurrence editor (real commands, reducers and Calendar proj
     segments: [
       {
         id: 'segment',
-        logicalSlotOffset: 40,
+        logicalSlotOffset: 0,
         recurrence: {
           frequency: 'daily',
           startDate: '2026-01-05',
@@ -65,7 +65,7 @@ describe('recurring occurrence editor (real commands, reducers and Calendar proj
       },
     ],
   };
-  const key = { seriesId: series.id, slot: 40 };
+  const key = { seriesId: series.id, slot: 0 };
   let data: EventDialogData;
   let store: Store;
   let exceptions: OccurrenceExceptionService;
@@ -167,11 +167,11 @@ describe('recurring occurrence editor (real commands, reducers and Calendar proj
     expect(component.timeZone).toBe('Asia/Tokyo');
     expect(component.date).toBe('2026-01-05');
     expect(component.startTime).toBe('09:00');
-    expect(fixture!.nativeElement.textContent).toContain('F.EVENT.OCCURRENCE_SCOPE');
+    expect(fixture!.nativeElement.textContent).toContain('F.EVENT.THIS_OCCURRENCE');
     expect(
       fixture!.nativeElement.querySelector('button[color="warn"]').textContent,
     ).toContain('F.EVENT.CANCEL_OCCURRENCE');
-    expect(fixture!.nativeElement.textContent).not.toContain('Entire series');
+    expect(fixture!.nativeElement.textContent).toContain('F.EVENT.ENTIRE_SERIES');
     await fill('title', 'Edited title');
     await fill('date', '2026-01-06');
     await fill('start', '10:00');

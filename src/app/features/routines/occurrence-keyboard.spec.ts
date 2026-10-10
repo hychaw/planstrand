@@ -27,6 +27,7 @@ import { selectAllEventSeries } from './store/event-series.selectors';
 import { occurrenceExceptionReducer } from './store/occurrence-exception.reducer';
 import { selectAllOccurrenceException } from './store/occurrence-exception.selectors';
 import { DialogCancelledOccurrencesComponent } from './dialog-cancelled-occurrences/dialog-cancelled-occurrences.component';
+import { OccurrenceExceptionService } from './occurrence-exception.service';
 
 @Component({
   imports: [ScheduleWeekComponent],
@@ -180,8 +181,9 @@ describe('occurrence keyboard actions and real dialog focus', () => {
       expect(dialogs.openDialogs.length).toBe(1);
       expect((document.activeElement as HTMLInputElement).name).toBe('title');
       const content = document.querySelector('.cdk-overlay-container')!;
-      expect(content.textContent).toContain('Recurring Event · This occurrence');
-      expect(content.textContent).not.toContain('Entire series');
+      expect(content.textContent).toContain('This occurrence');
+      expect(content.textContent).toContain('This and future');
+      expect(content.textContent).toContain('Entire series');
       expect(content.querySelector('.resize-handle')).toBeNull();
       if (key === 'Enter') buttonWith('Close').click();
       else
@@ -206,6 +208,104 @@ describe('occurrence keyboard actions and real dialog focus', () => {
     expect(preview.nativeElement.hasAttribute('tabindex')).toBeFalse();
     expect(dialogs.openDialogs).toEqual([]);
     preview.destroy();
+  });
+
+  it('keeps keyboard focus on scope changes and saves a series edit with translated controls', async () => {
+    const origin = fixture.nativeElement.querySelector('schedule-event') as HTMLElement;
+    origin.focus();
+    origin.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+    const scope = document.querySelector<HTMLSelectElement>('select[name="scope"]')!;
+    scope.focus();
+    scope.value = 'future';
+    scope.dispatchEvent(new Event('change'));
+    await settle();
+    expect(document.activeElement).toBe(scope);
+    const content = document.querySelector('.cdk-overlay-container')!;
+    expect(content.textContent).toContain('Recurrence');
+    expect(content.textContent).not.toContain('F.EVENT.');
+    const title = content.querySelector<HTMLInputElement>('input[name="title"]')!;
+    title.value = 'Edited from keyboard';
+    title.dispatchEvent(new Event('input'));
+    await settle();
+    buttonWith('Save').focus();
+    buttonWith('Save').click();
+    await settle();
+    expect(dialogs.openDialogs.length).toBe(0);
+    expect(origin.textContent).toContain('Edited from keyboard');
+    expect(document.activeElement).toBe(origin);
+  });
+
+  it('restores focus and the unsaved draft after declining retain, then saves only with explicit consent', async () => {
+    TestBed.inject(OccurrenceExceptionService).edit(
+      { seriesId: 'focus-series', slot: 0 },
+      { title: 'Modified occurrence', isAllDay: true, date: '2026-01-05' },
+    );
+    await settle();
+    const origin = fixture.nativeElement.querySelector('schedule-event') as HTMLElement;
+    origin.focus();
+    origin.click();
+    await settle();
+    const scope = document.querySelector<HTMLSelectElement>('select[name="scope"]')!;
+    scope.value = 'series';
+    scope.dispatchEvent(new Event('change'));
+    await settle();
+    const date = document.querySelector<HTMLInputElement>('input[name="date"]')!;
+    date.value = '2026-01-04';
+    date.dispatchEvent(new Event('input'));
+    await settle();
+    const save = buttonWith('Save');
+    save.focus();
+    save.click();
+    await settle();
+    expect(dialogs.openDialogs.length).toBe(2);
+    expect(document.querySelector('.cdk-overlay-container')!.textContent).toContain(
+      'logical occurrence slots',
+    );
+    buttonWith('Cancel').click();
+    await settle();
+    await settle();
+    expect(dialogs.openDialogs.length).toBe(1);
+    expect(document.activeElement).toBe(save);
+    expect(date.value).toBe('2026-01-04');
+    save.click();
+    await settle();
+    document.querySelector<HTMLButtonElement>('[e2e="confirmBtn"]')!.click();
+    await settle();
+    await settle();
+    expect(dialogs.openDialogs.length).toBe(0);
+    expect(document.activeElement).toBe(origin);
+    expect(fixture.nativeElement.textContent).toContain('Modified occurrence');
+  });
+
+  it('confirms entire-series deletion separately and focuses the Calendar after the series disappears', async () => {
+    const origin = fixture.nativeElement.querySelector('schedule-event') as HTMLElement;
+    origin.focus();
+    origin.click();
+    await settle();
+    const remove = buttonWith('Delete entire series');
+    remove.focus();
+    remove.click();
+    await settle();
+    expect(document.querySelector('.cdk-overlay-container')!.textContent).toContain(
+      'All its occurrences',
+    );
+    buttonWith('Cancel').click();
+    await settle();
+    await settle();
+    expect(document.activeElement).toBe(remove);
+    expect(fixture.nativeElement.querySelector('schedule-event')).not.toBeNull();
+    remove.click();
+    await settle();
+    document.querySelector<HTMLButtonElement>('[e2e="confirmBtn"]')!.click();
+    await settle();
+    await settle();
+    expect(dialogs.openDialogs.length).toBe(0);
+    expect(fixture.nativeElement.querySelector('schedule-event')).toBeNull();
+    expect(document.activeElement).toBe(
+      fixture.nativeElement.querySelector('schedule-week'),
+    );
+    expect(TestBed.inject(TaskService).setSelectedId).not.toHaveBeenCalled();
   });
 
   it('restores focus to the Calendar when cancellation removes the block, and to the manager button after restoration', async () => {

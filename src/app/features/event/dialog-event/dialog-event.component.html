@@ -7,99 +7,201 @@
 <form (ngSubmit)="save()">
   <mat-dialog-content>
     @if (occurrenceKey) {
-      <p class="occurrence-scope">{{ T.F.EVENT.OCCURRENCE_SCOPE | translate }}</p>
+      <label class="occurrence-scope">
+        {{ T.F.EVENT.EDIT_SCOPE | translate }}
+        <select
+          name="scope"
+          [ngModel]="scope"
+          (ngModelChange)="changeScope($event)"
+          [disabled]="busy() || !occurrence()"
+        >
+          <option value="occurrence">{{ T.F.EVENT.THIS_OCCURRENCE | translate }}</option>
+          <option value="future">{{ T.F.EVENT.THIS_AND_FUTURE | translate }}</option>
+          <option value="series">{{ T.F.EVENT.ENTIRE_SERIES | translate }}</option>
+        </select>
+      </label>
+      @if (scope !== 'occurrence') {
+        <p class="occurrence-scope">
+          {{
+            (scope === 'series' ? T.F.EVENT.ENTIRE_SERIES_HELP : T.F.EVENT.FUTURE_HELP)
+              | translate
+          }}
+        </p>
+      }
     }
     @if (occurrenceKey && !occurrence()) {
       <p role="alert">{{ T.F.EVENT.OCCURRENCE_UNAVAILABLE | translate }}</p>
-    } @else if (occurrence()?.kind === 'cancelled') {
-      <p role="status">{{ T.F.EVENT.OCCURRENCE_CANCELLED | translate }}</p>
-    } @else {
-      <label
-        >{{ T.F.EVENT.TITLE | translate
-        }}<input
-          name="title"
-          [(ngModel)]="title"
-          required
-          cdkFocusInitial
-      /></label>
-      <fieldset>
-        <legend>{{ 'PLANSTRAND.WHEN' | translate }}</legend>
-        <label
-          ><input
-            type="checkbox"
-            name="allDay"
-            [(ngModel)]="isAllDay"
-          />{{ T.F.EVENT.ALL_DAY | translate }}</label
-        >
-        <label
-          >{{ T.F.EVENT.DATE | translate
-          }}<input
-            type="date"
-            name="date"
-            [(ngModel)]="date"
-            (ngModelChange)="endDate = $event"
-            required
-        /></label>
-        @if (!isAllDay) {
+    }
+    @if (!occurrenceKey || occurrence() || scope !== 'occurrence') {
+      @if (scope === 'occurrence' && occurrence()?.kind === 'cancelled') {
+        <p role="status">{{ T.F.EVENT.OCCURRENCE_CANCELLED | translate }}</p>
+      } @else {
+        <fieldset [disabled]="busy()">
           <label
-            >{{ T.F.EVENT.START | translate
+            >{{ T.F.EVENT.TITLE | translate
             }}<input
-              type="time"
-              name="start"
-              [(ngModel)]="startTime"
+              name="title"
+              [(ngModel)]="title"
               required
+              cdkFocusInitial
           /></label>
-          <label
-            >{{ T.F.EVENT.END_DATE | translate
-            }}<input
-              type="date"
-              name="endDate"
-              [(ngModel)]="endDate"
-              required
-          /></label>
-          <label
-            >{{ T.F.EVENT.END | translate
-            }}<input
-              type="time"
-              name="end"
-              [(ngModel)]="endTime"
-              required
-          /></label>
-          <label
-            >{{ T.F.EVENT.TIME_ZONE | translate
-            }}<input
-              name="timeZone"
-              [(ngModel)]="timeZone"
-              required
-          /></label>
+          <fieldset>
+            <legend>{{ 'PLANSTRAND.WHEN' | translate }}</legend>
+            <label
+              ><input
+                type="checkbox"
+                name="allDay"
+                [(ngModel)]="isAllDay"
+              />{{ T.F.EVENT.ALL_DAY | translate }}</label
+            >
+            <label
+              >{{ T.F.EVENT.DATE | translate
+              }}<input
+                type="date"
+                name="date"
+                [(ngModel)]="date"
+                (ngModelChange)="endDate = $event"
+                required
+            /></label>
+            @if (!isAllDay) {
+              <label
+                >{{ T.F.EVENT.START | translate
+                }}<input
+                  type="time"
+                  name="start"
+                  [(ngModel)]="startTime"
+                  required
+              /></label>
+              @if (scope === 'occurrence') {
+                <label
+                  >{{ T.F.EVENT.END_DATE | translate
+                  }}<input
+                    type="date"
+                    name="endDate"
+                    [(ngModel)]="endDate"
+                    required
+                /></label>
+                <label
+                  >{{ T.F.EVENT.END | translate
+                  }}<input
+                    type="time"
+                    name="end"
+                    [(ngModel)]="endTime"
+                    required
+                /></label>
+              } @else {
+                <label
+                  >{{ T.F.EVENT.DURATION_MINUTES | translate
+                  }}<input
+                    type="number"
+                    name="duration"
+                    [(ngModel)]="durationMinutes"
+                    min="0"
+                    step="any"
+                    required
+                /></label>
+              }
+              <label
+                >{{ T.F.EVENT.TIME_ZONE | translate
+                }}<input
+                  name="timeZone"
+                  [(ngModel)]="timeZone"
+                  required
+              /></label>
+            }
+          </fieldset>
+          @if (scope !== 'occurrence') {
+            <fieldset>
+              <legend>{{ T.F.EVENT.RECURRENCE | translate }}</legend>
+              <label
+                >{{ T.F.EVENT.FREQUENCY | translate
+                }}<select
+                  name="frequency"
+                  [(ngModel)]="frequency"
+                >
+                  <option value="daily">{{ T.F.EVENT.DAILY | translate }}</option>
+                  <option value="weekly">{{ T.F.EVENT.WEEKLY | translate }}</option>
+                  <option value="monthly">{{ T.F.EVENT.MONTHLY | translate }}</option>
+                </select></label
+              >
+              <label
+                >{{ T.F.EVENT.INTERVAL | translate
+                }}<input
+                  name="interval"
+                  type="number"
+                  min="1"
+                  step="1"
+                  [(ngModel)]="interval"
+                  required
+              /></label>
+              @if (frequency === 'weekly') {
+                <fieldset class="weekdays">
+                  <legend>{{ T.F.EVENT.WEEKDAYS | translate }}</legend>
+                  @for (day of weekdayOptions; track day; let index = $index) {
+                    <label
+                      ><input
+                        type="checkbox"
+                        [name]="'weekday' + index"
+                        [ngModel]="weekdays.includes(index + 1)"
+                        (ngModelChange)="setWeekday(index + 1, $event)"
+                      />{{ day | translate }}</label
+                    >
+                  }
+                </fieldset>
+              }
+              <label
+                >{{ T.F.EVENT.SERIES_END_DATE | translate
+                }}<input
+                  name="recurrenceEndDate"
+                  type="date"
+                  [(ngModel)]="recurrenceEndDate"
+                  [min]="date"
+              /></label>
+              <p class="occurrence-scope">{{ T.F.EVENT.SERIES_END_HELP | translate }}</p>
+            </fieldset>
+          }
+        </fieldset>
+        @if (invalid) {
+          <p role="alert">{{ T.F.EVENT.INVALID | translate }}</p>
         }
-      </fieldset>
-      @if (invalid) {
-        <p role="alert">{{ T.F.EVENT.INVALID | translate }}</p>
       }
+    }
+    @if (seriesError(); as error) {
+      <p role="alert">{{ error | translate }}</p>
     }
   </mat-dialog-content>
   <mat-dialog-actions align="end">
     @if (occurrenceKey && occurrence(); as current) {
-      @if (current.kind !== 'cancelled') {
+      @if (scope === 'occurrence' && current.kind !== 'cancelled') {
         <button
           mat-button
           type="button"
           color="warn"
           (click)="cancelOccurrence()"
+          [disabled]="busy()"
         >
           {{ T.F.EVENT.CANCEL_OCCURRENCE | translate }}
         </button>
       }
-      @if (current.kind !== 'inherit') {
+      @if (scope === 'occurrence' && current.kind !== 'inherit') {
         <button
           mat-button
           type="button"
           (click)="restoreOccurrence()"
+          [disabled]="busy()"
         >
           {{ T.F.EVENT.RESTORE_OCCURRENCE | translate }}
         </button>
       }
+      <button
+        mat-button
+        type="button"
+        color="warn"
+        (click)="deleteEntireSeries()"
+        [attr.aria-disabled]="busy()"
+      >
+        {{ T.F.EVENT.DELETE_SERIES | translate }}
+      </button>
     } @else if (!occurrenceKey && data.id) {
       <button
         mat-button
@@ -114,6 +216,7 @@
       mat-button
       type="button"
       mat-dialog-close
+      [disabled]="busy()"
     >
       {{ (occurrenceKey ? T.G.CLOSE : T.G.CANCEL) | translate }}
     </button>
@@ -121,8 +224,10 @@
       mat-flat-button
       color="primary"
       type="submit"
+      [attr.aria-disabled]="busy()"
       [disabled]="
-        !!occurrenceKey && (!occurrence() || occurrence()?.kind === 'cancelled')
+        !!occurrenceKey &&
+        (!occurrence() || (scope === 'occurrence' && occurrence()?.kind === 'cancelled'))
       "
     >
       {{ T.G.SAVE | translate }}
