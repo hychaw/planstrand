@@ -51,18 +51,7 @@ const monthNumber = (date: string): number => {
   return yearMonths + Number(date.slice(5, 7)) - 1;
 };
 
-/**
- * Enumerates [fromDate, toDateExclusive), clipped to the inclusive series bounds.
- * Slots count candidates from startDate, independent of the requested window.
- * Weekly phase starts on the Monday of startDate's week. Input weekday order
- * does not matter; duplicates and invalid specifications throw RangeError.
- * Monthly rules keep startDate's day of month, reserving slots for invalid dates.
- * Work is proportional to the requested candidates, not the series' age.
- */
-export const getRecurrenceCandidates = (
-  spec: RecurrenceSpec,
-  range: RecurrenceDateRange,
-): RecurrenceCandidate[] => {
+const validateSpec = (spec: RecurrenceSpec): void => {
   if (
     !spec ||
     !validDate(spec.startDate) ||
@@ -76,14 +65,6 @@ export const getRecurrenceCandidates = (
   ) {
     throw new RangeError('Invalid recurrence specification');
   }
-  if (
-    !range ||
-    !validDate(range.fromDate) ||
-    !validDate(range.toDateExclusive) ||
-    range.fromDate > range.toDateExclusive
-  ) {
-    throw new RangeError('Invalid recurrence date range');
-  }
   const weekdays = spec.frequency === 'weekly' ? spec.weekdays : [];
   if (
     spec.frequency === 'weekly' &&
@@ -94,6 +75,30 @@ export const getRecurrenceCandidates = (
   ) {
     throw new RangeError('Invalid recurrence weekdays');
   }
+};
+
+/**
+ * Enumerates [fromDate, toDateExclusive), clipped to the inclusive series bounds.
+ * Slots count candidates from startDate, independent of the requested window.
+ * Weekly phase starts on the Monday of startDate's week. Input weekday order
+ * does not matter; duplicates and invalid specifications throw RangeError.
+ * Monthly rules keep startDate's day of month, reserving slots for invalid dates.
+ * Work is proportional to the requested candidates, not the series' age.
+ */
+export const getRecurrenceCandidates = (
+  spec: RecurrenceSpec,
+  range: RecurrenceDateRange,
+): RecurrenceCandidate[] => {
+  validateSpec(spec);
+  if (
+    !range ||
+    !validDate(range.fromDate) ||
+    !validDate(range.toDateExclusive) ||
+    range.fromDate > range.toDateExclusive
+  ) {
+    throw new RangeError('Invalid recurrence date range');
+  }
+  const weekdays = spec.frequency === 'weekly' ? spec.weekdays : [];
 
   const start = dayNumber(spec.startDate);
   const from = Math.max(start, dayNumber(range.fromDate));
@@ -169,4 +174,48 @@ export const getRecurrenceCandidates = (
     }
   }
   return candidates;
+};
+
+/** Resolve one engine slot without enumerating its history. Missing monthly
+ * dates and slots outside the inclusive series bounds have no candidate.
+ */
+export const getRecurrenceCandidateForSlot = (
+  spec: RecurrenceSpec,
+  slot: number,
+): RecurrenceCandidate | null => {
+  validateSpec(spec);
+  if (!Number.isSafeInteger(slot) || slot < 0 || Object.is(slot, -0)) {
+    throw new RangeError('Invalid recurrence slot');
+  }
+  let date: string;
+  if (spec.frequency === 'monthly') {
+    const offset = slot * spec.interval;
+    const month = monthNumber(spec.startDate) + offset;
+    if (month > monthNumber('9999-12-31')) return null;
+    date = `${String(Math.floor(month / 12)).padStart(4, '0')}-${String(
+      (month % 12) + 1,
+    ).padStart(2, '0')}-${spec.startDate.slice(8)}`;
+  } else {
+    const start = dayNumber(spec.startDate);
+    let day: number;
+    if (spec.frequency === 'daily') {
+      const offset = slot * spec.interval;
+      day = start + offset;
+    } else {
+      const weekdays = [...spec.weekdays].sort((a, b) => a - b);
+      const startWeekday = (((start + 3) % 7) + 7) % 7;
+      const excluded = weekdays.filter((weekday) => weekday - 1 < startWeekday).length;
+      const index = slot + excluded;
+      const week = Math.floor(index / weekdays.length);
+      const offset = week * spec.interval * 7;
+      day = start - startWeekday + offset + weekdays[index % weekdays.length] - 1;
+    }
+    if (day > dayNumber(spec.endDate ?? '9999-12-31')) return null;
+    date = civilDate(day);
+  }
+  return validDate(date) &&
+    date >= spec.startDate &&
+    (spec.endDate === undefined || date <= spec.endDate)
+    ? { date, slot }
+    : null;
 };

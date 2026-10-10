@@ -12,6 +12,7 @@ import { selectPersistedCalendarDisplayItems } from './calendar-display-item.sel
 import { projectCalendarIntegrationEvent } from './calendar-display-item';
 import { CalendarDisplayItem } from './calendar-display-item.model';
 import { selectAllEventSeries } from '../routines/store/event-series.selectors';
+import { selectAllOccurrenceException } from '../routines/store/occurrence-exception.selectors';
 import { RecurrenceDateRange } from '../routines/recurrence/recurrence-candidates';
 import { projectEventOccurrences } from './project-event-occurrences';
 
@@ -26,6 +27,7 @@ export class CalendarDisplayService {
   });
   readonly today = this._dates.dateInZone(this.displayTimeZone);
   private readonly _series = inject(Store).selectSignal(selectAllEventSeries);
+  private readonly _exceptions = inject(Store).selectSignal(selectAllOccurrenceException);
 
   /** Each consumer owns its range. Expansion ignores Task/clock/provider changes. */
   createItemsForRangeComputed(
@@ -34,7 +36,12 @@ export class CalendarDisplayService {
     const occurrences = computed(() => {
       const window = range();
       return window
-        ? projectEventOccurrences(this._series(), window, this.displayTimeZone())
+        ? projectEventOccurrences(
+            this._series(),
+            window,
+            this.displayTimeZone(),
+            this._exceptions(),
+          )
         : [];
     });
     return computed(() => [...this.items(), ...occurrences()]);
@@ -54,7 +61,12 @@ export class CalendarDisplayService {
     return [
       ...this.items(),
       ...(range
-        ? projectEventOccurrences(this._series(), range, this.displayTimeZone())
+        ? projectEventOccurrences(
+            this._series(),
+            range,
+            this.displayTimeZone(),
+            this._exceptions(),
+          )
         : []),
     ];
   }

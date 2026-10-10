@@ -25,6 +25,12 @@ import { selectPlannerDayMap } from '../planner/store/planner.selectors';
 import { selectTaskRepeatCfgsWithAndWithoutStartTime } from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { EventSeries } from '../routines/event-series.model';
 import { selectAllEventSeries } from '../routines/store/event-series.selectors';
+import { selectAllOccurrenceException } from '../routines/store/occurrence-exception.selectors';
+import {
+  OccurrenceException,
+  OccurrenceExceptionValue,
+} from '../routines/occurrence-exception.model';
+import { occurrenceExceptionId } from '../routines/occurrence-exception.validation';
 import { CalendarDisplayService } from './calendar-display.service';
 import { selectPersistedCalendarDisplayItems } from './calendar-display-item.selectors';
 import { projectEvent, projectWorkSession } from './calendar-display-item';
@@ -116,6 +122,7 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
           selectors: [
             { selector: selectLocalizationConfig, value: { timeZone: 'UTC' } },
             { selector: selectAllEventSeries, value: [allDay, overnight] },
+            { selector: selectAllOccurrenceException, value: [] },
             { selector: selectPersistedCalendarDisplayItems, value: [local, session] },
             {
               selector: selectTimelineTasks,
@@ -223,6 +230,19 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
   };
   const titleOf = (event: ScheduleEvent): string | undefined =>
     event.data && 'title' in event.data ? (event.data.title ?? undefined) : undefined;
+  const setExceptions = (
+    values: { seriesId: string; slot: number; value: OccurrenceExceptionValue }[],
+  ): void => {
+    const exceptions: OccurrenceException[] = values.map(({ seriesId, slot, value }) => ({
+      id: occurrenceExceptionId({ seriesId, slot }),
+      seriesId,
+      slot,
+      value,
+      modified: 2,
+    }));
+    store.overrideSelector(selectAllOccurrenceException, exceptions);
+    store.refreshState();
+  };
   const renderWeek = (
     days: string[],
     events = eventsFor(days),
@@ -335,6 +355,165 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
     expect(fixture.componentInstance.months()[1].days.length).toBe(29);
   });
 
+  it('applies moved and shape-changing exceptions consistently in Day, Week and Year counts', () => {
+    store.overrideSelector(selectAllEventSeries, [overnight]);
+    setExceptions([
+      {
+        seriesId: overnight.id,
+        slot: 0,
+        value: {
+          kind: 'override',
+          event: {
+            title: 'Moved all-day',
+            isAllDay: true,
+            date: '2026-01-15',
+          },
+        },
+      },
+    ]);
+    expect(eventsFor(['2026-01-14'])).toEqual([]);
+    const day = eventsFor(['2026-01-15']);
+    const originalId = day.find((event) => titleOf(event) === 'Moved all-day')!.id;
+    expect(day.map((event) => event.type)).toContain(SVEType.LocalEvent);
+    expect(day.map((event) => event.type)).toContain(SVEType.WorkSession);
+    const dayFixture = renderWeek(['2026-01-15'], day);
+    expect(dayFixture.nativeElement.querySelector('.week-header').textContent).toContain(
+      'Moved all-day',
+    );
+    setExceptions([
+      {
+        seriesId: overnight.id,
+        slot: 0,
+        value: {
+          kind: 'override',
+          event: {
+            title: 'Moved timed',
+            isAllDay: false,
+            start: Date.parse('2026-01-15T23:00:00Z'),
+            end: Date.parse('2026-01-17T00:00:00Z'),
+            timeZone: 'UTC',
+          },
+        },
+      },
+    ]);
+    const days = ['2026-01-14', '2026-01-15', '2026-01-16', '2026-01-17'];
+    const events = eventsFor(days);
+    const slices = events.filter((event) => event.type === SVEType.EventOccurrence);
+    expect(slices.map((event) => event.plannedForDay)).toEqual([
+      '2026-01-15',
+      '2026-01-16',
+    ]);
+    expect(new Set(slices.map((event) => event.id))).toEqual(new Set([originalId]));
+    const week = renderWeek(days, events);
+    expect(
+      week.nativeElement.querySelectorAll('schedule-event.EventOccurrence').length,
+    ).toBe(2);
+    const year = TestBed.createComponent(ScheduleYearComponent);
+    year.componentRef.setInput('year', 2026);
+    year.detectChanges();
+    const january = year.componentInstance.months()[0].days;
+    expect(january[13].count).toBe(0);
+    expect(january[14].count).toBe(3);
+    expect(january[14].hasWork).toBeTrue();
+    expect(january[15].count).toBe(1);
+    expect(january[16].count).toBe(0);
+    store.overrideSelector(selectLocalizationConfig, { timeZone: 'Asia/Tokyo' });
+    store.refreshState();
+    expect(year.componentInstance.months()[0].days[14].count).toBe(2);
+    expect(year.componentInstance.months()[0].days[15].count).toBe(1);
+    expect(year.componentInstance.months()[0].days[16].count).toBe(1);
+    const shifted = eventsFor(['2026-01-16']).find(
+      (event) => event.type === SVEType.EventOccurrence,
+    )!;
+    expect(shifted.id).toBe(originalId);
+    expect(shifted.startHours).toBe(8);
+    store.overrideSelector(selectLocalizationConfig, { timeZone: 'UTC' });
+    store.refreshState();
+    setExceptions([{ seriesId: overnight.id, slot: 0, value: { kind: 'cancelled' } }]);
+    expect(
+      eventsFor(days).some((event) => event.type === SVEType.EventOccurrence),
+    ).toBeFalse();
+    expect(year.componentInstance.months()[0].days[15].count).toBe(0);
+    setExceptions([{ seriesId: overnight.id, slot: 0, value: { kind: 'inherit' } }]);
+    expect(eventsFor(['2026-01-14'])[0].id).toBe(originalId);
+    expect(year.componentInstance.months()[0].days[13].count).toBe(1);
+  });
+
+  it('shows overrides moved from another year into both padded Month edges and Year, then moves them out', () => {
+    const bounded: EventSeries = {
+      ...allDay,
+      segments: [
+        {
+          ...allDay.segments[0],
+          recurrence: {
+            ...allDay.segments[0].recurrence,
+            endDate: '2025-01-02',
+          },
+        },
+      ],
+    };
+    store.overrideSelector(selectAllEventSeries, [bounded]);
+    const values = [
+      {
+        seriesId: bounded.id,
+        slot: 0,
+        value: {
+          kind: 'override' as const,
+          event: { title: 'Left padding', isAllDay: true as const, date: '2026-07-27' },
+        },
+      },
+      {
+        seriesId: bounded.id,
+        slot: 1,
+        value: {
+          kind: 'override' as const,
+          event: { title: 'Right padding', isAllDay: true as const, date: '2026-09-06' },
+        },
+      },
+    ];
+    setExceptions(values);
+    const date = new Date(2026, 7, 1);
+    const weeks = service.getMonthWeeksToShow(1, date);
+    const days = service.getMonthDaysToShow(weeks, 1, date);
+    const events = eventsFor(days);
+    expect(events.map((event) => event.plannedForDay)).toEqual([
+      '2026-07-27',
+      '2026-09-06',
+    ]);
+    const month = TestBed.createComponent(ScheduleMonthComponent);
+    month.componentRef.setInput('daysToShow', days);
+    month.componentRef.setInput('weeksToShow', weeks);
+    month.componentRef.setInput('events', events);
+    month.detectChanges();
+    expect(
+      month.nativeElement.querySelector('[data-day="2026-07-27"]').textContent,
+    ).toContain('Left padding');
+    expect(
+      month.nativeElement.querySelector('[data-day="2026-09-06"]').textContent,
+    ).toContain('Right padding');
+    expect(
+      month.debugElement
+        .queryAll(By.directive(CdkDrag))
+        .every((element) => element.injector.get(CdkDrag).disabled),
+    ).toBeTrue();
+    const year = TestBed.createComponent(ScheduleYearComponent);
+    year.componentRef.setInput('year', 2026);
+    year.detectChanges();
+    expect(year.componentInstance.months()[6].days[26].count).toBe(1);
+    expect(year.componentInstance.months()[8].days[5].count).toBe(1);
+    setExceptions(
+      values.map((value) => ({
+        ...value,
+        value: { ...value.value, event: { ...value.value.event, date: '2027-01-01' } },
+      })),
+    );
+    expect(eventsFor(days)).toEqual([]);
+    expect(year.componentInstance.months()[6].days[26].count).toBe(0);
+    expect(year.componentInstance.months()[8].days[5].count).toBe(0);
+    year.componentRef.setInput('year', 2027);
+    expect(year.componentInstance.months()[0].days[0].count).toBe(2);
+  });
+
   it('reacts to navigation, series edits and display timezone changes through bounded signals', () => {
     const days = signal(['2026-01-15']);
     const schedule = service.createScheduleDaysComputed(days);
@@ -368,6 +547,22 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
   });
 
   it('keeps occurrence click, resize, delete and forged drag deliveries out of every write path', async () => {
+    setExceptions([
+      {
+        seriesId: overnight.id,
+        slot: 0,
+        value: {
+          kind: 'override',
+          event: {
+            title: overnight.title,
+            isAllDay: false,
+            start: Date.parse('2026-01-15T09:00:00Z'),
+            end: Date.parse('2026-01-15T10:00:00Z'),
+            timeZone: 'UTC',
+          },
+        },
+      },
+    ]);
     const fixture = renderWeek(['2026-01-15']);
     const entry = fixture.debugElement
       .queryAll(By.directive(ScheduleEventComponent))

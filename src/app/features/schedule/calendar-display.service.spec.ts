@@ -6,6 +6,9 @@ import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { BehaviorSubject } from 'rxjs';
 import { CalendarDisplayService } from './calendar-display.service';
 import { selectAllEventSeries } from '../routines/store/event-series.selectors';
+import { selectAllOccurrenceException } from '../routines/store/occurrence-exception.selectors';
+import { occurrenceExceptionId } from '../routines/occurrence-exception.validation';
+import { OccurrenceException } from '../routines/occurrence-exception.model';
 import { EventSeries } from '../routines/event-series.model';
 import { selectLocalizationConfig } from '../config/store/global-config.reducer';
 import { CurrentDateService } from '../../core/date/current-date.service';
@@ -41,6 +44,7 @@ describe('CalendarDisplayService', () => {
         provideMockStore({
           selectors: [
             { selector: selectAllEventSeries, value: [series] },
+            { selector: selectAllOccurrenceException, value: [] },
             { selector: selectLocalizationConfig, value: { timeZone: 'UTC' } },
             { selector: selectPersistedCalendarDisplayItems, value: [] },
           ],
@@ -62,6 +66,33 @@ describe('CalendarDisplayService', () => {
     expect(original.sourceType).toBe('eventOccurrence');
     expect(second()[0].start).toBe(Date.parse('2026-02-01T00:00:00Z'));
     expect(service.items()).toEqual([]);
+    const slot =
+      'occurrence' in original ? (original.occurrence as { slot: number }).slot : -1;
+    const override: OccurrenceException = {
+      id: occurrenceExceptionId({ seriesId: series.id, slot }),
+      seriesId: series.id,
+      slot,
+      modified: 2,
+      value: {
+        kind: 'override',
+        event: {
+          title: 'Moved',
+          isAllDay: false,
+          start: Date.parse('2026-01-10T00:00:00Z'),
+          end: Date.parse('2026-01-10T01:00:00Z'),
+          timeZone: 'UTC',
+        },
+      },
+    };
+    store.overrideSelector(selectAllOccurrenceException, [override]);
+    store.refreshState();
+    expect(first()[0].title).toBe('Moved');
+    expect(first()[0].id).toBe(original.id);
+    expect(service.itemsForDays(['2026-01-10'])).toEqual(first());
+    expect(second()[0].title).toBe(series.title);
+    store.overrideSelector(selectAllOccurrenceException, []);
+    store.refreshState();
+    const restored = first()[0];
     const local = projectWorkSession({
       id: 'session',
       taskId: 'task',
@@ -73,11 +104,11 @@ describe('CalendarDisplayService', () => {
     store.overrideSelector(selectPersistedCalendarDisplayItems, [local]);
     store.refreshState();
     days.set(['2026-01-10']); // Same range, newly allocated by a clock-dependent caller.
-    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(original);
+    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(restored);
     events.next([]);
-    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(original);
+    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(restored);
     TestBed.inject(CurrentDateService).refresh();
-    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(original);
+    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(restored);
     days.set(['2026-01-11']);
     const next = first().find((item) => item.sourceType === 'eventOccurrence')!;
     expect(next.start).toBe(Date.parse('2026-01-11T00:00:00Z'));
@@ -178,6 +209,34 @@ describe('CalendarDisplayService', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
   it('combines WorkSession, local Event and external items without provider duplicates', () => {
+    const series: EventSeries = {
+      id: 'external',
+      title: 'Routine',
+      created: 1,
+      modified: 1,
+      segments: [
+        {
+          id: 'segment',
+          timing: { kind: 'allDay' },
+          recurrence: {
+            frequency: 'daily',
+            startDate: '2026-10-04',
+            endDate: '2026-10-04',
+            interval: 1,
+          },
+        },
+      ],
+    };
+    const override: OccurrenceException = {
+      id: occurrenceExceptionId({ seriesId: series.id, slot: 0 }),
+      seriesId: series.id,
+      slot: 0,
+      modified: 2,
+      value: {
+        kind: 'override',
+        event: { title: 'Edited routine', isAllDay: true, date: '2026-10-05' },
+      },
+    };
     const local = projectEvent({
       id: 'local',
       title: 'Local',
@@ -208,6 +267,9 @@ describe('CalendarDisplayService', () => {
         provideMockStore({
           selectors: [
             { selector: selectPersistedCalendarDisplayItems, value: [session, local] },
+            { selector: selectAllEventSeries, value: [series] },
+            { selector: selectAllOccurrenceException, value: [override] },
+            { selector: selectLocalizationConfig, value: { timeZone: 'UTC' } },
           ],
         }),
         {
@@ -229,5 +291,11 @@ describe('CalendarDisplayService', () => {
       'external',
     ]);
     expect(service.externalCalendars()[0].items.length).toBe(1);
+    const items = service.itemsForDays(['2026-10-05']);
+    expect(items.length).toBe(4);
+    expect(new Set(items.map((item) => item.id)).size).toBe(4);
+    expect(
+      items.filter((item) => item.sourceId === 'external').map((item) => item.sourceType),
+    ).toEqual(['external', 'eventOccurrence']);
   });
 });

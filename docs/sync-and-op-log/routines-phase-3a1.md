@@ -1,7 +1,8 @@
 # Occurrence exception persistence (Phase 3a.1)
 
 Occurrence exceptions are an optional, separate `occurrenceException` entity slice.
-Calendar does not read or apply this slice yet. Ordinary generated occurrences
+Calendar reads and applies this slice in [Phase 3a.2](../routines-phase-3a2.md).
+Ordinary generated occurrences
 remain read models and do not create Events, Tasks, WorkSessions or Planning entries.
 
 ## Identity
@@ -99,8 +100,9 @@ Angular's normal IndexedDB tests use fake-indexeddb; file tests use MockFileProv
 These are focused browser/in-process tests, not released multi-device app tests
 or a production sync-server deployment.
 
-Phase 3a.2 still owns exception application in Calendar, override visibility when
-moved into/out of a query range, dialogs, scope choice and public action routing.
+Phase 3a.2 owns read-only exception application in Calendar and override visibility
+when moved into/out of a query range. Dialogs, scope choice and public action routing
+follow in a separate UI milestone.
 Series splitting/deletion, Weekly Templates and external calendar write-back
 remain excluded.
 

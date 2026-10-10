@@ -1,10 +1,16 @@
 import { logicalOccurrenceSlot, occurrenceKey } from '../routines/occurrence-key';
-import { EventSeries } from '../routines/event-series.model';
+import { EventSeries, EventSeriesSegment } from '../routines/event-series.model';
+import { EventInput } from '../event/event.model';
+import { OccurrenceException } from '../routines/occurrence-exception.model';
 import {
+  getRecurrenceCandidateForSlot,
   getRecurrenceCandidates,
   RecurrenceDateRange,
 } from '../routines/recurrence/recurrence-candidates';
-import { evaluateRecurrenceCandidate } from '../routines/recurrence/recurrence-evaluation';
+import {
+  evaluateRecurrenceCandidate,
+  RecurrenceOccurrence,
+} from '../routines/recurrence/recurrence-evaluation';
 import { isValidDBDateStr } from '../../util/get-db-date-str';
 import { isValidIanaTimeZone } from '../../util/iana-time-zone';
 import { calendarDayStart } from './calendar-time';
@@ -35,6 +41,7 @@ export const projectEventOccurrences = (
   series: readonly EventSeries[],
   range: RecurrenceDateRange,
   displayTimeZone: string,
+  exceptions: readonly OccurrenceException[] = [],
 ): EventOccurrenceDisplayItem[] => {
   if (
     !range ||
@@ -49,6 +56,70 @@ export const projectEventOccurrences = (
   const from = calendarDayStart(range.fromDate, displayTimeZone);
   const to = calendarDayStart(range.toDateExclusive, displayTimeZone);
   const items = new Map<string, EventOccurrenceDisplayItem>();
+  const byKey = new Map(
+    exceptions.map(({ seriesId, slot, value }) => [
+      occurrenceKey({ seriesId, slot }),
+      value,
+    ]),
+  );
+  const overlaps = (event: EventInput): boolean =>
+    event.isAllDay
+      ? event.date >= range.fromDate && event.date < range.toDateExclusive
+      : event.start < to && event.end > from;
+  const addOccurrence = (
+    source: EventSeries,
+    segment: EventSeriesSegment,
+    occurrence: RecurrenceOccurrence,
+  ): void => {
+    const slot = logicalOccurrenceSlot(occurrence.slot, segment.logicalSlotOffset);
+    const key = occurrenceKey({ seriesId: source.id, slot });
+    const exception = byKey.get(key);
+    if (exception?.kind === 'cancelled') return;
+    const event =
+      exception?.kind === 'override'
+        ? exception.event
+        : occurrence.kind === 'allDay'
+          ? { title: source.title, isAllDay: true as const, date: occurrence.date }
+          : {
+              title: source.title,
+              isAllDay: false as const,
+              start: occurrence.start,
+              end: occurrence.end,
+              timeZone: occurrence.timeZone,
+            };
+    if (!overlaps(event)) return;
+    const id = `eventOccurrence:${key}`;
+    items.set(id, {
+      id,
+      sourceType: 'eventOccurrence',
+      sourceId: source.id,
+      title: event.title,
+      occurrence: {
+        segmentId: segment.id,
+        slot,
+        key,
+        scheduledDate: occurrence.date,
+      },
+      ...(event.isAllDay
+        ? {
+            isAllDay: true,
+            date: event.date,
+            // Disposable sorting coordinates; date remains authoritative.
+            start: Date.parse(`${event.date}T00:00:00Z`),
+            end: Date.parse(`${event.date}T00:00:00Z`),
+          }
+        : {
+            isAllDay: false,
+            start: event.start,
+            end: event.end,
+            timeZone: event.timeZone,
+          }),
+      canMove: false,
+      canResize: false,
+      canDelete: false,
+      isReadOnly: true,
+    });
+  };
   for (const source of series) {
     for (const segment of source.segments) {
       const timing = segment.timing;
@@ -64,47 +135,25 @@ export const projectEventOccurrences = (
         candidateRange,
       )) {
         const occurrence = evaluateRecurrenceCandidate(candidate, timing);
-        if (
-          !occurrence ||
-          (occurrence.kind === 'timed' &&
-            (occurrence.start >= to || occurrence.end <= from))
-        ) {
-          continue;
-        }
-        const slot = logicalOccurrenceSlot(occurrence.slot, segment.logicalSlotOffset);
-        const key = occurrenceKey({ seriesId: source.id, slot });
-        const id = `eventOccurrence:${key}`;
-        items.set(id, {
-          id,
-          sourceType: 'eventOccurrence',
-          sourceId: source.id,
-          title: source.title,
-          occurrence: {
-            segmentId: segment.id,
-            slot,
-            key,
-            scheduledDate: occurrence.date,
-          },
-          ...(occurrence.kind === 'allDay'
-            ? {
-                isAllDay: true,
-                date: occurrence.date,
-                // Disposable sorting coordinates; date remains authoritative.
-                start: Date.parse(`${occurrence.date}T00:00:00Z`),
-                end: Date.parse(`${occurrence.date}T00:00:00Z`),
-              }
-            : {
-                isAllDay: false,
-                start: occurrence.start,
-                end: occurrence.end,
-                timeZone: occurrence.timeZone,
-              }),
-          canMove: false,
-          canResize: false,
-          canDelete: false,
-          isReadOnly: true,
-        });
+        if (occurrence) addOccurrence(source, segment, occurrence);
       }
+    }
+  }
+  // Effective timing can overlap even when the scheduled slot is outside the
+  // bounded recurrence window. Resolve only these persisted overrides by slot.
+  const bySeriesId = new Map(series.map((source) => [source.id, source]));
+  for (const exception of exceptions) {
+    if (exception.value.kind !== 'override' || !overlaps(exception.value.event)) continue;
+    const source = bySeriesId.get(exception.seriesId);
+    const key = occurrenceKey({ seriesId: exception.seriesId, slot: exception.slot });
+    if (!source || items.has(`eventOccurrence:${key}`)) continue;
+    for (const segment of source.segments) {
+      const engineSlot = exception.slot - (segment.logicalSlotOffset ?? 0);
+      if (engineSlot < 0) continue;
+      const candidate = getRecurrenceCandidateForSlot(segment.recurrence, engineSlot);
+      if (!candidate) continue;
+      const occurrence = evaluateRecurrenceCandidate(candidate, segment.timing);
+      if (occurrence) addOccurrence(source, segment, occurrence);
     }
   }
   return [...items.values()].sort(

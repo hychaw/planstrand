@@ -1,4 +1,5 @@
 import {
+  getRecurrenceCandidateForSlot,
   getRecurrenceCandidates,
   RecurrenceDateRange,
   RecurrenceSpec,
@@ -230,6 +231,73 @@ describe('recurrence candidates', () => {
         [],
       );
     }
+  });
+
+  it('resolves slots directly with the same daily, weekly and monthly phase as bounded expansion', () => {
+    for (const startDate of [
+      '2024-12-23',
+      '2024-12-25',
+      '2024-12-29',
+      '2024-01-31',
+      '0099-12-31',
+    ]) {
+      for (const interval of [1, 2, 3]) {
+        for (const spec of [
+          { ...daily(interval), startDate },
+          { ...weekly(interval), startDate },
+          { ...weekly(interval), startDate, weekdays: [1, 2] },
+          { frequency: 'monthly', startDate, interval },
+        ] as RecurrenceSpec[]) {
+          const candidates = getRecurrenceCandidates(
+            spec,
+            range(startDate, startDate < '0100-01-01' ? '0101-01-01' : '2027-01-01'),
+          );
+          for (const candidate of candidates) {
+            expect(getRecurrenceCandidateForSlot(spec, candidate.slot)).toEqual(
+              candidate,
+            );
+          }
+        }
+      }
+    }
+  });
+
+  it('reserves missing monthly slots and rejects slots after inclusive bounds or the date domain', () => {
+    const monthly: RecurrenceSpec = {
+      frequency: 'monthly',
+      startDate: '2024-01-31',
+      interval: 1,
+      endDate: '2024-03-31',
+    };
+    expect(getRecurrenceCandidateForSlot(monthly, 1)).toBeNull();
+    expect(getRecurrenceCandidateForSlot(monthly, 2)).toEqual({
+      date: '2024-03-31',
+      slot: 2,
+    });
+    expect(getRecurrenceCandidateForSlot(monthly, 3)).toBeNull();
+    for (const spec of [daily(), weekly(), monthly]) {
+      expect(getRecurrenceCandidateForSlot(spec, Number.MAX_SAFE_INTEGER)).toBeNull();
+      expect(
+        getRecurrenceCandidateForSlot({ ...spec, endDate: spec.startDate }, 1),
+      ).toBeNull();
+    }
+    expect(
+      getRecurrenceCandidateForSlot({ ...daily(), startDate: '9999-12-31' }, 0),
+    ).toEqual({ date: '9999-12-31', slot: 0 });
+  });
+
+  it('resolves an ancient slot with constant date work, rejecting invalid slots and specifications', () => {
+    const conversions = spyOn(Date.prototype, 'setUTCFullYear').and.callThrough();
+    expect(
+      getRecurrenceCandidateForSlot({ ...daily(), startDate: '0000-01-01' }, 3652422),
+    ).toEqual({ date: '9999-12-29', slot: 3652422 });
+    expect(conversions.calls.count()).toBeLessThan(5);
+    for (const slot of [-1, -0, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => getRecurrenceCandidateForSlot(daily(), slot)).toThrowError(RangeError);
+    }
+    expect(() =>
+      getRecurrenceCandidateForSlot({ ...daily(), interval: 0 }, 0),
+    ).toThrowError(RangeError);
   });
 
   const invalidSpecs: unknown[] = [

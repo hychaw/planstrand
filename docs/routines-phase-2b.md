@@ -103,6 +103,7 @@ and `git diff --check` passed. No full application or multi-client sync suite ra
 Use the [development file checks](development.md#focused-validation) and scoped
 Angular specs. No sync-server migration or deployment is needed for this phase.
 
-Creation/editing UI, occurrence exceptions/cancellations, scope selection, series
+Persisted occurrence exceptions/cancellations are applied by
+[Phase 3a.2](routines-phase-3a2.md). Creation/editing UI, scope selection, series
 splitting, Weekly Templates and external write-back remain deferred. Phase 3 must
 introduce explicit scope-aware commands before enabling occurrence interactions.
