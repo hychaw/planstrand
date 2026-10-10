@@ -28,6 +28,9 @@ import { occurrenceExceptionReducer } from './store/occurrence-exception.reducer
 import { selectAllOccurrenceException } from './store/occurrence-exception.selectors';
 import { DialogCancelledOccurrencesComponent } from './dialog-cancelled-occurrences/dialog-cancelled-occurrences.component';
 import { OccurrenceExceptionService } from './occurrence-exception.service';
+import { CreateTaskPlaceholderComponent } from '../schedule/create-task-placeholder/create-task-placeholder.component';
+import { SnackService } from '../../core/snack/snack.service';
+import { ShortTimePipe } from '../../ui/pipes/short-time.pipe';
 
 @Component({
   imports: [ScheduleWeekComponent],
@@ -74,9 +77,15 @@ describe('occurrence keyboard actions and real dialog focus', () => {
   beforeEach(async () => {
     selectLocalizationConfig.setResult({ timeZone: 'UTC' });
     await TestBed.configureTestingModule({
-      imports: [OccurrenceKeyboardHost, TranslateModule.forRoot()],
+      imports: [
+        OccurrenceKeyboardHost,
+        CreateTaskPlaceholderComponent,
+        TranslateModule.forRoot(),
+      ],
       providers: [
         provideNoopAnimations(),
+        ShortTimePipe,
+        { provide: SnackService, useValue: jasmine.createSpyObj('snack', ['open']) },
         provideStore({
           eventSeries: eventSeriesReducer,
           occurrenceException: occurrenceExceptionReducer,
@@ -90,6 +99,7 @@ describe('occurrence keyboard actions and real dialog focus', () => {
             textLocale: () => 'en-US',
             isoTextLocale: () => 'en-US',
             is24HourFormat: () => true,
+            formatTime: () => '10:00',
           },
         },
         {
@@ -208,6 +218,76 @@ describe('occurrence keyboard actions and real dialog focus', () => {
     expect(preview.nativeElement.hasAttribute('tabindex')).toBeFalse();
     expect(dialogs.openDialogs).toEqual([]);
     preview.destroy();
+  });
+
+  it('creates a recurring Event through the real Calendar placeholder, renders it, and restores focus', async () => {
+    const placeholder = TestBed.createComponent(CreateTaskPlaceholderComponent);
+    placeholder.componentRef.setInput('isEditMode', false);
+    placeholder.componentRef.setInput('date', '2026-01-05');
+    placeholder.componentRef.setInput('time', '10:00');
+    // Angular's test renderer replaces the preceding fixture root; reconnect the Calendar.
+    document.body.appendChild(fixture.nativeElement);
+    const calendar = fixture.nativeElement.querySelector('schedule-week') as HTMLElement;
+    calendar.appendChild(placeholder.nativeElement);
+    // Match ScheduleWeek's editEnd behavior: the transient launcher disappears on open.
+    const removal = placeholder.componentInstance.editEnd.subscribe(() =>
+      placeholder.nativeElement.remove(),
+    );
+    placeholder.detectChanges();
+    const launcher = placeholder.nativeElement.querySelector(
+      'button',
+    ) as HTMLButtonElement;
+    launcher.focus();
+    launcher.click();
+    await settle();
+    expect(dialogs.openDialogs.length).toBe(1);
+    expect((document.activeElement as HTMLInputElement).name).toBe('title');
+    const title = document.querySelector<HTMLInputElement>('input[name="title"]')!;
+    title.value = 'Created from Calendar';
+    title.dispatchEvent(new Event('input'));
+    const repeat = document.querySelector<HTMLSelectElement>(
+      'select[name="creationRepeat"]',
+    )!;
+    repeat.focus();
+    repeat.value = 'weekly';
+    repeat.dispatchEvent(new Event('change'));
+    await settle();
+    expect(document.activeElement).toBe(repeat);
+    const allDay = document.querySelector<HTMLInputElement>('input[name="allDay"]')!;
+    allDay.click();
+    await settle();
+    const weekdays = document.querySelectorAll<HTMLInputElement>('.weekdays input');
+    expect(weekdays.length).toBe(7);
+    expect(weekdays[0].checked).toBeTrue();
+    expect(weekdays[4].closest('label')!.textContent).toContain('Friday');
+    weekdays[4].focus();
+    weekdays[4].click();
+    await settle();
+    expect(document.querySelector('.cdk-overlay-container')!.textContent).not.toContain(
+      'F.EVENT.',
+    );
+    buttonWith('Save').focus();
+    buttonWith('Save').click();
+    await settle();
+    expect(dialogs.openDialogs.length).toBe(0);
+    expect(document.activeElement).toBe(calendar);
+    expect(fixture.nativeElement.textContent).toContain('Created from Calendar');
+    const created = TestBed.inject(Store)
+      .selectSignal(selectAllEventSeries)()
+      .find((series) => series.title === 'Created from Calendar')!;
+    expect(created.segments.length).toBe(1);
+    expect(created.segments[0].recurrence).toEqual(
+      jasmine.objectContaining({
+        frequency: 'weekly',
+        weekdays: [1, 5],
+        startDate: '2026-01-05',
+      }),
+    );
+    expect(fixture.nativeElement.querySelectorAll('schedule-event').length).toBe(2);
+    expect(TestBed.inject(TaskService).setSelectedId).not.toHaveBeenCalled();
+    expect(TestBed.inject(WorkSessionService).update).not.toHaveBeenCalled();
+    removal.unsubscribe();
+    placeholder.destroy();
   });
 
   it('keeps keyboard focus on scope changes and saves a series edit with translated controls', async () => {

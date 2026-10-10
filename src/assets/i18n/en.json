@@ -220,7 +220,11 @@
       "SERIES_INVALID": "Enter a title, valid recurrence dates, a positive whole-number interval, and weekdays for weekly recurrence. Timed schedules need a valid timezone and a positive duration. Times skipped by daylight saving are unavailable.",
       "CLEAR_UNSUPPORTED": "Clearing exceptions while editing a series is unsupported. Your changes have not been saved.",
       "DELETE_SERIES": "Delete entire series",
-      "DELETE_SERIES_CONFIRM": "Permanently delete this entire recurring Event series? All its occurrences, including modified occurrences, will disappear. This cannot be undone."
+      "DELETE_SERIES_CONFIRM": "Permanently delete this entire recurring Event series? All its occurrences, including modified occurrences, will disappear. This cannot be undone.",
+      "DOES_NOT_REPEAT": "Does not repeat",
+      "MONTHLY_HELP": "Repeats on the start date’s day of the month. Months without that date are skipped.",
+      "RECURRING_TIME_HELP": "Repeats at this local time. Daylight-saving gaps are skipped; repeated times use the earlier instant. Duration is elapsed time.",
+      "CREATION_INVALID": "Enter a title, valid recurrence dates, a positive whole-number interval, and weekdays for weekly recurrence. Timed schedules need an explicit valid IANA timezone and a positive duration."
     },
     "IOS_SHARE": {
       "SAVE": "Save",

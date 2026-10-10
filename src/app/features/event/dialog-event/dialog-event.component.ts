@@ -101,13 +101,13 @@ export class DialogEventComponent {
   isAllDay = this._existing?.isAllDay ?? false;
   private readonly _configuredTimeZone =
     inject(GlobalConfigService).localization()?.timeZone;
+  private readonly _defaultTimeZone = resolveIanaTimeZone(this._configuredTimeZone);
   timeZone =
     this._existing && !this._existing.isAllDay
       ? this._existing.timeZone
       : this._initialOccurrence && !this._initialOccurrence.original.isAllDay
         ? this._initialOccurrence.original.timeZone
-        : (resolveIanaTimeZone(this._configuredTimeZone) ??
-          (this._configuredTimeZone ? '' : 'UTC'));
+        : (this._defaultTimeZone ?? (this._configuredTimeZone ? '' : 'UTC'));
   date = this._existing?.isAllDay
     ? this._existing.date
     : (this.data.date ?? inject(DateService).todayStr());
@@ -120,6 +120,9 @@ export class DialogEventComponent {
   weekdays: number[] = [1];
   recurrenceEndDate = '';
   durationMinutes = 60;
+  repeats = false;
+  private _creationRecurrenceInitialized = false;
+  private _creationTimeZoneEdited = false;
   readonly busy = signal(false);
   readonly seriesError = signal<string | null>(null);
   readonly weekdayOptions = [
@@ -151,6 +154,10 @@ export class DialogEventComponent {
   }
   save(): void {
     if (this.busy()) return;
+    if (this.isRecurringCreation) {
+      this._createSeries();
+      return;
+    }
     if (this.occurrenceKey && this.scope !== 'occurrence') {
       void this._saveSeries();
       return;
@@ -193,8 +200,78 @@ export class DialogEventComponent {
       : this.data.id
         ? this._events.update(this.data.id, input)
         : this._events.create(input);
-    if (saved) this._ref.close(true);
-    else this.invalid = true;
+    if (saved) {
+      if (!this.occurrenceKey && !this.data.id) this.busy.set(true);
+      this._ref.close(true);
+    } else this.invalid = true;
+  }
+
+  get isRecurringCreation(): boolean {
+    return !this.data.id && !this.occurrenceKey && this.repeats;
+  }
+
+  creationTimeZoneChanged(): void {
+    this._creationTimeZoneEdited = true;
+  }
+
+  changeCreationRepeat(frequency: EditorDraft['frequency'] | 'none'): void {
+    if (this.data.id || this.occurrenceKey || this.busy()) return;
+    this.repeats = frequency !== 'none';
+    this.seriesError.set(null);
+    this.invalid = false;
+    if (frequency === 'none') return;
+    this.frequency = frequency;
+    if (!this._creationRecurrenceInitialized) {
+      // Carry the Calendar date/time and an already edited one-off duration forward.
+      if (isValidDBDateStr(this.date)) {
+        this.weekdays = [new Date(`${this.date}T12:00:00Z`).getUTCDay() || 7];
+      }
+      const start = zonedDateTimeToTimestamp(this.date, this.startTime, this.timeZone);
+      const end = zonedDateTimeToTimestamp(this.endDate, this.endTime, this.timeZone);
+      if (start !== null && end !== null && end > start)
+        this.durationMinutes = (end - start) / 60000;
+      // The one-off editor's historical UTC fallback is not a recurring default.
+      if (!this._defaultTimeZone && !this._creationTimeZoneEdited) this.timeZone = '';
+      this._creationRecurrenceInitialized = true;
+    }
+  }
+
+  private _recurrenceInput(): EventSeriesInput['recurrence'] {
+    return {
+      interval: this.interval,
+      startDate: this.date,
+      ...(this.recurrenceEndDate ? { endDate: this.recurrenceEndDate } : {}),
+      ...(this.frequency === 'weekly'
+        ? { frequency: 'weekly' as const, weekdays: [...this.weekdays] }
+        : { frequency: this.frequency }),
+    };
+  }
+
+  private _timingInput(): EventSeriesInput['timing'] {
+    return this.isAllDay
+      ? { kind: 'allDay' }
+      : {
+          kind: 'timed',
+          localTime: this.startTime,
+          timeZone: this.timeZone,
+          durationMs: this.durationMinutes * 60000,
+        };
+  }
+
+  private _createSeries(): void {
+    this.seriesError.set(null);
+    this.busy.set(true);
+    // Domain validation deliberately allows an anchor in a DST gap: that slot is skipped.
+    const id = this._seriesCommands.create({
+      title: this.title.trim(),
+      recurrence: this._recurrenceInput(),
+      timing: this._timingInput(),
+    });
+    if (id) this._ref.close(true);
+    else {
+      this.busy.set(false);
+      this.seriesError.set(T.F.EVENT.CREATION_INVALID);
+    }
   }
 
   changeScope(scope: EditScope): void {
@@ -290,28 +367,14 @@ export class DialogEventComponent {
       JSON.stringify(recurrenceFields(draft)) !==
       JSON.stringify(recurrenceFields(baseline))
     ) {
-      changes.recurrence = {
-        interval: this.interval,
-        startDate: this.date,
-        ...(this.recurrenceEndDate ? { endDate: this.recurrenceEndDate } : {}),
-        ...(this.frequency === 'weekly'
-          ? { frequency: 'weekly' as const, weekdays: [...this.weekdays] }
-          : { frequency: this.frequency }),
-      };
+      changes.recurrence = this._recurrenceInput();
     }
     const timingFields = (form: EditorDraft): unknown[] =>
       form.isAllDay
         ? [true]
         : [false, form.startTime, form.timeZone, form.durationMinutes];
     if (JSON.stringify(timingFields(draft)) !== JSON.stringify(timingFields(baseline))) {
-      changes.timing = this.isAllDay
-        ? { kind: 'allDay' }
-        : {
-            kind: 'timed',
-            localTime: this.startTime,
-            timeZone: this.timeZone,
-            durationMs: this.durationMinutes * 60000,
-          };
+      changes.timing = this._timingInput();
     }
     if (
       (changes.recurrence || changes.timing) &&

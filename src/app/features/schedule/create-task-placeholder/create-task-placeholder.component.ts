@@ -31,6 +31,7 @@ import { SnackService } from '../../../core/snack/snack.service';
 import { TranslatePipe } from '@ngx-translate/core';
 import { T } from '../../../t.const';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
+import { first } from 'rxjs';
 
 type Timeout = NodeJS.Timeout | number | undefined;
 
@@ -52,11 +53,25 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
 
   private _taskService = inject(TaskService);
   private readonly _eventDialog = inject(MatDialog);
+  private readonly _element = inject<ElementRef<HTMLElement>>(ElementRef);
   newEvent(ev: MouseEvent): void {
     ev.stopPropagation();
-    this._eventDialog.open(DialogEventComponent, {
+    const origin = ev.currentTarget as HTMLElement | null;
+    const calendar = this._element.nativeElement.closest<HTMLElement>('schedule-week');
+    const ref = this._eventDialog.open(DialogEventComponent, {
       data: { date: this.date(), start: this.due() },
+      restoreFocus: false,
     });
+    ref
+      .afterClosed()
+      .pipe(first())
+      .subscribe(() => {
+        if (origin?.isConnected) origin.focus();
+        else if (calendar?.isConnected) {
+          calendar.tabIndex = -1;
+          calendar.focus();
+        }
+      });
     this.editEnd.emit();
   }
   private readonly _workSessionService = inject(WorkSessionService);

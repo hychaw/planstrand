@@ -72,7 +72,7 @@
                   [(ngModel)]="startTime"
                   required
               /></label>
-              @if (scope === 'occurrence') {
+              @if (scope === 'occurrence' && !isRecurringCreation) {
                 <label
                   >{{ T.F.EVENT.END_DATE | translate
                   }}<input
@@ -106,24 +106,42 @@
                 }}<input
                   name="timeZone"
                   [(ngModel)]="timeZone"
+                  (ngModelChange)="creationTimeZoneChanged()"
                   required
               /></label>
             }
           </fieldset>
-          @if (scope !== 'occurrence') {
+          @if (!data.id && !occurrenceKey) {
+            <label
+              >{{ T.F.EVENT.FREQUENCY | translate
+              }}<select
+                name="creationRepeat"
+                [ngModel]="repeats ? frequency : 'none'"
+                (ngModelChange)="changeCreationRepeat($event)"
+              >
+                <option value="none">{{ T.F.EVENT.DOES_NOT_REPEAT | translate }}</option>
+                <option value="daily">{{ T.F.EVENT.DAILY | translate }}</option>
+                <option value="weekly">{{ T.F.EVENT.WEEKLY | translate }}</option>
+                <option value="monthly">{{ T.F.EVENT.MONTHLY | translate }}</option>
+              </select></label
+            >
+          }
+          @if (scope !== 'occurrence' || isRecurringCreation) {
             <fieldset>
               <legend>{{ T.F.EVENT.RECURRENCE | translate }}</legend>
-              <label
-                >{{ T.F.EVENT.FREQUENCY | translate
-                }}<select
-                  name="frequency"
-                  [(ngModel)]="frequency"
+              @if (occurrenceKey) {
+                <label
+                  >{{ T.F.EVENT.FREQUENCY | translate
+                  }}<select
+                    name="frequency"
+                    [(ngModel)]="frequency"
+                  >
+                    <option value="daily">{{ T.F.EVENT.DAILY | translate }}</option>
+                    <option value="weekly">{{ T.F.EVENT.WEEKLY | translate }}</option>
+                    <option value="monthly">{{ T.F.EVENT.MONTHLY | translate }}</option>
+                  </select></label
                 >
-                  <option value="daily">{{ T.F.EVENT.DAILY | translate }}</option>
-                  <option value="weekly">{{ T.F.EVENT.WEEKLY | translate }}</option>
-                  <option value="monthly">{{ T.F.EVENT.MONTHLY | translate }}</option>
-                </select></label
-              >
+              }
               <label
                 >{{ T.F.EVENT.INTERVAL | translate
                 }}<input
@@ -158,6 +176,14 @@
                   [min]="date"
               /></label>
               <p class="occurrence-scope">{{ T.F.EVENT.SERIES_END_HELP | translate }}</p>
+              @if (isRecurringCreation && frequency === 'monthly') {
+                <p class="occurrence-scope">{{ T.F.EVENT.MONTHLY_HELP | translate }}</p>
+              }
+              @if (isRecurringCreation && !isAllDay) {
+                <p class="occurrence-scope">
+                  {{ T.F.EVENT.RECURRING_TIME_HELP | translate }}
+                </p>
+              }
             </fieldset>
           }
         </fieldset>

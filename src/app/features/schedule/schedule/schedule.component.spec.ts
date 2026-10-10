@@ -5,6 +5,7 @@ import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { ScheduleService } from '../schedule.service';
 import { CalendarDisplayService } from '../calendar-display.service';
 import { MatDialog } from '@angular/material/dialog';
+import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
 import { DialogCancelledOccurrencesComponent } from '../../routines/dialog-cancelled-occurrences/dialog-cancelled-occurrences.component';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { DateAdapter } from '@angular/material/core';
@@ -183,6 +184,20 @@ describe('ScheduleComponent', () => {
         DialogCancelledOccurrencesComponent,
         { width: '560px', maxWidth: '95vw' },
       );
+    }
+  });
+
+  it('opens Event creation with the existing Calendar date default from Day, Week and Month', () => {
+    for (const view of ['day', 'week', 'month'] as const) {
+      mockLayoutService.selectedTimeView.set(view);
+      fixture.detectChanges();
+      const date = component.daysToShow()[0];
+      (
+        fixture.nativeElement.querySelector('.e2e-new-event') as HTMLButtonElement
+      ).click();
+      expect(mockMatDialog.open).toHaveBeenCalledWith(DialogEventComponent, {
+        data: { date },
+      });
     }
   });
 
