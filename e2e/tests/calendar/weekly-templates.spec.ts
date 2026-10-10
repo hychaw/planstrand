@@ -2,8 +2,15 @@ import { expect, test } from '../../fixtures/test.fixture';
 
 test('Weekly Templates Calendar workflow, keyboard focus and mobile layout', async ({
   page,
-}) => {
+}, testInfo) => {
+  // A wrapped toolbar must remain clickable above the sticky Calendar header.
+  await page.setViewportSize({ width: 800, height: 800 });
   await page.goto('/#/schedule');
+  await page.locator('.e2e-cancelled-occurrences').click();
+  await page
+    .locator('dialog-cancelled-occurrences')
+    .getByRole('button', { name: 'Close', exact: true })
+    .click();
   const trigger = page.locator('.e2e-weekly-templates');
   await trigger.click();
   const manager = page.locator('dialog-weekly-templates');
@@ -33,6 +40,7 @@ test('Weekly Templates Calendar workflow, keyboard focus and mobile layout', asy
       manager.getByRole('button', { name: 'Add entry', exact: true }),
     ).toBeFocused();
   }
+  await expect(manager).not.toContainText(/\u00c2|\u00e2\u20ac/);
   await manager.getByRole('button', { name: 'Activate', exact: true }).click();
   await manager.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(trigger).toBeFocused();
@@ -70,6 +78,10 @@ test('Weekly Templates Calendar workflow, keyboard focus and mobile layout', asy
     manager.getByRole('button', { name: 'Add entry', exact: true }),
   ).toBeInViewport();
   expect(await manager.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath('weekly-templates-mobile.png'),
+    animations: 'disabled',
+  });
   await page.keyboard.press('Escape');
   await expect(manager).toBeHidden();
   await expect(trigger).toBeFocused();

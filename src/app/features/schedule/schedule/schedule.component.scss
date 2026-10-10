@@ -60,6 +60,8 @@
 }
 
 .schedule-nav-controls {
+  // Wrapped utility rows must retain their height above the scrolling Calendar.
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--s);

@@ -29,11 +29,11 @@
                 : 'F.WEEKLY_TEMPLATE.INACTIVE'
               ) | translate
             }}
-            Â· {{ entriesFor(template.id).length }}
+            &middot; {{ entriesFor(template.id).length }}
             {{ 'F.WEEKLY_TEMPLATE.ENTRIES' | translate }}</span
           >
           <span
-            >{{ template.startDate }} â€“
+            >{{ template.startDate }} &ndash;
             {{ template.endDate || ('F.WEEKLY_TEMPLATE.NO_END' | translate) }}</span
           >
         </button>
@@ -136,7 +136,8 @@
             <h4>{{ entry.title }}</h4>
             @for (segment of entry.segments; track segment.id) {
               <p>
-                {{ T.F.EVENT.INTERVAL | translate }}: {{ segment.recurrence.interval }} Â·
+                {{ T.F.EVENT.INTERVAL | translate }}:
+                {{ segment.recurrence.interval }} &middot;
                 {{ T.F.EVENT.WEEKLY | translate }}
                 @if (segment.recurrence.frequency === 'weekly') {
                   @for (day of segment.recurrence.weekdays; track day) {
@@ -145,7 +146,7 @@
                 }
               </p>
               <p>
-                {{ segment.recurrence.startDate }} â€“
+                {{ segment.recurrence.startDate }} &ndash;
                 {{
                   segment.recurrence.endDate || ('F.WEEKLY_TEMPLATE.NO_END' | translate)
                 }}
@@ -154,9 +155,9 @@
                 @if (segment.timing.kind === 'allDay') {
                   {{ T.F.EVENT.ALL_DAY | translate }}
                 } @else {
-                  {{ segment.timing.localTime }} Â·
+                  {{ segment.timing.localTime }} &middot;
                   {{ segment.timing.durationMs / 60000 }}
-                  {{ T.F.EVENT.DURATION_MINUTES | translate }} Â·
+                  {{ T.F.EVENT.DURATION_MINUTES | translate }} &middot;
                   {{ segment.timing.timeZone }}
                 }
               </p>
