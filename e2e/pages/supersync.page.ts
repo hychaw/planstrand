@@ -144,6 +144,11 @@ const remainingTimeout = (startedAt: number, total: number): number =>
  */
 const SYNC_CLICK_RETRY_INTERVAL_MS = 3000;
 
+// Angular creates/removes these status icons as sync state changes. Their DOM
+// presence remains meaningful while the Utilities popover is closed.
+const hasSyncIndicator = (indicator: Locator): Promise<boolean> =>
+  indicator.count().then((count) => count > 0);
+
 /**
  * Page object for SuperSync configuration and sync operations.
  * Used for E2E tests that verify multi-client sync via the super-sync-server.
@@ -247,13 +252,16 @@ export class SuperSyncPage extends BasePage {
   }
 
   /**
-   * Click the header's sync button. The action row is a horizontal scroller
-   * (#9480), so on a narrow header the button can be past the trailing edge —
-   * Playwright's own actionability scroll brings it back into view, which is
-   * why this needs nothing beyond a click.
+   * Sync lives in the Utilities popover on the Planstrand header. Older builds
+   * expose the button directly; open Utilities only when the button is hidden.
    */
   async clickSyncBtn(options?: Parameters<Locator['click']>[0]): Promise<void> {
-    await this.page.locator('button.sync-btn').first().click(options);
+    const button = this.syncBtn.first();
+    if (!(await button.isVisible())) {
+      const utilities = this.page.getByRole('button', { name: 'Utilities', exact: true });
+      if (await utilities.isVisible()) await utilities.click();
+    }
+    await button.click(options);
   }
 
   /**
@@ -595,7 +603,7 @@ export class SuperSyncPage extends BasePage {
           .then(() => 'enable_encryption_dialog' as const),
         // Sync error icon indicates encrypted data received but no password
         this.syncErrorIcon
-          .waitFor({ state: 'visible', timeout: encSyncTimeout })
+          .waitFor({ state: 'attached', timeout: encSyncTimeout })
           .then(() => 'sync_error' as const),
         // Timeout fallback - we'll check state manually after timeout
         this.page.waitForTimeout(encSyncTimeout).then(() => 'timeout' as const),
@@ -683,7 +691,9 @@ export class SuperSyncPage extends BasePage {
         } else {
           // No password dialog after import - this might be Client A
           // Check if sync succeeded
-          const syncSucceeded = await this.syncCheckIcon.isVisible().catch(() => false);
+          const syncSucceeded = await hasSyncIndicator(this.syncCheckIcon).catch(
+            () => false,
+          );
           if (!syncSucceeded) {
             // Wait for mandatory encryption dialog (fires after sync completes)
             await this._waitForAndHandleEncryptionDialogIfNeeded(
@@ -730,10 +740,16 @@ export class SuperSyncPage extends BasePage {
         );
 
         // Check for sync error (which would indicate encrypted data without password)
-        const hasSyncError = await this.syncErrorIcon.isVisible().catch(() => false);
+        const hasSyncError = await hasSyncIndicator(this.syncErrorIcon).catch(
+          () => false,
+        );
         const hasPasswordDialog = await passwordDialog.isVisible().catch(() => false);
-        const hasSyncSuccess = await this.syncCheckIcon.isVisible().catch(() => false);
-        const isSpinnerVisible = await this.syncSpinner.isVisible().catch(() => false);
+        const hasSyncSuccess = await hasSyncIndicator(this.syncCheckIcon).catch(
+          () => false,
+        );
+        const isSpinnerVisible = await hasSyncIndicator(this.syncSpinner).catch(
+          () => false,
+        );
 
         if (hasPasswordDialog) {
           console.log(
@@ -783,10 +799,10 @@ export class SuperSyncPage extends BasePage {
               .waitFor({ state: 'visible', timeout: 30000 })
               .then(() => 'password_dialog' as const),
             this.syncCheckIcon
-              .waitFor({ state: 'visible', timeout: 30000 })
+              .waitFor({ state: 'attached', timeout: 30000 })
               .then(() => 'sync_success' as const),
             this.syncErrorIcon
-              .waitFor({ state: 'visible', timeout: 30000 })
+              .waitFor({ state: 'attached', timeout: 30000 })
               .then(() => 'sync_error' as const),
           ]).catch(() => 'error' as const);
 
@@ -883,7 +899,9 @@ export class SuperSyncPage extends BasePage {
       }
 
       // Wait for sync to complete, handling any dialogs that appear during re-sync
-      const checkAlreadyVisible = await this.syncCheckIcon.isVisible().catch(() => false);
+      const checkAlreadyVisible = await hasSyncIndicator(this.syncCheckIcon).catch(
+        () => false,
+      );
 
       if (!checkAlreadyVisible) {
         const syncWaitStart = Date.now();
@@ -913,7 +931,9 @@ export class SuperSyncPage extends BasePage {
           }
 
           // Check for check icon
-          const checkVisible = await this.syncCheckIcon.isVisible().catch(() => false);
+          const checkVisible = await hasSyncIndicator(this.syncCheckIcon).catch(
+            () => false,
+          );
           if (checkVisible) {
             break;
           }
@@ -925,10 +945,10 @@ export class SuperSyncPage extends BasePage {
           );
           const spinnerOrCheck = await Promise.race([
             this.syncSpinner
-              .waitFor({ state: 'hidden', timeout: Math.min(3000, remaining) })
+              .waitFor({ state: 'detached', timeout: Math.min(3000, remaining) })
               .then(() => 'spinner_hidden' as const),
             this.syncCheckIcon
-              .waitFor({ state: 'visible', timeout: Math.min(3000, remaining) })
+              .waitFor({ state: 'attached', timeout: Math.min(3000, remaining) })
               .then(() => 'check_visible' as const),
           ]).catch(() => 'timeout' as const);
 
@@ -944,7 +964,7 @@ export class SuperSyncPage extends BasePage {
         // first sync stalls entirely (a setup flake seen under parallel CI load),
         // clear any leftover dialog and re-trigger sync once before giving up.
         try {
-          await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 30000 });
+          await this.syncCheckIcon.waitFor({ state: 'attached', timeout: 30000 });
         } catch {
           console.log(
             '[SuperSyncPage] Sync check icon not visible after 60s — re-triggering sync once',
@@ -953,7 +973,7 @@ export class SuperSyncPage extends BasePage {
             useLocal: config.syncImportChoice === 'local',
           });
           await this.clickSyncBtn();
-          await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 30000 });
+          await this.syncCheckIcon.waitFor({ state: 'attached', timeout: 30000 });
         }
       }
     } else if (waitForInitialSync) {
@@ -993,14 +1013,14 @@ export class SuperSyncPage extends BasePage {
           .then(() => 'decrypt_error' as const),
         // Sync error icon means encrypted data without password — wait for dialog
         this.syncErrorIcon
-          .waitFor({ state: 'visible', timeout: syncTimeout })
+          .waitFor({ state: 'attached', timeout: syncTimeout })
           .then(() => 'sync_error' as const),
         // Sync check icon means sync completed. The encryption dialog opens AFTER
         // sync via the async _promptSuperSyncEncryptionIfNeeded(), so we add a
         // 2s delay. If the encryption dialog appears during this delay, its promise
         // resolves first and wins the race (because our .then() hasn't resolved yet).
         this.syncCheckIcon
-          .waitFor({ state: 'visible', timeout: syncTimeout })
+          .waitFor({ state: 'attached', timeout: syncTimeout })
           .then(() => this.page.waitForTimeout(2000))
           .then(() => 'sync_success' as const),
       ]).catch(() => 'timeout' as const);
@@ -1175,19 +1195,21 @@ export class SuperSyncPage extends BasePage {
       }).toPass({ timeout: 45000 });
 
       // Wait for sync to complete (either already done or triggered after dialog)
-      const checkAlreadyVisible = await this.syncCheckIcon.isVisible().catch(() => false);
+      const checkAlreadyVisible = await hasSyncIndicator(this.syncCheckIcon).catch(
+        () => false,
+      );
 
       if (!checkAlreadyVisible) {
         const spinnerAppeared = await this.syncSpinner
-          .waitFor({ state: 'visible', timeout: 5000 })
+          .waitFor({ state: 'attached', timeout: 5000 })
           .then(() => true)
           .catch(() => false);
 
         if (spinnerAppeared) {
-          await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
+          await this.syncSpinner.waitFor({ state: 'detached', timeout: 30000 });
         }
 
-        await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 15000 });
+        await this.syncCheckIcon.waitFor({ state: 'attached', timeout: 15000 });
       }
     } else if (needsEncryptionEnabled && !encryptionHandledDuringSave) {
       // When waitForInitialSync is false but encryption is needed and wasn't
@@ -1215,10 +1237,10 @@ export class SuperSyncPage extends BasePage {
           .waitFor({ state: 'visible', timeout: 15000 })
           .then(() => 'sync_import_conflict' as const),
         this.syncSpinner
-          .waitFor({ state: 'visible', timeout: 15000 })
+          .waitFor({ state: 'attached', timeout: 15000 })
           .then(() => 'spinner' as const),
         this.syncCheckIcon
-          .waitFor({ state: 'visible', timeout: 15000 })
+          .waitFor({ state: 'attached', timeout: 15000 })
           .then(() => 'sync_success' as const),
         this.page.waitForTimeout(20000).then(() => 'timeout' as const),
       ]).catch(() => 'timeout' as const);
@@ -1276,10 +1298,10 @@ export class SuperSyncPage extends BasePage {
       // just wait for sync to start or show an error
       const syncStartedOrFailed = Promise.race([
         this.syncSpinner
-          .waitFor({ state: 'visible', timeout: 5000 })
+          .waitFor({ state: 'attached', timeout: 5000 })
           .catch(() => 'timeout'),
         this.syncErrorIcon
-          .waitFor({ state: 'visible', timeout: 5000 })
+          .waitFor({ state: 'attached', timeout: 5000 })
           .catch(() => 'timeout'),
         this.page
           .locator('dialog-handle-decrypt-error')
@@ -1316,7 +1338,7 @@ export class SuperSyncPage extends BasePage {
             .waitFor({ state: 'visible', timeout: 20000 })
             .then(() => 'encryption' as const),
           this.syncCheckIcon
-            .waitFor({ state: 'visible', timeout: 20000 })
+            .waitFor({ state: 'attached', timeout: 20000 })
             .then(() => 'sync_complete' as const),
         ]).catch(() => 'timeout' as const);
 
@@ -1617,13 +1639,13 @@ export class SuperSyncPage extends BasePage {
    */
   private async _waitForEncryptionSyncComplete(): Promise<void> {
     const spinnerAppeared = await this.syncSpinner
-      .waitFor({ state: 'visible', timeout: 5000 })
+      .waitFor({ state: 'attached', timeout: 5000 })
       .then(() => true)
       .catch(() => false);
     if (spinnerAppeared) {
-      await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
+      await this.syncSpinner.waitFor({ state: 'detached', timeout: 30000 });
     }
-    await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 10000 });
+    await this.syncCheckIcon.waitFor({ state: 'attached', timeout: 10000 });
   }
 
   /**
@@ -1731,7 +1753,7 @@ export class SuperSyncPage extends BasePage {
 
     if (!skipSpinnerCheck) {
       // Wait for spinner to appear (sync started)
-      await this.syncSpinner.waitFor({ state: 'visible', timeout: 5000 });
+      await this.syncSpinner.waitFor({ state: 'attached', timeout: 5000 });
     }
 
     await this._waitForSyncCompletion({ timeout, useLocal: false });
@@ -1906,7 +1928,7 @@ export class SuperSyncPage extends BasePage {
    */
   private async _finishConflictResolution(): Promise<void> {
     try {
-      await this.syncErrorIcon.waitFor({ state: 'hidden', timeout: 60000 });
+      await this.syncErrorIcon.waitFor({ state: 'detached', timeout: 60000 });
     } catch (error) {
       throw new Error(
         'Sync still reports an error 60s after the whole-dataset conflict dialog was answered',
@@ -2052,9 +2074,9 @@ export class SuperSyncPage extends BasePage {
   private async _getSyncCompletionSnapshot(): Promise<SyncCompletionSnapshot> {
     const [checkVisible, spinnerVisible, errorVisible, unsyncedCount] = await Promise.all(
       [
-        this._syncRemoteCheckIcon.isVisible().catch(() => false),
-        this.syncSpinner.isVisible().catch(() => false),
-        this.syncErrorIcon.isVisible().catch(() => false),
+        hasSyncIndicator(this._syncRemoteCheckIcon).catch(() => false),
+        hasSyncIndicator(this.syncSpinner).catch(() => false),
+        hasSyncIndicator(this.syncErrorIcon).catch(() => false),
         this._getUnsyncedOperationCount(),
       ],
     );
@@ -2113,7 +2135,7 @@ export class SuperSyncPage extends BasePage {
       const deadline = Date.now() + timeout;
       let outcome: Awaited<typeof settled> | null = null;
       do {
-        await this.syncBtn.click();
+        await this.clickSyncBtn();
         outcome = await Promise.race([
           settled,
           this.page
@@ -2276,11 +2298,11 @@ export class SuperSyncPage extends BasePage {
         // The dialog's afterClosed() triggers a new sync() call.
         // Wait for that sync cycle to complete.
         const reSpinner = await this.syncSpinner
-          .waitFor({ state: 'visible', timeout: 5000 })
+          .waitFor({ state: 'attached', timeout: 5000 })
           .then(() => true)
           .catch(() => false);
         if (reSpinner) {
-          await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
+          await this.syncSpinner.waitFor({ state: 'detached', timeout: 30000 });
         }
         await this._waitForSyncCompletion({ timeout: 10000, ...dialogChoices });
 
@@ -2292,11 +2314,11 @@ export class SuperSyncPage extends BasePage {
             '[syncAndWait] Second post-sync dialog handled, waiting for re-sync...',
           );
           const reSpinner2 = await this.syncSpinner
-            .waitFor({ state: 'visible', timeout: 5000 })
+            .waitFor({ state: 'attached', timeout: 5000 })
             .then(() => true)
             .catch(() => false);
           if (reSpinner2) {
-            await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
+            await this.syncSpinner.waitFor({ state: 'detached', timeout: 30000 });
           }
           await this._waitForSyncCompletion({ timeout: 10000, ...dialogChoices });
         }
@@ -2316,7 +2338,7 @@ export class SuperSyncPage extends BasePage {
           break;
         }
         // Don't paper over a genuine error state by re-syncing.
-        const hasError = await this.syncErrorIcon.isVisible().catch(() => false);
+        const hasError = await hasSyncIndicator(this.syncErrorIcon).catch(() => false);
         if (hasError) {
           throw new Error('Sync entered an error state while flushing trailing ops');
         }
@@ -2352,7 +2374,7 @@ export class SuperSyncPage extends BasePage {
    * Useful for debugging test failures.
    */
   async isSyncInErrorState(): Promise<boolean> {
-    return this.syncErrorIcon.isVisible().catch(() => false);
+    return hasSyncIndicator(this.syncErrorIcon).catch(() => false);
   }
 
   /**
@@ -2360,7 +2382,7 @@ export class SuperSyncPage extends BasePage {
    * Alias for isSyncInErrorState for backwards compatibility with tests.
    */
   async hasSyncError(): Promise<boolean> {
-    return this.syncErrorIcon.isVisible().catch(() => false);
+    return hasSyncIndicator(this.syncErrorIcon).catch(() => false);
   }
 
   /**
@@ -2507,13 +2529,15 @@ export class SuperSyncPage extends BasePage {
    * Returns: 'syncing' | 'success' | 'error' | 'unknown'
    */
   async getSyncState(): Promise<'syncing' | 'success' | 'error' | 'unknown'> {
-    const isErrorVisible = await this.syncErrorIcon.isVisible().catch(() => false);
+    const isErrorVisible = await hasSyncIndicator(this.syncErrorIcon).catch(() => false);
     if (isErrorVisible) return 'error';
 
-    const isSpinnerVisible = await this.syncSpinner.isVisible().catch(() => false);
+    const isSpinnerVisible = await hasSyncIndicator(this.syncSpinner).catch(() => false);
     if (isSpinnerVisible) return 'syncing';
 
-    const isCheckVisible = await this._syncRemoteCheckIcon.isVisible().catch(() => false);
+    const isCheckVisible = await hasSyncIndicator(this._syncRemoteCheckIcon).catch(
+      () => false,
+    );
     if (isCheckVisible) return 'success';
 
     return 'unknown';
@@ -2558,9 +2582,9 @@ export class SuperSyncPage extends BasePage {
    * Returns true if sync button shows check or spinner icon.
    */
   async isSyncEnabled(): Promise<boolean> {
-    const checkVisible = await this.syncCheckIcon.isVisible().catch(() => false);
-    const spinnerVisible = await this.syncSpinner.isVisible().catch(() => false);
-    const errorVisible = await this.syncErrorIcon.isVisible().catch(() => false);
+    const checkVisible = await hasSyncIndicator(this.syncCheckIcon).catch(() => false);
+    const spinnerVisible = await hasSyncIndicator(this.syncSpinner).catch(() => false);
+    const errorVisible = await hasSyncIndicator(this.syncErrorIcon).catch(() => false);
 
     return checkVisible || spinnerVisible || errorVisible;
   }
