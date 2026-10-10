@@ -160,6 +160,8 @@ export enum ActionType {
   OCCURRENCE_EXCEPTION_SET = '[OccurrenceException] Set Occurrence Exception',
   EVENT_SERIES_ADD = '[EventSeries] Add Event Series',
   EVENT_SERIES_UPDATE = '[EventSeries] Update Event Series',
+  EVENT_SERIES_REPLACE_PLAN = '[EventSeries] Replace Schedule Plan',
+  EVENT_SERIES_DELETE = '[EventSeries] Delete Entire Series',
   EVENT_UPDATE = '[Event] Update Event',
   EVENT_REMOVE = '[Event] Remove Event',
   WORK_SESSION_ADD = '[WorkSession] Add WorkSession',

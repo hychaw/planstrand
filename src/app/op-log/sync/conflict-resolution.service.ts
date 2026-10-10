@@ -1,3 +1,4 @@
+import { isValidEventSeries } from '../../features/routines/event-series.validation';
 import { buildReplacementOperation } from './build-replacement-operation';
 import { inject, Injectable, Injector } from '@angular/core';
 import {
@@ -163,6 +164,28 @@ interface AutoResolveConflictsLwwOptions {
   disableDisjointMerge?: boolean;
   remoteApplyLifecycleOwnedByCaller?: boolean;
 }
+
+/** Terminal lifecycle also applies to complete compensation snapshots. */
+const isEventSeriesTombstoneOperation = (operation: Operation): boolean => {
+  if (
+    operation.entityType !== 'EVENT_SERIES' ||
+    operation.opType !== OpType.Update ||
+    !operation.payload
+  )
+    return false;
+  const payload = extractActionPayload(operation.payload);
+  const series =
+    operation.actionType === ActionType.EVENT_SERIES_DELETE
+      ? payload['eventSeries']
+      : (operation.actionType as string) === '[EVENT_SERIES] LWW Update'
+        ? payload
+        : undefined;
+  return (
+    isValidEventSeries(series) &&
+    series.id === operation.entityId &&
+    series.deletedAt !== undefined
+  );
+};
 
 const isProjectDeleteWinsOperation = (operation: Operation): boolean => {
   // `!(x >= n)` (not `x < n`) so a malformed op with an undefined schemaVersion
@@ -1921,9 +1944,25 @@ export class ConflictResolutionService {
     const resolutions: LWWResolution[] = [];
     const mergedResolutions: MergedResolution[] = [];
 
-    const plans = planLwwConflictResolutions(conflicts, {
+    // Both sides are already terminal: use ordinary deterministic LWW to choose
+    // the retained snapshot. Unconditional remote precedence would swap different
+    // tombstones between devices without converging their persisted metadata.
+    const seriesWithConcurrentDeletes = new Set(
+      conflicts
+        .filter(
+          (conflict) =>
+            conflict.entityType === 'EVENT_SERIES' &&
+            conflict.localOps.some(isEventSeriesTombstoneOperation) &&
+            conflict.remoteOps.some(isEventSeriesTombstoneOperation),
+        )
+        .map((conflict) => conflict.entityId),
+    );
+    const plans = planLwwConflictResolutions<Operation, EntityConflict>(conflicts, {
       isArchiveAction: (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
-      isDeleteWinsAction: isProjectDeleteWinsOperation,
+      isDeleteWinsAction: (op) =>
+        isProjectDeleteWinsOperation(op) ||
+        (isEventSeriesTombstoneOperation(op) &&
+          !seriesWithConcurrentDeletes.has(op.entityId!)),
       toEntityKey: (entityType, entityId) =>
         toEntityKey(entityType as EntityType, entityId),
     });
@@ -1994,6 +2033,11 @@ export class ConflictResolutionService {
 
       if (plan.localWinOperationKind === 'archive-win') {
         localWinOp = archiveWinOpByConflict.get(plan.conflict);
+      } else if (
+        plan.localWinOperationKind === 'delete-win' &&
+        plan.conflict.entityType === 'EVENT_SERIES'
+      ) {
+        localWinOp = await this._createLocalWinUpdateOp(plan.conflict);
       } else if (plan.localWinOperationKind === 'delete-win') {
         const deleteOp = mergeMarkedProjectDeleteOps(plan.conflict.localOps);
         if (!deleteOp) {

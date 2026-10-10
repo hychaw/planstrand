@@ -262,6 +262,121 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
     return fixture;
   };
 
+  for (const view of ['Day', 'Week', 'Month', 'Year'] as const) {
+    it(`projects split schedules, moved/cancelled exceptions and terminal deletion in ${view}`, () => {
+      const split: EventSeries = {
+        ...allDay,
+        segments: [
+          {
+            ...allDay.segments[0],
+            recurrence: { frequency: 'daily', startDate: '2026-01-01', interval: 1 },
+          },
+          {
+            id: 'weekly',
+            logicalSlotOffset: 4,
+            title: 'Weekly segment',
+            recurrence: {
+              frequency: 'weekly',
+              startDate: '2026-01-05',
+              interval: 2,
+              weekdays: [1, 5],
+            },
+            timing: {
+              kind: 'timed',
+              localTime: '09:00',
+              timeZone: 'Asia/Tokyo',
+              durationMs: hour,
+            },
+          },
+          {
+            id: 'monthly',
+            logicalSlotOffset: 7,
+            title: 'Monthly segment',
+            recurrence: { frequency: 'monthly', startDate: '2026-01-31', interval: 1 },
+            timing: { kind: 'allDay' },
+          },
+        ],
+      };
+      store.overrideSelector(selectAllEventSeries, [split]);
+      setExceptions([
+        { seriesId: split.id, slot: 5, value: { kind: 'cancelled' } },
+        {
+          seriesId: split.id,
+          slot: 6,
+          value: {
+            kind: 'override',
+            event: {
+              title: 'Moved split occurrence',
+              isAllDay: true,
+              date: '2026-01-15',
+            },
+          },
+        },
+      ]);
+      let fixture: ComponentFixture<
+        ScheduleWeekComponent | ScheduleMonthComponent | ScheduleYearComponent
+      >;
+      if (view === 'Year') {
+        const year = TestBed.createComponent(ScheduleYearComponent);
+        year.componentRef.setInput('year', 2026);
+        year.detectChanges();
+        const january = year.componentInstance.months()[0].days;
+        expect(january[0].count).toBe(1);
+        expect(january[4].count).toBe(1);
+        expect(january[8].count).toBe(0);
+        expect(january[14].count).toBe(3); // Moved occurrence, Event and WorkSession.
+        expect(january[18].count).toBe(0);
+        expect(january[30].count).toBe(1);
+        expect(year.componentInstance.months()[1].days.at(-1)?.count).toBe(0);
+        fixture = year;
+      } else {
+        const date = new Date(2026, 0, 15);
+        const weeks = service.getMonthWeeksToShow(1, date);
+        const days =
+          view === 'Day'
+            ? ['2026-01-15']
+            : view === 'Week'
+              ? service.getDaysToShow(7, new Date(2026, 0, 12))
+              : service.getMonthDaysToShow(weeks, 1, date);
+        const events = eventsFor(days);
+        const moved = events.find(
+          (event) => titleOf(event) === 'Moved split occurrence',
+        )!;
+        expect(moved).toBeDefined();
+        expect(moved.id).toBe(`eventOccurrence:${JSON.stringify([split.id, 6])}`);
+        expect(events.filter((event) => event.id === moved.id).length).toBe(1);
+        if (view === 'Month') {
+          const month = TestBed.createComponent(ScheduleMonthComponent);
+          month.componentRef.setInput('daysToShow', days);
+          month.componentRef.setInput('weeksToShow', weeks);
+          month.componentRef.setInput('events', events);
+          month.detectChanges();
+          fixture = month;
+        } else fixture = renderWeek(days, events);
+        expect(fixture.nativeElement.textContent).toContain('Moved split occurrence');
+      }
+      store.overrideSelector(selectAllEventSeries, [
+        { ...split, deletedAt: 2, modified: 2 },
+      ]);
+      store.refreshState();
+      expect(
+        eventsFor(['2026-01-15']).filter((e) => e.type === SVEType.EventOccurrence),
+      ).toEqual([]);
+      expect(eventsFor(['2026-01-15']).map((e) => e.type)).toEqual([
+        SVEType.LocalEvent,
+        SVEType.WorkSession,
+      ]);
+      if (view === 'Year') {
+        expect(
+          (fixture.componentInstance as ScheduleYearComponent).months()[0].days[14].count,
+        ).toBe(2);
+        expect(
+          (fixture.componentInstance as ScheduleYearComponent).months()[0].days[0].count,
+        ).toBe(0);
+      }
+    });
+  }
+
   it('shows all-day and overlapping timed occurrences in Day without hiding Events or WorkSessions', () => {
     const events = eventsFor(['2026-01-15']);
     expect(events.map((event) => event.type)).toEqual([

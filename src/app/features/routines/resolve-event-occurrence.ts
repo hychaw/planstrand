@@ -1,3 +1,4 @@
+import { segmentOwnsSlot } from './event-series-plan';
 import { EventInput } from '../event/event.model';
 import { EventSeries } from './event-series.model';
 import { OccurrenceKey, isValidOccurrenceKey } from './occurrence-key';
@@ -20,8 +21,15 @@ export const resolveEventOccurrence = (
   key: OccurrenceKey,
   exception?: OccurrenceException,
 ): ResolvedEventOccurrence | null => {
-  if (!isValidOccurrenceKey(key) || !series || series.id !== key.seriesId) return null;
-  for (const segment of series.segments) {
+  if (
+    !isValidOccurrenceKey(key) ||
+    !series ||
+    series.deletedAt !== undefined ||
+    series.id !== key.seriesId
+  )
+    return null;
+  for (const [index, segment] of series.segments.entries()) {
+    if (!segmentOwnsSlot(series, index, key.slot)) continue;
     const slot = key.slot - (segment.logicalSlotOffset ?? 0);
     if (slot < 0) continue;
     const candidate = getRecurrenceCandidateForSlot(segment.recurrence, slot);
@@ -30,9 +38,9 @@ export const resolveEventOccurrence = (
     if (!occurrence) continue;
     const original: EventInput =
       occurrence.kind === 'allDay'
-        ? { title: series.title, isAllDay: true, date: occurrence.date }
+        ? { title: segment.title ?? series.title, isAllDay: true, date: occurrence.date }
         : {
-            title: series.title,
+            title: segment.title ?? series.title,
             isAllDay: false,
             start: occurrence.start,
             end: occurrence.end,

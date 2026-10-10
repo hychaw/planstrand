@@ -5,9 +5,15 @@ import { EventSeries, EventSeriesState } from '../event-series.model';
 import {
   isValidEventSeries,
   isValidEventSeriesInput,
+  isValidEventSeriesPlan,
   isValidEventSeriesState,
 } from '../event-series.validation';
-import { addEventSeries, updateEventSeries } from './event-series.actions';
+import {
+  addEventSeries,
+  updateEventSeries,
+  replaceEventSeriesPlan,
+  deleteEventSeries,
+} from './event-series.actions';
 
 export const EVENT_SERIES_FEATURE_NAME = 'eventSeries';
 export const eventSeriesAdapter = createEntityAdapter<EventSeries>();
@@ -39,18 +45,16 @@ const reducer = createReducer(
   on(updateEventSeries, (state, { id, changes, modified }) => {
     if (!isValidEventSeriesInput(changes)) throw new Error('Invalid EventSeries input');
     const current = state.entities[id];
-    if (!current) return state;
+    if (!current || current.deletedAt !== undefined) return state;
     return eventSeriesAdapter.setOne(
       valid({
         ...current,
         title: changes.title,
         modified,
+        // Legacy complete-definition operations deterministically replace the plan.
         segments: [
           {
             id: current.segments[0].id,
-            ...(current.segments[0].logicalSlotOffset !== undefined
-              ? { logicalSlotOffset: current.segments[0].logicalSlotOffset }
-              : {}),
             recurrence: changes.recurrence,
             timing: changes.timing,
           },
@@ -59,10 +63,31 @@ const reducer = createReducer(
       state,
     );
   }),
+  on(replaceEventSeriesPlan, (state, { id, plan, modified }) => {
+    if (!isValidEventSeriesPlan(plan)) throw new Error('Invalid EventSeries plan');
+    const current = state.entities[id];
+    if (!current || current.deletedAt !== undefined) return state;
+    if (plan.segments[0].id !== current.segments[0].id)
+      throw new Error('Immutable EventSeries metadata');
+    return eventSeriesAdapter.setOne(valid({ ...current, ...plan, modified }), state);
+  }),
+  on(deleteEventSeries, (state, { eventSeries }) => {
+    valid(eventSeries);
+    if (eventSeries.deletedAt === undefined)
+      throw new Error('Missing EventSeries tombstone');
+    const current = state.entities[eventSeries.id];
+    if (
+      current &&
+      (current.created !== eventSeries.created ||
+        current.segments[0].id !== eventSeries.segments[0].id)
+    )
+      throw new Error('Immutable EventSeries metadata');
+    return eventSeriesAdapter.setOne(eventSeries, state);
+  }),
 );
 
-/** Series conflict compensation only updates an existing lineage. No generic
- * resurrection, local timestamps, immutable metadata changes or hard deletion.
+/** Live compensation only updates existing lineages; terminal tombstones may
+ * precede creation. No resurrection, ambient timestamps or hard deletion.
  */
 export const eventSeriesReducer = (
   state: EventSeriesState | undefined,
@@ -73,8 +98,12 @@ export const eventSeriesReducer = (
   delete payload['type'];
   delete payload['meta'];
   const current = state?.entities[payload['id'] as string];
-  if (!current) return state ?? initialEventSeriesState;
   const next = valid(payload as unknown as EventSeries);
+  if (!current)
+    return next.deletedAt !== undefined
+      ? eventSeriesAdapter.setOne(next, state ?? initialEventSeriesState)
+      : (state ?? initialEventSeriesState);
+  if (current.deletedAt !== undefined && next.deletedAt === undefined) return state!;
   if (
     next.created !== current.created ||
     next.segments[0].id !== current.segments[0].id ||

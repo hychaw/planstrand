@@ -1,3 +1,4 @@
+import { segmentOwnsSlot } from '../routines/event-series-plan';
 import { logicalOccurrenceSlot, occurrenceKey } from '../routines/occurrence-key';
 import { EventSeries, EventSeriesSegment } from '../routines/event-series.model';
 import { EventInput } from '../event/event.model';
@@ -79,9 +80,13 @@ export const projectEventOccurrences = (
       exception?.kind === 'override'
         ? exception.event
         : occurrence.kind === 'allDay'
-          ? { title: source.title, isAllDay: true as const, date: occurrence.date }
+          ? {
+              title: segment.title ?? source.title,
+              isAllDay: true as const,
+              date: occurrence.date,
+            }
           : {
-              title: source.title,
+              title: segment.title ?? source.title,
               isAllDay: false as const,
               start: occurrence.start,
               end: occurrence.end,
@@ -121,7 +126,8 @@ export const projectEventOccurrences = (
     });
   };
   for (const source of series) {
-    for (const segment of source.segments) {
+    if (source.deletedAt !== undefined) continue;
+    for (const [index, segment] of source.segments.entries()) {
       const timing = segment.timing;
       const candidateRange =
         timing.kind === 'allDay'
@@ -134,6 +140,8 @@ export const projectEventOccurrences = (
         segment.recurrence,
         candidateRange,
       )) {
+        const slot = logicalOccurrenceSlot(candidate.slot, segment.logicalSlotOffset);
+        if (!segmentOwnsSlot(source, index, slot)) continue;
         const occurrence = evaluateRecurrenceCandidate(candidate, timing);
         if (occurrence) addOccurrence(source, segment, occurrence);
       }
@@ -146,8 +154,10 @@ export const projectEventOccurrences = (
     if (exception.value.kind !== 'override' || !overlaps(exception.value.event)) continue;
     const source = bySeriesId.get(exception.seriesId);
     const key = occurrenceKey({ seriesId: exception.seriesId, slot: exception.slot });
-    if (!source || items.has(`eventOccurrence:${key}`)) continue;
-    for (const segment of source.segments) {
+    if (!source || source.deletedAt !== undefined || items.has(`eventOccurrence:${key}`))
+      continue;
+    for (const [index, segment] of source.segments.entries()) {
+      if (!segmentOwnsSlot(source, index, exception.slot)) continue;
       const engineSlot = exception.slot - (segment.logicalSlotOffset ?? 0);
       if (engineSlot < 0) continue;
       const candidate = getRecurrenceCandidateForSlot(segment.recurrence, engineSlot);

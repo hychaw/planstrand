@@ -1,3 +1,5 @@
+import { EventSeries } from '../../features/routines/event-series.model';
+import { isValidEventSeriesState } from '../../features/routines/event-series.validation';
 import { TestBed } from '@angular/core/testing';
 import { OperationLogCompactionService } from './operation-log-compaction.service';
 import { OperationLogStoreService } from './operation-log-store.service';
@@ -153,6 +155,59 @@ describe('OperationLogCompactionService', () => {
   });
 
   describe('compact', () => {
+    for (const deleted of [false, true]) {
+      it(`preserves complete split plans and terminal tombstones (deleted=${deleted}) during compaction`, async () => {
+        const series: EventSeries = {
+          id: 'series',
+          title: 'Routine',
+          created: 1,
+          modified: 100,
+          ...(deleted ? { deletedAt: 100 } : {}),
+          segments: [
+            {
+              id: 'first',
+              recurrence: { frequency: 'daily', startDate: '2026-01-01', interval: 1 },
+              timing: { kind: 'allDay' },
+            },
+            {
+              id: 'second',
+              logicalSlotOffset: 4,
+              title: 'Weekly',
+              recurrence: {
+                frequency: 'weekly',
+                startDate: '2026-01-05',
+                interval: 2,
+                weekdays: [1, 5],
+              },
+              timing: {
+                kind: 'timed',
+                localTime: '09:00',
+                timeZone: 'Asia/Tokyo',
+                durationMs: 3600000,
+              },
+            },
+            {
+              id: 'third',
+              logicalSlotOffset: 7,
+              title: 'Monthly',
+              recurrence: { frequency: 'monthly', startDate: '2026-01-31', interval: 1 },
+              timing: { kind: 'allDay' },
+            },
+          ],
+        };
+        const data = {
+          eventSeries: { ids: [series.id], entities: { [series.id]: series } },
+        };
+        mockStateSnapshot.getStateSnapshot.and.returnValue(data as never);
+        expect(await service.compact()).toBeTrue();
+        const cache = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+        expect(cache.state).toEqual(data);
+        expect(
+          isValidEventSeriesState((cache.state as typeof data).eventSeries),
+        ).toBeTrue();
+        expect(cache.snapshotEntityKeys).toContain('EVENT_SERIES:series');
+      });
+    }
     it('should acquire lock before compaction', async () => {
       await service.compact();
 

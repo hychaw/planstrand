@@ -20,6 +20,7 @@ import { isValidDBDateStr } from '../../util/get-db-date-str';
 import {
   isValidEventSeries,
   isValidEventSeriesInput,
+  isValidEventSeriesPlan,
   isEventSeriesTimestamp,
 } from '../../features/routines/event-series.validation';
 
@@ -659,6 +660,19 @@ export const validateOperationPayload = (op: Operation): PayloadValidationResult
         isValidEntityId(p['id']) &&
         isValidEventSeriesInput(p['changes']) &&
         isEventSeriesTimestamp(p['modified'])) ||
+      (op.actionType === ActionType.EVENT_SERIES_REPLACE_PLAN &&
+        op.opType === OpType.Update &&
+        p['id'] === op.entityId &&
+        isValidEntityId(p['id']) &&
+        isValidEventSeriesPlan(p['plan']) &&
+        isEventSeriesTimestamp(p['modified']) &&
+        Object.keys(p).every((k) => ['id', 'plan', 'modified'].includes(k))) ||
+      (op.actionType === ActionType.EVENT_SERIES_DELETE &&
+        op.opType === OpType.Update &&
+        isValidEventSeries(p['eventSeries']) &&
+        p['eventSeries'].id === op.entityId &&
+        p['eventSeries'].deletedAt !== undefined &&
+        Object.keys(p).every((k) => k === 'eventSeries')) ||
       ((op.actionType as string) === '[EVENT_SERIES] LWW Update' &&
         op.opType === OpType.Update &&
         isValidEventSeries(p) &&

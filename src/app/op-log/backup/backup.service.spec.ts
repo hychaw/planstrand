@@ -812,55 +812,83 @@ describe('BackupService', () => {
         expect(replacement.requiredCapabilities).toContain('ROUTINES_V1');
         expect(replacement.requiredEntityTypes).toContain('OCCURRENCE_EXCEPTION');
       });
-    it('round-trips recurring series through complete backup import and retains activation', async () => {
-      const data = createValidAppData();
-      data.eventSeries = {
-        ids: ['series'],
-        entities: {
-          series: {
-            id: 'series',
-            title: 'Routine',
-            created: 50,
-            modified: 50,
-            segments: [
-              {
-                id: 'segment',
-                recurrence: {
-                  frequency: 'weekly',
-                  interval: 1,
-                  startDate: '2026-10-10',
-                  weekdays: [1, 3],
+    for (const deleted of [false, true])
+      it(`round-trips split recurring series (deleted=${deleted}) through complete backup import`, async () => {
+        const data = createValidAppData();
+        data.eventSeries = {
+          ids: ['series'],
+          entities: {
+            series: {
+              id: 'series',
+              title: 'Routine',
+              created: 50,
+              modified: 100,
+              ...(deleted ? { deletedAt: 100 } : {}),
+              segments: [
+                {
+                  id: 'segment',
+                  recurrence: {
+                    frequency: 'weekly',
+                    interval: 1,
+                    startDate: '2026-10-10',
+                    weekdays: [1, 3],
+                  },
+                  timing: {
+                    kind: 'timed',
+                    localTime: '09:00',
+                    timeZone: 'Asia/Tokyo',
+                    durationMs: 3600000,
+                  },
                 },
-                timing: {
-                  kind: 'timed',
-                  localTime: '09:00',
-                  timeZone: 'Asia/Tokyo',
-                  durationMs: 3600000,
+                {
+                  id: 'second',
+                  logicalSlotOffset: 4,
+                  title: 'Later',
+                  recurrence: {
+                    frequency: 'monthly',
+                    startDate: '2026-11-30',
+                    interval: 1,
+                  },
+                  timing: { kind: 'allDay' },
                 },
-              },
-            ],
+                {
+                  id: 'third',
+                  logicalSlotOffset: 8,
+                  recurrence: {
+                    frequency: 'daily',
+                    startDate: '2027-03-30',
+                    interval: 2,
+                  },
+                  timing: {
+                    kind: 'timed',
+                    localTime: '10:00',
+                    timeZone: 'Europe/Berlin',
+                    durationMs: 7200000,
+                  },
+                },
+              ],
+            },
           },
-        },
-      };
-      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
-      const exported = await service.loadCompleteBackup(true);
-      expect(exported.data.eventSeries).toEqual(data.eventSeries);
-      expect(exported.requiredCapabilities).toContain('ROUTINES_V1');
-      await service.importCompleteBackup(
-        JSON.parse(JSON.stringify(exported)),
-        true,
-        true,
-      );
-      const action = mockStore.dispatch.calls.mostRecent()
-        .args[0] as unknown as ReturnType<typeof loadAllData>;
-      expect((action.appDataComplete as typeof data).eventSeries).toEqual(
-        data.eventSeries,
-      );
-      expect(
-        mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0]
-          .syncImportOp.requiredCapabilities,
-      ).toContain('ROUTINES_V1');
-    });
+        };
+        mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
+        const exported = await service.loadCompleteBackup(true);
+        expect(exported.data.eventSeries).toEqual(data.eventSeries);
+        expect(exported.requiredCapabilities).toContain('ROUTINES_V1');
+        await service.importCompleteBackup(
+          JSON.parse(JSON.stringify(exported)),
+          true,
+          true,
+        );
+        const action = mockStore.dispatch.calls.mostRecent()
+          .args[0] as unknown as ReturnType<typeof loadAllData>;
+        expect((action.appDataComplete as typeof data).eventSeries).toEqual(
+          data.eventSeries,
+        );
+        expect(
+          mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0]
+            .syncImportOp.requiredCapabilities,
+        ).toContain('ROUTINES_V1');
+      });
     it('round-trips timed and date-only Events through complete backup import and declares EVENT', async () => {
       const data = createValidAppData();
       const timed = {

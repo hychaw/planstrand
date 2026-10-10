@@ -7,6 +7,8 @@ import { TASK_FOLDER_OWNERSHIP_V1, ROUTINES_V1 } from '@sp/shared-schema';
 import {
   addEventSeries,
   updateEventSeries,
+  replaceEventSeriesPlan,
+  deleteEventSeries,
 } from '../../features/routines/store/event-series.actions';
 import {
   prepareTaskFolderAction,
@@ -257,10 +259,18 @@ describe('OperationLogEffects', () => {
         }),
         addEventSeries({ eventSeries }),
         updateEventSeries({ id: eventSeries.id, changes: definition, modified: 100 }),
+        replaceEventSeriesPlan({
+          id: eventSeries.id,
+          plan: { title: definition.title, segments: eventSeries.segments },
+          modified: 100,
+        }),
+        deleteEventSeries({
+          eventSeries: { ...eventSeries, deletedAt: 100, modified: 100 },
+        }),
       );
       effects.persistOperation$.subscribe({
         complete: () => {
-          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(3);
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(5);
           for (const [
             op,
           ] of mockOpLogStore.appendWithVectorClockOverwrite.calls.allArgs()) {

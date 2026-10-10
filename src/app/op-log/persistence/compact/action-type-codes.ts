@@ -175,6 +175,8 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   [ActionType.OCCURRENCE_EXCEPTION_SET]: 'OES',
   [ActionType.EVENT_SERIES_ADD]: 'ESA',
   [ActionType.EVENT_SERIES_UPDATE]: 'ESU',
+  [ActionType.EVENT_SERIES_REPLACE_PLAN]: 'ESP',
+  [ActionType.EVENT_SERIES_DELETE]: 'ESD',
   [ActionType.EVENT_UPDATE]: 'LEU',
   [ActionType.EVENT_REMOVE]: 'LED',
   [ActionType.WORK_SESSION_ADD]: 'VA',
