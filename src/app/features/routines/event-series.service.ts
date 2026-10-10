@@ -1,3 +1,4 @@
+import { isValidEntityId } from '../../op-log/validation/is-valid-entity-id';
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { nanoid } from 'nanoid';
@@ -13,6 +14,7 @@ import {
   isValidEventSeriesPlan,
 } from './event-series.validation';
 import { selectEventSeriesEntities } from './store/event-series.selectors';
+import { selectWeeklyTemplateEntities } from './store/weekly-template.selectors';
 import {
   addEventSeries,
   replaceEventSeriesPlan,
@@ -31,11 +33,21 @@ export class EventSeriesService {
   );
   readonly entities = this._store.selectSignal(selectEventSeriesEntities);
 
-  create(input: EventSeriesInput): string | null {
-    if (!isValidEventSeriesInput(input)) return null;
+  create(input: EventSeriesInput, templateId?: string): string | null {
+    if (
+      !isValidEventSeriesInput(input) ||
+      (templateId !== undefined &&
+        (!isValidEntityId(templateId) || Object.hasOwn(Object.prototype, templateId)))
+    )
+      return null;
+    if (templateId !== undefined) {
+      const owner = this._store.selectSignal(selectWeeklyTemplateEntities)()[templateId];
+      if (!owner || owner.deletedAt !== undefined) return null;
+    }
     const now = Date.now();
     const eventSeries: EventSeries = {
       id: nanoid(),
+      ...(templateId !== undefined ? { templateId } : {}),
       title: input.title,
       created: now,
       modified: now,

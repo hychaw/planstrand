@@ -1,3 +1,6 @@
+import { selectWeeklyTemplateFeatureState } from '../../features/routines/store/weekly-template.selectors';
+import { weeklyTemplateReducer } from '../../features/routines/store/weekly-template.reducer';
+import { addWeeklyTemplate } from '../../features/routines/store/weekly-template.actions';
 import { selectOccurrenceExceptionFeatureState } from '../../features/routines/store/occurrence-exception.selectors';
 import { occurrenceExceptionReducer } from '../../features/routines/store/occurrence-exception.reducer';
 import { setOccurrenceException } from '../../features/routines/store/occurrence-exception.actions';
@@ -139,6 +142,25 @@ describe('StateSnapshotService', () => {
     store.overrideSelector(selectOccurrenceExceptionFeatureState, slice);
     expect(service.getStateSnapshot().occurrenceException).toEqual(slice);
     expect((await service.getStateSnapshotAsync()).occurrenceException).toEqual(slice);
+  });
+  it('includes empty templates and terminal parents in both snapshot paths', async () => {
+    const slice = weeklyTemplateReducer(
+      undefined,
+      addWeeklyTemplate({
+        weeklyTemplate: {
+          id: 'fall',
+          title: 'Fall',
+          isActive: false,
+          startDate: '2026-10-01',
+          created: 1,
+          modified: 2,
+          deletedAt: 2,
+        },
+      }),
+    );
+    store.overrideSelector(selectWeeklyTemplateFeatureState, slice);
+    expect(service.getStateSnapshot().weeklyTemplate).toEqual(slice);
+    expect((await service.getStateSnapshotAsync()).weeklyTemplate).toEqual(slice);
   });
   it('includes recurring series in synchronous and asynchronous snapshots', async () => {
     const eventSeries: EventSeriesState = {

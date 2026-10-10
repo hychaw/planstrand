@@ -1,3 +1,8 @@
+import {
+  addWeeklyTemplate,
+  updateWeeklyTemplate,
+  deleteWeeklyTemplate,
+} from '../../features/routines/store/weekly-template.actions';
 import { setOccurrenceException } from '../../features/routines/store/occurrence-exception.actions';
 import { occurrenceExceptionId } from '../../features/routines/occurrence-exception.validation';
 import { DEFAULT_TASK } from '../../features/tasks/task.model';
@@ -232,7 +237,7 @@ describe('OperationLogEffects', () => {
   });
 
   describe('canonical Task ownership capture', () => {
-    it('stamps series and exception writes with conditional Routines requirements', (done) => {
+    it('stamps template, series and exception writes with conditional Routines requirements', (done) => {
       const definition = {
         title: 'Routine',
         recurrence: { frequency: 'daily' as const, interval: 1, startDate: '2026-10-10' },
@@ -247,7 +252,24 @@ describe('OperationLogEffects', () => {
           { id: 'segment', recurrence: definition.recurrence, timing: definition.timing },
         ] as [import('../../features/routines/event-series.model').EventSeriesSegment],
       };
+      const weeklyTemplate = {
+        id: 'fall',
+        title: 'Fall Semester',
+        isActive: true,
+        startDate: '2026-10-01',
+        created: 50,
+        modified: 50,
+      };
       actions$ = of(
+        addWeeklyTemplate({ weeklyTemplate }),
+        updateWeeklyTemplate({
+          id: weeklyTemplate.id,
+          changes: { title: 'Renamed', isActive: false, startDate: '2026-10-01' },
+          modified: 100,
+        }),
+        deleteWeeklyTemplate({
+          weeklyTemplate: { ...weeklyTemplate, deletedAt: 100, modified: 100 },
+        }),
         setOccurrenceException({
           occurrenceException: {
             id: occurrenceExceptionId({ seriesId: 'series', slot: 0 }),
@@ -270,11 +292,13 @@ describe('OperationLogEffects', () => {
       );
       effects.persistOperation$.subscribe({
         complete: () => {
-          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(5);
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(8);
           for (const [
             op,
           ] of mockOpLogStore.appendWithVectorClockOverwrite.calls.allArgs()) {
-            expect(['EVENT_SERIES', 'OCCURRENCE_EXCEPTION']).toContain(op.entityType);
+            expect(['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE']).toContain(
+              op.entityType,
+            );
             expect(op.requiredCapabilities).toEqual([ROUTINES_V1]);
             expect(op.requiredEntityTypes).toEqual([op.entityType]);
           }

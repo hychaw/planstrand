@@ -1,5 +1,6 @@
 import {
   hasEventSeriesState,
+  hasWeeklyTemplateState,
   hasOccurrenceExceptionState,
 } from './full-state-capabilities';
 
@@ -44,7 +45,9 @@ export const getFullStateRequiredCapabilities = (state: unknown): string[] => {
   return [
     ...new Set([
       ...(data.requiredCapabilities ?? []),
-      ...(hasEventSeriesState(state) || hasOccurrenceExceptionState(state)
+      ...(hasEventSeriesState(state) ||
+      hasOccurrenceExceptionState(state) ||
+      hasWeeklyTemplateState(state)
         ? [ROUTINES_V1]
         : []),
       ...([data.task, data.archiveYoung?.task, data.archiveOld?.task].some(

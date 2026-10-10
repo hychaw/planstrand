@@ -6,6 +6,10 @@ import {
   EVENT_SERIES_FEATURE_NAME,
   eventSeriesReducer,
 } from '../features/routines/store/event-series.reducer';
+import {
+  WEEKLY_TEMPLATE_FEATURE_NAME,
+  weeklyTemplateReducer,
+} from '../features/routines/store/weekly-template.reducer';
 import { EVENT_FEATURE_NAME, eventReducer } from '../features/event/store/event.reducer';
 import {
   PLANNING_FEATURE_NAME,
@@ -173,6 +177,7 @@ import {
     StoreModule.forFeature(EVENT_FEATURE_NAME, eventReducer),
     StoreModule.forFeature(OCCURRENCE_EXCEPTION_FEATURE_NAME, occurrenceExceptionReducer),
     StoreModule.forFeature(EVENT_SERIES_FEATURE_NAME, eventSeriesReducer),
+    StoreModule.forFeature(WEEKLY_TEMPLATE_FEATURE_NAME, weeklyTemplateReducer),
     StoreModule.forFeature(PLANNING_FEATURE_NAME, planningReducer),
 
     StoreModule.forFeature(TAG_FEATURE_NAME, tagReducer),

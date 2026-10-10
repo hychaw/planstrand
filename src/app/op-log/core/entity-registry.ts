@@ -15,6 +15,14 @@ import {
   selectEventSeriesById,
 } from '../../features/routines/store/event-series.selectors';
 import {
+  WEEKLY_TEMPLATE_FEATURE_NAME,
+  weeklyTemplateAdapter,
+} from '../../features/routines/store/weekly-template.reducer';
+import {
+  selectWeeklyTemplateEntities,
+  selectWeeklyTemplateById,
+} from '../../features/routines/store/weekly-template.selectors';
+import {
   EVENT_FEATURE_NAME,
   eventAdapter,
 } from '../../features/event/store/event.reducer';
@@ -332,6 +340,14 @@ export const buildEntityRegistry = (): EntityRegistry<EntityType> =>
       adapter: eventSeriesAdapter,
       selectEntities: selectEventSeriesEntities,
       selectById: selectEventSeriesById,
+    },
+    WEEKLY_TEMPLATE: {
+      storagePattern: 'adapter',
+      featureName: WEEKLY_TEMPLATE_FEATURE_NAME,
+      payloadKey: 'weeklyTemplate',
+      adapter: weeklyTemplateAdapter,
+      selectEntities: selectWeeklyTemplateEntities,
+      selectById: selectWeeklyTemplateById,
     },
     EVENT: {
       storagePattern: 'adapter',

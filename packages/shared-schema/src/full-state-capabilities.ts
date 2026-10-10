@@ -50,6 +50,22 @@ export const hasEventSeriesState = (state: unknown): boolean => {
     Object.keys(v).some((key) => !['ids', 'entities'].includes(key))
   );
 };
+export const hasWeeklyTemplateState = (state: unknown): boolean => {
+  if (!state || typeof state !== 'object' || !Object.hasOwn(state, 'weeklyTemplate'))
+    return false;
+  const slice = (state as { weeklyTemplate?: unknown }).weeklyTemplate;
+  if (!slice || typeof slice !== 'object' || Array.isArray(slice)) return true;
+  const v = slice as { ids?: unknown; entities?: unknown };
+  return (
+    !Array.isArray(v.ids) ||
+    v.ids.length > 0 ||
+    !v.entities ||
+    typeof v.entities !== 'object' ||
+    Array.isArray(v.entities) ||
+    Object.keys(v.entities).length > 0 ||
+    Object.keys(v).some((key) => !['ids', 'entities'].includes(key))
+  );
+};
 export const hasOccurrenceExceptionState = (state: unknown): boolean => {
   if (!state || typeof state !== 'object' || !Object.hasOwn(state, 'occurrenceException'))
     return false;
@@ -71,6 +87,7 @@ export const getFullStateRequiredEntityTypes = (state: unknown): string[] => {
   const required = hasMeaningfulFolderState(state) ? ['FOLDER'] : [];
   if (hasOccurrenceExceptionState(state)) required.push('OCCURRENCE_EXCEPTION');
   if (hasEventSeriesState(state)) required.push('EVENT_SERIES');
+  if (hasWeeklyTemplateState(state)) required.push('WEEKLY_TEMPLATE');
   if (state && typeof state === 'object' && Object.hasOwn(state, 'event')) {
     const event = (state as { event?: unknown }).event;
     // Only the exact optional empty slice is safe for an unaware reader.

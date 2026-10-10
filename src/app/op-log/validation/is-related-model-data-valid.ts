@@ -1,5 +1,6 @@
 import { isValidOccurrenceExceptionState } from '../../features/routines/occurrence-exception.validation';
 import { isValidEventSeriesState } from '../../features/routines/event-series.validation';
+import { isValidWeeklyTemplateState } from '../../features/routines/weekly-template.validation';
 import { isValidEventState } from '../../features/event/store/event.reducer';
 import { isFolderState } from '../../features/folder/folder-state';
 import { isPlanningState } from '../../features/planning/planning.model';
@@ -164,6 +165,8 @@ export const isRelatedModelDataValid = (d: AppDataComplete): boolean => {
     Object.hasOwn(d, 'occurrenceException') &&
     !isValidOccurrenceExceptionState(d.occurrenceException)
   )
+    return false;
+  if (Object.hasOwn(d, 'weeklyTemplate') && !isValidWeeklyTemplateState(d.weeklyTemplate))
     return false;
   if (Object.hasOwn(d, 'eventSeries') && !isValidEventSeriesState(d.eventSeries))
     return false;

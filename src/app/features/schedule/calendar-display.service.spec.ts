@@ -1,3 +1,5 @@
+import { selectAllWeeklyTemplates } from '../routines/store/weekly-template.selectors';
+import { WeeklyTemplate } from '../routines/weekly-template.model';
 import { selectPersistedCalendarDisplayItems } from './calendar-display-item.selectors';
 import { projectEvent } from './calendar-display-item';
 import { TestBed } from '@angular/core/testing';
@@ -19,6 +21,83 @@ import { PluginIssueProviderRegistryService } from '../../plugins/issue-provider
 import { ScheduleCalendarMapEntry } from './schedule.model';
 
 describe('CalendarDisplayService', () => {
+  it('reacts to template ownership, activity and window changes in every range query', () => {
+    const parent: WeeklyTemplate = {
+      id: 'fall',
+      title: 'Fall',
+      isActive: true,
+      startDate: '2026-10-05',
+      endDate: '2026-10-05',
+      created: 1,
+      modified: 1,
+    };
+    const child: EventSeries = {
+      id: 'class',
+      templateId: parent.id,
+      title: 'Class',
+      created: 1,
+      modified: 1,
+      segments: [
+        {
+          id: 'segment',
+          recurrence: {
+            frequency: 'weekly',
+            interval: 1,
+            startDate: '2026-10-05',
+            weekdays: [1],
+          },
+          timing: { kind: 'allDay' },
+        },
+      ],
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideMockStore({
+          selectors: [
+            { selector: selectAllEventSeries, value: [child] },
+            { selector: selectAllWeeklyTemplates, value: [parent] },
+            { selector: selectAllOccurrenceException, value: [] },
+            { selector: selectLocalizationConfig, value: { timeZone: 'UTC' } },
+            { selector: selectPersistedCalendarDisplayItems, value: [] },
+          ],
+        }),
+        {
+          provide: CalendarIntegrationService,
+          useValue: { calendarEvents$: new BehaviorSubject([]) },
+        },
+        {
+          provide: HiddenCalendarProvidersService,
+          useValue: { hiddenProviderIds: signal([]) },
+        },
+      ],
+    });
+    const store = TestBed.inject(MockStore);
+    const service = TestBed.inject(CalendarDisplayService);
+    const queries = ['2026-10-06', '2026-10-12', '2026-11-01', '2027-01-01'].map(
+      (toDateExclusive) =>
+        service.createItemsForRangeComputed(
+          signal({ fromDate: '2026-10-05', toDateExclusive }),
+        ),
+    );
+    const original = queries[0]()[0];
+    for (const query of queries) expect(query()).toEqual([original]);
+    expect(service.itemsForDays(['2026-10-05'])).toEqual([original]);
+    store.overrideSelector(selectAllWeeklyTemplates, [{ ...parent, isActive: false }]);
+    store.refreshState();
+    for (const query of queries) expect(query()).toEqual([]);
+    store.overrideSelector(selectAllWeeklyTemplates, [{ ...parent, title: 'Renamed' }]);
+    store.refreshState();
+    for (const query of queries) expect(query()).toEqual([original]);
+    store.overrideSelector(selectAllWeeklyTemplates, [
+      { ...parent, startDate: '2026-10-12', endDate: '2026-10-12' },
+    ]);
+    store.refreshState();
+    expect(queries[0]()).toEqual([]);
+    expect(queries[3]()[0].id).not.toBe(original.id);
+    store.overrideSelector(selectAllWeeklyTemplates, []);
+    store.refreshState();
+    for (const query of queries) expect(query()).toEqual([]);
+  });
   it('owns independent bounded queries and keeps expansion independent of Task, provider and clock updates', () => {
     const series: EventSeries = {
       id: 'series',

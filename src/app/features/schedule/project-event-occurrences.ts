@@ -1,3 +1,4 @@
+import { WeeklyTemplate } from '../routines/weekly-template.model';
 import { segmentOwnsSlot } from '../routines/event-series-plan';
 import { logicalOccurrenceSlot, occurrenceKey } from '../routines/occurrence-key';
 import { EventSeries, EventSeriesSegment } from '../routines/event-series.model';
@@ -43,6 +44,7 @@ export const projectEventOccurrences = (
   range: RecurrenceDateRange,
   displayTimeZone: string,
   exceptions: readonly OccurrenceException[] = [],
+  templates: readonly WeeklyTemplate[] = [],
 ): EventOccurrenceDisplayItem[] => {
   if (
     !range ||
@@ -56,6 +58,13 @@ export const projectEventOccurrences = (
   if (range.fromDate === range.toDateExclusive) return [];
   const from = calendarDayStart(range.fromDate, displayTimeZone);
   const to = calendarDayStart(range.toDateExclusive, displayTimeZone);
+  const owners = new Map(templates.map((template) => [template.id, template]));
+  const visible = (source: EventSeries): boolean => {
+    if (source.deletedAt !== undefined) return false;
+    if (source.templateId === undefined) return true;
+    const owner = owners.get(source.templateId);
+    return !!owner && owner.isActive && owner.deletedAt === undefined;
+  };
   const items = new Map<string, EventOccurrenceDisplayItem>();
   const byKey = new Map(
     exceptions.map(({ seriesId, slot, value }) => [
@@ -72,6 +81,14 @@ export const projectEventOccurrences = (
     segment: EventSeriesSegment,
     occurrence: RecurrenceOccurrence,
   ): void => {
+    const owner =
+      source.templateId === undefined ? undefined : owners.get(source.templateId);
+    if (
+      owner &&
+      (occurrence.date < owner.startDate ||
+        (owner.endDate !== undefined && occurrence.date > owner.endDate))
+    )
+      return;
     const slot = logicalOccurrenceSlot(occurrence.slot, segment.logicalSlotOffset);
     const key = occurrenceKey({ seriesId: source.id, slot });
     const exception = byKey.get(key);
@@ -126,7 +143,7 @@ export const projectEventOccurrences = (
     });
   };
   for (const source of series) {
-    if (source.deletedAt !== undefined) continue;
+    if (!visible(source)) continue;
     for (const [index, segment] of source.segments.entries()) {
       const timing = segment.timing;
       const candidateRange =
@@ -154,8 +171,7 @@ export const projectEventOccurrences = (
     if (exception.value.kind !== 'override' || !overlaps(exception.value.event)) continue;
     const source = bySeriesId.get(exception.seriesId);
     const key = occurrenceKey({ seriesId: exception.seriesId, slot: exception.slot });
-    if (!source || source.deletedAt !== undefined || items.has(`eventOccurrence:${key}`))
-      continue;
+    if (!source || !visible(source) || items.has(`eventOccurrence:${key}`)) continue;
     for (const [index, segment] of source.segments.entries()) {
       if (!segmentOwnsSlot(source, index, exception.slot)) continue;
       const engineSlot = exception.slot - (segment.logicalSlotOffset ?? 0);

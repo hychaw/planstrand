@@ -17,7 +17,10 @@ export const PLANSTRAND_REQUIRED_FILE_OP_TYPES: readonly string[] = Object.freez
   // Older readers reject these unknown requirements before reading/writing state.
   ...ENTITY_TYPES.filter(
     (type) =>
-      type !== 'FOLDER' && type !== 'EVENT_SERIES' && type !== 'OCCURRENCE_EXCEPTION',
+      type !== 'FOLDER' &&
+      type !== 'EVENT_SERIES' &&
+      type !== 'WEEKLY_TEMPLATE' &&
+      type !== 'OCCURRENCE_EXCEPTION',
   ).map((type) => `ENTITY:${type}`),
 ]);
 export const KNOWN_FILE_SEMANTICS: ReadonlySet<string> = new Set([

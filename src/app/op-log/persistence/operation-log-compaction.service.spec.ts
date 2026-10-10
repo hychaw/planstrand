@@ -208,6 +208,31 @@ describe('OperationLogCompactionService', () => {
         expect(cache.snapshotEntityKeys).toContain('EVENT_SERIES:series');
       });
     }
+    for (const deleted of [false, true]) {
+      it(`retains template parents and empty membership during compaction (deleted=${deleted})`, async () => {
+        const data = {
+          weeklyTemplate: {
+            ids: ['fall'],
+            entities: {
+              fall: {
+                id: 'fall',
+                title: 'Fall',
+                isActive: false,
+                startDate: '2026-10-01',
+                created: 1,
+                modified: 2,
+                ...(deleted ? { deletedAt: 2 } : {}),
+              },
+            },
+          },
+        };
+        mockStateSnapshot.getStateSnapshot.and.returnValue(data as never);
+        expect(await service.compact()).toBeTrue();
+        const cache = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+        expect(cache.state).toEqual(data);
+        expect(cache.snapshotEntityKeys).toContain('WEEKLY_TEMPLATE:fall');
+      });
+    }
     it('should acquire lock before compaction', async () => {
       await service.compact();
 
@@ -1182,6 +1207,7 @@ describe('OperationLogCompactionService', () => {
         workSession: 'WORK_SESSION',
         event: 'EVENT',
         eventSeries: 'EVENT_SERIES',
+        weeklyTemplate: 'WEEKLY_TEMPLATE',
         occurrenceException: 'OCCURRENCE_EXCEPTION',
       };
 

@@ -115,6 +115,8 @@ export const dataRepair = (
   if (!Object.hasOwn(dataOut, 'event')) dataOut.event = { ids: [], entities: {} };
   if (!Object.hasOwn(dataOut, 'occurrenceException'))
     dataOut.occurrenceException = { ids: [], entities: {} };
+  if (!Object.hasOwn(dataOut, 'weeklyTemplate'))
+    dataOut.weeklyTemplate = { ids: [], entities: {} };
   if (!Object.hasOwn(dataOut, 'eventSeries'))
     dataOut.eventSeries = { ids: [], entities: {} };
   if (!Object.hasOwn(dataOut, 'workSession')) {

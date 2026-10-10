@@ -812,6 +812,88 @@ describe('BackupService', () => {
         expect(replacement.requiredCapabilities).toContain('ROUTINES_V1');
         expect(replacement.requiredEntityTypes).toContain('OCCURRENCE_EXCEPTION');
       });
+    for (const lifecycle of ['active', 'inactive', 'deleted']) {
+      it(`round-trips ${lifecycle} templates, owned entries and exceptions through complete backup import`, async () => {
+        const data = createValidAppData();
+        data.weeklyTemplate = {
+          ids: ['fall'],
+          entities: {
+            fall: {
+              id: 'fall',
+              title: 'Fall Semester',
+              isActive: lifecycle === 'active',
+              startDate: '2026-10-01',
+              endDate: '2026-12-31',
+              created: 50,
+              modified: 100,
+              ...(lifecycle === 'deleted' ? { deletedAt: 100 } : {}),
+            },
+          },
+        };
+        data.eventSeries = {
+          ids: ['class'],
+          entities: {
+            class: {
+              id: 'class',
+              templateId: 'fall',
+              title: 'Class',
+              created: 50,
+              modified: 50,
+              segments: [
+                {
+                  id: 'segment',
+                  recurrence: {
+                    frequency: 'weekly',
+                    interval: 1,
+                    startDate: '2026-10-01',
+                    weekdays: [1, 3],
+                  },
+                  timing: { kind: 'allDay' },
+                },
+              ],
+            },
+          },
+        };
+        const key = { seriesId: 'class', slot: 1 };
+        data.occurrenceException = occurrenceExceptionReducer(
+          undefined,
+          setOccurrenceException({
+            occurrenceException: {
+              ...key,
+              id: occurrenceExceptionId(key),
+              value: { kind: 'cancelled' },
+              modified: 100,
+            },
+          }),
+        );
+        mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
+        const exported = await service.loadCompleteBackup(true);
+        expect(exported.data.weeklyTemplate).toEqual(data.weeklyTemplate);
+        expect(exported.data.eventSeries).toEqual(data.eventSeries);
+        expect(exported.requiredCapabilities).toContain('ROUTINES_V1');
+        await service.importCompleteBackup(
+          JSON.parse(JSON.stringify(exported)),
+          true,
+          true,
+        );
+        const action = mockStore.dispatch.calls.mostRecent()
+          .args[0] as unknown as ReturnType<typeof loadAllData>;
+        expect((action.appDataComplete as typeof data).weeklyTemplate).toEqual(
+          data.weeklyTemplate,
+        );
+        expect((action.appDataComplete as typeof data).eventSeries).toEqual(
+          data.eventSeries,
+        );
+        expect((action.appDataComplete as typeof data).occurrenceException).toEqual(
+          data.occurrenceException,
+        );
+        const replacement =
+          mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0]
+            .syncImportOp;
+        expect(replacement.requiredCapabilities).toContain('ROUTINES_V1');
+        expect(replacement.requiredEntityTypes).toContain('WEEKLY_TEMPLATE');
+      });
+    }
     for (const deleted of [false, true])
       it(`round-trips split recurring series (deleted=${deleted}) through complete backup import`, async () => {
         const data = createValidAppData();

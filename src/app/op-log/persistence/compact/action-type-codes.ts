@@ -173,6 +173,9 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   // WorkSession actions (V)
   [ActionType.EVENT_ADD]: 'LEA',
   [ActionType.OCCURRENCE_EXCEPTION_SET]: 'OES',
+  [ActionType.WEEKLY_TEMPLATE_ADD]: 'WTA',
+  [ActionType.WEEKLY_TEMPLATE_UPDATE]: 'WTU',
+  [ActionType.WEEKLY_TEMPLATE_DELETE]: 'WTD',
   [ActionType.EVENT_SERIES_ADD]: 'ESA',
   [ActionType.EVENT_SERIES_UPDATE]: 'ESU',
   [ActionType.EVENT_SERIES_REPLACE_PLAN]: 'ESP',

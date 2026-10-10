@@ -1,5 +1,6 @@
 import { OccurrenceExceptionState } from '../features/routines/occurrence-exception.model';
 import { EventSeriesState } from '../features/routines/event-series.model';
+import { WeeklyTemplateState } from '../features/routines/weekly-template.model';
 import { EventState } from '../features/event/event.model';
 import { FolderState } from '../features/folder/folder.model';
 import { PlanningState } from '../features/planning/planning.model';
@@ -49,4 +50,5 @@ export interface RootState {
   event?: EventState;
   occurrenceException?: OccurrenceExceptionState;
   eventSeries?: EventSeriesState;
+  weeklyTemplate?: WeeklyTemplateState;
 }

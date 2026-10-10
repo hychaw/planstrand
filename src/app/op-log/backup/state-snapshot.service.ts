@@ -1,6 +1,7 @@
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { selectOccurrenceExceptionFeatureState } from '../../features/routines/store/occurrence-exception.selectors';
 import { selectEventSeriesFeatureState } from '../../features/routines/store/event-series.selectors';
+import { selectWeeklyTemplateFeatureState } from '../../features/routines/store/weekly-template.selectors';
 import { selectEventFeatureState } from '../../features/event/store/event.selectors';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import { inject, Injectable } from '@angular/core';
@@ -81,6 +82,7 @@ const SNAPSHOT_SELECTORS: readonly {
   { key: 'event', selector: selectEventFeatureState },
   { key: 'occurrenceException', selector: selectOccurrenceExceptionFeatureState },
   { key: 'eventSeries', selector: selectEventSeriesFeatureState },
+  { key: 'weeklyTemplate', selector: selectWeeklyTemplateFeatureState },
   { key: 'planning', selector: selectPlanningState },
   { key: 'folder', selector: selectFolderFeatureState },
 ] as const;

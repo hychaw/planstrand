@@ -1,7 +1,9 @@
 import { OccurrenceExceptionState } from '../../features/routines/occurrence-exception.model';
 import { EventSeriesState } from '../../features/routines/event-series.model';
+import { WeeklyTemplateState } from '../../features/routines/weekly-template.model';
 import { initialOccurrenceExceptionState } from '../../features/routines/store/occurrence-exception.reducer';
 import { initialEventSeriesState } from '../../features/routines/store/event-series.reducer';
+import { initialWeeklyTemplateState } from '../../features/routines/store/weekly-template.reducer';
 import { EventState } from '../../features/event/event.model';
 import { initialEventState } from '../../features/event/store/event.reducer';
 import { FolderState } from '../../features/folder/folder.model';
@@ -75,6 +77,7 @@ export type AllModelConfig = {
   event?: ModelCfg<EventState>;
   occurrenceException?: ModelCfg<OccurrenceExceptionState>;
   eventSeries?: ModelCfg<EventSeriesState>;
+  weeklyTemplate?: ModelCfg<WeeklyTemplateState>;
   planning?: ModelCfg<PlanningState>;
   folder?: ModelCfg<FolderState>;
   taskRepeatCfg: ModelCfg<TaskRepeatCfgState>;
@@ -94,6 +97,7 @@ export const MODEL_CONFIGS: AllModelConfig = {
     isMainFileModel: true,
   },
   eventSeries: { defaultData: initialEventSeriesState, isMainFileModel: true },
+  weeklyTemplate: { defaultData: initialWeeklyTemplateState, isMainFileModel: true },
   event: { defaultData: initialEventState, isMainFileModel: true },
   folder: { defaultData: initialFolderState, isMainFileModel: true },
   planning: { defaultData: initialPlanningState, isMainFileModel: true },
@@ -236,6 +240,7 @@ export const withDefaultModelSlices = (data: object): AppDataComplete => {
     const needsDefault =
       key === 'occurrenceException' ||
       key === 'eventSeries' ||
+      key === 'weeklyTemplate' ||
       key === 'event' ||
       key === 'workSession' ||
       key === 'planning' ||

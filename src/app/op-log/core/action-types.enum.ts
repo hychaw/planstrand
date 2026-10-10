@@ -158,6 +158,9 @@ export enum ActionType {
   // WorkSession actions (V)
   EVENT_ADD = '[Event] Add Event',
   OCCURRENCE_EXCEPTION_SET = '[OccurrenceException] Set Occurrence Exception',
+  WEEKLY_TEMPLATE_ADD = '[WeeklyTemplate] Add Weekly Template',
+  WEEKLY_TEMPLATE_UPDATE = '[WeeklyTemplate] Update Weekly Template',
+  WEEKLY_TEMPLATE_DELETE = '[WeeklyTemplate] Delete Weekly Template',
   EVENT_SERIES_ADD = '[EventSeries] Add Event Series',
   EVENT_SERIES_UPDATE = '[EventSeries] Update Event Series',
   EVENT_SERIES_REPLACE_PLAN = '[EventSeries] Replace Schedule Plan',

@@ -18,6 +18,8 @@ export interface EventSeriesSegment {
 
 export interface EventSeries {
   id: string;
+  /** Immutable owner. Missing parents during replay never delete this lineage. */
+  readonly templateId?: string;
   title: string;
   segments: EventSeriesSegment[];
   /** Terminal tombstone; retained in snapshots, never hard-deleted. */

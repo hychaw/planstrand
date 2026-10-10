@@ -1,3 +1,7 @@
+import {
+  isValidWeeklyTemplate,
+  isValidWeeklyTemplateInput,
+} from '../../features/routines/weekly-template.validation';
 import { isValidOccurrenceException } from '../../features/routines/occurrence-exception.validation';
 import {
   Operation,
@@ -646,6 +650,35 @@ export const validateOperationPayload = (op: Operation): PayloadValidationResult
       value.id === op.entityId
       ? { success: true }
       : { success: false, error: 'Invalid OccurrenceException operation' };
+  }
+  if (op.entityType === 'WEEKLY_TEMPLATE') {
+    const p = actionPayload as Record<string, unknown>;
+    const valid =
+      (op.actionType === ActionType.WEEKLY_TEMPLATE_ADD &&
+        op.opType === OpType.Create &&
+        isValidWeeklyTemplate(p['weeklyTemplate']) &&
+        p['weeklyTemplate'].id === op.entityId &&
+        Object.keys(p).every((k) => k === 'weeklyTemplate')) ||
+      (op.actionType === ActionType.WEEKLY_TEMPLATE_UPDATE &&
+        op.opType === OpType.Update &&
+        p['id'] === op.entityId &&
+        isValidEntityId(p['id']) &&
+        isValidWeeklyTemplateInput(p['changes']) &&
+        isEventSeriesTimestamp(p['modified']) &&
+        Object.keys(p).every((k) => ['id', 'changes', 'modified'].includes(k))) ||
+      (op.actionType === ActionType.WEEKLY_TEMPLATE_DELETE &&
+        op.opType === OpType.Update &&
+        isValidWeeklyTemplate(p['weeklyTemplate']) &&
+        p['weeklyTemplate'].id === op.entityId &&
+        p['weeklyTemplate'].deletedAt !== undefined &&
+        Object.keys(p).every((k) => k === 'weeklyTemplate')) ||
+      ((op.actionType as string) === '[WEEKLY_TEMPLATE] LWW Update' &&
+        op.opType === OpType.Update &&
+        isValidWeeklyTemplate(p) &&
+        p['id'] === op.entityId);
+    return valid
+      ? { success: true }
+      : { success: false, error: 'Invalid WeeklyTemplate operation' };
   }
   if (op.entityType === 'EVENT_SERIES') {
     const p = actionPayload as Record<string, unknown>;

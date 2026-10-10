@@ -78,7 +78,8 @@ const reducer = createReducer(
     const current = state.entities[eventSeries.id];
     if (
       current &&
-      (current.created !== eventSeries.created ||
+      (current.templateId !== eventSeries.templateId ||
+        current.created !== eventSeries.created ||
         current.segments[0].id !== eventSeries.segments[0].id)
     )
       throw new Error('Immutable EventSeries metadata');
@@ -105,6 +106,7 @@ export const eventSeriesReducer = (
       : (state ?? initialEventSeriesState);
   if (current.deletedAt !== undefined && next.deletedAt === undefined) return state!;
   if (
+    next.templateId !== current.templateId ||
     next.created !== current.created ||
     next.segments[0].id !== current.segments[0].id ||
     (next.segments[0].logicalSlotOffset ?? 0) !==

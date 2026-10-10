@@ -1,3 +1,4 @@
+import { selectAllWeeklyTemplates } from '../routines/store/weekly-template.selectors';
 import { CurrentDateService } from '../../core/date/current-date.service';
 import { selectLocalizationConfig } from '../config/store/global-config.reducer';
 import { calendarAddDays, calendarDisplayZone } from './calendar-time';
@@ -26,6 +27,7 @@ export class CalendarDisplayService {
     return calendarDisplayZone(this._localization()?.timeZone);
   });
   readonly today = this._dates.dateInZone(this.displayTimeZone);
+  private readonly _templates = inject(Store).selectSignal(selectAllWeeklyTemplates);
   private readonly _series = inject(Store).selectSignal(selectAllEventSeries);
   private readonly _exceptions = inject(Store).selectSignal(selectAllOccurrenceException);
 
@@ -41,6 +43,7 @@ export class CalendarDisplayService {
             window,
             this.displayTimeZone(),
             this._exceptions(),
+            this._templates(),
           )
         : [];
     });
@@ -66,6 +69,7 @@ export class CalendarDisplayService {
             range,
             this.displayTimeZone(),
             this._exceptions(),
+            this._templates(),
           )
         : []),
     ];

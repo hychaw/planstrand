@@ -84,3 +84,36 @@ describe('conditional occurrence exception requirements', () => {
     ).toEqual([ROUTINES_V1]);
   });
 });
+
+describe('conditional WeeklyTemplate requirements', () => {
+  it('keeps absent and exact empty slices compatible with V1.1', () => {
+    for (const state of [{}, { weeklyTemplate: { ids: [], entities: {} } }]) {
+      expect(getFullStateRequiredCapabilities(state)).toEqual([]);
+      expect(getFullStateRequiredEntityTypes(state)).not.toContain('WEEKLY_TEMPLATE');
+    }
+    expect(SUPER_SYNC_OPERATION_CAPABILITIES.supportedEntityTypes).toContain(
+      'WEEKLY_TEMPLATE',
+    );
+  });
+  it('activates on the first template, including tombstones and malformed slices', () => {
+    for (const weeklyTemplate of [
+      null,
+      undefined,
+      [],
+      {},
+      { ids: ['t'], entities: { t: {} } },
+      { ids: [], entities: {}, future: true },
+    ]) {
+      expect(getFullStateRequiredCapabilities({ weeklyTemplate })).toEqual([ROUTINES_V1]);
+      expect(getFullStateRequiredEntityTypes({ weeklyTemplate })).toContain(
+        'WEEKLY_TEMPLATE',
+      );
+    }
+    expect(
+      getFullStateRequiredCapabilities({
+        weeklyTemplate: { ids: [], entities: {} },
+        requiredCapabilities: [ROUTINES_V1],
+      }),
+    ).toEqual([ROUTINES_V1]);
+  });
+});

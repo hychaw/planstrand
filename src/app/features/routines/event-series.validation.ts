@@ -119,7 +119,18 @@ export const isValidEventSeriesPlan = (v: unknown): v is EventSeriesPlan => {
 export const isValidEventSeries = (v: unknown): v is EventSeries => {
   return (
     record(v) &&
-    keys(v, ['id', 'title', 'segments', 'created', 'modified', 'deletedAt']) &&
+    keys(v, [
+      'id',
+      'title',
+      'segments',
+      'created',
+      'modified',
+      'deletedAt',
+      'templateId',
+    ]) &&
+    (!Object.hasOwn(v, 'templateId') ||
+      (isValidEntityId(v['templateId']) &&
+        !Object.hasOwn(Object.prototype, v['templateId']))) &&
     isValidEntityId(v['id']) &&
     !Object.hasOwn(Object.prototype, v['id']) &&
     isEventSeriesTimestamp(v['created']) &&

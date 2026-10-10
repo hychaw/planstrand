@@ -29,6 +29,7 @@ export const extractEntityKeysFromState = (state: AppStateSnapshot): string[] =>
     { key: 'EVENT', state: state.event as EntityState },
     { key: 'OCCURRENCE_EXCEPTION', state: state.occurrenceException as EntityState },
     { key: 'EVENT_SERIES', state: state.eventSeries as EntityState },
+    { key: 'WEEKLY_TEMPLATE', state: state.weeklyTemplate as EntityState },
     { key: 'WORK_SESSION', state: state.workSession as EntityState },
   ];
 

@@ -1,3 +1,4 @@
+import { isValidWeeklyTemplate } from '../../features/routines/weekly-template.validation';
 import { isValidEventSeries } from '../../features/routines/event-series.validation';
 import { buildReplacementOperation } from './build-replacement-operation';
 import { inject, Injectable, Injector } from '@angular/core';
@@ -166,24 +167,26 @@ interface AutoResolveConflictsLwwOptions {
 }
 
 /** Terminal lifecycle also applies to complete compensation snapshots. */
-const isEventSeriesTombstoneOperation = (operation: Operation): boolean => {
+const isRoutinesTombstoneOperation = (operation: Operation): boolean => {
+  const isTemplate = operation.entityType === 'WEEKLY_TEMPLATE';
   if (
-    operation.entityType !== 'EVENT_SERIES' ||
+    (!isTemplate && operation.entityType !== 'EVENT_SERIES') ||
     operation.opType !== OpType.Update ||
     !operation.payload
   )
     return false;
   const payload = extractActionPayload(operation.payload);
-  const series =
-    operation.actionType === ActionType.EVENT_SERIES_DELETE
-      ? payload['eventSeries']
-      : (operation.actionType as string) === '[EVENT_SERIES] LWW Update'
+  const entity =
+    operation.actionType ===
+    (isTemplate ? ActionType.WEEKLY_TEMPLATE_DELETE : ActionType.EVENT_SERIES_DELETE)
+      ? payload[isTemplate ? 'weeklyTemplate' : 'eventSeries']
+      : (operation.actionType as string) === `[${operation.entityType}] LWW Update`
         ? payload
         : undefined;
   return (
-    isValidEventSeries(series) &&
-    series.id === operation.entityId &&
-    series.deletedAt !== undefined
+    (isTemplate ? isValidWeeklyTemplate(entity) : isValidEventSeries(entity)) &&
+    (entity as { id: string; deletedAt?: number }).id === operation.entityId &&
+    (entity as { deletedAt?: number }).deletedAt !== undefined
   );
 };
 
@@ -1947,22 +1950,23 @@ export class ConflictResolutionService {
     // Both sides are already terminal: use ordinary deterministic LWW to choose
     // the retained snapshot. Unconditional remote precedence would swap different
     // tombstones between devices without converging their persisted metadata.
-    const seriesWithConcurrentDeletes = new Set(
+    const routinesWithConcurrentDeletes = new Set(
       conflicts
         .filter(
           (conflict) =>
-            conflict.entityType === 'EVENT_SERIES' &&
-            conflict.localOps.some(isEventSeriesTombstoneOperation) &&
-            conflict.remoteOps.some(isEventSeriesTombstoneOperation),
+            (conflict.entityType === 'EVENT_SERIES' ||
+              conflict.entityType === 'WEEKLY_TEMPLATE') &&
+            conflict.localOps.some(isRoutinesTombstoneOperation) &&
+            conflict.remoteOps.some(isRoutinesTombstoneOperation),
         )
-        .map((conflict) => conflict.entityId),
+        .map((conflict) => toEntityKey(conflict.entityType, conflict.entityId)),
     );
     const plans = planLwwConflictResolutions<Operation, EntityConflict>(conflicts, {
       isArchiveAction: (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
       isDeleteWinsAction: (op) =>
         isProjectDeleteWinsOperation(op) ||
-        (isEventSeriesTombstoneOperation(op) &&
-          !seriesWithConcurrentDeletes.has(op.entityId!)),
+        (isRoutinesTombstoneOperation(op) &&
+          !routinesWithConcurrentDeletes.has(toEntityKey(op.entityType, op.entityId!))),
       toEntityKey: (entityType, entityId) =>
         toEntityKey(entityType as EntityType, entityId),
     });
@@ -2035,7 +2039,8 @@ export class ConflictResolutionService {
         localWinOp = archiveWinOpByConflict.get(plan.conflict);
       } else if (
         plan.localWinOperationKind === 'delete-win' &&
-        plan.conflict.entityType === 'EVENT_SERIES'
+        (plan.conflict.entityType === 'EVENT_SERIES' ||
+          plan.conflict.entityType === 'WEEKLY_TEMPLATE')
       ) {
         localWinOp = await this._createLocalWinUpdateOp(plan.conflict);
       } else if (plan.localWinOperationKind === 'delete-win') {

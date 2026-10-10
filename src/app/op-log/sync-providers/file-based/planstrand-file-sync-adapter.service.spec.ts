@@ -94,13 +94,14 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
       TASK_FOLDER_OWNERSHIP_V1,
     );
   });
-  for (const entityType of ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION'])
+  for (const entityType of ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'])
     it(`activates Routines on first ${entityType} write and fences cold old readers`, async () => {
       const oldSemantics = new Set(
         [...KNOWN_FILE_SEMANTICS].filter(
           (v) =>
             v !== ROUTINES_V1 &&
             v !== 'ENTITY:EVENT_SERIES' &&
+            v !== 'ENTITY:WEEKLY_TEMPLATE' &&
             v !== 'ENTITY:OCCURRENCE_EXCEPTION',
         ),
       );

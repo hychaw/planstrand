@@ -56,6 +56,7 @@ export const getOperationCapabilityRequirement = (
       if (
         (entityType !== 'FOLDER' &&
           entityType !== 'EVENT_SERIES' &&
+          entityType !== 'WEEKLY_TEMPLATE' &&
           entityType !== 'OCCURRENCE_EXCEPTION') ||
         getFullStateRequiredEntityTypes(
           extractFullStateFromPayload(operation.payload),
@@ -146,6 +147,7 @@ export const getOperationRequiredCapabilities = (
   ...new Set([
     ...(operation.requiredCapabilities ?? []),
     ...(operation.entityType === 'EVENT_SERIES' ||
+    operation.entityType === 'WEEKLY_TEMPLATE' ||
     operation.entityType === 'OCCURRENCE_EXCEPTION'
       ? [ROUTINES_V1]
       : []),

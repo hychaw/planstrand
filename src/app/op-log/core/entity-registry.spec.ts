@@ -36,6 +36,7 @@ describe('entity-registry', () => {
     'WORK_SESSION',
     'EVENT',
     'EVENT_SERIES',
+    'WEEKLY_TEMPLATE',
     'OCCURRENCE_EXCEPTION',
     'REMINDER',
     'PLUGIN_USER_DATA',
@@ -60,6 +61,7 @@ describe('entity-registry', () => {
     'WORK_SESSION',
     'EVENT',
     'EVENT_SERIES',
+    'WEEKLY_TEMPLATE',
     'OCCURRENCE_EXCEPTION',
   ];
 

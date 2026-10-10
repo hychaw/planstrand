@@ -304,7 +304,9 @@ export const isDisjointMergeEligible = (params: {
   // Never merge its ids and entities independently.
   if (
     [...localOps, ...remoteOps].some((op) =>
-      ['FOLDER', 'EVENT_SERIES', 'OCCURRENCE_EXCEPTION'].includes(op.entityType),
+      ['FOLDER', 'EVENT_SERIES', 'WEEKLY_TEMPLATE', 'OCCURRENCE_EXCEPTION'].includes(
+        op.entityType,
+      ),
     )
   )
     return false;

@@ -52,6 +52,7 @@ export const hasMeaningfulStateData = (
   if (isEntityState(s.occurrenceException) && s.occurrenceException.ids.length)
     return true;
   if (isEntityState(s.eventSeries) && s.eventSeries.ids.length) return true;
+  if (isEntityState(s.weeklyTemplate) && s.weeklyTemplate.ids.length) return true;
   if (isEntityState(s.task)) {
     const meaningfulTaskIds = ignoreTaskIds
       ? s.task.ids.filter((id) => !ignoreTaskIds.has(id))

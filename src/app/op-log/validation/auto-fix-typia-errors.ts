@@ -102,6 +102,7 @@ export const autoFixTypiaErrors = (
       if (
         keys[0] === 'occurrenceException' ||
         keys[0] === 'eventSeries' ||
+        keys[0] === 'weeklyTemplate' ||
         keys[0] === 'event' ||
         keys[0] === 'workSession' ||
         keys[0] === 'planning'

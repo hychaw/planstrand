@@ -108,7 +108,9 @@ export const buildReplacementOperation = (
     vectorClock,
     timestamp,
     schemaVersion: CURRENT_SCHEMA_VERSION,
-    ...(entityType === 'EVENT_SERIES' || entityType === 'OCCURRENCE_EXCEPTION'
+    ...(entityType === 'EVENT_SERIES' ||
+    entityType === 'WEEKLY_TEMPLATE' ||
+    entityType === 'OCCURRENCE_EXCEPTION'
       ? {
           requiredEntityTypes: [entityType],
           requiredCapabilities: [ROUTINES_V1],
