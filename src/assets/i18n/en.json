@@ -170,6 +170,17 @@
   },
   "F": {
     "EVENT": {
+      "EDIT_OCCURRENCE": "Edit recurring Event",
+      "OCCURRENCE_SCOPE": "Recurring Event · This occurrence",
+      "OCCURRENCE_UNAVAILABLE": "This occurrence is no longer available.",
+      "OCCURRENCE_CANCELLED": "This occurrence is cancelled.",
+      "CANCEL_OCCURRENCE": "Cancel this occurrence",
+      "CANCEL_OCCURRENCE_CONFIRM": "Cancel this occurrence? You can restore it from Cancelled occurrences in the Calendar.",
+      "RESTORE_OCCURRENCE": "Restore original schedule",
+      "CANCELLED_OCCURRENCES": "Cancelled occurrences",
+      "CANCELLED_OCCURRENCES_HINT": "Restore a cancelled occurrence to its original schedule. Each action affects this occurrence only.",
+      "FIND_CANCELLED": "Find by Event title or scheduled date",
+      "NO_CANCELLED_OCCURRENCES": "No matching cancelled occurrences.",
       "NEW": "New Event",
       "EDIT": "Edit Event",
       "TITLE": "Title",

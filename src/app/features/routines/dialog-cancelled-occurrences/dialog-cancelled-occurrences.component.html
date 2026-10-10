@@ -1,0 +1,47 @@
+<h2 mat-dialog-title>{{ T.F.EVENT.CANCELLED_OCCURRENCES | translate }}</h2>
+<mat-dialog-content>
+  <p>{{ T.F.EVENT.CANCELLED_OCCURRENCES_HINT | translate }}</p>
+  <label>
+    {{ T.F.EVENT.FIND_CANCELLED | translate }}
+    <input
+      type="search"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+      cdkFocusInitial
+    />
+  </label>
+  <ul>
+    @for (entry of entries(); track entry.id) {
+      <li>
+        <div>
+          <strong>{{ entry.occurrence.original.title }}</strong>
+          <span>{{ entry.timing }}</span>
+          <span>{{ T.F.EVENT.OCCURRENCE_SCOPE | translate }}</span>
+        </div>
+        <button
+          mat-button
+          (click)="restore(entry.key)"
+          [attr.aria-label]="
+            (T.F.EVENT.RESTORE_OCCURRENCE | translate) +
+            ': ' +
+            entry.occurrence.original.title +
+            ', ' +
+            entry.timing
+          "
+        >
+          {{ T.F.EVENT.RESTORE_OCCURRENCE | translate }}
+        </button>
+      </li>
+    } @empty {
+      <li role="status">{{ T.F.EVENT.NO_CANCELLED_OCCURRENCES | translate }}</li>
+    }
+  </ul>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button
+    mat-button
+    mat-dialog-close
+  >
+    {{ T.G.CLOSE | translate }}
+  </button>
+</mat-dialog-actions>

@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, computed } from '@angular/core';
+import { A11yModule } from '@angular/cdk/a11y';
+import { Store } from '@ngrx/store';
+import { OccurrenceKey, isValidOccurrenceKey } from '../../routines/occurrence-key';
+import { OccurrenceExceptionService } from '../../routines/occurrence-exception.service';
+import { occurrenceExceptionId } from '../../routines/occurrence-exception.validation';
+import { selectEventSeriesEntities } from '../../routines/store/event-series.selectors';
+import { resolveEventOccurrence } from '../../routines/resolve-event-occurrence';
 import { FormsModule } from '@angular/forms';
 import {
   MAT_DIALOG_DATA,
@@ -26,10 +33,11 @@ export interface EventDialogData {
   id?: string;
   date?: string;
   start?: number;
+  occurrence?: OccurrenceKey;
 }
 @Component({
   selector: 'dialog-event',
-  imports: [FormsModule, MatDialogModule, MatButtonModule, TranslatePipe],
+  imports: [FormsModule, MatDialogModule, MatButtonModule, TranslatePipe, A11yModule],
   templateUrl: './dialog-event.component.html',
   styleUrl: './dialog-event.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,9 +49,28 @@ export class DialogEventComponent {
   private readonly _ref = inject(MatDialogRef<DialogEventComponent>);
   private readonly _dialog = inject(MatDialog);
   private readonly _translate = inject(TranslateService);
-  private readonly _existing = this.data.id
-    ? this._events.entities()[this.data.id]
+  private readonly _exceptions = inject(OccurrenceExceptionService);
+  private readonly _series = inject(Store).selectSignal(selectEventSeriesEntities);
+  // Copy only ownership fields; never use an Event id or a day-slice timestamp.
+  readonly occurrenceKey = this.data.occurrence
+    ? { seriesId: this.data.occurrence.seriesId, slot: this.data.occurrence.slot }
     : undefined;
+  readonly occurrence = computed(() => {
+    const key = this.occurrenceKey;
+    return key && isValidOccurrenceKey(key)
+      ? resolveEventOccurrence(
+          this._series()[key.seriesId],
+          key,
+          this._exceptions.entities()[occurrenceExceptionId(key)],
+        )
+      : null;
+  });
+  private readonly _initialOccurrence = this.occurrence();
+  private readonly _existing = this.occurrenceKey
+    ? this._initialOccurrence?.effective
+    : this.data.id
+      ? this._events.entities()[this.data.id]
+      : undefined;
   title = this._existing?.title ?? '';
   isAllDay = this._existing?.isAllDay ?? false;
   private readonly _configuredTimeZone =
@@ -51,8 +78,10 @@ export class DialogEventComponent {
   timeZone =
     this._existing && !this._existing.isAllDay
       ? this._existing.timeZone
-      : (resolveIanaTimeZone(this._configuredTimeZone) ??
-        (this._configuredTimeZone ? '' : 'UTC'));
+      : this._initialOccurrence && !this._initialOccurrence.original.isAllDay
+        ? this._initialOccurrence.original.timeZone
+        : (resolveIanaTimeZone(this._configuredTimeZone) ??
+          (this._configuredTimeZone ? '' : 'UTC'));
   date = this._existing?.isAllDay
     ? this._existing.date
     : (this.data.date ?? inject(DateService).todayStr());
@@ -77,6 +106,13 @@ export class DialogEventComponent {
   }
   save(): void {
     this.invalid = false;
+    if (
+      this.occurrenceKey &&
+      (!this.occurrence() || this.occurrence()?.kind === 'cancelled')
+    ) {
+      this.invalid = true;
+      return;
+    }
     let input: EventInput;
     if (this.isAllDay)
       input = { title: this.title.trim(), isAllDay: true, date: this.date };
@@ -102,9 +138,11 @@ export class DialogEventComponent {
         timeZone: this.timeZone,
       };
     }
-    const saved = this.data.id
-      ? this._events.update(this.data.id, input)
-      : this._events.create(input);
+    const saved = this.occurrenceKey
+      ? this._exceptions.edit(this.occurrenceKey, input)
+      : this.data.id
+        ? this._events.update(this.data.id, input)
+        : this._events.create(input);
     if (saved) this._ref.close(true);
     else this.invalid = true;
   }
@@ -122,7 +160,7 @@ export class DialogEventComponent {
     return zonedDateTimeToTimestamp(date, time, this.timeZone);
   }
   async remove(): Promise<void> {
-    if (!this.data.id) return;
+    if (this.occurrenceKey || !this.data.id) return;
     const confirmed = await firstValueFrom(
       this._dialog
         .open(DialogConfirmComponent, {
@@ -135,5 +173,30 @@ export class DialogEventComponent {
         .afterClosed(),
     );
     if (confirmed && this._events.remove(this.data.id)) this._ref.close(true);
+  }
+
+  async cancelOccurrence(): Promise<void> {
+    const key = this.occurrenceKey;
+    if (!key || !this.occurrence() || this.occurrence()?.kind === 'cancelled') return;
+    const confirmed = await firstValueFrom(
+      this._dialog
+        .open(DialogConfirmComponent, {
+          data: {
+            message: this._translate.instant(T.F.EVENT.CANCEL_OCCURRENCE_CONFIRM),
+            cancelTxt: T.G.CANCEL,
+            okTxt: T.F.EVENT.CANCEL_OCCURRENCE,
+          },
+        })
+        .afterClosed(),
+    );
+    if (confirmed && this.occurrence() && this._exceptions.cancel(key))
+      this._ref.close(true);
+  }
+
+  restoreOccurrence(): void {
+    const key = this.occurrenceKey;
+    const current = this.occurrence();
+    if (key && current && current.kind !== 'inherit' && this._exceptions.restore(key))
+      this._ref.close(true);
   }
 }

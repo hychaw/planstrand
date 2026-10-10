@@ -69,6 +69,7 @@ App/spec TypeScript checks, all seven changed TypeScript `checkFile` checks,
 documentation-link checks and `git diff --check` passed.
 These are browser/in-process tests, not full application or multi-device sync runs.
 
-Occurrence editing/cancellation UI and scope selection follow separately.
+Individual occurrence editing/cancellation UI follows in
+[Phase 3a.3](routines-phase-3a3.md); additional editing scopes follow separately.
 Series splitting/lifecycle, Weekly Templates and external write-back remain
 excluded. Phase 3a.2 is complete at read-only projection.

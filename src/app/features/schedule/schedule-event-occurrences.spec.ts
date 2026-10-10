@@ -6,6 +6,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
+import { DialogEventComponent } from '../event/dialog-event/dialog-event.component';
 import { DateTimeFormatService } from '../../core/date-time-format/date-time-format.service';
 import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
 import { HiddenCalendarProvidersService } from '../calendar-integration/hidden-calendar-providers.service';
@@ -163,7 +164,14 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
             is24HourFormat: () => true,
           },
         },
-        { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
+        {
+          provide: MatDialog,
+          useValue: {
+            open: jasmine
+              .createSpy('open')
+              .and.returnValue({ afterClosed: () => of(false) }),
+          },
+        },
         {
           provide: TaskService,
           useValue: {
@@ -546,7 +554,7 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
     expect(read().some((event) => titleOf(event) === allDay.title)).toBeFalse();
   });
 
-  it('keeps occurrence click, resize, delete and forged drag deliveries out of every write path', async () => {
+  it('opens only the occurrence editor and keeps resize, delete and forged drags out of other write paths', async () => {
     setExceptions([
       {
         seriesId: overnight.id,
@@ -609,7 +617,13 @@ describe('recurring Event Calendar integration (real projection and mapping)', (
         if (jasmine.isSpy(value)) expect(value).not.toHaveBeenCalled();
       }
     }
-    expect(TestBed.inject(MatDialog).open).not.toHaveBeenCalled();
+    expect(TestBed.inject(MatDialog).open).toHaveBeenCalledOnceWith(
+      DialogEventComponent,
+      {
+        data: { occurrence: { seriesId: overnight.id, slot: 0 } },
+        restoreFocus: false,
+      },
+    );
     expect(TestBed.inject(TaskService).setSelectedId).not.toHaveBeenCalled();
   });
 

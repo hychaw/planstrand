@@ -11,6 +11,13 @@
   >
     <mat-icon>add</mat-icon>{{ T.F.EVENT.NEW | translate }}
   </button>
+  <button
+    mat-button
+    class="e2e-cancelled-occurrences"
+    (click)="showCancelledOccurrences()"
+  >
+    <mat-icon>event_busy</mat-icon>{{ T.F.EVENT.CANCELLED_OCCURRENCES | translate }}
+  </button>
   <div class="time-view-selector">
     <button
       mat-button

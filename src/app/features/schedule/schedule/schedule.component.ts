@@ -1,6 +1,7 @@
 import { selectConfigFeatureState } from '../../config/store/global-config.reducer';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
+import { DialogCancelledOccurrencesComponent } from '../../routines/dialog-cancelled-occurrences/dialog-cancelled-occurrences.component';
 /* eslint-disable */
 import {
   ChangeDetectionStrategy,
@@ -83,6 +84,12 @@ export class ScheduleComponent {
   newEvent(): void {
     this._eventDialog.open(DialogEventComponent, {
       data: { date: this.daysToShow()[0] },
+    });
+  }
+  showCancelledOccurrences(): void {
+    this._eventDialog.open(DialogCancelledOccurrencesComponent, {
+      width: '560px',
+      maxWidth: '95vw',
     });
   }
   taskService = inject(TaskService);

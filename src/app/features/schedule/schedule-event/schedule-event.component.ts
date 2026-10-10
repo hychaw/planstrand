@@ -1,6 +1,7 @@
 import { EventService } from '../../event/event.service';
 import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
 import { editableLocalEvent } from '../schedule.model';
+import { EventOccurrenceDisplayItem } from '../calendar-display-item.model';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -84,6 +85,9 @@ const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
     '[class.blue-thread-event]': 'isLocalEvent()',
     '(click)': 'clickHandler($event)',
     '(contextmenu)': 'onContextMenu($event)',
+    '[attr.role]': 'isOccurrenceInteractive() ? "button" : null',
+    '[attr.tabindex]': 'isOccurrenceInteractive() ? 0 : null',
+    '(keydown)': 'onOccurrenceKeydown($event)',
   },
   /* eslint-enable @typescript-eslint/naming-convention */
   hostDirectives: [
@@ -95,6 +99,9 @@ const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
   ],
 })
 export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
+  readonly isOccurrenceInteractive = computed(
+    () => this.se().type === SVEType.EventOccurrence && !this.isDragPreview(),
+  );
   readonly isWorkSession = computed(() => !!editableWorkSession(this.se(), 'canDelete'));
   readonly isLocalEvent = computed(
     () =>
@@ -427,7 +434,27 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
 
     const t = this.task();
     const evt = this.se();
-    if (evt.type === SVEType.EventOccurrence) return;
+    if (evt.type === SVEType.EventOccurrence) {
+      if (this.isDragPreview()) return;
+      const item = evt.data as EventOccurrenceDisplayItem;
+      const origin = this._elRef.nativeElement as HTMLElement;
+      const fallback = origin.closest<HTMLElement>('schedule-week, schedule-month');
+      const ref = this._matDialog.open(DialogEventComponent, {
+        data: { occurrence: { seriesId: item.sourceId, slot: item.occurrence.slot } },
+        restoreFocus: false,
+      });
+      ref
+        .afterClosed()
+        .pipe(first())
+        .subscribe(() => {
+          if (origin.isConnected) origin.focus();
+          else if (fallback?.isConnected) {
+            fallback.tabIndex = -1;
+            fallback.focus();
+          }
+        });
+      return;
+    }
     if (editableLocalEvent(evt, 'canDelete') && !this.isDragPreview()) {
       this._matDialog.open(DialogEventComponent, {
         data: { id: (evt.data as { sourceId: string }).sourceId },
@@ -459,6 +486,17 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
         this.calMenuTrigger()?.openMenu();
       }
     }
+  }
+
+  onOccurrenceKeydown(event: KeyboardEvent): void {
+    if (
+      !this.isOccurrenceInteractive() ||
+      event.target !== this._elRef.nativeElement ||
+      (event.key !== 'Enter' && event.key !== ' ')
+    )
+      return;
+    event.preventDefault();
+    if (!event.repeat) void this.clickHandler(new MouseEvent('click'));
   }
 
   readonly isCalendarEventFromPlugin = computed(() => {

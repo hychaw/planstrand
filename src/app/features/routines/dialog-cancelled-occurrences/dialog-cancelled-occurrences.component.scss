@@ -1,0 +1,43 @@
+:host {
+  display: block;
+  color: var(--ink);
+}
+label {
+  display: grid;
+  gap: var(--s);
+  color: var(--ink-muted);
+}
+input {
+  min-width: 0;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-hover);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s);
+  padding-block: var(--s2);
+  border-bottom: 1px solid var(--separator);
+}
+li > div {
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+strong,
+span {
+  display: block;
+}
+span {
+  color: var(--ink-muted);
+  font-size: var(--font-size-sm);
+}

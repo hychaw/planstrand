@@ -3,7 +3,9 @@ import { ScheduleComponent } from './schedule.component';
 import { TaskService } from '../../tasks/task.service';
 import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { ScheduleService } from '../schedule.service';
+import { CalendarDisplayService } from '../calendar-display.service';
 import { MatDialog } from '@angular/material/dialog';
+import { DialogCancelledOccurrencesComponent } from '../../routines/dialog-cancelled-occurrences/dialog-cancelled-occurrences.component';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { DateAdapter } from '@angular/material/core';
 import { computed, signal } from '@angular/core';
@@ -126,6 +128,13 @@ describe('ScheduleComponent', () => {
         { provide: TaskService, useValue: mockTaskService },
         { provide: LayoutService, useValue: mockLayoutService },
         { provide: ScheduleService, useValue: mockScheduleService },
+        {
+          provide: CalendarDisplayService,
+          useValue: {
+            createItemsForRangeComputed: () => signal([]),
+            displayTimeZone: () => 'UTC',
+          },
+        },
         { provide: MatDialog, useValue: mockMatDialog },
         {
           provide: CalendarEventActionsService,
@@ -157,6 +166,23 @@ describe('ScheduleComponent', () => {
       expect(component.currentTimeRow()).toBe(149);
     } finally {
       jasmine.clock().uninstall();
+    }
+  });
+
+  it('exposes cancelled-occurrence restoration in the Calendar toolbar, including Year', () => {
+    for (const view of ['day', 'week', 'month', 'year'] as const) {
+      mockLayoutService.selectedTimeView.set(view);
+      fixture.detectChanges();
+      const button = fixture.nativeElement.querySelector(
+        '.e2e-cancelled-occurrences',
+      ) as HTMLButtonElement;
+      expect(button).not.toBeNull();
+      expect(button.disabled).toBeFalse();
+      button.click();
+      expect(mockMatDialog.open).toHaveBeenCalledWith(
+        DialogCancelledOccurrencesComponent,
+        { width: '560px', maxWidth: '95vw' },
+      );
     }
   });
 
