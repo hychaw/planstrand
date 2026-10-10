@@ -8,6 +8,7 @@ import { vi, beforeEach } from 'vitest';
 import {
   isEntityArrayBranchQuery,
   entityArrayBranchRows,
+  unsupportedReaderRows,
 } from './sync.service.test-state';
 
 // In-memory storage for test data
@@ -332,6 +333,12 @@ vi.mock('../src/db', () => {
         $queryRaw: vi
           .fn()
           .mockImplementation(async (strings: any, ...params: unknown[]) => {
+            const unsupported = unsupportedReaderRows(
+              testData.operations,
+              strings,
+              params,
+            );
+            if (unsupported !== undefined) return unsupported;
             // Single-entity conflict lookup, array branch (raw SQL since the fix for
             // the full-history scan).
             if (isEntityArrayBranchQuery(strings)) {

@@ -2193,6 +2193,37 @@ describe('OperationLogUploadService', () => {
           expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
         });
 
+        it('retains a full-state op and surfaces a structured compatibility rejection', async () => {
+          const entry = createFullStateEntry(
+            1,
+            'pending-import',
+            'client-1',
+            OpType.SyncImport,
+          );
+          mockOpLogStore.getUnsynced.and.resolveTo([entry]);
+          mockApiProvider.uploadSnapshot.and.rejectWith(
+            Object.assign(new Error('HTTP 409 Conflict'), {
+              code: 'FULL_STATE_READER_UNSUPPORTED',
+              status: 409,
+            }),
+          );
+
+          const result = await service.uploadPendingOps(mockApiProvider);
+
+          expect(result.uploadedCount).toBe(0);
+          expect(result.rejectedOps).toEqual([
+            {
+              opId: entry.op.id,
+              error: 'HTTP 409 Conflict',
+              errorCode: 'FULL_STATE_READER_UNSUPPORTED',
+            },
+          ]);
+          expect(mockOpLogStore.markSynced).not.toHaveBeenCalled();
+          expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
+          expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
+          expect(mockApiProvider.uploadOps).not.toHaveBeenCalled();
+        });
+
         it('keeps legacy SYNC_IMPORT_EXISTS message fallback for older providers', async () => {
           const entry = createFullStateEntry(
             1,
@@ -2235,6 +2266,25 @@ describe('OperationLogUploadService', () => {
 
         mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(0));
         mockApiProvider.setLastServerSeq.and.returnValue(Promise.resolve());
+      });
+
+      it('leaves ordinary operations pending on a compatibility rejection', async () => {
+        const entry = createMockEntry(1, 'pending-op', 'client-1');
+        mockOpLogStore.getUnsynced.and.resolveTo([entry]);
+        const error = Object.assign(new Error('HTTP 409 Conflict'), {
+          code: 'FULL_STATE_READER_UNSUPPORTED',
+          status: 409,
+        });
+        mockApiProvider.uploadOps.and.rejectWith(error);
+
+        await expectAsync(service.uploadPendingOps(mockApiProvider)).toBeRejectedWith(
+          error,
+        );
+
+        expect(mockOpLogStore.markSynced).not.toHaveBeenCalled();
+        expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
+        expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
+        expect(mockApiProvider.setLastServerSeq).not.toHaveBeenCalled();
       });
 
       it('should handle network failure during upload gracefully', async () => {

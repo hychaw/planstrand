@@ -22,6 +22,7 @@ export default defineConfig({
       'tests/integration/multi-client-sync.integration.spec.ts',
       'tests/integration/snapshot-skip-optimization.integration.spec.ts',
       // Integration test that requires real PostgreSQL (run with vitest.integration.config.ts)
+      'tests/integration/semantic-writer-race.integration.spec.ts',
       'tests/integration/registration-races.integration.spec.ts',
       'tests/integration/clean-slate-atomicity-sql.integration.spec.ts',
       'tests/integration/snapshot-vector-clock-sql.integration.spec.ts',

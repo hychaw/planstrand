@@ -41,6 +41,10 @@ import {
   sendSyncImportExistsReply,
 } from './sync.routes.quota';
 import { createSnapshotRequestFingerprint } from './services/request-deduplication.service';
+import {
+  FullStateReaderAdvertisement,
+  FullStateReaderUnsupportedError,
+} from './full-state-reader-gate';
 
 export const uploadSnapshotHandler = async (
   req: FastifyRequest<{ Body: unknown }>,
@@ -441,6 +445,7 @@ export const uploadSnapshotHandler = async (
           repairBaseServerSeq,
           isLegacyRepairUpload,
           lastKnownServerSeq,
+          req.query as FullStateReaderAdvertisement,
         );
         const uploadResult = results[0];
 
@@ -547,6 +552,9 @@ export const uploadSnapshotHandler = async (
 
     return reply.send(responseBody);
   } catch (err) {
+    if (err instanceof FullStateReaderUnsupportedError) {
+      return reply.code(409).send({ error: err.message, errorCode: err.errorCode });
+    }
     Logger.error(`Upload snapshot error: ${errorMessage(err)}`);
     return reply.status(500).send({ error: 'Internal server error' });
   }

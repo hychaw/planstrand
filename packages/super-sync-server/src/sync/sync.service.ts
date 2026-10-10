@@ -27,6 +27,11 @@ import {
   type SnapshotDedupResponse,
 } from './services';
 import type { ValidationResult } from './services/validation.service';
+import {
+  assertFullStateReader,
+  FullStateReaderAdvertisement,
+  FullStateReaderUnsupportedError,
+} from './full-state-reader-gate';
 
 /**
  * Newest operation that replaced the user's full state, for the stale-cursor
@@ -162,6 +167,7 @@ export class SyncService {
     repairBaseServerSeq?: number,
     allowLegacyRepairWithoutBase: boolean = false,
     lastKnownServerSeq?: number,
+    readerAdvertisement: FullStateReaderAdvertisement = {},
   ): Promise<UploadResult[]> {
     if (isCleanSlate && ops.length === 0) {
       return [];
@@ -224,6 +230,24 @@ export class SyncService {
       // Use transaction to acquire write lock and ensure atomicity
       await prisma.$transaction(
         async (tx) => {
+          // The HTTP preflight can precede another client's activation. Read
+          // requirements in THIS RepeatableRead snapshot, before any deletion
+          // or insert. Every accepted writer also updates user_sync_state:
+          // if activation commits after this snapshot, that row write fails
+          // serialization and rolls this entire upload back. Existing row
+          // locks/sequence allocation therefore order the check and the write
+          // across server instances, including clients without a cursor.
+          if (
+            !(await assertFullStateReader(
+              userId,
+              readerAdvertisement.supportedEntityTypes,
+              readerAdvertisement.supportedCapabilities,
+              tx,
+            ))
+          ) {
+            throw new FullStateReaderUnsupportedError();
+          }
+
           const needsSyncStateLock =
             shouldCleanSlate ||
             lastKnownServerSeq !== undefined ||
@@ -543,6 +567,7 @@ export class SyncService {
         dbRoundtrips: uploadDbRoundtrips,
       });
     } catch (err) {
+      if (err instanceof FullStateReaderUnsupportedError) throw err;
       if (err instanceof CleanSlateUploadRejectedError) {
         Logger.warn(
           `[user:${userId}] Clean-slate replacement rejected; existing data preserved`,
@@ -570,6 +595,18 @@ export class SyncService {
         errorMessage.toLowerCase().includes('timeout') || errorMessage.includes('P2028');
 
       if (isSerializationFailure) {
+        // A concurrent activation may have won after our snapshot was fixed.
+        // The transaction has rolled back; report the existing compatibility
+        // rejection instead of a generic retry that conceals the requirement.
+        if (
+          !(await assertFullStateReader(
+            userId,
+            readerAdvertisement.supportedEntityTypes,
+            readerAdvertisement.supportedCapabilities,
+          ))
+        ) {
+          throw new FullStateReaderUnsupportedError();
+        }
         Logger.warn(
           `Transaction serialization failure for user ${userId} - client should retry: ${errorMessage}`,
         );

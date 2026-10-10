@@ -16,6 +16,7 @@ import {
   isUnboundedCausalFullStateQuery,
   latestCausalFullStateRows,
   rawQueryValues,
+  unsupportedReaderRows,
 } from './sync.service.test-state';
 import type { OperationWhereAlternative } from './sync.service.test-state';
 
@@ -410,6 +411,8 @@ vi.mock('../src/db', async () => {
     // transaction. Dispatch on SQL text so unrelated $queryRaw callers keep
     // returning their existing default shape.
     $queryRaw: vi.fn().mockImplementation(async (strings: any, ...params: any[]) => {
+      const unsupported = unsupportedReaderRows(state.operations, strings, params);
+      if (unsupported !== undefined) return unsupported;
       // The download path's newest-causal-full-state lookup ships as a pre-built
       // `Prisma.Sql` so its op_type values stay literals, so it arrives as ONE object
       // argument rather than a tagged template — see rawQueryText.

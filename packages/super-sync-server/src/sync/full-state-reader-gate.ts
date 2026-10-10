@@ -2,6 +2,19 @@ import { Prisma } from '@prisma/client';
 import { supportsRequiredEntityTypes } from '@sp/shared-schema';
 import { prisma } from '../db';
 
+export interface FullStateReaderAdvertisement {
+  supportedEntityTypes?: unknown;
+  supportedCapabilities?: unknown;
+}
+
+export class FullStateReaderUnsupportedError extends Error {
+  readonly errorCode = 'FULL_STATE_READER_UNSUPPORTED';
+
+  constructor() {
+    super('Full state requires unsupported entity capabilities');
+  }
+}
+
 /** HTTP fence also covers old clients that have no local reader gate.
  * Requirements stay visible while ciphertext remains opaque to the server.
  * A missing advertisement supports none of the declared extensions.
@@ -10,15 +23,16 @@ export const assertFullStateReader = async (
   userId: number,
   advertised: unknown,
   advertisedCapabilities: unknown = undefined,
+  db: Prisma.TransactionClient = prisma,
 ): Promise<boolean> => {
   const supported = typeof advertised === 'string' ? advertised.split(',') : [];
   // Look up the causal full-state boundary through the existing cached sequence.
-  const frontier = await prisma.userSyncState.findUnique({
+  const frontier = await db.userSyncState.findUnique({
     where: { userId },
     select: { latestFullStateSeq: true },
   });
   const boundary = frontier?.latestFullStateSeq
-    ? await prisma.operation.findUnique({
+    ? await db.operation.findUnique({
         where: { userId_serverSeq: { userId, serverSeq: frontier.latestFullStateSeq } },
         select: { requiredEntityTypes: true },
       })
@@ -34,7 +48,7 @@ export const assertFullStateReader = async (
     : Prisma.sql`ARRAY[]::TEXT[]`;
   // Required tokens must be a SUBSET of the reader's advertisement. Prisma's
   // hasEvery asks the inverse question, so use PostgreSQL containment directly.
-  const unsupported = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+  const unsupported = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
     SELECT id FROM operations
     WHERE user_id = ${userId}
       AND server_seq >= ${frontier?.latestFullStateSeq ?? 0}

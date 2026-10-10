@@ -12,6 +12,7 @@ vi.mock('../src/db', async () => {
     hasOperationUniqueConflict,
     isEntityArrayBranchQuery,
     entityArrayBranchRows,
+    unsupportedReaderRows,
     mockOperationGroupByMaxSeq,
     mockOperationFindFirstFreshBelowBoundary,
     mockUserSyncStateFindMany,
@@ -301,6 +302,8 @@ vi.mock('../src/db', async () => {
     // `arrayBranchRows[0]?.maxSeq ?? null` as "no array-branch match". That silently
     // disabled the array branch for every conflict assertion in this file.
     $queryRaw: vi.fn().mockImplementation(async (strings: any, ...params: any[]) => {
+      const unsupported = unsupportedReaderRows(state.operations, strings, params);
+      if (unsupported !== undefined) return unsupported;
       const sql = Array.isArray(strings) ? strings.join('') : String(strings);
       // Array branch of the single-entity conflict lookup: MAX(server_seq) over
       // `entity_ids @> ARRAY[id]`, scoped to ONE entity.

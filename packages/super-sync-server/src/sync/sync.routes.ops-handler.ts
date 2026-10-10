@@ -35,6 +35,10 @@ import {
   sendOpsBatchTooLargeReply,
 } from './sync.routes.quota';
 import { createOpsRequestFingerprint } from './services/request-deduplication.service';
+import {
+  FullStateReaderAdvertisement,
+  FullStateReaderUnsupportedError,
+} from './full-state-reader-gate';
 
 const isStateReplacementFenceRejection = (results: UploadResult[]): boolean =>
   results.length > 0 &&
@@ -287,6 +291,7 @@ export const uploadOpsHandler = async (
           undefined,
           false,
           lastKnownServerSeq,
+          req.query as FullStateReaderAdvertisement,
         );
 
         return uploadResults;
@@ -377,6 +382,9 @@ export const uploadOpsHandler = async (
 
     return reply.send(response);
   } catch (err) {
+    if (err instanceof FullStateReaderUnsupportedError) {
+      return reply.code(409).send({ error: err.message, errorCode: err.errorCode });
+    }
     Logger.error(`Upload ops error: ${errorMessage(err)}`);
     return reply.status(500).send({ error: 'Internal server error' });
   }

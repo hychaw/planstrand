@@ -65,6 +65,23 @@ export function rawQueryValues(strings: unknown, params: unknown[]): unknown[] {
   return (strings as { values?: unknown[] } | null)?.values ?? [];
 }
 
+/** Match the reader gate's PostgreSQL subset query in legacy transaction mocks. */
+export function unsupportedReaderRows(
+  operations: Map<string, any>,
+  query: unknown,
+  params: unknown[],
+): { id: string }[] | undefined {
+  if (!rawQueryText(query).includes('required_capabilities <@')) return undefined;
+  const [userId, boundary, ...supported] = rawQueryValues(query, params);
+  const unsupported = Array.from(operations.values()).find(
+    (op) =>
+      op.userId === userId &&
+      op.serverSeq >= (boundary as number) &&
+      (op.requiredCapabilities ?? []).some((token: string) => !supported.includes(token)),
+  );
+  return unsupported ? [{ id: unsupported.id }] : [];
+}
+
 export function isEntityArrayBranchQuery(strings: unknown): boolean {
   const sql = rawQueryText(strings);
   return sql.includes('AS "maxSeq"') && sql.includes('entity_ids @>');
