@@ -235,7 +235,7 @@ describe('recurrence candidates', () => {
   const invalidSpecs: unknown[] = [
     null,
     {},
-    { ...daily(), frequency: 'monthly' },
+    { ...daily(), frequency: 'yearly' },
     ...[0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '2'].map((interval) => ({
       ...daily(),
       interval,

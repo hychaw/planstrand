@@ -10,6 +10,7 @@ export type RecurrenceSpec = RecurrenceBase &
   (
     | { readonly frequency: 'daily' }
     | { readonly frequency: 'weekly'; readonly weekdays: readonly number[] }
+    | { readonly frequency: 'monthly' }
   );
 
 export interface RecurrenceDateRange {
@@ -45,11 +46,17 @@ const civilDate = (day: number): string => {
   return new Date(EPOCH_NOON + offset).toISOString().slice(0, 10);
 };
 
+const monthNumber = (date: string): number => {
+  const yearMonths = Number(date.slice(0, 4)) * 12;
+  return yearMonths + Number(date.slice(5, 7)) - 1;
+};
+
 /**
  * Enumerates [fromDate, toDateExclusive), clipped to the inclusive series bounds.
  * Slots count candidates from startDate, independent of the requested window.
  * Weekly phase starts on the Monday of startDate's week. Input weekday order
  * does not matter; duplicates and invalid specifications throw RangeError.
+ * Monthly rules keep startDate's day of month, reserving slots for invalid dates.
  * Work is proportional to the requested candidates, not the series' age.
  */
 export const getRecurrenceCandidates = (
@@ -63,7 +70,9 @@ export const getRecurrenceCandidates = (
     spec.interval < 1 ||
     (spec.endDate !== undefined &&
       (!validDate(spec.endDate) || spec.endDate < spec.startDate)) ||
-    (spec.frequency !== 'daily' && spec.frequency !== 'weekly')
+    (spec.frequency !== 'daily' &&
+      spec.frequency !== 'weekly' &&
+      spec.frequency !== 'monthly')
   ) {
     throw new RangeError('Invalid recurrence specification');
   }
@@ -94,6 +103,36 @@ export const getRecurrenceCandidates = (
   );
   const candidates: RecurrenceCandidate[] = [];
   if (from >= to) return candidates;
+
+  if (spec.frequency === 'monthly') {
+    const startMonth = monthNumber(spec.startDate);
+    const firstSlot = Math.max(
+      0,
+      Math.ceil((monthNumber(range.fromDate) - startMonth) / spec.interval),
+    );
+    const lastMonth = monthNumber(
+      spec.endDate && spec.endDate < range.toDateExclusive
+        ? spec.endDate
+        : range.toDateExclusive,
+    );
+    for (let slot = firstSlot; ; slot++) {
+      const offset = slot * spec.interval;
+      const month = startMonth + offset;
+      if (month > lastMonth) break;
+      const yearPart = String(Math.floor(month / 12)).padStart(4, '0');
+      const monthPart = String((month % 12) + 1).padStart(2, '0');
+      const date = `${yearPart}-${monthPart}-${spec.startDate.slice(8)}`;
+      if (
+        validDate(date) &&
+        date >= range.fromDate &&
+        date < range.toDateExclusive &&
+        (spec.endDate === undefined || date <= spec.endDate)
+      ) {
+        candidates.push({ date, slot });
+      }
+    }
+    return candidates;
+  }
 
   if (spec.frequency === 'daily') {
     const firstSlot = Math.ceil((from - start) / spec.interval);
