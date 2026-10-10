@@ -163,4 +163,7 @@ export const runDbUpgrade = (
   if (oldVersion < 11 && db.version >= 11) {
     db.deleteObjectStore(LEGACY_PROFILE_DATA_STORE);
   }
+
+  // Version 12: no shape change. Opening a profile with V1.2 unconditionally
+  // blocks V1.1 (database version 11), even before Routines is activated.
 };

@@ -19,8 +19,10 @@ export const DB_NAME = 'SUP_OPS';
  * replacement LWW operations from readers that would treat them as patches.
  * Version 11 removes the obsolete User Profiles data store and therefore also
  * prevents older builds from opening the migrated database.
+ * Version 12 is a shape-preserving V1.2 downgrade barrier: V1.1 cannot reopen
+ * the same local profile, even before Routines is activated.
  */
-export const DB_VERSION = 11;
+export const DB_VERSION = 12;
 
 /** Object store names */
 export const STORE_NAMES = {

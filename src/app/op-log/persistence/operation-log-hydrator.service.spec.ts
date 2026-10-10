@@ -2555,6 +2555,28 @@ describe('OperationLogHydratorService', () => {
       const shownMessage = (): string =>
         (window.alert as jasmine.Spy).calls.mostRecent().args[0] as string;
 
+      it('aborts startup without recovering, replacing or compacting incompatible data', async () => {
+        const error = new IndexedDBOpenError(
+          new DOMException(
+            'The requested version (11) is less than the existing version (12).',
+            'VersionError',
+          ),
+        );
+        mockOpLogStore.hasStateCacheBackup.and.rejectWith(error);
+
+        await expectAsync(service.hydrateStore()).toBeRejectedWith(error);
+
+        expect(mockRecoveryService.attemptRecovery).not.toHaveBeenCalled();
+        expect(mockRecoveryService.cleanupCorruptOps).not.toHaveBeenCalled();
+        expect(mockMigrationService.checkAndMigrate).not.toHaveBeenCalled();
+        expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+        expect(mockOpLogStore.restoreStateCacheFromBackup).not.toHaveBeenCalled();
+        expect(mockOpLogStore.clearStateCacheBackup).not.toHaveBeenCalled();
+        expect(mockStore.dispatch).not.toHaveBeenCalled();
+        expect(mockCompactionService.compactIfBloated).not.toHaveBeenCalled();
+        expect(reloadSpy).not.toHaveBeenCalled();
+      });
+
       it('never tells the user to clear storage or blames corruption', async () => {
         arrangeVersionError();
 
