@@ -54,7 +54,9 @@ export const getOperationCapabilityRequirement = (
   if (operation.entityType === 'ALL') {
     for (const entityType of ENTITY_TYPES) {
       if (
-        (entityType !== 'FOLDER' && entityType !== 'EVENT_SERIES') ||
+        (entityType !== 'FOLDER' &&
+          entityType !== 'EVENT_SERIES' &&
+          entityType !== 'OCCURRENCE_EXCEPTION') ||
         getFullStateRequiredEntityTypes(
           extractFullStateFromPayload(operation.payload),
         ).includes(entityType)
@@ -143,7 +145,10 @@ export const getOperationRequiredCapabilities = (
 ): string[] => [
   ...new Set([
     ...(operation.requiredCapabilities ?? []),
-    ...(operation.entityType === 'EVENT_SERIES' ? [ROUTINES_V1] : []),
+    ...(operation.entityType === 'EVENT_SERIES' ||
+    operation.entityType === 'OCCURRENCE_EXCEPTION'
+      ? [ROUTINES_V1]
+      : []),
     ...(operation.entityType === 'ALL'
       ? getFullStateRequiredCapabilities(extractFullStateFromPayload(operation.payload))
       : []),

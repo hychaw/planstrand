@@ -1,3 +1,7 @@
+import { selectOccurrenceExceptionFeatureState } from '../../features/routines/store/occurrence-exception.selectors';
+import { occurrenceExceptionReducer } from '../../features/routines/store/occurrence-exception.reducer';
+import { setOccurrenceException } from '../../features/routines/store/occurrence-exception.actions';
+import { occurrenceExceptionId } from '../../features/routines/occurrence-exception.validation';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { selectEventSeriesFeatureState } from '../../features/routines/store/event-series.selectors';
 import { EventSeriesState } from '../../features/routines/event-series.model';
@@ -118,6 +122,23 @@ describe('StateSnapshotService', () => {
     store.overrideSelector(selectFolderFeatureState, folder);
     expect(service.getStateSnapshot().folder).toEqual(folder);
     expect((await service.getStateSnapshotAsync()).folder).toEqual(folder);
+  });
+  it('includes occurrence exceptions in synchronous and asynchronous snapshots', async () => {
+    const key = { seriesId: 'missing-series', slot: 9 };
+    const slice = occurrenceExceptionReducer(
+      undefined,
+      setOccurrenceException({
+        occurrenceException: {
+          ...key,
+          id: occurrenceExceptionId(key),
+          modified: 100,
+          value: { kind: 'inherit' },
+        },
+      }),
+    );
+    store.overrideSelector(selectOccurrenceExceptionFeatureState, slice);
+    expect(service.getStateSnapshot().occurrenceException).toEqual(slice);
+    expect((await service.getStateSnapshotAsync()).occurrenceException).toEqual(slice);
   });
   it('includes recurring series in synchronous and asynchronous snapshots', async () => {
     const eventSeries: EventSeriesState = {

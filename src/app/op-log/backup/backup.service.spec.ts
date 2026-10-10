@@ -1,3 +1,7 @@
+import { occurrenceExceptionReducer } from '../../features/routines/store/occurrence-exception.reducer';
+import { setOccurrenceException } from '../../features/routines/store/occurrence-exception.actions';
+import { occurrenceExceptionId } from '../../features/routines/occurrence-exception.validation';
+import { OccurrenceExceptionValue } from '../../features/routines/occurrence-exception.model';
 import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
 import { protectFullStateBackup } from './full-state-backup-envelope';
 import { materializeProjectFolders } from '../../features/folder/ensure-project-folder-associations';
@@ -758,6 +762,56 @@ describe('BackupService', () => {
       expect(mockStore.dispatch).not.toHaveBeenCalled();
       expect(data.workSession.entities[future.id]).toEqual(future);
     });
+    for (const value of [
+      { kind: 'inherit' },
+      { kind: 'cancelled' },
+      { kind: 'override', event: { title: 'Moved', isAllDay: true, date: '2027-01-01' } },
+      {
+        kind: 'override',
+        event: {
+          title: 'Moved',
+          isAllDay: false,
+          start: 100,
+          end: 200,
+          timeZone: 'Asia/Tokyo',
+        },
+      },
+    ] as OccurrenceExceptionValue[])
+      it(`round-trips ${value.kind} exceptions through complete backup import with missing parent`, async () => {
+        const key = { seriesId: 'missing-series', slot: 12 };
+        const data = createValidAppData({
+          occurrenceException: occurrenceExceptionReducer(
+            undefined,
+            setOccurrenceException({
+              occurrenceException: {
+                ...key,
+                id: occurrenceExceptionId(key),
+                value,
+                modified: 100,
+              },
+            }),
+          ),
+        });
+        mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(data);
+        const exported = await service.loadCompleteBackup(true);
+        expect(exported.data.occurrenceException).toEqual(data.occurrenceException);
+        expect(exported.requiredCapabilities).toContain('ROUTINES_V1');
+        await service.importCompleteBackup(
+          JSON.parse(JSON.stringify(exported)),
+          true,
+          true,
+        );
+        const action = mockStore.dispatch.calls.mostRecent()
+          .args[0] as unknown as ReturnType<typeof loadAllData>;
+        expect((action.appDataComplete as typeof data).occurrenceException).toEqual(
+          data.occurrenceException,
+        );
+        const replacement =
+          mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0]
+            .syncImportOp;
+        expect(replacement.requiredCapabilities).toContain('ROUTINES_V1');
+        expect(replacement.requiredEntityTypes).toContain('OCCURRENCE_EXCEPTION');
+      });
     it('round-trips recurring series through complete backup import and retains activation', async () => {
       const data = createValidAppData();
       data.eventSeries = {

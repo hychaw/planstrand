@@ -1,3 +1,4 @@
+import { OccurrenceExceptionState } from '../features/routines/occurrence-exception.model';
 import { EventSeriesState } from '../features/routines/event-series.model';
 import { EventState } from '../features/event/event.model';
 import { FolderState } from '../features/folder/folder.model';
@@ -46,5 +47,6 @@ export interface RootState {
   [TIME_TRACKING_FEATURE_KEY]: TimeTrackingState;
   [WORK_SESSION_FEATURE_NAME]: WorkSessionState;
   event?: EventState;
+  occurrenceException?: OccurrenceExceptionState;
   eventSeries?: EventSeriesState;
 }

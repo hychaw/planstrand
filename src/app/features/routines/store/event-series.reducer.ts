@@ -48,6 +48,9 @@ const reducer = createReducer(
         segments: [
           {
             id: current.segments[0].id,
+            ...(current.segments[0].logicalSlotOffset !== undefined
+              ? { logicalSlotOffset: current.segments[0].logicalSlotOffset }
+              : {}),
             recurrence: changes.recurrence,
             timing: changes.timing,
           },
@@ -72,7 +75,12 @@ export const eventSeriesReducer = (
   const current = state?.entities[payload['id'] as string];
   if (!current) return state ?? initialEventSeriesState;
   const next = valid(payload as unknown as EventSeries);
-  if (next.created !== current.created || next.segments[0].id !== current.segments[0].id)
+  if (
+    next.created !== current.created ||
+    next.segments[0].id !== current.segments[0].id ||
+    (next.segments[0].logicalSlotOffset ?? 0) !==
+      (current.segments[0].logicalSlotOffset ?? 0)
+  )
     throw new Error('Immutable EventSeries metadata');
   return eventSeriesAdapter.setOne(next, state!);
 };

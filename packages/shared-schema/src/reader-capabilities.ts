@@ -1,4 +1,7 @@
-import { hasEventSeriesState } from './full-state-capabilities';
+import {
+  hasEventSeriesState,
+  hasOccurrenceExceptionState,
+} from './full-state-capabilities';
 
 /** Semantic requirements are distinct from entity vocabulary and schema versions. */
 export const TASK_FOLDER_OWNERSHIP_V1 = 'TASK_FOLDER_OWNERSHIP_V1' as const;
@@ -41,7 +44,9 @@ export const getFullStateRequiredCapabilities = (state: unknown): string[] => {
   return [
     ...new Set([
       ...(data.requiredCapabilities ?? []),
-      ...(hasEventSeriesState(state) ? [ROUTINES_V1] : []),
+      ...(hasEventSeriesState(state) || hasOccurrenceExceptionState(state)
+        ? [ROUTINES_V1]
+        : []),
       ...([data.task, data.archiveYoung?.task, data.archiveOld?.task].some(
         hasTaskFolderOwnership,
       )

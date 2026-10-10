@@ -1,3 +1,4 @@
+import { occurrenceExceptionIntegrityMetaReducer } from './occurrence-exception-integrity.meta-reducer';
 import { eventSeriesIntegrityMetaReducer } from './event-series-integrity.meta-reducer';
 import { eventIntegrityMetaReducer } from './event-integrity.meta-reducer';
 import { MetaReducer } from '@ngrx/store';
@@ -146,6 +147,7 @@ export const META_REDUCERS: MetaReducer[] = [
   // gone and section.taskIds entries pointing at removed subtasks would leak.
   sectionSharedMetaReducer, // Task deletion → prune section.taskIds (incl. subtasks)
   eventIntegrityMetaReducer,
+  occurrenceExceptionIntegrityMetaReducer,
   eventSeriesIntegrityMetaReducer,
   workSessionIntegrityMetaReducer, // Reject dangling session refs and destructive Task removal
 

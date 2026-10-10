@@ -47,3 +47,40 @@ describe('conditional Routines reader requirements', () => {
     ).toBe(false);
   });
 });
+
+describe('conditional occurrence exception requirements', () => {
+  it('does not activate empty or absent exceptions', () => {
+    for (const state of [{}, { occurrenceException: { ids: [], entities: {} } }]) {
+      expect(getFullStateRequiredCapabilities(state)).toEqual([]);
+      expect(getFullStateRequiredEntityTypes(state)).not.toContain(
+        'OCCURRENCE_EXCEPTION',
+      );
+    }
+    expect(SUPER_SYNC_OPERATION_CAPABILITIES.supportedEntityTypes).toContain(
+      'OCCURRENCE_EXCEPTION',
+    );
+  });
+  it('fences nonempty and malformed exceptions and retains the durable floor', () => {
+    for (const occurrenceException of [
+      null,
+      undefined,
+      [],
+      {},
+      { ids: ['e'], entities: { e: {} } },
+      { ids: [], entities: {}, future: true },
+    ]) {
+      expect(getFullStateRequiredCapabilities({ occurrenceException })).toEqual([
+        ROUTINES_V1,
+      ]);
+      expect(getFullStateRequiredEntityTypes({ occurrenceException })).toContain(
+        'OCCURRENCE_EXCEPTION',
+      );
+    }
+    expect(
+      getFullStateRequiredCapabilities({
+        occurrenceException: { ids: [], entities: {} },
+        requiredCapabilities: [ROUTINES_V1],
+      }),
+    ).toEqual([ROUTINES_V1]);
+  });
+});

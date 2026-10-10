@@ -1,3 +1,5 @@
+import { OccurrenceExceptionState } from '../../features/routines/occurrence-exception.model';
+import { isValidOccurrenceExceptionState } from '../../features/routines/occurrence-exception.validation';
 import { EventSeriesState } from '../../features/routines/event-series.model';
 import { isValidEventSeriesState } from '../../features/routines/event-series.validation';
 import { EventState } from '../../features/event/event.model';
@@ -151,6 +153,23 @@ export const validateAllData = <R>(
   const r = _wrapValidate(_validateAllData(d), d, false, 'appData');
   if (
     r.success &&
+    Object.hasOwn(d as object, 'occurrenceException') &&
+    !isValidOccurrenceExceptionState((d as AppDataComplete).occurrenceException)
+  ) {
+    return {
+      success: false,
+      data: d,
+      errors: [
+        {
+          expected: 'Valid OccurrenceException state',
+          path: '$input.occurrenceException',
+          value: (d as AppDataComplete).occurrenceException,
+        },
+      ],
+    };
+  }
+  if (
+    r.success &&
     Object.hasOwn(d as object, 'eventSeries') &&
     !isValidEventSeriesState((d as AppDataComplete).eventSeries)
   ) {
@@ -205,6 +224,16 @@ export const appDataValidators: {
     data: AppDataComplete[K] | R,
   ) => ValidationResult<AppDataComplete[K] | R>;
 } = {
+  occurrenceException: <R>(d: R | OccurrenceExceptionState) =>
+    isValidOccurrenceExceptionState(d)
+      ? { success: true as const, data: d }
+      : {
+          success: false as const,
+          data: d,
+          errors: [
+            { expected: 'Valid OccurrenceException state', path: '$input', value: d },
+          ],
+        },
   eventSeries: <R>(d: R | EventSeriesState) =>
     isValidEventSeriesState(d)
       ? { success: true as const, data: d }

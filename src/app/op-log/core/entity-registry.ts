@@ -1,4 +1,12 @@
 import {
+  OCCURRENCE_EXCEPTION_FEATURE_NAME,
+  occurrenceExceptionAdapter,
+} from '../../features/routines/store/occurrence-exception.reducer';
+import {
+  selectOccurrenceExceptionEntities,
+  selectOccurrenceExceptionById,
+} from '../../features/routines/store/occurrence-exception.selectors';
+import {
   EVENT_SERIES_FEATURE_NAME,
   eventSeriesAdapter,
 } from '../../features/routines/store/event-series.reducer';
@@ -309,6 +317,14 @@ export const buildEntityRegistry = (): EntityRegistry<EntityType> =>
       selectById: selectSectionById,
     },
 
+    OCCURRENCE_EXCEPTION: {
+      storagePattern: 'adapter',
+      featureName: OCCURRENCE_EXCEPTION_FEATURE_NAME,
+      payloadKey: 'occurrenceException',
+      adapter: occurrenceExceptionAdapter,
+      selectEntities: selectOccurrenceExceptionEntities,
+      selectById: selectOccurrenceExceptionById,
+    },
     EVENT_SERIES: {
       storagePattern: 'adapter',
       featureName: EVENT_SERIES_FEATURE_NAME,

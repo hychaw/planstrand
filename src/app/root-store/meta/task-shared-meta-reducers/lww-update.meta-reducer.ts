@@ -550,7 +550,8 @@ export const lwwUpdateMetaReducer: MetaReducer = (
     const entityType = getLwwEntityType(action.type);
     // EventSeries owns strict validation and immutable lineage metadata. Its
     // reducer deliberately cannot resurrect an absent series during compensation.
-    if (entityType === 'EVENT_SERIES') return reducer(state, action);
+    if (entityType === 'OCCURRENCE_EXCEPTION' || entityType === 'EVENT_SERIES')
+      return reducer(state, action);
     if (!entityType) {
       // Not an LWW Update action, pass through
       return reducer(state, action);

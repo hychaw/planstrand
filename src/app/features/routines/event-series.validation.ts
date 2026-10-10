@@ -1,3 +1,4 @@
+import { isLogicalSlot } from './occurrence-key';
 import { isValidEntityId } from '../../op-log/validation/is-valid-entity-id';
 import { EventSeries, EventSeriesInput, EventSeriesState } from './event-series.model';
 import { getRecurrenceCandidates } from './recurrence/recurrence-candidates';
@@ -77,7 +78,9 @@ export const isValidEventSeries = (v: unknown): v is EventSeries => {
   const segment = v['segments'][0];
   return (
     record(segment) &&
-    keys(segment, ['id', 'recurrence', 'timing']) &&
+    keys(segment, ['id', 'logicalSlotOffset', 'recurrence', 'timing']) &&
+    (!Object.hasOwn(segment, 'logicalSlotOffset') ||
+      isLogicalSlot(segment['logicalSlotOffset'])) &&
     isValidEntityId(segment['id']) &&
     !Object.hasOwn(Object.prototype, segment['id']) &&
     isValidEventSeriesInput({

@@ -1,3 +1,5 @@
+import { setOccurrenceException } from '../../features/routines/store/occurrence-exception.actions';
+import { occurrenceExceptionId } from '../../features/routines/occurrence-exception.validation';
 import { DEFAULT_TASK } from '../../features/tasks/task.model';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
@@ -228,7 +230,7 @@ describe('OperationLogEffects', () => {
   });
 
   describe('canonical Task ownership capture', () => {
-    it('stamps series creation and subsequent writes with conditional Routines requirements', (done) => {
+    it('stamps series and exception writes with conditional Routines requirements', (done) => {
       const definition = {
         title: 'Routine',
         recurrence: { frequency: 'daily' as const, interval: 1, startDate: '2026-10-10' },
@@ -244,18 +246,27 @@ describe('OperationLogEffects', () => {
         ] as [import('../../features/routines/event-series.model').EventSeriesSegment],
       };
       actions$ = of(
+        setOccurrenceException({
+          occurrenceException: {
+            id: occurrenceExceptionId({ seriesId: 'series', slot: 0 }),
+            seriesId: 'series',
+            slot: 0,
+            modified: 100,
+            value: { kind: 'inherit' },
+          },
+        }),
         addEventSeries({ eventSeries }),
         updateEventSeries({ id: eventSeries.id, changes: definition, modified: 100 }),
       );
       effects.persistOperation$.subscribe({
         complete: () => {
-          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(2);
+          expect(mockOpLogStore.appendWithVectorClockOverwrite).toHaveBeenCalledTimes(3);
           for (const [
             op,
           ] of mockOpLogStore.appendWithVectorClockOverwrite.calls.allArgs()) {
-            expect(op.entityType).toBe('EVENT_SERIES');
+            expect(['EVENT_SERIES', 'OCCURRENCE_EXCEPTION']).toContain(op.entityType);
             expect(op.requiredCapabilities).toEqual([ROUTINES_V1]);
-            expect(op.requiredEntityTypes).toEqual(['EVENT_SERIES']);
+            expect(op.requiredEntityTypes).toEqual([op.entityType]);
           }
           done();
         },

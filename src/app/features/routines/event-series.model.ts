@@ -3,11 +3,13 @@ import { RecurrenceSpec } from './recurrence/recurrence-candidates';
 import { RecurrenceTiming } from './recurrence/recurrence-evaluation';
 
 /** The series id is the stable lineage; segment ids survive whole-series edits.
- * Phase 2a permits exactly one segment. Future splitting, exceptions and template
- * ownership can reference these identities without changing occurrence lineage.
+ * Exactly one segment is currently supported. Occurrences use lineage + global
+ * logical slot; the segment id is provenance and never participates in that key.
  */
 export interface EventSeriesSegment {
   id: string;
+  /** Engine slots are local; add this immutable lineage offset (absent = zero). */
+  logicalSlotOffset?: number;
   recurrence: RecurrenceSpec;
   timing: RecurrenceTiming;
 }

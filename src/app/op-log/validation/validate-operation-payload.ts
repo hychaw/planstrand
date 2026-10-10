@@ -1,3 +1,4 @@
+import { isValidOccurrenceException } from '../../features/routines/occurrence-exception.validation';
 import {
   Operation,
   EntityType,
@@ -630,6 +631,21 @@ export const validateOperationPayload = (op: Operation): PayloadValidationResult
   // For multi-entity payloads, we validate the actionPayload
   // For legacy payloads, we validate the payload directly
   const actionPayload = extractActionPayloadForValidation(op.payload);
+  if (op.entityType === 'OCCURRENCE_EXCEPTION') {
+    const p = actionPayload as Record<string, unknown>;
+    const value =
+      op.actionType === ActionType.OCCURRENCE_EXCEPTION_SET &&
+      Object.keys(p).every((k) => k === 'occurrenceException')
+        ? p['occurrenceException']
+        : (op.actionType as string) === '[OCCURRENCE_EXCEPTION] LWW Update'
+          ? p
+          : null;
+    return op.opType === OpType.Update &&
+      isValidOccurrenceException(value) &&
+      value.id === op.entityId
+      ? { success: true }
+      : { success: false, error: 'Invalid OccurrenceException operation' };
+  }
   if (op.entityType === 'EVENT_SERIES') {
     const p = actionPayload as Record<string, unknown>;
     const valid =

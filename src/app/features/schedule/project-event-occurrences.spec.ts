@@ -274,7 +274,7 @@ describe('bounded Event occurrence projection', () => {
     expect(items.at(-1)?.date).toBe('2026-12-31');
   });
 
-  it('orders deterministically, deduplicates identities and separates series/segments', () => {
+  it('orders deterministically, deduplicates lineage slots independently of segment ids', () => {
     const a = makeSeries(undefined, timed(), 'a');
     const b = makeSeries(undefined, timed(), 'b');
     const items = project([b, a, b], '2026-01-01', '2026-01-03');
@@ -284,7 +284,8 @@ describe('bounded Event occurrence projection', () => {
       ...a,
       segments: [{ ...a.segments[0], id: 'other' }],
     } as EventSeries;
-    expect(project([a, changedSegment], '2026-01-01', '2026-01-02').length).toBe(2);
+    expect(project([a, changedSegment], '2026-01-01', '2026-01-02').length).toBe(1);
+    expect(project([changedSegment], '2026-01-01', '2026-01-02')[0].id).toBe(items[0].id);
   });
 
   it('sets read-only permissions and leaves persisted definitions untouched', () => {

@@ -1,3 +1,4 @@
+import { logicalOccurrenceSlot, occurrenceKey } from '../routines/occurrence-key';
 import { EventSeries } from '../routines/event-series.model';
 import {
   getRecurrenceCandidates,
@@ -70,8 +71,9 @@ export const projectEventOccurrences = (
         ) {
           continue;
         }
-        const key = JSON.stringify([segment.id, occurrence.slot]);
-        const id = `eventOccurrence:${JSON.stringify([source.id, segment.id, occurrence.slot])}`;
+        const slot = logicalOccurrenceSlot(occurrence.slot, segment.logicalSlotOffset);
+        const key = occurrenceKey({ seriesId: source.id, slot });
+        const id = `eventOccurrence:${key}`;
         items.set(id, {
           id,
           sourceType: 'eventOccurrence',
@@ -79,7 +81,7 @@ export const projectEventOccurrences = (
           title: source.title,
           occurrence: {
             segmentId: segment.id,
-            slot: occurrence.slot,
+            slot,
             key,
             scheduledDate: occurrence.date,
           },

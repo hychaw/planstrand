@@ -361,9 +361,10 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           vectorClock: newClock,
           timestamp: operationTimestamp,
           schemaVersion: CURRENT_SCHEMA_VERSION,
-          ...(action.meta.entityType === 'EVENT_SERIES'
+          ...(action.meta.entityType === 'EVENT_SERIES' ||
+          action.meta.entityType === 'OCCURRENCE_EXCEPTION'
             ? {
-                requiredEntityTypes: ['EVENT_SERIES'],
+                requiredEntityTypes: [action.meta.entityType],
                 requiredCapabilities: [ROUTINES_V1],
               }
             : {}),

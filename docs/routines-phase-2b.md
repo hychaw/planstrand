@@ -13,7 +13,9 @@ explicit Calendar display timezone. It delegates candidate seeking and evaluatio
 to the Phase 1 engine. It returns distinct `eventOccurrence` read models containing
 the source series ID, segment ID, logical slot, occurrence key and scheduled date.
 
-Display IDs encode `[seriesId, segmentId, slot]`. Titles, timestamps, display zones,
+Phase 2b display IDs originally encoded `[seriesId, segmentId, slot]`.
+[Phase 3a.1](sync-and-op-log/routines-phase-3a1.md) supersedes this with
+`[seriesId, logicalSlot]`, keeping segment IDs only as provenance. Titles, timestamps, display zones,
 query windows and day slices do not participate in identity. Missing monthly dates
 and DST gaps retain the engine's reserved slots. DST folds use its earliest exact
 instant; duration is elapsed time in milliseconds.

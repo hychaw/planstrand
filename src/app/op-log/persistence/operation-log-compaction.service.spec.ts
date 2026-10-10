@@ -1049,6 +1049,19 @@ describe('OperationLogCompactionService', () => {
       expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
     });
 
+    it('compacts exception-only state as meaningful data and includes its entity frontier', async () => {
+      const state = {
+        occurrenceException: {
+          ids: ['exception'],
+          entities: { exception: { id: 'exception' } },
+        },
+      };
+      mockStateSnapshot.getStateSnapshot.and.returnValue(state as never);
+      expect(await service.compact()).toBeTrue();
+      const cache = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      expect(cache.state).toEqual(state);
+      expect(cache.snapshotEntityKeys).toContain('OCCURRENCE_EXCEPTION:exception');
+    });
     it('should extract entity keys for ALL models defined in MODEL_CONFIGS', async () => {
       // 1. Create a complete mock state with one item for every model type
       const completeState: any = {};
@@ -1114,6 +1127,7 @@ describe('OperationLogCompactionService', () => {
         workSession: 'WORK_SESSION',
         event: 'EVENT',
         eventSeries: 'EVENT_SERIES',
+        occurrenceException: 'OCCURRENCE_EXCEPTION',
       };
 
       const missingModels: string[] = [];

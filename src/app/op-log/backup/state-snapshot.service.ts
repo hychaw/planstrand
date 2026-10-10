@@ -1,4 +1,5 @@
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
+import { selectOccurrenceExceptionFeatureState } from '../../features/routines/store/occurrence-exception.selectors';
 import { selectEventSeriesFeatureState } from '../../features/routines/store/event-series.selectors';
 import { selectEventFeatureState } from '../../features/event/store/event.selectors';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
@@ -78,6 +79,7 @@ const SNAPSHOT_SELECTORS: readonly {
   { key: 'section', selector: selectSectionFeatureState },
   { key: 'workSession', selector: selectWorkSessionFeatureState },
   { key: 'event', selector: selectEventFeatureState },
+  { key: 'occurrenceException', selector: selectOccurrenceExceptionFeatureState },
   { key: 'eventSeries', selector: selectEventSeriesFeatureState },
   { key: 'planning', selector: selectPlanningState },
   { key: 'folder', selector: selectFolderFeatureState },

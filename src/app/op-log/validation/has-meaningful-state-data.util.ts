@@ -49,6 +49,8 @@ export const hasMeaningfulStateData = (
   const s = state as Record<string, unknown>;
 
   if (isEntityState(s.event) && s.event.ids.length) return true;
+  if (isEntityState(s.occurrenceException) && s.occurrenceException.ids.length)
+    return true;
   if (isEntityState(s.eventSeries) && s.eventSeries.ids.length) return true;
   if (isEntityState(s.task)) {
     const meaningfulTaskIds = ignoreTaskIds

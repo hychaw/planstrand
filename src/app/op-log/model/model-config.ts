@@ -1,4 +1,6 @@
+import { OccurrenceExceptionState } from '../../features/routines/occurrence-exception.model';
 import { EventSeriesState } from '../../features/routines/event-series.model';
+import { initialOccurrenceExceptionState } from '../../features/routines/store/occurrence-exception.reducer';
 import { initialEventSeriesState } from '../../features/routines/store/event-series.reducer';
 import { EventState } from '../../features/event/event.model';
 import { initialEventState } from '../../features/event/store/event.reducer';
@@ -71,6 +73,7 @@ export type AllModelConfig = {
   section: ModelCfg<SectionState>;
   workSession: ModelCfg<WorkSessionState>;
   event?: ModelCfg<EventState>;
+  occurrenceException?: ModelCfg<OccurrenceExceptionState>;
   eventSeries?: ModelCfg<EventSeriesState>;
   planning?: ModelCfg<PlanningState>;
   folder?: ModelCfg<FolderState>;
@@ -86,6 +89,10 @@ export type AllModelConfig = {
 export type AppDataComplete = AllModelData<AllModelConfig>;
 
 export const MODEL_CONFIGS: AllModelConfig = {
+  occurrenceException: {
+    defaultData: initialOccurrenceExceptionState,
+    isMainFileModel: true,
+  },
   eventSeries: { defaultData: initialEventSeriesState, isMainFileModel: true },
   event: { defaultData: initialEventState, isMainFileModel: true },
   folder: { defaultData: initialFolderState, isMainFileModel: true },
@@ -227,6 +234,7 @@ export const withDefaultModelSlices = (data: object): AppDataComplete => {
     // WorkSession defaults only when absent. A present null/undefined slice is
     // invalid input and must reach validation rather than become empty data.
     const needsDefault =
+      key === 'occurrenceException' ||
       key === 'eventSeries' ||
       key === 'event' ||
       key === 'workSession' ||
@@ -242,7 +250,7 @@ export const withDefaultModelSlices = (data: object): AppDataComplete => {
     }
   }
   if (defaulted.length) {
-    // Model names are schema, not user content — safe to log. Without this the
+    // Model names are schema, not user content â€” safe to log. Without this the
     // fill is invisible, and a genesis snapshot permanently shadows the legacy
     // database it was built from.
     // eslint-disable-next-line local-rules/no-user-content-in-logs -- grandfathered log baseline (2026-09), not yet triaged

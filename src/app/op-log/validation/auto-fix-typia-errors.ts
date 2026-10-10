@@ -100,6 +100,7 @@ export const autoFixTypiaErrors = (
       // WorkSession has a frozen Phase 1 contract. Coercing its fields could
       // turn unsupported incoming data into a destructive downgrade.
       if (
+        keys[0] === 'occurrenceException' ||
         keys[0] === 'eventSeries' ||
         keys[0] === 'event' ||
         keys[0] === 'workSession' ||

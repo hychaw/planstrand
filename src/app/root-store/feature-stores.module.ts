@@ -1,4 +1,8 @@
 import {
+  OCCURRENCE_EXCEPTION_FEATURE_NAME,
+  occurrenceExceptionReducer,
+} from '../features/routines/store/occurrence-exception.reducer';
+import {
   EVENT_SERIES_FEATURE_NAME,
   eventSeriesReducer,
 } from '../features/routines/store/event-series.reducer';
@@ -167,6 +171,7 @@ import {
 
     StoreModule.forFeature(WORK_SESSION_FEATURE_NAME, workSessionReducer),
     StoreModule.forFeature(EVENT_FEATURE_NAME, eventReducer),
+    StoreModule.forFeature(OCCURRENCE_EXCEPTION_FEATURE_NAME, occurrenceExceptionReducer),
     StoreModule.forFeature(EVENT_SERIES_FEATURE_NAME, eventSeriesReducer),
     StoreModule.forFeature(PLANNING_FEATURE_NAME, planningReducer),
 

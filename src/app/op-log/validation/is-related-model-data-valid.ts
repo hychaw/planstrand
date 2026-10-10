@@ -1,3 +1,4 @@
+import { isValidOccurrenceExceptionState } from '../../features/routines/occurrence-exception.validation';
 import { isValidEventSeriesState } from '../../features/routines/event-series.validation';
 import { isValidEventState } from '../../features/event/store/event.reducer';
 import { isFolderState } from '../../features/folder/folder-state';
@@ -159,6 +160,11 @@ export const isRelatedModelDataValid = (d: AppDataComplete): boolean => {
   // Legacy partial states may precede the additive slice default boundary.
   // Full validation still requires its normalized shape through Typia.
   if (Object.hasOwn(d, 'event') && !isValidEventState(d.event)) return false;
+  if (
+    Object.hasOwn(d, 'occurrenceException') &&
+    !isValidOccurrenceExceptionState(d.occurrenceException)
+  )
+    return false;
   if (Object.hasOwn(d, 'eventSeries') && !isValidEventSeriesState(d.eventSeries))
     return false;
   if (Object.hasOwn(d, 'folder') && !isFolderState(d.folder)) return false;
