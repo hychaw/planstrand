@@ -272,7 +272,12 @@ describe('recurring Event creation UI with real commands and Calendar projection
 
   it('uses the valid system timezone when no configured timezone is set', async () => {
     configuredTimeZone = undefined;
-    const systemZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // Keep this branch deterministic on hosts whose OS timezone is unavailable.
+    const options = new Intl.DateTimeFormat('en', {
+      timeZone: 'Europe/Berlin',
+    }).resolvedOptions();
+    spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').and.returnValue(options);
+    const systemZone = options.timeZone;
     const component = await editor();
     component.changeCreationRepeat('daily');
     expect(component.timeZone).toBe(systemZone);

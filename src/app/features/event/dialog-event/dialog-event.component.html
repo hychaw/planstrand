@@ -1,11 +1,27 @@
 <h2 mat-dialog-title>
   {{
-    (occurrenceKey ? T.F.EVENT.EDIT_OCCURRENCE : data.id ? T.F.EVENT.EDIT : T.F.EVENT.NEW)
-      | translate
+    (occurrenceKey
+      ? T.F.EVENT.EDIT_OCCURRENCE
+      : data.id || data.seriesId
+        ? T.F.EVENT.EDIT
+        : T.F.EVENT.NEW
+    ) | translate
   }}
 </h2>
-<form (ngSubmit)="save()">
+<form
+  (ngSubmit)="save()"
+  novalidate
+>
   <mat-dialog-content>
+    @if (template(); as owner) {
+      <p class="occurrence-scope">
+        {{ 'F.WEEKLY_TEMPLATE.TITLE' | translate }}: {{ owner.title }}
+      </p>
+      <p class="occurrence-scope">
+        {{ owner.startDate }} â€“
+        {{ owner.endDate || ('F.WEEKLY_TEMPLATE.NO_END' | translate) }}
+      </p>
+    }
     @if (occurrenceKey) {
       <label class="occurrence-scope">
         {{ T.F.EVENT.EDIT_SCOPE | translate }}
@@ -111,7 +127,7 @@
               /></label>
             }
           </fieldset>
-          @if (!data.id && !occurrenceKey) {
+          @if (!data.id && !occurrenceKey && !data.templateId && !data.seriesId) {
             <label
               >{{ T.F.EVENT.FREQUENCY | translate
               }}<select
@@ -129,7 +145,7 @@
           @if (scope !== 'occurrence' || isRecurringCreation) {
             <fieldset>
               <legend>{{ T.F.EVENT.RECURRENCE | translate }}</legend>
-              @if (occurrenceKey) {
+              @if (occurrenceKey && !template()) {
                 <label
                   >{{ T.F.EVENT.FREQUENCY | translate
                   }}<select
@@ -225,6 +241,16 @@
         color="warn"
         (click)="deleteEntireSeries()"
         [attr.aria-disabled]="busy()"
+      >
+        {{ T.F.EVENT.DELETE_SERIES | translate }}
+      </button>
+    } @else if (data.seriesId) {
+      <button
+        mat-button
+        type="button"
+        color="warn"
+        (click)="deleteEntireSeries()"
+        [disabled]="busy()"
       >
         {{ T.F.EVENT.DELETE_SERIES | translate }}
       </button>

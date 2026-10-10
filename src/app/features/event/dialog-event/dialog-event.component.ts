@@ -36,6 +36,7 @@ import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confir
 import { firstValueFrom } from 'rxjs';
 import { EventSeriesService } from '../../routines/event-series.service';
 import { EventSeriesInput, SeriesEditResult } from '../../routines/event-series.model';
+import { WeeklyTemplateService } from '../../routines/weekly-template.service';
 import { segmentForSlot } from '../../routines/event-series-plan';
 
 type EditScope = 'occurrence' | 'future' | 'series';
@@ -59,6 +60,8 @@ export interface EventDialogData {
   date?: string;
   start?: number;
   occurrence?: OccurrenceKey;
+  templateId?: string;
+  seriesId?: string;
 }
 @Component({
   selector: 'dialog-event',
@@ -75,6 +78,14 @@ export class DialogEventComponent {
   private readonly _dialog = inject(MatDialog);
   private readonly _translate = inject(TranslateService);
   private readonly _exceptions = inject(OccurrenceExceptionService);
+  private readonly _templates = inject(WeeklyTemplateService);
+  readonly template = computed(() => {
+    const id =
+      this.data.templateId ??
+      this._series()[this.data.seriesId ?? this.occurrenceKey?.seriesId ?? '']
+        ?.templateId;
+    return id ? this._templates.entities()[id] : undefined;
+  });
   private readonly _seriesCommands = inject(EventSeriesService);
   private readonly _series = inject(Store).selectSignal(selectEventSeriesEntities);
   // Copy only ownership fields; never use an Event id or a day-slice timestamp.
@@ -138,6 +149,19 @@ export class DialogEventComponent {
   private readonly _baselines: Partial<Record<EditScope, EditorDraft>> = {};
   invalid = false;
   constructor() {
+    if (this.data.templateId) {
+      this.date = this.template()?.startDate ?? this.date;
+      this.recurrenceEndDate = this.template()?.endDate ?? '';
+      this.changeCreationRepeat('weekly');
+    }
+    if (this.data.seriesId) {
+      const draft = this._seriesDraft('series');
+      if (draft) {
+        Object.assign(this, draft);
+        this.scope = 'series';
+        this._baselines.series = structuredClone(draft);
+      }
+    }
     const event = this._existing;
     const start = event && !event.isAllDay ? event.start : this.data.start;
     if (start !== undefined && this.timeZone) {
@@ -158,7 +182,7 @@ export class DialogEventComponent {
       this._createSeries();
       return;
     }
-    if (this.occurrenceKey && this.scope !== 'occurrence') {
+    if (this.data.seriesId || (this.occurrenceKey && this.scope !== 'occurrence')) {
       void this._saveSeries();
       return;
     }
@@ -207,7 +231,7 @@ export class DialogEventComponent {
   }
 
   get isRecurringCreation(): boolean {
-    return !this.data.id && !this.occurrenceKey && this.repeats;
+    return !this.data.id && !this.data.seriesId && !this.occurrenceKey && this.repeats;
   }
 
   creationTimeZoneChanged(): void {
@@ -220,7 +244,7 @@ export class DialogEventComponent {
     this.seriesError.set(null);
     this.invalid = false;
     if (frequency === 'none') return;
-    this.frequency = frequency;
+    this.frequency = this.template() ? 'weekly' : frequency;
     if (!this._creationRecurrenceInitialized) {
       // Carry the Calendar date/time and an already edited one-off duration forward.
       if (isValidDBDateStr(this.date)) {
@@ -262,11 +286,16 @@ export class DialogEventComponent {
     this.seriesError.set(null);
     this.busy.set(true);
     // Domain validation deliberately allows an anchor in a DST gap: that slot is skipped.
-    const id = this._seriesCommands.create({
+    const input: EventSeriesInput = {
       title: this.title.trim(),
       recurrence: this._recurrenceInput(),
       timing: this._timingInput(),
-    });
+    };
+    const id = this._withinTemplateWindow(input.recurrence)
+      ? this.data.templateId
+        ? this._templates.createEntry(this.data.templateId, input)
+        : this._seriesCommands.create(input)
+      : null;
     if (id) this._ref.close(true);
     else {
       this.busy.set(false);
@@ -324,10 +353,11 @@ export class DialogEventComponent {
   }
 
   private _seriesDraft(scope: EditScope): EditorDraft | null {
-    const key = this.occurrenceKey!;
+    const key = this.occurrenceKey ?? { seriesId: this.data.seriesId!, slot: 0 };
     const series = this._series()[key.seriesId];
     const original = resolveEventOccurrence(series, key);
-    if (!series || !original) return null;
+    if (!series || series.deletedAt !== undefined || (!original && scope !== 'series'))
+      return null;
     const segment =
       scope === 'series' ? series.segments[0] : segmentForSlot(series, key.slot)!;
     const { recurrence, timing } = segment;
@@ -335,7 +365,7 @@ export class DialogEventComponent {
     return {
       ...this._draft(),
       title: scope === 'series' ? series.title : (segment.title ?? series.title),
-      date: scope === 'series' ? recurrence.startDate : original.scheduledDate,
+      date: scope === 'series' ? recurrence.startDate : original!.scheduledDate,
       isAllDay: timing.kind === 'allDay',
       startTime: timing.kind === 'timed' ? timing.localTime : '09:00',
       timeZone:
@@ -351,7 +381,8 @@ export class DialogEventComponent {
   }
 
   private _seriesChanges(): Partial<EventSeriesInput> | null {
-    const baseline = this._baselines[this.scope]!;
+    const baseline = this._baselines[this.scope];
+    if (!baseline) return null;
     const draft = this._draft();
     const changes: Partial<EventSeriesInput> = {};
     if (draft.title.trim() !== baseline.title) changes.title = draft.title.trim();
@@ -368,6 +399,7 @@ export class DialogEventComponent {
       JSON.stringify(recurrenceFields(baseline))
     ) {
       changes.recurrence = this._recurrenceInput();
+      if (!this._withinTemplateWindow(changes.recurrence)) return null;
     }
     const timingFields = (form: EditorDraft): unknown[] =>
       form.isAllDay
@@ -392,7 +424,7 @@ export class DialogEventComponent {
       this.seriesError.set(T.F.EVENT.SERIES_INVALID);
       return;
     }
-    const key = this.occurrenceKey!;
+    const key = this.occurrenceKey ?? { seriesId: this.data.seriesId!, slot: 0 };
     const scope = this.scope;
     const apply = (retain?: 'retain'): SeriesEditResult =>
       scope === 'series'
@@ -412,8 +444,10 @@ export class DialogEventComponent {
         this.busy.set(false);
       }
     }
-    if (result.ok) this._ref.close(true);
-    else
+    if (result.ok) {
+      if (this.data.seriesId) this.busy.set(true);
+      this._ref.close(true);
+    } else
       this.seriesError.set(
         result.reason === 'invalid'
           ? T.F.EVENT.SERIES_INVALID
@@ -435,13 +469,27 @@ export class DialogEventComponent {
     ));
   }
 
+  private _withinTemplateWindow(recurrence: EventSeriesInput['recurrence']): boolean {
+    const template = this.template();
+    if (!template) return !this.data.templateId;
+    return (
+      template.deletedAt === undefined &&
+      recurrence.frequency === 'weekly' &&
+      recurrence.startDate >= template.startDate &&
+      (!template.endDate ||
+        (recurrence.startDate <= template.endDate &&
+          !!recurrence.endDate &&
+          recurrence.endDate <= template.endDate))
+    );
+  }
+
   async deleteEntireSeries(): Promise<void> {
-    if (!this.occurrenceKey || !this.occurrence() || this.busy()) return;
+    const id = this.data.seriesId ?? this.occurrenceKey?.seriesId;
+    if (!id || this.busy()) return;
     this.busy.set(true);
     try {
       if (await this._confirm(T.F.EVENT.DELETE_SERIES_CONFIRM, T.F.EVENT.DELETE_SERIES)) {
-        if (this._seriesCommands.deleteEntire(this.occurrenceKey.seriesId))
-          this._ref.close(true);
+        if (this._seriesCommands.deleteEntire(id)) this._ref.close(true);
         else this.seriesError.set(T.F.EVENT.OCCURRENCE_UNAVAILABLE);
       }
     } finally {

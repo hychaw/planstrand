@@ -2525,6 +2525,24 @@
         "NO_DATA": "No tasks this week yet.",
         "TITLE": "Title"
       }
+    },
+    "WEEKLY_TEMPLATE": {
+      "TITLE": "Weekly Templates",
+      "NEW": "Create template",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "ENTRIES": "entries",
+      "NO_END": "No end date",
+      "EMPTY": "Create a weekly template to organize recurring Events.",
+      "DATE_HELP": "Dates are inclusive. New templates are inactive until you activate them.",
+      "INVALID": "Enter a name, a valid start date, and an optional end date on or after the start date.",
+      "EDIT": "Edit name and dates",
+      "ACTIVATE": "Activate",
+      "DEACTIVATE": "Deactivate",
+      "ADD_ENTRY": "Add entry",
+      "EMPTY_ENTRIES": "This template has no entries. Add an entry to define a weekly schedule.",
+      "SELECT": "Select a template to manage its entries.",
+      "DELETE_CONFIRM": "Permanently delete this template? Its recurring Events will disappear from Calendar. This cannot be undone."
     }
   },
   "FILE_IMEX": {

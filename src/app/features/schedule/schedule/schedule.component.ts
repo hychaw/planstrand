@@ -1,3 +1,4 @@
+import { DialogWeeklyTemplatesComponent } from '../../routines/dialog-weekly-templates/dialog-weekly-templates.component';
 import { selectConfigFeatureState } from '../../config/store/global-config.reducer';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogEventComponent } from '../../event/dialog-event/dialog-event.component';
@@ -84,6 +85,13 @@ export class ScheduleComponent {
   newEvent(): void {
     this._eventDialog.open(DialogEventComponent, {
       data: { date: this.daysToShow()[0] },
+    });
+  }
+  showWeeklyTemplates(): void {
+    this._eventDialog.open(DialogWeeklyTemplatesComponent, {
+      width: '880px',
+      maxWidth: '95vw',
+      restoreFocus: true,
     });
   }
   showCancelledOccurrences(): void {

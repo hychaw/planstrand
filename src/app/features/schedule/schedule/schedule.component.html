@@ -18,6 +18,13 @@
   >
     <mat-icon>event_busy</mat-icon>{{ T.F.EVENT.CANCELLED_OCCURRENCES | translate }}
   </button>
+  <button
+    mat-button
+    class="e2e-weekly-templates"
+    (click)="showWeeklyTemplates()"
+  >
+    <mat-icon>date_range</mat-icon>{{ 'F.WEEKLY_TEMPLATE.TITLE' | translate }}
+  </button>
   <div class="time-view-selector">
     <button
       mat-button

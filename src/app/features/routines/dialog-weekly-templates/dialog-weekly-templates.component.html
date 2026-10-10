@@ -1,0 +1,189 @@
+<h2 mat-dialog-title>{{ 'F.WEEKLY_TEMPLATE.TITLE' | translate }}</h2>
+<mat-dialog-content>
+  <div class="template-toolbar">
+    <button
+      #newButton
+      mat-button
+      (click)="edit()"
+      [disabled]="busy() || editing()"
+      cdkFocusInitial
+    >
+      {{ 'F.WEEKLY_TEMPLATE.NEW' | translate }}
+    </button>
+  </div>
+  <div class="workspace">
+    <nav [attr.aria-label]="'F.WEEKLY_TEMPLATE.TITLE' | translate">
+      @for (template of templates(); track template.id) {
+        <button
+          mat-button
+          class="template-row"
+          (click)="select(template.id)"
+          [disabled]="busy() || editing()"
+          [attr.aria-pressed]="selectedId() === template.id"
+        >
+          <strong>{{ template.title }}</strong>
+          <span
+            >{{
+              (template.isActive
+                ? 'F.WEEKLY_TEMPLATE.ACTIVE'
+                : 'F.WEEKLY_TEMPLATE.INACTIVE'
+              ) | translate
+            }}
+            Â· {{ entriesFor(template.id).length }}
+            {{ 'F.WEEKLY_TEMPLATE.ENTRIES' | translate }}</span
+          >
+          <span
+            >{{ template.startDate }} â€“
+            {{ template.endDate || ('F.WEEKLY_TEMPLATE.NO_END' | translate) }}</span
+          >
+        </button>
+      } @empty {
+        <p>{{ 'F.WEEKLY_TEMPLATE.EMPTY' | translate }}</p>
+      }
+    </nav>
+    <section>
+      @if (editing()) {
+        <form
+          (ngSubmit)="save()"
+          novalidate
+        >
+          <fieldset [disabled]="busy()">
+            <label
+              >{{ T.F.EVENT.TITLE | translate
+              }}<input
+                #titleInput
+                name="title"
+                [(ngModel)]="title"
+                required
+            /></label>
+            <label
+              >{{ T.F.EVENT.DATE | translate
+              }}<input
+                type="date"
+                name="startDate"
+                [(ngModel)]="startDate"
+                required
+            /></label>
+            <label
+              >{{ T.F.EVENT.SERIES_END_DATE | translate
+              }}<input
+                type="date"
+                name="endDate"
+                [(ngModel)]="endDate"
+                [min]="startDate"
+            /></label>
+            <p>{{ 'F.WEEKLY_TEMPLATE.DATE_HELP' | translate }}</p>
+            @if (invalid()) {
+              <p role="alert">{{ 'F.WEEKLY_TEMPLATE.INVALID' | translate }}</p>
+            }
+            <button
+              mat-button
+              type="button"
+              (click)="cancelEdit()"
+            >
+              {{ T.G.CANCEL | translate }}
+            </button>
+            <button
+              mat-flat-button
+              type="submit"
+            >
+              {{ T.G.SAVE | translate }}
+            </button>
+          </fieldset>
+        </form>
+      } @else if (selected(); as template) {
+        <h3>{{ template.title }}</h3>
+        <div class="template-toolbar">
+          <button
+            mat-button
+            (click)="edit(template)"
+            [disabled]="busy()"
+          >
+            {{ 'F.WEEKLY_TEMPLATE.EDIT' | translate }}
+          </button>
+          <button
+            mat-button
+            (click)="toggle(template)"
+            [disabled]="busy()"
+            [attr.aria-pressed]="template.isActive"
+          >
+            {{
+              (template.isActive
+                ? 'F.WEEKLY_TEMPLATE.DEACTIVATE'
+                : 'F.WEEKLY_TEMPLATE.ACTIVATE'
+              ) | translate
+            }}
+          </button>
+          <button
+            mat-button
+            color="warn"
+            (click)="remove()"
+            [disabled]="busy()"
+          >
+            {{ T.G.DELETE | translate }}
+          </button>
+        </div>
+        <button
+          mat-flat-button
+          #addButton
+          (click)="openEntry()"
+          [disabled]="busy()"
+        >
+          {{ 'F.WEEKLY_TEMPLATE.ADD_ENTRY' | translate }}
+        </button>
+        @for (entry of entries(); track entry.id) {
+          <article>
+            <h4>{{ entry.title }}</h4>
+            @for (segment of entry.segments; track segment.id) {
+              <p>
+                {{ T.F.EVENT.INTERVAL | translate }}: {{ segment.recurrence.interval }} Â·
+                {{ T.F.EVENT.WEEKLY | translate }}
+                @if (segment.recurrence.frequency === 'weekly') {
+                  @for (day of segment.recurrence.weekdays; track day) {
+                    <span>{{ weekdays[day - 1] | translate }} </span>
+                  }
+                }
+              </p>
+              <p>
+                {{ segment.recurrence.startDate }} â€“
+                {{
+                  segment.recurrence.endDate || ('F.WEEKLY_TEMPLATE.NO_END' | translate)
+                }}
+              </p>
+              <p>
+                @if (segment.timing.kind === 'allDay') {
+                  {{ T.F.EVENT.ALL_DAY | translate }}
+                } @else {
+                  {{ segment.timing.localTime }} Â·
+                  {{ segment.timing.durationMs / 60000 }}
+                  {{ T.F.EVENT.DURATION_MINUTES | translate }} Â·
+                  {{ segment.timing.timeZone }}
+                }
+              </p>
+            }
+            <button
+              mat-button
+              (click)="openEntry(entry.id)"
+              [disabled]="busy()"
+            >
+              {{ T.F.EVENT.EDIT | translate }}: {{ entry.title }}
+            </button>
+          </article>
+        } @empty {
+          <p>{{ 'F.WEEKLY_TEMPLATE.EMPTY_ENTRIES' | translate }}</p>
+        }
+      } @else {
+        <p>{{ 'F.WEEKLY_TEMPLATE.SELECT' | translate }}</p>
+      }
+    </section>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end"
+  ><button
+    mat-button
+    mat-dialog-close
+    [disabled]="busy()"
+  >
+    {{ T.G.CLOSE | translate }}
+  </button></mat-dialog-actions
+>
