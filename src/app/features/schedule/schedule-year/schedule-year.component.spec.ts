@@ -21,7 +21,10 @@ describe('ScheduleYearComponent', () => {
       imports: [ScheduleYearComponent, TranslateModule.forRoot()],
       providers: [
         { provide: DateTimeFormatService, useValue: { textLocale: () => 'en-US' } },
-        { provide: CalendarDisplayService, useValue: { items, displayTimeZone: zone } },
+        {
+          provide: CalendarDisplayService,
+          useValue: { createItemsForRangeComputed: () => items, displayTimeZone: zone },
+        },
       ],
     });
   });

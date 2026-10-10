@@ -14,7 +14,11 @@ export const createViewEntriesForBlock = (
         start: entry.start,
         duration: entry.end - entry.start,
         type:
-          entry.data.sourceType === 'event' ? SVEType.LocalEvent : SVEType.WorkSession,
+          entry.data.sourceType === 'event'
+            ? SVEType.LocalEvent
+            : entry.data.sourceType === 'eventOccurrence'
+              ? SVEType.EventOccurrence
+              : SVEType.WorkSession,
         data: entry.data,
         plannedForDay: dayDate,
       });

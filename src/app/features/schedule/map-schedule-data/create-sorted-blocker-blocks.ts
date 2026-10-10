@@ -1,6 +1,7 @@
 import {
   calendarAddDays,
   calendarDate,
+  calendarDayStart,
   calendarClock,
   calendarDisplayZone,
 } from '../calendar-time';
@@ -45,6 +46,11 @@ export const createSortedBlockerBlocks = (
         .filter((item) => item.sourceType === 'legacyTask')
         .map((item) => item.sourceId),
     );
+  const rangeStart = calendarDayStart(calendarDate(now, displayZone), displayZone);
+  const rangeEnd = calendarDayStart(
+    calendarAddDays(calendarDate(now, displayZone), nrOfDays),
+    displayZone,
+  );
   let blockedBlocks: BlockedBlock[] = [
     ...createBlockerBlocksForScheduledTasks(
       legacyIds
@@ -55,22 +61,36 @@ export const createSortedBlockerBlocks = (
       .filter(
         (item) =>
           item.sourceType === 'workSession' ||
-          (item.sourceType === 'event' && !item.isAllDay),
+          ((item.sourceType === 'event' || item.sourceType === 'eventOccurrence') &&
+            !item.isAllDay),
       )
-      .map(
-        (item): BlockedBlock => ({
-          start: item.start,
-          end: item.end,
+      .filter(
+        (item) =>
+          item.sourceType !== 'eventOccurrence' ||
+          (item.start < rangeEnd && item.end > rangeStart),
+      )
+      .map((item): BlockedBlock => {
+        // Bound the existing day splitter too: a long occurrence can start years
+        // before this window. Keep original instants and identity on data.
+        const start =
+          item.sourceType === 'eventOccurrence'
+            ? Math.max(item.start, rangeStart)
+            : item.start;
+        const end =
+          item.sourceType === 'eventOccurrence' ? Math.min(item.end, rangeEnd) : item.end;
+        return {
+          start,
+          end,
           entries: [
             {
-              start: item.start,
-              end: item.end,
+              start,
+              end,
               type: BlockedBlockType.WorkSession,
               data: item,
             },
           ],
-        }),
-      ),
+        };
+      }),
     ...createBlockerBlocksForCalendarEvents(icalEventMap),
     ...createBlockerBlocksForScheduledRepeatProjections(
       now,

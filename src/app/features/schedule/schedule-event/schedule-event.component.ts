@@ -96,7 +96,10 @@ const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 })
 export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   readonly isWorkSession = computed(() => !!editableWorkSession(this.se(), 'canDelete'));
-  readonly isLocalEvent = computed(() => this.se().type === SVEType.LocalEvent);
+  readonly isLocalEvent = computed(
+    () =>
+      this.se().type === SVEType.LocalEvent || this.se().type === SVEType.EventOccurrence,
+  );
   private _store = inject(Store);
   private _elRef = inject(ElementRef);
   private _matDialog = inject(MatDialog);
@@ -390,6 +393,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
     const evt = this.se();
     switch (evt.type) {
       case SVEType.ScheduledRepeatProjection:
+      case SVEType.EventOccurrence:
       case SVEType.RepeatProjection:
       case SVEType.RepeatProjectionSplit:
         return 'REPEAT';
@@ -423,6 +427,7 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
 
     const t = this.task();
     const evt = this.se();
+    if (evt.type === SVEType.EventOccurrence) return;
     if (editableLocalEvent(evt, 'canDelete') && !this.isDragPreview()) {
       this._matDialog.open(DialogEventComponent, {
         data: { id: (evt.data as { sourceId: string }).sourceId },

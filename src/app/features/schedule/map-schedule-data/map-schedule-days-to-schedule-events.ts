@@ -43,7 +43,10 @@ export const mapScheduleDaysToScheduleEvents = (
     )[] = [];
 
     day.entries.forEach((entry) => {
-      if (entry.type === SVEType.LocalEvent && entry.data.isAllDay) {
+      if (
+        (entry.type === SVEType.LocalEvent || entry.type === SVEType.EventOccurrence) &&
+        entry.data.isAllDay
+      ) {
         eventsFlat.push({
           id: entry.id,
           type: entry.type,
@@ -77,6 +80,7 @@ export const mapScheduleDaysToScheduleEvents = (
           data: entry.data,
           plannedForDay: [
             SVEType.LocalEvent,
+            SVEType.EventOccurrence,
             SVEType.WorkSession,
             SVEType.ScheduledTask,
             SVEType.CalendarEvent,

@@ -223,14 +223,15 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
     (this.events() ?? []).filter(
       (ev) =>
         !(
-          ev.type === SVEType.LocalEvent && (ev.data as { isAllDay?: boolean })?.isAllDay
+          (ev.type === SVEType.LocalEvent || ev.type === SVEType.EventOccurrence) &&
+          (ev.data as { isAllDay?: boolean })?.isAllDay
         ),
     ),
   );
   allDayEvents(day: string): ScheduleEvent[] {
     return (this.events() ?? []).filter(
       (ev) =>
-        ev.type === SVEType.LocalEvent &&
+        (ev.type === SVEType.LocalEvent || ev.type === SVEType.EventOccurrence) &&
         (ev.data as { isAllDay?: boolean })?.isAllDay &&
         ev.plannedForDay === day,
     );

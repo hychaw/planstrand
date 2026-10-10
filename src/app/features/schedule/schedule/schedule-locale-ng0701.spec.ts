@@ -70,6 +70,7 @@ describe('issue #7383 — NG0701 race on /schedule', () => {
         'buildScheduleDays',
         'getTodayStr',
         'createScheduleDaysWithContext',
+        'createCalendarItemsComputed',
         'getDayClass',
         'hasEventsForDay',
         'getEventsForDay',
@@ -84,6 +85,7 @@ describe('issue #7383 — NG0701 race on /schedule', () => {
       mockScheduleService.buildScheduleDays.and.returnValue([]);
       mockScheduleService.getTodayStr.and.returnValue('2026-04-15');
       mockScheduleService.createScheduleDaysWithContext.and.returnValue([]);
+      mockScheduleService.createCalendarItemsComputed.and.returnValue(signal([]));
       mockScheduleService.getDayClass.and.returnValue('');
       mockScheduleService.hasEventsForDay.and.returnValue(false);
       mockScheduleService.getEventsForDay.and.returnValue([]);

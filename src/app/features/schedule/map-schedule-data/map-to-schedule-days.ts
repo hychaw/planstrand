@@ -127,11 +127,16 @@ export const mapToScheduleDays = (
       ...(calendarDisplayItems ?? [])
         .filter(
           (item) =>
-            item.sourceType === 'event' && item.isAllDay && item.date === day.dayDate,
+            (item.sourceType === 'event' || item.sourceType === 'eventOccurrence') &&
+            item.isAllDay &&
+            item.date === day.dayDate,
         )
         .map((item) => ({
           id: item.id,
-          type: SVEType.LocalEvent as const,
+          type:
+            item.sourceType === 'eventOccurrence'
+              ? (SVEType.EventOccurrence as const)
+              : (SVEType.LocalEvent as const),
           start: parseDbDateStr(day.dayDate).getTime(),
           duration: 0,
           plannedForDay: day.dayDate,

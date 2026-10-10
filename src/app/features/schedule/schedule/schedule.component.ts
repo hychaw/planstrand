@@ -301,12 +301,17 @@ export class ScheduleComponent {
     return anchorContextNow(firstDay, Date.now(), this.displayTimeZone());
   });
 
+  private readonly _calendarItems = this.scheduleService.createCalendarItemsComputed(
+    this.daysToShow,
+  );
+
   scheduleDays = computed(() => {
     return this.scheduleService.createScheduleDaysWithContext({
       daysToShow: this.daysToShow(),
       contextNow: this._contextNow(),
       realNow: Date.now(),
       currentTaskId: this.taskService.currentTaskId() ?? null,
+      calendarDisplayItems: this._calendarItems(),
     });
   });
 

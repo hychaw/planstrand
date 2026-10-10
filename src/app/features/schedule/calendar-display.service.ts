@@ -1,7 +1,7 @@
 import { CurrentDateService } from '../../core/date/current-date.service';
 import { selectLocalizationConfig } from '../config/store/global-config.reducer';
-import { calendarDisplayZone } from './calendar-time';
-import { computed, inject, Injectable } from '@angular/core';
+import { calendarAddDays, calendarDisplayZone } from './calendar-time';
+import { computed, inject, Injectable, Signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
@@ -11,6 +11,9 @@ import { isPluginIssueProvider, IssueProviderKey } from '../issue/issue.model';
 import { selectPersistedCalendarDisplayItems } from './calendar-display-item.selectors';
 import { projectCalendarIntegrationEvent } from './calendar-display-item';
 import { CalendarDisplayItem } from './calendar-display-item.model';
+import { selectAllEventSeries } from '../routines/store/event-series.selectors';
+import { RecurrenceDateRange } from '../routines/recurrence/recurrence-candidates';
+import { projectEventOccurrences } from './project-event-occurrences';
 
 /** Canonical calendar facade: WorkSessions, Events, legacy fallback and provider adapters. */
 @Injectable({ providedIn: 'root' })
@@ -22,6 +25,39 @@ export class CalendarDisplayService {
     return calendarDisplayZone(this._localization()?.timeZone);
   });
   readonly today = this._dates.dateInZone(this.displayTimeZone);
+  private readonly _series = inject(Store).selectSignal(selectAllEventSeries);
+
+  /** Each consumer owns its range. Expansion ignores Task/clock/provider changes. */
+  createItemsForRangeComputed(
+    range: Signal<RecurrenceDateRange | null>,
+  ): Signal<CalendarDisplayItem[]> {
+    const occurrences = computed(() => {
+      const window = range();
+      return window
+        ? projectEventOccurrences(this._series(), window, this.displayTimeZone())
+        : [];
+    });
+    return computed(() => [...this.items(), ...occurrences()]);
+  }
+
+  createItemsForDaysComputed(days: Signal<string[]>): Signal<CalendarDisplayItem[]> {
+    const range = computed(() => calendarRangeForDays(days()), {
+      equal: (a, b) =>
+        a?.fromDate === b?.fromDate && a?.toDateExclusive === b?.toDateExclusive,
+    });
+    return this.createItemsForRangeComputed(range);
+  }
+
+  /** One-shot reads; reactive Calendar consumers should use the computed query. */
+  itemsForDays(days: string[]): CalendarDisplayItem[] {
+    const range = calendarRangeForDays(days);
+    return [
+      ...this.items(),
+      ...(range
+        ? projectEventOccurrences(this._series(), range, this.displayTimeZone())
+        : []),
+    ];
+  }
 
   private readonly _localItems = inject(Store).selectSignal(
     selectPersistedCalendarDisplayItems,
@@ -74,3 +110,12 @@ export class CalendarDisplayService {
     return [...new Map(items.map((item) => [item.id, item])).values()];
   });
 }
+
+const calendarRangeForDays = (days: string[]): RecurrenceDateRange | null => {
+  if (!days.length) return null;
+  const sorted = [...days].sort();
+  return {
+    fromDate: sorted[0],
+    toDateExclusive: calendarAddDays(sorted[sorted.length - 1], 1),
+  };
+};

@@ -47,7 +47,6 @@ export class ScheduleService {
   }
 
   private _timelineTasks = toSignal(this._store.select(selectTimelineTasks));
-  private readonly _calendarDisplayItems = this._calendarDisplay.items;
   private _taskRepeatCfgs = toSignal(
     this._store.select(selectTaskRepeatCfgsWithAndWithoutStartTime),
   );
@@ -59,6 +58,7 @@ export class ScheduleService {
   });
 
   createScheduleDaysComputed(daysToShow: Signal<string[]>): Signal<ScheduleDay[]> {
+    const calendarItems = this.createCalendarItemsComputed(daysToShow);
     return computed(() => {
       this.scheduleRefreshTick();
       const timelineTasks = this._timelineTasks();
@@ -79,7 +79,7 @@ export class ScheduleService {
         : realNow;
 
       return this.buildScheduleDays({
-        calendarDisplayItems: this._calendarDisplayItems(),
+        calendarDisplayItems: calendarItems(),
         now,
         realNow,
         daysToShow: days,
@@ -91,6 +91,10 @@ export class ScheduleService {
         currentTaskId,
       });
     });
+  }
+
+  createCalendarItemsComputed(days: Signal<string[]>): Signal<CalendarDisplayItem[]> {
+    return this._calendarDisplay.createItemsForDaysComputed(days);
   }
 
   buildScheduleDays(params: BuildScheduleDaysParams): ScheduleDay[] {
@@ -147,6 +151,7 @@ export class ScheduleService {
     contextNow: number;
     realNow: number;
     currentTaskId: string | null;
+    calendarDisplayItems?: CalendarDisplayItem[];
   }): ScheduleDay[] {
     this.scheduleRefreshTick();
     const timelineTasks = this._timelineTasks();
@@ -156,7 +161,9 @@ export class ScheduleService {
     const calendarEvents = this._calendarEvents();
 
     return this.buildScheduleDays({
-      calendarDisplayItems: this._calendarDisplayItems(),
+      calendarDisplayItems:
+        params.calendarDisplayItems ??
+        this._calendarDisplay.itemsForDays(params.daysToShow),
       now: params.contextNow,
       realNow: params.realNow,
       daysToShow: params.daysToShow,
@@ -248,7 +255,11 @@ export class ScheduleService {
   }
 
   getEventDayStr(ev: ScheduleEvent): string | null {
-    if (ev.type === SVEType.WorkSession || ev.type === SVEType.LocalEvent) {
+    if (
+      ev.type === SVEType.WorkSession ||
+      ev.type === SVEType.LocalEvent ||
+      ev.type === SVEType.EventOccurrence
+    ) {
       return ev.plannedForDay ?? null;
     }
     if (ev.plannedForDay) return ev.plannedForDay;

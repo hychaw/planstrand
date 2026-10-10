@@ -68,7 +68,8 @@
   <!--- -->
 
   @if (
-    (se().type === SVEType.LocalEvent && !$any(se().data)?.isAllDay) ||
+    ((se().type === SVEType.LocalEvent || se().type === SVEType.EventOccurrence) &&
+      !$any(se().data)?.isAllDay) ||
     se().type === SVEType.WorkSession ||
     se().type === SVEType.ScheduledTask ||
     se().type === SVEType.ScheduledRepeatProjection

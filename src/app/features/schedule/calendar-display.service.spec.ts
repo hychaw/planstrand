@@ -5,6 +5,10 @@ import { signal } from '@angular/core';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { BehaviorSubject } from 'rxjs';
 import { CalendarDisplayService } from './calendar-display.service';
+import { selectAllEventSeries } from '../routines/store/event-series.selectors';
+import { EventSeries } from '../routines/event-series.model';
+import { selectLocalizationConfig } from '../config/store/global-config.reducer';
+import { CurrentDateService } from '../../core/date/current-date.service';
 import { projectWorkSession } from './calendar-display-item';
 import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
 import { HiddenCalendarProvidersService } from '../calendar-integration/hidden-calendar-providers.service';
@@ -12,6 +16,83 @@ import { PluginIssueProviderRegistryService } from '../../plugins/issue-provider
 import { ScheduleCalendarMapEntry } from './schedule.model';
 
 describe('CalendarDisplayService', () => {
+  it('owns independent bounded queries and keeps expansion independent of Task, provider and clock updates', () => {
+    const series: EventSeries = {
+      id: 'series',
+      title: 'Routine',
+      created: 1,
+      modified: 1,
+      segments: [
+        {
+          id: 'segment',
+          recurrence: { frequency: 'daily', startDate: '1900-01-01', interval: 1 },
+          timing: {
+            kind: 'timed',
+            localTime: '09:00',
+            timeZone: 'Asia/Tokyo',
+            durationMs: 3600000,
+          },
+        },
+      ],
+    };
+    const events = new BehaviorSubject<ScheduleCalendarMapEntry[]>([]);
+    TestBed.configureTestingModule({
+      providers: [
+        provideMockStore({
+          selectors: [
+            { selector: selectAllEventSeries, value: [series] },
+            { selector: selectLocalizationConfig, value: { timeZone: 'UTC' } },
+            { selector: selectPersistedCalendarDisplayItems, value: [] },
+          ],
+        }),
+        { provide: CalendarIntegrationService, useValue: { calendarEvents$: events } },
+        {
+          provide: HiddenCalendarProvidersService,
+          useValue: { hiddenProviderIds: signal([]) },
+        },
+      ],
+    });
+    const store = TestBed.inject(MockStore);
+    const dispatch = spyOn(store, 'dispatch');
+    const service = TestBed.inject(CalendarDisplayService);
+    const days = signal(['2026-01-10']);
+    const first = service.createItemsForDaysComputed(days);
+    const second = service.createItemsForDaysComputed(signal(['2026-02-01']));
+    const original = first()[0];
+    expect(original.sourceType).toBe('eventOccurrence');
+    expect(second()[0].start).toBe(Date.parse('2026-02-01T00:00:00Z'));
+    expect(service.items()).toEqual([]);
+    const local = projectWorkSession({
+      id: 'session',
+      taskId: 'task',
+      start: 100,
+      end: 200,
+      created: 1,
+      modified: 1,
+    });
+    store.overrideSelector(selectPersistedCalendarDisplayItems, [local]);
+    store.refreshState();
+    days.set(['2026-01-10']); // Same range, newly allocated by a clock-dependent caller.
+    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(original);
+    events.next([]);
+    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(original);
+    TestBed.inject(CurrentDateService).refresh();
+    expect(first().find((item) => item.sourceType === 'eventOccurrence')).toBe(original);
+    days.set(['2026-01-11']);
+    const next = first().find((item) => item.sourceType === 'eventOccurrence')!;
+    expect(next.start).toBe(Date.parse('2026-01-11T00:00:00Z'));
+    expect(next.id).not.toBe(original.id);
+    expect(second().find((item) => item.sourceType === 'eventOccurrence')!.start).toBe(
+      Date.parse('2026-02-01T00:00:00Z'),
+    );
+    store.overrideSelector(selectLocalizationConfig, { timeZone: 'America/Los_Angeles' });
+    store.refreshState();
+    days.set(['2026-01-10']);
+    const shifted = first().find((item) => item.sourceType === 'eventOccurrence')!;
+    expect(shifted.id).toBe(next.id);
+    expect(shifted.start).toBe(next.start);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
   afterEach(() => TestBed.inject(MockStore).resetSelectors());
   it('merges local/provider items, reacts to capabilities/visibility, and never dispatches', () => {
     const local = projectWorkSession({

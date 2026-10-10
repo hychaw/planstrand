@@ -18,6 +18,7 @@ import { ScheduleDay } from '../schedule.model';
 import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 import { registerLocaleData } from '@angular/common';
 import localeSv from '@angular/common/locales/sv';
+import { calendarDisplayZone } from '../calendar-time';
 
 describe('ScheduleComponent', () => {
   const mockLocalization = signal<{
@@ -55,6 +56,7 @@ describe('ScheduleComponent', () => {
       'scheduleRefreshTick',
       'getTodayStr',
       'createScheduleDaysWithContext',
+      'createCalendarItemsComputed',
       'getDayClass',
       'hasEventsForDay',
       'getEventsForDay',
@@ -78,12 +80,13 @@ describe('ScheduleComponent', () => {
       return date.toISOString().split('T')[0];
     });
     mockScheduleService.createScheduleDaysWithContext.and.returnValue([]);
+    mockScheduleService.createCalendarItemsComputed.and.returnValue(signal([]));
     mockScheduleService.getDayClass.and.returnValue('');
     mockScheduleService.hasEventsForDay.and.returnValue(false);
     mockScheduleService.getEventsForDay.and.returnValue([]);
     (mockScheduleService as any).scheduleRefreshTick = signal(0);
-    (mockScheduleService as any).displayTimeZone = computed(
-      () => mockLocalization().timeZone ?? 'UTC',
+    (mockScheduleService as any).displayTimeZone = computed(() =>
+      calendarDisplayZone(mockLocalization().timeZone),
     );
 
     mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);

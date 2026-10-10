@@ -9,8 +9,8 @@ import {
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CalendarDisplayService } from '../calendar-display.service';
-import { calendarDate } from '../calendar-time';
 import { getDbDateStr } from '../../../util/get-db-date-str';
+import { bucketCalendarActivity } from '../calendar-activity';
 
 /** Navigation and awareness only: the shared projection remains authoritative. */
 @Component({
@@ -166,6 +166,14 @@ export class ScheduleYearComponent {
   readonly dateSelected = output<Date>();
   private readonly calendar = inject(CalendarDisplayService);
   private readonly dateTimeFormat = inject(DateTimeFormatService);
+  private readonly range = computed(() => ({
+    fromDate: `${this.year()}-01-01`,
+    toDateExclusive: `${this.year() + 1}-01-01`,
+  }));
+  private readonly items = this.calendar.createItemsForRangeComputed(this.range);
+  private readonly activity = computed(() =>
+    bucketCalendarActivity(this.items(), this.range(), this.calendar.displayTimeZone()),
+  );
   readonly weekdays = computed(() =>
     Array.from({ length: 7 }, (_, i) =>
       new Intl.DateTimeFormat(this.dateTimeFormat.textLocale(), {
@@ -177,16 +185,7 @@ export class ScheduleYearComponent {
     const locale = this.dateTimeFormat.textLocale();
     const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'long' });
     const dayFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'full' });
-    const items = this.calendar.items();
-    const zone = this.calendar.displayTimeZone();
-    const projected = items.map((item) => ({
-      start: item.date ?? calendarDate(item.start, zone),
-      end:
-        item.isAllDay && item.date
-          ? item.date
-          : calendarDate(Math.max(item.start, item.end - 1), zone),
-      hasWork: item.sourceType === 'workSession',
-    }));
+    const activity = this.activity();
     return Array.from({ length: 12 }, (_month, index) => {
       const date = new Date(this.year(), index, 1, 12);
       const count = new Date(this.year(), index + 1, 0).getDate();
@@ -198,16 +197,14 @@ export class ScheduleYearComponent {
         days: Array.from({ length: count }, (_day, i) => {
           const dayDate = new Date(this.year(), index, i + 1, 12);
           const key = getDbDateStr(dayDate);
-          const matches = projected.filter(
-            (item) => item.start <= key && item.end >= key,
-          );
+          const bucket = activity.get(key);
           return {
             date: dayDate,
             label: dayFormatter.format(dayDate),
             key,
             number: i + 1,
-            count: matches.length,
-            hasWork: matches.some((item) => item.hasWork),
+            count: bucket?.count ?? 0,
+            hasWork: bucket?.hasWork ?? false,
           };
         }),
       };

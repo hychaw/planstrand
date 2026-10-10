@@ -48,7 +48,7 @@ interface SVEWorkSession extends SVEBase {
 }
 
 interface SVELocalEvent extends SVEBase {
-  type: SVEType.LocalEvent;
+  type: SVEType.LocalEvent | SVEType.EventOccurrence;
   data: CalendarDisplayItem;
 }
 

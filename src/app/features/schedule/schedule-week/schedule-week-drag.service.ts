@@ -143,6 +143,7 @@ export class ScheduleWeekDragService {
   }
 
   handleDragStarted(ev: CdkDragStart<ScheduleEvent>): void {
+    if (ev.source.data.type === SVEType.EventOccurrence) return;
     this._isDragging.set(true);
     this._currentDragEvent.set(ev.source.data);
     this._dragPreviewContext.set(null);
@@ -217,6 +218,14 @@ export class ScheduleWeekDragService {
   }
 
   handleDragReleased(ev: CdkDragRelease): void {
+    // Also guard programmatic/stale drag deliveries, independently of the view.
+    if (ev.source.data?.type === SVEType.EventOccurrence) {
+      this._isDragging.set(false);
+      this._currentDragEvent.set(null);
+      this._resetDragRelatedVars();
+      ev.source.reset();
+      return;
+    }
     const prevEl = this._prevDragOverEl;
     if (prevEl) {
       prevEl.classList.remove(DRAG_OVER_CLASS);
