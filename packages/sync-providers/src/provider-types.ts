@@ -151,6 +151,8 @@ export interface OpUploadResponse {
 }
 
 export interface OpDownloadResponseBase {
+  /** Durable account requirements, independent of retained operation identities. */
+  requiredCapabilities?: string[];
   ops: ServerSyncOperation[];
   hasMore: boolean;
   latestSeq: number;

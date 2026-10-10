@@ -22,15 +22,28 @@ export const hasTaskFolderOwnership = (value: unknown): boolean => {
 export const getFullStateRequiredCapabilities = (state: unknown): string[] => {
   if (!state || typeof state !== 'object') return [];
   const data = state as {
+    requiredCapabilities?: string[];
     task?: unknown;
     archiveYoung?: { task?: unknown };
     archiveOld?: { task?: unknown };
   };
-  return [data.task, data.archiveYoung?.task, data.archiveOld?.task].some(
-    hasTaskFolderOwnership,
-  )
-    ? [TASK_FOLDER_OWNERSHIP_V1]
-    : [];
+  if (
+    data.requiredCapabilities !== undefined &&
+    (!Array.isArray(data.requiredCapabilities) ||
+      data.requiredCapabilities.some((token) => typeof token !== 'string'))
+  ) {
+    throw new Error('Invalid full-state semantic requirements');
+  }
+  return [
+    ...new Set([
+      ...(data.requiredCapabilities ?? []),
+      ...([data.task, data.archiveYoung?.task, data.archiveOld?.task].some(
+        hasTaskFolderOwnership,
+      )
+        ? [TASK_FOLDER_OWNERSHIP_V1]
+        : []),
+    ]),
+  ];
 };
 
 /** The server can enforce these requirements without interpreting encrypted data. */

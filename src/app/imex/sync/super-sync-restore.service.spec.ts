@@ -178,6 +178,25 @@ describe('SuperSyncRestoreService', () => {
       });
     });
 
+    it('passes the durable account floor to backup import after visible feature deletion', async () => {
+      mockProvider.getStateAtSeq.and.resolveTo({
+        state: mockState,
+        serverSeq: 100,
+        generatedAt: Date.now(),
+        requiredCapabilities: ['TASK_FOLDER_OWNERSHIP_V1'],
+      });
+      await service.restoreToPoint(100);
+      expect(mockBackupService.importCompleteBackup).toHaveBeenCalledWith(
+        {
+          appDataComplete: mockState,
+          requiredCapabilities: ['TASK_FOLDER_OWNERSHIP_V1'],
+        } as any,
+        true,
+        true,
+        true,
+      );
+    });
+
     it('should clear crash-safe drafts after a restore', async () => {
       // The restore replaced the notes wholesale, so every draft's
       // baseContent now refers to content that no longer exists.

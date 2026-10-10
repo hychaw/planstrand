@@ -39,5 +39,11 @@ export const readFullStateBackup = (payload: unknown): Record<string, unknown> =
     undefined,
     (payload as { requiredCapabilities?: unknown })?.requiredCapabilities,
   );
-  return state;
+  const requiredCapabilities = [
+    ...new Set([
+      ...((payload as { requiredCapabilities?: string[] })?.requiredCapabilities ?? []),
+      ...getFullStateRequiredCapabilities(state),
+    ]),
+  ];
+  return requiredCapabilities.length ? { ...state, requiredCapabilities } : state;
 };

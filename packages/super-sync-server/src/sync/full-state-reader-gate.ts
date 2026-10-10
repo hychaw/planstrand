@@ -1,5 +1,8 @@
 import { Prisma } from '@prisma/client';
-import { supportsRequiredEntityTypes } from '@sp/shared-schema';
+import {
+  supportsRequiredCapabilities,
+  supportsRequiredEntityTypes,
+} from '@sp/shared-schema';
 import { prisma } from '../db';
 
 export interface FullStateReaderAdvertisement {
@@ -29,7 +32,7 @@ export const assertFullStateReader = async (
   // Look up the causal full-state boundary through the existing cached sequence.
   const frontier = await db.userSyncState.findUnique({
     where: { userId },
-    select: { latestFullStateSeq: true },
+    select: { latestFullStateSeq: true, requiredCapabilities: true },
   });
   const boundary = frontier?.latestFullStateSeq
     ? await db.operation.findUnique({
@@ -41,6 +44,11 @@ export const assertFullStateReader = async (
     return false;
   const supportedCapabilities =
     typeof advertisedCapabilities === 'string' ? advertisedCapabilities.split(',') : [];
+  if (
+    !supportsRequiredCapabilities(frontier?.requiredCapabilities, supportedCapabilities)
+  )
+    return false;
+  // Retained recovery operations also contribute, including pre-boundary history.
   // Semantic requirements survive ordinary operation tails, even before a
   // snapshot exists. Fence every route, including writes by unaware clients.
   const supportedArray = supportedCapabilities.length
@@ -51,7 +59,6 @@ export const assertFullStateReader = async (
   const unsupported = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
     SELECT id FROM operations
     WHERE user_id = ${userId}
-      AND server_seq >= ${frontier?.latestFullStateSeq ?? 0}
       AND NOT (required_capabilities <@ ${supportedArray})
     LIMIT 1
   `);

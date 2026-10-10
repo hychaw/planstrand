@@ -1,4 +1,5 @@
 import {
+  CLIENT_SYNC_READER_CAPABILITIES,
   getFullStateRequiredEntityTypes,
   getFullStateRequiredCapabilities,
 } from '@sp/shared-schema';
@@ -156,10 +157,13 @@ export class PlanstrandFileTransport {
     assertPlanstrandFileEnvelope(data, this._options.supportedOpTypes);
     if (extractSyncFileStateFromPrefix(body).modelVersion !== data.version)
       throw new PlanstrandFileIncompatibleError();
-    this._requirements = requiredFileOpTypes(
-      this._requirements,
-      data.compatibility.requiredOpTypes,
-    );
+    this._requirements = requiredFileOpTypes(this._requirements, [
+      ...data.compatibility.requiredOpTypes,
+      ...((data.requiredCapabilities as string[] | undefined) ?? []),
+      ...getFullStateRequiredCapabilities(data.state),
+    ]);
+    if (this._requirements.some((token) => !this._options.supportedOpTypes.has(token)))
+      throw new PlanstrandFileIncompatibleError();
     return data;
   }
 
@@ -169,6 +173,13 @@ export class PlanstrandFileTransport {
     if (physical.recoveryStatus === 'uncommitted')
       throw new PlanstrandFileIncompatibleError();
     const data = { ...physical };
+    const semanticTokens: ReadonlySet<string> = new Set(CLIENT_SYNC_READER_CAPABILITIES);
+    const requiredCapabilities = this._requirements.filter((token) =>
+      semanticTokens.has(token),
+    );
+    if (data.state && typeof data.state === 'object' && requiredCapabilities.length) {
+      data.state = { ...data.state, requiredCapabilities };
+    }
     delete data.product;
     delete data.compatibility;
     data.version = path.startsWith('sync-data.') && data.format !== 'split' ? 2 : 3;
@@ -212,7 +223,7 @@ export class PlanstrandFileTransport {
     }
     // A create-only import reserves a non-hydratable backup fence before its
     // first primary commit. It also defeats a delayed baseline backup creator.
-    for (const path of [P.opsBackupFile, P.backupFile]) {
+    for (const path of [P.opsBackupFile, P.backupFile, P.stateFile, P.stateBackupFile]) {
       try {
         await this._decode((await this._raw.downloadFile(path)).dataStr);
       } catch (e) {

@@ -24,17 +24,15 @@ check the server's advertised semantic support before upload.
 
 ## Enforcement and persistence
 
-- The existing SuperSync pre-handler gates every route against the causal
-  full-state entity boundary and semantic requirements in that boundary and its
-  retained operation tail. A missing full-state boundary starts the semantic
-  check at sequence zero. Thus an ordinary Task operation can fence unaware
-  readers and writers without inventing a full-state operation.
-- The existing response gate checks requirements on returned operations,
-  piggybacks and declared full-state metadata. Rejection returns HTTP 409 with
-  the existing reader-unsupported code and no state, operation batch or cursor.
-  As in Phase 4C, response screening closes delivery races; ingress checks are
-  not a universal transactional lock against writers admitted before a new
-  requirement commits. Reader advertisements remain trusted claims.
+- SuperSync gates every route against the causal full-state entity boundary,
+  the durable semantic floor and all retained semantic operation requirements.
+  The upload transaction repeats the capability check at the existing per-user
+  sequence serialization boundary. An ordinary feature operation can fence
+  unaware readers and writers without inventing a full-state operation.
+- The response gate checks requirements on returned operations, piggybacks and
+  declared full-state metadata, including the durable account floor. Rejection
+  returns HTTP 409 with the existing reader-unsupported code and no state,
+  operation batch or cursor. Reader advertisements remain trusted claims.
 - Requirements are stored in the operation row's default-empty
   `required_capabilities` column. Snapshot ingress, download selects, request
   fingerprints and duplicate identity checks retain them. The optional metadata
@@ -62,6 +60,43 @@ independent subtask placement, and heterogeneous conflict redesign remain outsid
 this increment. Legacy Task operations without ownership metadata remain valid.
 
 The server subset query and migration defaults are also verified against real PostgreSQL semantics in PGlite.
+
+## Durable requirements (V1.2 Phase 1c.2)
+
+Semantic requirements form a monotonic floor after the first persisted feature
+write. Deleting visible entities does not remove it: retained history and recovery
+data can still need the semantics. Empty, never-activated accounts keep an empty
+floor. This adds no application schema version or IndexedDB version.
+
+SuperSync stores the floor in `user_sync_state.required_capabilities`, alongside
+the existing per-user sequence serialization row. The migration backfills every
+retained operation, including recovery history before the latest full-state
+boundary. Accepted inserts union requirements in the upload transaction; rejected
+inserts and duplicate identities do not activate new tokens. Replacement,
+clean-slate upload, data reset and quota pruning preserve the row's floor. Gates
+check both this floor and retained operation metadata. Apply the migration before
+running the updated server; retire older server processes before resuming writes
+or pruning. Already-erased requirement metadata cannot be reconstructed.
+
+Download and restore envelopes carry the floor outside operation identity. Local
+persistence adopts requirements from operations, snapshots and recovery backups
+into the existing META store before pruning or replacement. Compaction snapshots,
+archive-inclusive exports and manual backups inherit this floor. Backup unwrap,
+repair, re-export and server restore preserve declared requirements. Operator
+recovery exports use the same protected wrapper shape when requirements exist.
+
+File transport merges explicit and state requirements into its existing durable
+manifest, including recovery copies. Restored snapshot projections carry semantic
+requirements into local persistence. Unsupported readers reject before state
+application or remote writes. No provider-specific rewrite is needed.
+
+Future Routines integration must add `ROUTINES_V1` to the supported capability
+vocabulary and stamp the first persisted Routines operation. The existing optional
+`requiredCapabilities` contract then retains that activation across these paths.
+Do not stamp ordinary operations or empty snapshots merely for running V1.2.
+Actual Routines persistence and activation remain Phase 2 work. This protection
+does not add an IndexedDB downgrade barrier for an older app opened on the same
+local database, nor retrofit checks into previously shipped manual importers.
 
 ## Changed files
 

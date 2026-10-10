@@ -289,6 +289,7 @@ export const SuperSyncUploadOpsResponseSchema = z
 
 export const SuperSyncDownloadOpsResponseSchema = z
   .object({
+    requiredCapabilities: z.array(z.string().min(1).max(255)).max(100).optional(),
     ops: z.array(SuperSyncServerOperationSchema),
     hasMore: z.boolean(),
     latestSeq: z.number(),

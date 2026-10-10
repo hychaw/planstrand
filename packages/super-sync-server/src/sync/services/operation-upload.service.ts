@@ -563,6 +563,19 @@ export class OperationUploadService {
       );
     }
 
+    // Activate only after a successful insert. The existing sequence-row lock
+    // orders this floor with reader checks and replacement; operation identity
+    // remains unchanged, including retries of older unstamped snapshots.
+    if (op.requiredCapabilities?.length) {
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE user_sync_state
+        SET required_capabilities = ARRAY(
+          SELECT DISTINCT unnest(required_capabilities || ARRAY[${Prisma.join(op.requiredCapabilities)}]::TEXT[])
+        )
+        WHERE user_id = ${userId}
+      `);
+    }
+
     if (fullStateVectorClock) {
       // Persist the aggregate of (prior history ∪ this op's clock), not just the
       // op's own clock. BACKUP_IMPORT uses a fresh `{ clientId: 1 }` by design

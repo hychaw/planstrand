@@ -108,6 +108,46 @@ describe('OperationLogStoreService', () => {
     await service._clearAllDataForTesting();
   });
 
+  it('retains a semantic floor through compaction, full-state cleanup and destructive replacement', async () => {
+    const capability = 'TASK_FOLDER_OWNERSHIP_V1';
+    expect(await service.getRequiredCapabilities()).toEqual([]);
+    const seq = await service.append(
+      createTestOperation({ requiredCapabilities: [capability] }),
+    );
+    await service.saveStateCache({
+      state: { task: { ids: [], entities: {} } },
+      lastAppliedOpSeq: seq,
+      vectorClock: {},
+      compactedAt: Date.now(),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    });
+    await service.deleteOpsWhere(() => true);
+    expect(await service.getOpsAfterSeq(0)).toEqual([]);
+    expect((await service.loadStateCache())?.state).toEqual({
+      task: { ids: [], entities: {} },
+      requiredCapabilities: [capability],
+    });
+    const replacement = createImportOp('new-client', 1);
+    replacement.payload = { task: { ids: [], entities: {} } };
+    await service.runDestructiveStateReplacement({
+      syncImportOp: replacement,
+      snapshotEntityKeys: [],
+    });
+    expect((await service.getOpsAfterSeq(0))[0].op.requiredCapabilities).toEqual([
+      capability,
+    ]);
+    await service.clearFullStateOpsExcept([]);
+    await service.clearAllOperations();
+    expect(await service.getRequiredCapabilities()).toEqual([capability]);
+  });
+
+  it('adopts semantic requirements retained only in a recovery backup', async () => {
+    await service.saveImportBackup({ task: { entities: { t: { folderId: 'folder' } } } });
+    expect(await service.getRequiredCapabilities()).toEqual(['TASK_FOLDER_OWNERSHIP_V1']);
+    await service.clearImportBackup();
+    expect(await service.getRequiredCapabilities()).toEqual(['TASK_FOLDER_OWNERSHIP_V1']);
+  });
+
   describe('initialization', () => {
     it('should initialize successfully', () => {
       expect(service).toBeTruthy();
@@ -666,7 +706,12 @@ describe('OperationLogStoreService', () => {
 
       expect(await service.getLatestFullStateOpEntry()).toBeUndefined();
       expect(transactionSpy).toHaveBeenCalledWith(
-        [STORE_NAMES.OPS, STORE_NAMES.META],
+        [
+          STORE_NAMES.OPS,
+          STORE_NAMES.META,
+          STORE_NAMES.STATE_CACHE,
+          STORE_NAMES.IMPORT_BACKUP,
+        ],
         'readwrite',
         jasmine.any(Function),
       );

@@ -133,6 +133,8 @@ model Operation {
 }
 
 model UserSyncState {
+  /// Monotonic semantic floor; survives replacement, recovery and operation pruning.
+  requiredCapabilities       String[] @default([]) @map("required_capabilities")
   userId                     Int     @id @map("user_id")
   lastSeq                    Int     @default(0) @map("last_seq")
   lastSnapshotSeq            Int?    @map("last_snapshot_seq")

@@ -1,3 +1,10 @@
+import {
+  preserveSemanticRequirementsInTx,
+  retainSemanticRequirements,
+  saveStateCacheWithSemanticRequirements,
+  persistReplacementWithSemanticRequirements,
+  SEMANTIC_REQUIREMENTS_STORES,
+} from './semantic-requirements';
 import { inject, Injectable } from '@angular/core';
 import type { RemoteOperationApplyStorePort } from '@sp/sync-core';
 import { DBSchema, IDBPDatabase, openDB } from 'idb';
@@ -1677,9 +1684,10 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     const excludeIdSet = new Set(excludeIds);
     let deletedCount = 0;
     await this._adapter.transaction(
-      [STORE_NAMES.OPS, STORE_NAMES.META],
+      SEMANTIC_REQUIREMENTS_STORES,
       'readwrite',
       async (tx) => {
+        await preserveSemanticRequirementsInTx(tx);
         // Read meta INSIDE the tx so a full-state append committed between the
         // read and the write can't be clobbered by a stale snapshot. The
         // OPS deletes and the META update then stay atomic, matching
@@ -1954,6 +1962,22 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     return storedEntries.filter((e) => !e.rejectedAt).map(decodeStoredEntry);
   }
 
+  async retainRequiredCapabilities(
+    requiredCapabilities: readonly string[],
+  ): Promise<void> {
+    await this._ensureInit();
+    await retainSemanticRequirements(this._adapter, requiredCapabilities);
+  }
+
+  async getRequiredCapabilities(): Promise<string[]> {
+    await this._ensureInit();
+    return this._adapter.transaction(
+      SEMANTIC_REQUIREMENTS_STORES,
+      'readwrite',
+      preserveSemanticRequirementsInTx,
+    );
+  }
+
   async deleteOpsWhere(predicate: (entry: OperationLogEntry) => boolean): Promise<void> {
     await this._ensureInit();
     // Iterate the whole store, deleting entries that match the predicate.
@@ -1961,9 +1985,10 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     let deletedCount = 0;
     const deletedFullStateOpIds = new Set<string>();
     await this._adapter.transaction(
-      [STORE_NAMES.OPS, STORE_NAMES.META],
+      SEMANTIC_REQUIREMENTS_STORES,
       'readwrite',
       async (tx) => {
+        await preserveSemanticRequirementsInTx(tx);
         await tx.iterate<StoredOperationLogEntry>(STORE_NAMES.OPS, {}, (value) => {
           // Decode stored entry before applying predicate
           const decoded = decodeStoredEntry(value);
@@ -2086,7 +2111,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     // The cached clock is restored as the DURABLE clock at hydration — prune
     // with the same preserve set as every other durable write (#9096).
     const vectorClock = await this.pruneClockForStorage(snapshot.vectorClock);
-    await this._adapter.put(STORE_NAMES.STATE_CACHE, {
+    await saveStateCacheWithSemanticRequirements(this._adapter, {
       id: SINGLETON_KEY,
       ...snapshot,
       vectorClock,
@@ -2309,9 +2334,10 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   async clearAllOperations(): Promise<void> {
     await this._ensureInit();
     await this._adapter.transaction(
-      [STORE_NAMES.OPS, STORE_NAMES.META],
+      SEMANTIC_REQUIREMENTS_STORES,
       'readwrite',
       async (tx) => {
+        await preserveSemanticRequirementsInTx(tx);
         await tx.clear(STORE_NAMES.OPS);
         await tx.put(
           STORE_NAMES.META,
@@ -2374,6 +2400,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
                 );
               }
             }
+            await preserveSemanticRequirementsInTx(tx, opts.baselineState);
             await tx.clear(STORE_NAMES.OPS);
             await tx.put(
               STORE_NAMES.META,
@@ -2947,8 +2974,8 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   }): Promise<void> {
     await this._ensureInit();
 
-    const { syncImportOp, snapshotEntityKeys, archiveYoung, archiveOld } = opts;
-    const newState = syncImportOp.payload;
+    const { snapshotEntityKeys, archiveYoung, archiveOld } = opts;
+    const syncImportOp = { ...opts.syncImportOp };
     const newVectorClock = syncImportOp.vectorClock;
     const compactedAt = Date.now();
     const storeNames: OpLogStoreName[] = [
@@ -2959,15 +2986,13 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
       // the clientId. Unlike the archive stores it is never conditional.
       STORE_NAMES.CLIENT_ID,
       STORE_NAMES.META,
+      STORE_NAMES.IMPORT_BACKUP,
     ];
     if (archiveYoung != null) {
       storeNames.push(STORE_NAMES.ARCHIVE_YOUNG);
     }
     if (archiveOld != null) {
       storeNames.push(STORE_NAMES.ARCHIVE_OLD);
-    }
-    if (opts.requiredImportBackupId !== undefined) {
-      storeNames.push(STORE_NAMES.IMPORT_BACKUP);
     }
 
     try {
@@ -2996,59 +3021,12 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
           // is order-independent.
           await tx.put(STORE_NAMES.CLIENT_ID, syncImportOp.clientId, SINGLETON_KEY);
 
-          await tx.clear(STORE_NAMES.OPS);
-
-          const seq = await tx.add(
-            STORE_NAMES.OPS,
-            this._buildStoredEntry(syncImportOp, 'local'),
+          const seq = await persistReplacementWithSemanticRequirements(
+            tx,
+            syncImportOp,
+            (op) => this._buildStoredEntry(op, 'local'),
+            { compactedAt, snapshotEntityKeys, archiveYoung, archiveOld },
           );
-          // syncImportOp is always a full-state op (both callers pass SYNC_IMPORT);
-          // OPS was just cleared, so the pointer is exactly this one op. Use the
-          // shared builder so `latest` is derived, never hand-asserted.
-          await tx.put(
-            STORE_NAMES.META,
-            buildFullStateOpsMeta([{ opId: syncImportOp.id, seq }]),
-            FULL_STATE_OPS_META_KEY,
-          );
-
-          // This replacement supersedes any interrupted USE_REMOTE rebuild. Clear
-          // the marker in the same transaction as the restored/clean-slate
-          // baseline so a successful Undo cannot immediately re-enter recovery.
-          await tx.delete(STORE_NAMES.META, RAW_REBUILD_INCOMPLETE_META_KEY);
-          await tx.delete(STORE_NAMES.META, RAW_REBUILD_RECOVERY_META_KEY);
-
-          await tx.put(
-            STORE_NAMES.VECTOR_CLOCK,
-            { clock: newVectorClock, lastUpdate: Date.now() },
-            SINGLETON_KEY,
-          );
-
-          await tx.put(STORE_NAMES.STATE_CACHE, {
-            id: SINGLETON_KEY,
-            state: newState,
-            lastAppliedOpSeq: seq,
-            vectorClock: newVectorClock,
-            compactedAt,
-            schemaVersion: syncImportOp.schemaVersion,
-            snapshotEntityKeys,
-          });
-
-          if (archiveYoung != null) {
-            await tx.put(STORE_NAMES.ARCHIVE_YOUNG, {
-              id: SINGLETON_KEY,
-              data: archiveYoung,
-              lastModified: compactedAt,
-            });
-          }
-
-          if (archiveOld != null) {
-            await tx.put(STORE_NAMES.ARCHIVE_OLD, {
-              id: SINGLETON_KEY,
-              data: archiveOld,
-              lastModified: compactedAt,
-            });
-          }
-
           return seq;
         }),
       );

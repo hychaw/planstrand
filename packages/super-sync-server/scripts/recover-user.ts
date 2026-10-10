@@ -1,3 +1,7 @@
+import {
+  getFullStateRequiredCapabilities,
+  getFullStateRequiredEntityTypes,
+} from '@sp/shared-schema';
 /**
  * recover-user.ts — operator data-recovery tool for SuperSync accounts.
  *
@@ -243,6 +247,7 @@ const recover = async (
       payload: true,
       schemaVersion: true,
       isPayloadEncrypted: true,
+      requiredCapabilities: true,
     },
   });
   if (ops.length === 0) {
@@ -311,7 +316,23 @@ const recover = async (
   if (!outPath) {
     throw new Error('--out <path> is required (or use --dry-run to preview).');
   }
-  writeFileSync(outPath, JSON.stringify(state, null, 2), 'utf8');
+  const requiredCapabilities = [
+    ...new Set([
+      ...(syncState?.requiredCapabilities ?? []),
+      ...ops.flatMap((op) => op.requiredCapabilities),
+      ...getFullStateRequiredCapabilities(state),
+    ]),
+  ];
+  const requiredEntityTypes = getFullStateRequiredEntityTypes(state);
+  const output =
+    requiredCapabilities.length || requiredEntityTypes.length
+      ? {
+          appDataComplete: state,
+          requiredEntityTypes,
+          ...(requiredCapabilities.length ? { requiredCapabilities } : {}),
+        }
+      : state;
+  writeFileSync(outPath, JSON.stringify(output, null, 2), 'utf8');
   console.log(`\nWrote recovered state to ${outPath}`);
   console.log(
     "This file contains the user's COMPLETE plaintext data. Transmit it over a\n" +

@@ -64,7 +64,12 @@ export class SuperSyncRestoreService {
         // 2. Import with isForceConflict=true to gate page reload
         // Fresh clock is always generated; isSkipReload=true prevents actual reload
         await this._backupService.importCompleteBackup(
-          snapshot.state as AppDataComplete,
+          (snapshot.requiredCapabilities?.length
+            ? {
+                appDataComplete: snapshot.state,
+                requiredCapabilities: snapshot.requiredCapabilities,
+              }
+            : snapshot.state) as AppDataComplete,
           true, // isSkipLegacyWarnings
           true, // isSkipReload - no page reload needed
           true, // isForceConflict - gates page reload (isSkipReload=true overrides)

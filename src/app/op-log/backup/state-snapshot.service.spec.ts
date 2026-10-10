@@ -1,3 +1,4 @@
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import { initialFolderState } from '../../features/folder/folder-state';
 import { addFolder } from '../../features/folder/store/folder.actions';
@@ -130,6 +131,10 @@ describe('StateSnapshotService', () => {
     TestBed.configureTestingModule({
       providers: [
         StateSnapshotService,
+        {
+          provide: OperationLogStoreService,
+          useValue: { getRequiredCapabilities: () => Promise.resolve([]) },
+        },
         provideMockStore(),
         { provide: ArchiveDbAdapter, useValue: archiveDbAdapterSpy },
       ],

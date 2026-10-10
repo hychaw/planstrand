@@ -1,3 +1,4 @@
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { selectEventFeatureState } from '../../features/event/store/event.selectors';
 import { selectFolderFeatureState } from '../../features/folder/store/folder.selectors';
 import { inject, Injectable } from '@angular/core';
@@ -115,6 +116,7 @@ export class StateSnapshotService {
   private _archiveDbAdapter = inject(ArchiveDbAdapter);
   private _taskTimeSync = inject(TaskTimeSyncService);
   private _operationCapture = inject(OperationCaptureService);
+  private _opLogStore = inject(OperationLogStoreService);
 
   /**
    * Gets all sync model data from NgRx store.
@@ -162,13 +164,15 @@ export class StateSnapshotService {
     // actions dispatched while archive I/O is pending are not half-included in
     // the snapshot and will be persisted after it.
     const ngRxData = this._getNgRxDataSync();
-    const [archiveYoung, archiveOld] = await Promise.all([
+    const [archiveYoung, archiveOld, requiredCapabilities] = await Promise.all([
       this._loadArchive('archiveYoung'),
       this._loadArchive('archiveOld'),
+      this._opLogStore.getRequiredCapabilities(),
     ]);
 
     return {
       ...ngRxData,
+      ...(requiredCapabilities.length ? { requiredCapabilities } : {}),
       archiveYoung,
       archiveOld,
     };
@@ -180,11 +184,17 @@ export class StateSnapshotService {
     // Archive reads can await IndexedDB without allowing later reducer updates to
     // drift into a snapshot whose operation sequence was already fixed.
     const snapshot = this.getStateSnapshotForOperationLog();
-    const [archiveYoung, archiveOld] = await Promise.all([
+    const [archiveYoung, archiveOld, requiredCapabilities] = await Promise.all([
       this._loadArchive('archiveYoung'),
       this._loadArchive('archiveOld'),
+      this._opLogStore.getRequiredCapabilities(),
     ]);
-    return { ...snapshot, archiveYoung, archiveOld };
+    return {
+      ...snapshot,
+      archiveYoung,
+      archiveOld,
+      ...(requiredCapabilities.length ? { requiredCapabilities } : {}),
+    };
   }
 
   /**

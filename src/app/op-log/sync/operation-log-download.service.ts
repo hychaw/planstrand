@@ -1,3 +1,4 @@
+import { assertFullStateReaderCompatible } from './folder-full-state-gate';
 import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
 import { getRemoteOpBlockReason } from './remote-op-block.util';
 import { inject, Injectable, OnDestroy } from '@angular/core';
@@ -380,6 +381,15 @@ export class OperationLogDownloadService implements OnDestroy {
           clientId ?? undefined,
           DOWNLOAD_PAGE_SIZE,
         );
+        assertFullStateReaderCompatible(
+          undefined,
+          undefined,
+          undefined,
+          response.requiredCapabilities,
+        );
+        if (response.requiredCapabilities?.length) {
+          await this.opLogStore.retainRequiredCapabilities(response.requiredCapabilities);
+        }
         // Reader requirements apply to every provider before dedup or checkpoints.
         // File snapshots also screen retained vocabulary before snapshot hydration.
         // A snapshot is atomic, so no part of it can be accepted across this fence.

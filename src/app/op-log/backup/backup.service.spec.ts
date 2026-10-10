@@ -141,6 +141,7 @@ describe('BackupService', () => {
       'getStateSnapshotAsync',
     ]);
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
+      'getRequiredCapabilities',
       'saveImportBackup',
       'pruneImportBackups',
       'loadImportBackup',
@@ -158,6 +159,7 @@ describe('BackupService', () => {
     mockStateSnapshotService.getStateSnapshotAsync.and.resolveTo(
       createMinimalValidBackup() as any,
     );
+    mockOpLogStore.getRequiredCapabilities.and.resolveTo([]);
     mockOpLogStore.saveImportBackup.and.resolveTo(backupRef);
     mockOpLogStore.loadImportBackup.and.resolveTo(null);
     mockOpLogStore.clearImportBackup.and.resolveTo();
@@ -182,6 +184,32 @@ describe('BackupService', () => {
     });
 
     service = TestBed.inject(BackupService);
+  });
+
+  it('preserves semantic requirements declared only by the backup wrapper through repair and persistence', async () => {
+    await service.importCompleteBackup(
+      protectFullStateBackup(createMinimalValidBackup(), [
+        TASK_FOLDER_OWNERSHIP_V1,
+      ]) as any,
+      true,
+      true,
+    );
+    const op =
+      mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0]
+        .syncImportOp;
+    expect(op.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+  });
+
+  it('exports the retained semantic floor even after visible feature entities are deleted', async () => {
+    mockOpLogStore.getRequiredCapabilities.and.resolveTo([TASK_FOLDER_OWNERSHIP_V1]);
+    mockStateSnapshotService.getAllSyncModelDataFromStore.and.returnValue(
+      createMinimalValidBackup() as any,
+    );
+    const backup = await service.loadCompleteBackup();
+    expect(backup.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+    expect(
+      (backup.data as unknown as { requiredCapabilities: string[] }).requiredCapabilities,
+    ).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
   });
 
   it('should refuse a truncated legacy backup with the repair-not-possible message', async () => {

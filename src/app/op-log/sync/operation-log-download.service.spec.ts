@@ -42,6 +42,7 @@ describe('OperationLogDownloadService', () => {
 
   beforeEach(() => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
+      'retainRequiredCapabilities',
       'getAppliedOpIds',
       'hasSyncedOps',
       'getVectorClock',
@@ -158,6 +159,31 @@ describe('OperationLogDownloadService', () => {
         expect(mockApiProvider.downloadOps.calls.mostRecent().args[0]).toBe(0);
       });
 
+      it('retains the remote account floor even with an empty operation tail', async () => {
+        mockApiProvider.downloadOps.and.resolveTo({
+          ops: [],
+          hasMore: false,
+          latestSeq: 5,
+          requiredCapabilities: ['TASK_FOLDER_OWNERSHIP_V1'],
+        });
+        await service.downloadRemoteOps(mockApiProvider);
+        expect(mockOpLogStore.retainRequiredCapabilities).toHaveBeenCalledOnceWith([
+          'TASK_FOLDER_OWNERSHIP_V1',
+        ]);
+      });
+      it('rejects an unsupported account floor before cursor or local persistence', async () => {
+        mockApiProvider.downloadOps.and.resolveTo({
+          ops: [],
+          hasMore: false,
+          latestSeq: 5,
+          requiredCapabilities: ['FUTURE'],
+        });
+        await expectAsync(
+          service.downloadRemoteOps(mockApiProvider),
+        ).toBeRejectedWithError(/unsupported entity capabilities/);
+        expect(mockOpLogStore.retainRequiredCapabilities).not.toHaveBeenCalled();
+        expect(mockApiProvider.setLastServerSeq).not.toHaveBeenCalled();
+      });
       it('should use API download for operation-sync-capable providers', async () => {
         await service.downloadRemoteOps(mockApiProvider);
 

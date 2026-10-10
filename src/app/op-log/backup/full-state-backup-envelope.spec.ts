@@ -18,9 +18,19 @@ describe('Folder backup envelope compatibility', () => {
     const data = createValidAppData();
     const encoded = protectFullStateBackup(data, [TASK_FOLDER_OWNERSHIP_V1]);
     expect(isDataRepairPossible(encoded as typeof data)).toBeFalse();
-    expect(readFullStateBackup(JSON.parse(JSON.stringify(encoded)))).toEqual(
-      JSON.parse(JSON.stringify(data)),
+    expect(readFullStateBackup(JSON.parse(JSON.stringify(encoded)))).toEqual({
+      ...JSON.parse(JSON.stringify(data)),
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    });
+  });
+  it('preserves declared protection through unwrap and re-export after visible entities are deleted', () => {
+    const restored = readFullStateBackup(
+      protectFullStateBackup(createValidAppData(), [TASK_FOLDER_OWNERSHIP_V1]),
     );
+    expect(
+      (protectFullStateBackup(restored) as { requiredCapabilities?: string[] })
+        .requiredCapabilities,
+    ).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
   });
   const meaningful = (): ReturnType<typeof createValidAppData> => ({
     ...createValidAppData(),

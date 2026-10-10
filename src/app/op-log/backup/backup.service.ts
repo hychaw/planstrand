@@ -80,10 +80,17 @@ export class BackupService {
   async loadCompleteBackup(
     includeArchives: boolean = false,
   ): Promise<CompleteBackup<AllModelConfig>> {
-    const data = includeArchives
+    let data = includeArchives
       ? await this._stateSnapshotService.getAllSyncModelDataFromStoreAsync()
       : this._stateSnapshotService.getAllSyncModelDataFromStore();
 
+    const requiredCapabilities = [
+      ...new Set([
+        ...getFullStateRequiredCapabilities(data),
+        ...(await this._opLogStore.getRequiredCapabilities()),
+      ]),
+    ];
+    if (requiredCapabilities.length) data = { ...data, requiredCapabilities };
     return {
       timestamp: Date.now(),
       lastUpdate: Date.now(),
@@ -145,6 +152,13 @@ export class BackupService {
         undefined,
         (data as { requiredCapabilities?: unknown }).requiredCapabilities,
       );
+
+      const importedRequirements = [
+        ...new Set([
+          ...getFullStateRequiredCapabilities(backupData),
+          ...((data as { requiredCapabilities?: string[] }).requiredCapabilities ?? []),
+        ]),
+      ];
 
       // 2. Migrate legacy backups (pre-v14) that have the old data shape
       const { isLegacyBackupData, migrateLegacyBackup } =
@@ -254,6 +268,13 @@ export class BackupService {
           validatedData.folder!,
         ),
       };
+
+      if (importedRequirements.length) {
+        validatedData = {
+          ...validatedData,
+          requiredCapabilities: importedRequirements,
+        } as AppDataComplete;
+      }
 
       // 4. Persist to operation log
       await this._operationWriteFlushService.flushPendingWrites();

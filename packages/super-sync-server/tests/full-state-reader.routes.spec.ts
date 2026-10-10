@@ -87,7 +87,7 @@ describe('Server full-state reader fence through HTTP', () => {
     });
     expect(blocked.statusCode).toBe(409);
     expect(mocks.service.uploadOps).not.toHaveBeenCalled();
-    expect(mocks.prisma.$queryRaw.mock.calls[0][0].values[1]).toBe(0);
+    expect(mocks.prisma.$queryRaw.mock.calls[0][0].sql).not.toContain('server_seq >=');
   });
   it('blocks an ordinary encrypted Task operation in the response race', async () => {
     mocks.prisma.userSyncState.findUnique.mockResolvedValue(null);

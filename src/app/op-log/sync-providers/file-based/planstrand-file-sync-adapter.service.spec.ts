@@ -76,6 +76,63 @@ describe('Planstrand namespace and durable snapshot manifest', () => {
     compatibility: { requiredOpTypes: requirements },
     state,
   });
+  it('retains top-level semantic requirements through a cold full-state replacement', async () => {
+    await seed(P.syncFile, { ...v4(), requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1] });
+    const transport = new PlanstrandFileTransport(provider, cfg, undefined, {
+      requiredOpTypes: [],
+      supportedOpTypes: KNOWN_FILE_SEMANTICS,
+      assertTargetCurrent: () => {},
+    });
+    await transport.provider.uploadFile(
+      L.syncFile,
+      await codec.compressAndEncryptData(cfg, undefined, legacy(), 2),
+      null,
+      true,
+    );
+    expect((await read()).compatibility.requiredOpTypes).toContain(
+      TASK_FOLDER_OWNERSHIP_V1,
+    );
+  });
+  it('keeps a recovery-only semantic floor and projects it into restored state', async () => {
+    await seed(P.stateBackupFile, {
+      ...v4(),
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    });
+    const old = new PlanstrandFileTransport(provider, cfg, undefined, {
+      requiredOpTypes: [],
+      supportedOpTypes: new Set(
+        [...KNOWN_FILE_SEMANTICS].filter((token) => token !== TASK_FOLDER_OWNERSHIP_V1),
+      ),
+      assertTargetCurrent: () => {},
+    });
+    await expectAsync(
+      old.provider.uploadFile(
+        L.syncFile,
+        await codec.compressAndEncryptData(cfg, undefined, legacy(), 2),
+        null,
+        true,
+      ),
+    ).toBeRejectedWithError(PlanstrandFileIncompatibleError);
+    await expectAsync(provider.downloadFile(P.syncFile)).toBeRejected();
+    const current = new PlanstrandFileTransport(provider, cfg, undefined, {
+      requiredOpTypes: [],
+      supportedOpTypes: KNOWN_FILE_SEMANTICS,
+      assertTargetCurrent: () => {},
+    });
+    await current.provider.uploadFile(
+      L.syncFile,
+      await codec.compressAndEncryptData(cfg, undefined, legacy(), 2),
+      null,
+      true,
+    );
+    expect((await read()).compatibility.requiredOpTypes).toContain(
+      TASK_FOLDER_OWNERSHIP_V1,
+    );
+    const downloaded = await codec.decompressAndDecryptData<{
+      state: { requiredCapabilities: string[] };
+    }>(cfg, undefined, (await current.provider.downloadFile(L.syncFile)).dataStr);
+    expect(downloaded.state.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+  });
   type PhysicalSnapshot = Omit<FileBasedSyncData, 'version'> &
     PlanstrandFileEnvelope & { snapshotRef?: { file?: string } };
   const read = async (path = P.syncFile): Promise<PhysicalSnapshot> =>

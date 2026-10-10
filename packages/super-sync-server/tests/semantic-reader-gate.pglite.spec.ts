@@ -82,10 +82,11 @@ describe('semantic reader gate using PostgreSQL array semantics', () => {
     mocks.userSyncState.findUnique.mockResolvedValue(null);
     expect(await assertFullStateReader(1, 'FOLDER')).toBe(false);
   });
-  it('uses the current causal boundary and isolates users', async () => {
+  it('includes retained pre-boundary recovery history and isolates users', async () => {
     await insert([TASK_FOLDER_OWNERSHIP_V1], 1);
     await insert(['FUTURE'], 4, 2);
     mocks.userSyncState.findUnique.mockResolvedValue({ latestFullStateSeq: 2 });
-    expect(await assertFullStateReader(1, 'FOLDER')).toBe(true);
+    expect(await assertFullStateReader(1, 'FOLDER')).toBe(false);
+    expect(await assertFullStateReader(1, 'FOLDER', TASK_FOLDER_OWNERSHIP_V1)).toBe(true);
   });
 });

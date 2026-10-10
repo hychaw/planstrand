@@ -5,6 +5,8 @@ import { ArchiveModel } from '../../../features/time-tracking/time-tracking.mode
  * Used for sync operations and backup/restore.
  */
 export interface AppStateSnapshot {
+  /** Durable semantic floor, independent of visible entities. */
+  requiredCapabilities?: string[];
   task: unknown;
   project: unknown;
   tag: unknown;

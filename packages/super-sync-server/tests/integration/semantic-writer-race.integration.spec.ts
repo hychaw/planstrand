@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 /**
  * Real PostgreSQL + HTTP coverage of the reader preflight/write TOCTOU gap.
  * Run with DATABASE_URL pointing at a migrated, disposable test database:
@@ -25,6 +27,7 @@ import { syncRoutes } from '../../src/sync/sync.routes';
 import { initSyncService, SyncService } from '../../src/sync/sync.service';
 import { FullStateReaderUnsupportedError } from '../../src/sync/full-state-reader-gate';
 import { Operation } from '../../src/sync/sync.types';
+import { StorageQuotaService } from '../../src/sync/services/storage-quota.service';
 
 vi.hoisted(() => {
   process.env.JWT_SECRET ??= 'semantic-writer-race-test-secret-32-characters';
@@ -201,6 +204,107 @@ describeWithDb('Semantic writer serialization (PostgreSQL)', () => {
     if (userId) await prisma.user.delete({ where: { id: userId } });
     await prisma.$disconnect();
   });
+
+  it('backfills all retained requirements, including pre-boundary recovery history (real PostgreSQL)', async () => {
+    const migration = readFileSync(
+      resolve(
+        __dirname,
+        '../../prisma/migrations/20261010050000_durable_semantic_requirements/migration.sql',
+      ),
+      'utf8',
+    );
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        'CREATE TEMP TABLE user_sync_state (user_id INTEGER, latest_full_state_seq INTEGER) ON COMMIT DROP',
+      );
+      await tx.$executeRawUnsafe(
+        'CREATE TEMP TABLE operations (user_id INTEGER, required_capabilities TEXT[]) ON COMMIT DROP',
+      );
+      await tx.$executeRawUnsafe('INSERT INTO user_sync_state VALUES (1, 10), (2, NULL)');
+      await tx.$executeRawUnsafe(
+        "INSERT INTO operations VALUES (1, ARRAY['TASK_FOLDER_OWNERSHIP_V1']), (1, ARRAY['TASK_FOLDER_OWNERSHIP_V1']), (2, ARRAY[]::TEXT[])",
+      );
+      for (const statement of migration.split(';').filter((sql) => sql.trim()))
+        await tx.$executeRawUnsafe(statement);
+      expect(
+        await tx.$queryRawUnsafe(
+          'SELECT required_capabilities FROM user_sync_state ORDER BY user_id',
+        ),
+      ).toEqual([{ required_capabilities: [CAPABILITY] }, { required_capabilities: [] }]);
+    });
+  });
+
+  it('keeps pre-activation replacement and ordinary writes compatible with unaware clients', async () => {
+    const replacement = await snapshot(makeOp(B), true);
+    expect(replacement.statusCode).toBe(200);
+    expect(replacement.json().accepted).toBe(true);
+    const ordinary = makeOp(B);
+    ordinary.vectorClock = { [B]: 2 };
+    expect((await upload(ordinary)).json().results[0].accepted).toBe(true);
+    expect(
+      (await prisma.userSyncState.findUniqueOrThrow({ where: { userId } }))
+        .requiredCapabilities,
+    ).toEqual([]);
+  });
+
+  it.each([false, true])(
+    'retains activation after replacement (clean slate: %s) and pruning',
+    async (cleanSlate) => {
+      expect(
+        (await upload(makeOp(A, [CAPABILITY]), undefined, CAPABILITY)).statusCode,
+      ).toBe(200);
+      const replacement = makeOp(A);
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/sync/snapshot?supportedEntityTypes=TASK,FOLDER&supportedCapabilities=${CAPABILITY}`,
+        headers: { authorization },
+        payload: {
+          clientId: A,
+          opId: replacement.id,
+          requestId: replacement.id,
+          state: CIPHERTEXT,
+          isPayloadEncrypted: true,
+          reason: 'recovery',
+          vectorClock: { [A]: 2 },
+          schemaVersion: CURRENT_SCHEMA_VERSION,
+          snapshotOpType: cleanSlate ? 'SYNC_IMPORT' : 'BACKUP_IMPORT',
+          isCleanSlate: cleanSlate,
+        },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json().accepted, response.body).toBe(true);
+      // Snapshot deliberately has no visible feature entities or requirement stamp.
+      const blocked = await upload(makeOp(B));
+      expect(blocked.statusCode).toBe(409);
+      expect(blocked.json().errorCode).toBe('FULL_STATE_READER_UNSUPPORTED');
+      if (!cleanSlate) {
+        expect(
+          (await new StorageQuotaService().deleteOldestRestorePointAndOps(userId))
+            .deletedCount,
+        ).toBe(1);
+      }
+      expect(
+        await prisma.operation.count({
+          where: { userId, requiredCapabilities: { has: CAPABILITY } },
+        }),
+      ).toBe(0);
+      expect((await upload(makeOp(B))).statusCode).toBe(409);
+      const download = await app.inject({
+        method: 'GET',
+        url: `/api/sync/ops?sinceSeq=0&supportedEntityTypes=TASK,FOLDER&supportedCapabilities=${CAPABILITY}`,
+        headers: { authorization },
+      });
+      expect(download.statusCode).toBe(200);
+      expect(download.json().requiredCapabilities).toEqual([CAPABILITY]);
+      const recovered = makeOp(B);
+      expect(
+        (await upload(recovered, undefined, CAPABILITY)).json().results[0].accepted,
+      ).toBe(true);
+      expect(
+        (await upload(recovered, undefined, CAPABILITY)).json().results[0].accepted,
+      ).toBe(true);
+    },
+  );
 
   it.each([
     'ordinary',

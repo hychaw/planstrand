@@ -1,3 +1,4 @@
+import { prisma } from '../db';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   SUPER_SYNC_OPERATION_CAPABILITIES,
@@ -110,6 +111,26 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
         op: { requiredEntityTypes?: string[]; requiredCapabilities?: string[] };
       }[];
     };
+    // Carry the account floor outside operation identity, including when its
+    // activation row was pruned. New devices must retain it for offline exports.
+    if (
+      data &&
+      typeof data === 'object' &&
+      (data.ops || data.newOps || 'state' in data)
+    ) {
+      const floor = await prisma.userSyncState.findUnique({
+        where: { userId: getAuthUser(req).userId },
+        select: { requiredCapabilities: true },
+      });
+      if (floor?.requiredCapabilities?.length) {
+        data.requiredCapabilities = [
+          ...new Set([
+            ...(data.requiredCapabilities ?? []),
+            ...floor.requiredCapabilities,
+          ]),
+        ];
+      }
+    }
     const advertised = (req.query as { supportedEntityTypes?: unknown })
       .supportedEntityTypes;
     const supported = typeof advertised === 'string' ? advertised.split(',') : [];

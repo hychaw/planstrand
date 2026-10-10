@@ -48,6 +48,17 @@ describe('semantic sync reader capabilities', () => {
       }),
     ).toEqual([]);
   });
+  it('retains explicitly inherited semantics without activating empty snapshots', () => {
+    expect(getFullStateRequiredCapabilities({ task: { ids: [], entities: {} } })).toEqual(
+      [],
+    );
+    expect(
+      getFullStateRequiredCapabilities({
+        requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+        task: { ids: [], entities: {} },
+      }),
+    ).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+  });
   it('defaults a missing advertisement to no semantic support', () => {
     expect(supportsRequiredCapabilities([TASK_FOLDER_OWNERSHIP_V1])).toBe(false);
   });
