@@ -134,6 +134,15 @@ export class RoutinesReplayUnsupportedError extends Error {
   }
 }
 
+export class ArchiveCommandReplayUnsupportedError extends Error {
+  constructor() {
+    super(
+      'ARCHIVE_COMMAND_REPLAY_UNSUPPORTED: Archive commands require client replay or an uploaded full snapshot.',
+    );
+    this.name = 'ArchiveCommandReplayUnsupportedError';
+  }
+}
+
 export type ReplayOperationRow = {
   id: string;
   serverSeq: number;
@@ -222,6 +231,16 @@ export const replayOpsToState = (
     if (row.isPayloadEncrypted) {
       throw new EncryptedOpsNotSupportedError(1);
     }
+    const archivePayload = row.payload as {
+      actionPayload?: { archiveCommand?: unknown };
+      archiveCommand?: unknown;
+    } | null;
+    if (
+      row.actionType === '[Task Shared] moveToArchive' &&
+      (archivePayload?.archiveCommand !== undefined ||
+        archivePayload?.actionPayload?.archiveCommand !== undefined)
+    )
+      throw new ArchiveCommandReplayUnsupportedError();
     if (row.opType === 'REPAIR' && row.repairBaseServerSeq == null) {
       throw new LegacyRepairReplayUnsupportedError();
     }

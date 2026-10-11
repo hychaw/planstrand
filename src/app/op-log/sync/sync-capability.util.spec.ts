@@ -1,7 +1,12 @@
-import { ENTITY_TYPES, TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
+import {
+  ENTITY_TYPES,
+  TASK_FOLDER_OWNERSHIP_V1,
+  ARCHIVE_COMMAND_V1,
+} from '@sp/shared-schema';
 import {
   evaluateOperationCompatibility,
   getOperationCapabilityRequirement,
+  getOperationRequiredCapabilities,
   type OperationCapabilityInput,
 } from './sync-capability.util';
 import type { OperationSyncServerCapabilities } from '../sync-providers/provider.interface';
@@ -27,6 +32,32 @@ const capabilities = (
 });
 
 describe('sync capability requirements', () => {
+  it('fences archive commands while preserving other semantic requirements', () => {
+    const command = {
+      ...op('TASK', 4, {
+        actionPayload: { archiveCommand: { version: 1 } },
+        entityChanges: [],
+      }),
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    };
+    expect(getOperationRequiredCapabilities(command)).toEqual([
+      TASK_FOLDER_OWNERSHIP_V1,
+      ARCHIVE_COMMAND_V1,
+    ]);
+    const old = {
+      ...capabilities([...ENTITY_TYPES]),
+      supportedCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    };
+    expect(
+      evaluateOperationCompatibility([command], old).unsupportedCapabilities,
+    ).toEqual([ARCHIVE_COMMAND_V1]);
+    expect(
+      evaluateOperationCompatibility([command], {
+        ...old,
+        supportedCapabilities: [TASK_FOLDER_OWNERSHIP_V1, ARCHIVE_COMMAND_V1],
+      }).compatible,
+    ).toBeTrue();
+  });
   it('requires semantic enforcement from servers independently of entity support', () => {
     const task = { ...op('TASK'), requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1] };
     const old = capabilities([...ENTITY_TYPES]);

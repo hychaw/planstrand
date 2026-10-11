@@ -17,6 +17,9 @@ import type { SyncLogMeta } from '@sp/sync-core';
 import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
 import { isValidDBDateStr } from '../../util/get-db-date-str';
 import { validateRoutinesOperation } from './validate-routines-operation';
+import { assertArchiveCommand } from '../../features/archive/archive-command';
+import type { TaskWithSubTasks } from '../../features/tasks/task.model';
+import { ARCHIVE_COMMAND_V1 } from '@sp/shared-schema';
 
 /**
  * Result of validating an operation payload.
@@ -626,6 +629,25 @@ export const validateOperationPayload = (op: Operation): PayloadValidationResult
   // For multi-entity payloads, we validate the actionPayload
   // For legacy payloads, we validate the payload directly
   const actionPayload = extractActionPayloadForValidation(op.payload);
+  if (
+    op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE &&
+    (actionPayload['archiveCommand'] !== undefined ||
+      op.requiredCapabilities?.includes(ARCHIVE_COMMAND_V1))
+  ) {
+    try {
+      if (
+        !op.requiredCapabilities?.includes(ARCHIVE_COMMAND_V1) ||
+        !Array.isArray(actionPayload['tasks'])
+      )
+        throw new Error('Missing archive capability or Tasks');
+      assertArchiveCommand(
+        actionPayload['archiveCommand'],
+        actionPayload['tasks'] as TaskWithSubTasks[],
+      );
+    } catch {
+      return { success: false, error: 'Invalid or unsupported archive command' };
+    }
+  }
   const routinesResult = validateRoutinesOperation(op, actionPayload);
   if (routinesResult) return routinesResult;
 

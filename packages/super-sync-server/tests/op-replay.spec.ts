@@ -11,6 +11,7 @@ import {
   EncryptedOpsNotSupportedError,
   FolderReplayUnsupportedError,
   RoutinesReplayUnsupportedError,
+  ArchiveCommandReplayUnsupportedError,
   LegacyRepairReplayUnsupportedError,
   LegacyFullStateAfterCutoverError,
   MAX_REPLAY_STATE_SIZE_BYTES,
@@ -31,6 +32,28 @@ const row = (overrides: Partial<ReplayOperationRow>): ReplayOperationRow => ({
 });
 
 describe('op replay', () => {
+  it('refuses client archive commands instead of exporting a generic partial Task map', () => {
+    const base = {
+      task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1', title: 'Keep' } } },
+    };
+    const before = JSON.stringify(base);
+    expect(() =>
+      replayOpsToState(
+        [
+          row({
+            actionType: '[Task Shared] moveToArchive',
+            opType: 'UPD',
+            payload: {
+              actionPayload: { tasks: [], archiveCommand: { version: 1 } },
+              entityChanges: [],
+            },
+          }),
+        ],
+        base,
+      ),
+    ).toThrow(ArchiveCommandReplayUnsupportedError);
+    expect(JSON.stringify(base)).toBe(before);
+  });
   it('never falls through to a generic Folder map when an operator adapter declines it', () => {
     expect(() =>
       replayOpsToState(

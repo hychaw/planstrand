@@ -4,6 +4,7 @@ import {
   TASK_FOLDER_OWNERSHIP_V1,
   hasTaskFolderOwnership,
   ROUTINES_V1,
+  ARCHIVE_COMMAND_V1,
 } from '@sp/shared-schema';
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
@@ -380,6 +381,15 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
               }
             : {}),
         };
+
+        if (
+          action.type === TaskSharedActions.moveToArchive.type &&
+          rawActionPayload['archiveCommand'] !== undefined
+        ) {
+          op.requiredCapabilities = [
+            ...new Set([...(op.requiredCapabilities ?? []), ARCHIVE_COMMAND_V1]),
+          ];
+        }
 
         // CHECKPOINT A: Validate payload before persisting
         const validationResult = validateOperationPayload(op);

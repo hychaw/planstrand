@@ -7,12 +7,17 @@ import {
 /** Semantic requirements are distinct from entity vocabulary and schema versions. */
 export const TASK_FOLDER_OWNERSHIP_V1 = 'TASK_FOLDER_OWNERSHIP_V1' as const;
 export const ROUTINES_V1 = 'ROUTINES_V1' as const;
-export type SyncReaderCapability = typeof TASK_FOLDER_OWNERSHIP_V1 | typeof ROUTINES_V1;
+export const ARCHIVE_COMMAND_V1 = 'ARCHIVE_COMMAND_V1' as const;
+export type SyncReaderCapability =
+  | typeof TASK_FOLDER_OWNERSHIP_V1
+  | typeof ROUTINES_V1
+  | typeof ARCHIVE_COMMAND_V1;
 
-/** Current readers implement canonical Task Folder ownership and recurring series. */
+/** Current readers implement ownership, recurring series, and archive commands. */
 export const CLIENT_SYNC_READER_CAPABILITIES: readonly SyncReaderCapability[] = [
   TASK_FOLDER_OWNERSHIP_V1,
   ROUTINES_V1,
+  ARCHIVE_COMMAND_V1,
 ];
 
 /** Payloads/snapshots carrying ownership need the same semantic wire fence. */
@@ -63,6 +68,7 @@ export const getFullStateRequiredCapabilities = (state: unknown): string[] => {
 export const SERVER_SYNC_READER_CAPABILITIES: readonly SyncReaderCapability[] = [
   TASK_FOLDER_OWNERSHIP_V1,
   ROUTINES_V1,
+  ARCHIVE_COMMAND_V1,
 ];
 
 export const supportsRequiredCapabilities = (

@@ -15,7 +15,9 @@ import {
 import { SyncLog } from '../../core/log';
 import { isValidDBDateStr } from '../../util/get-db-date-str';
 import { applyClearedFields } from '../../util/cleared-update-fields';
-import { PLANNING_V1, isPlanningRecord } from '@sp/shared-schema';
+import { PLANNING_V1, isPlanningRecord, ARCHIVE_COMMAND_V1 } from '@sp/shared-schema';
+import { assertArchiveCommand } from '../../features/archive/archive-command';
+import type { TaskWithSubTasks } from '../../features/tasks/task.model';
 import { isMaterializingLegacyState } from '../persistence/schema-migration.service';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -312,6 +314,26 @@ export const convertOpToAction = (
   let actionPayload: Record<string, unknown> = isFullStateOp
     ? extractFullStatePayload(op.payload)
     : (extractActionPayload(op.payload) as Record<string, unknown>);
+
+  if (
+    actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE &&
+    actionPayload['archiveCommand'] !== undefined
+  ) {
+    if (
+      !op.requiredCapabilities?.includes(ARCHIVE_COMMAND_V1) ||
+      !Array.isArray(actionPayload['tasks'])
+    )
+      throw new Error('Archive command requires its semantic reader capability');
+    assertArchiveCommand(
+      actionPayload['archiveCommand'],
+      actionPayload['tasks'] as TaskWithSubTasks[],
+    );
+  } else if (
+    op.requiredCapabilities?.includes(ARCHIVE_COMMAND_V1) &&
+    actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE
+  ) {
+    throw new Error('Missing required archive command');
+  }
 
   // JSON primitives and arrays are object-spreadable at runtime: a non-record
   // singleton payload such as "x" or ["x"] would spread into { 0: "x" }, which

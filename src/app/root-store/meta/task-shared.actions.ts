@@ -8,6 +8,7 @@ import { BatchOperation } from '@super-productivity/plugin-api';
 import { PersistentActionMeta } from '../../op-log/core/persistent-action.interface';
 import { OpType } from '../../op-log/core/operation.types';
 import { shouldClearDueTimeForToday } from '../../util/is-today.util';
+import type { ArchiveCommandV1 } from '../../features/archive/archive-command';
 
 /**
  * Payload marker stamped on every new `deleteProject` operation so the LWW
@@ -184,7 +185,10 @@ export const TaskSharedActions = createActionGroup({
     // Note: Full task payload is required for sync reliability.
     // Remote clients need task data to write to their local archive.
     // See docs/sync-and-op-log/operation-log-architecture.md for detailed analysis.
-    moveToArchive: (taskProps: { tasks: TaskWithSubTasks[] }) => ({
+    moveToArchive: (taskProps: {
+      tasks: TaskWithSubTasks[];
+      archiveCommand?: ArchiveCommandV1;
+    }) => ({
       ...taskProps,
       meta: {
         isPersistent: true,

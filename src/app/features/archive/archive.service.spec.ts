@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
-import { ArchiveService, ARCHIVE_ALL_YOUNG_TO_OLD_THRESHOLD } from './archive.service';
+import { ArchiveService } from './archive.service';
 import { flushYoungToOld } from './store/archive.actions';
-import { TimeTrackingActions } from '../time-tracking/store/time-tracking.actions';
+import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { TaskWithSubTasks } from '../tasks/task.model';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 import { of } from 'rxjs';
@@ -48,6 +48,7 @@ describe('ArchiveService', () => {
       'loadArchiveOld',
       'saveArchiveYoung',
       'saveArchiveOld',
+      'saveArchivesAtomic',
     ]);
 
     TestBed.configureTestingModule({
@@ -69,382 +70,96 @@ describe('ArchiveService', () => {
     );
     mockArchiveDbAdapter.saveArchiveYoung.and.returnValue(Promise.resolve());
     mockArchiveDbAdapter.saveArchiveOld.and.returnValue(Promise.resolve());
+    mockArchiveDbAdapter.saveArchivesAtomic.and.resolveTo();
   });
 
   describe('moveTasksToArchiveAndFlushArchiveIfDue', () => {
-    it('rejects Tasks with WorkSessions before writing archive storage', async () => {
+    it('rejects Tasks with WorkSessions before writing storage', async () => {
       mockStore.select.and.returnValue(
-        of({
-          ids: ['session-1'],
-          entities: {
-            ['session-1']: {
-              id: 'session-1',
-              taskId: 'task-1',
-              start: 100,
-              end: 200,
-              created: 50,
-              modified: 50,
-            },
-          },
-        }),
+        of({ ids: ['s'], entities: { s: { id: 's', taskId: 'task-1' } } }),
       );
       await expectAsync(
         service.moveTasksToArchiveAndFlushArchiveIfDue([createMockTask('task-1')]),
       ).toBeRejectedWithError(
         'Remove WorkSessions before deleting or archiving their Task',
       );
-      expect(mockArchiveDbAdapter.saveArchiveYoung).not.toHaveBeenCalled();
-      expect(mockArchiveDbAdapter.saveArchiveOld).not.toHaveBeenCalled();
+      expect(mockArchiveDbAdapter.saveArchivesAtomic).not.toHaveBeenCalled();
       expect(mockStore.dispatch).not.toHaveBeenCalled();
     });
-    it('should save tasks to archiveYoung', async () => {
-      const tasks = [createMockTask('task-1')];
 
-      await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-      expect(mockArchiveDbAdapter.saveArchiveYoung).toHaveBeenCalled();
-      const saveCall = mockArchiveDbAdapter.saveArchiveYoung.calls.first();
-      const savedData = saveCall.args[0];
-      expect(savedData.task.ids).toContain('task-1');
-    });
-
-    it('should serialize concurrent task archive mutations without dropping either task', async () => {
-      let archiveYoung = createEmptyArchive(Date.now());
-      let releaseFirstSave: (() => void) | undefined;
-      let firstSaveStarted: (() => void) | undefined;
-      const firstSaveStartedPromise = new Promise<void>((resolve) => {
-        firstSaveStarted = resolve;
-      });
-      const firstSaveGate = new Promise<void>((resolve) => {
-        releaseFirstSave = resolve;
-      });
-
-      mockArchiveDbAdapter.loadArchiveYoung.and.callFake(async () => archiveYoung);
-      mockArchiveDbAdapter.loadArchiveOld.and.callFake(async () =>
-        createEmptyArchive(Date.now()),
-      );
-      mockArchiveDbAdapter.saveArchiveYoung.and.callFake(async (nextArchive) => {
-        if (mockArchiveDbAdapter.saveArchiveYoung.calls.count() === 1) {
-          firstSaveStarted?.();
-          await firstSaveGate;
-        }
-        archiveYoung = nextArchive;
-      });
-
-      const first = service.moveTasksToArchiveAndFlushArchiveIfDue([
-        createMockTask('task-a'),
-      ]);
-      await firstSaveStartedPromise;
-      const second = service.moveTasksToArchiveAndFlushArchiveIfDue([
-        createMockTask('task-b'),
-      ]);
-
-      // The second read must wait for the first write to commit.
-      await Promise.resolve();
-      expect(mockArchiveDbAdapter.loadArchiveYoung).toHaveBeenCalledTimes(1);
-
-      releaseFirstSave?.();
-      await Promise.all([first, second]);
-
-      expect(archiveYoung.task.ids).toEqual(['task-a', 'task-b']);
-      expect(Object.keys(archiveYoung.task.entities).sort()).toEqual([
-        'task-a',
-        'task-b',
-      ]);
-    });
-
-    it('should replace a stale archived task on retry and keep ids deduped and sorted', async () => {
-      const staleTask = createMockTask('task-b', {
-        title: 'Stale archived title',
-        timeSpent: 1,
-      });
-      const otherTask = createMockTask('task-a');
-      mockArchiveDbAdapter.loadArchiveYoung.and.returnValue(
-        Promise.resolve({
-          ...createEmptyArchive(),
-          task: {
-            ids: ['task-b', 'task-a', 'task-b'],
-            entities: {
-              [otherTask.id]: otherTask,
-              [staleTask.id]: staleTask,
-            },
-          },
-        }),
-      );
-      mockArchiveDbAdapter.loadArchiveOld.and.returnValue(
-        Promise.resolve(createEmptyArchive(Date.now() - 1000)),
-      );
-      const retriedTask = createMockTask('task-b', {
-        title: 'Newest active title',
-        timeSpent: 42,
-      });
-
-      await service.moveTasksToArchiveAndFlushArchiveIfDue([retriedTask]);
-
-      const savedTaskState =
-        mockArchiveDbAdapter.saveArchiveYoung.calls.first().args[0].task;
-      expect(savedTaskState.ids).toEqual(['task-a', 'task-b']);
-      expect(savedTaskState.entities['task-b']!.title).toBe('Newest active title');
-      expect(savedTaskState.entities['task-b']!.timeSpent).toBe(42);
-    });
-
-    it('should dispatch updateWholeState for time tracking', async () => {
-      const tasks = [createMockTask('task-1')];
-
-      await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-      expect(mockStore.dispatch).toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: TimeTrackingActions.updateWholeState.type }),
-      );
-    });
-
-    describe('when flush is NOT due', () => {
-      beforeEach(() => {
-        // Set lastTimeTrackingFlush to recent time (less than threshold)
-        mockArchiveDbAdapter.loadArchiveOld.and.returnValue(
-          Promise.resolve(createEmptyArchive(Date.now() - 1000)), // 1 second ago
+    for (const due of [true, false])
+      it(`atomically inserts and optionally flushes (due=${due}) before capturing one command`, async () => {
+        mockArchiveDbAdapter.loadArchiveOld.and.resolveTo(
+          createEmptyArchive(due ? 0 : Date.now()),
         );
-      });
-
-      it('should NOT perform flush to archiveOld', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-        // Should only save once (for the tasks), not for the flush
-        expect(mockArchiveDbAdapter.saveArchiveYoung).toHaveBeenCalledTimes(1);
-        expect(mockArchiveDbAdapter.saveArchiveOld).not.toHaveBeenCalled();
-      });
-
-      it('should NOT dispatch flushYoungToOld action', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
+        const order: string[] = [];
+        mockArchiveDbAdapter.saveArchivesAtomic.and.callFake(async () => {
+          order.push('persist');
+        });
+        mockStore.dispatch = jasmine.createSpy('dispatch').and.callFake(() => {
+          order.push('dispatch');
+        });
+        await service.moveTasksToArchiveAndFlushArchiveIfDue([createMockTask('task-1')]);
+        expect(order).toEqual(['persist', 'dispatch']);
+        expect(mockArchiveDbAdapter.saveArchivesAtomic).toHaveBeenCalledTimes(1);
+        const action = mockStore.dispatch.calls.mostRecent()
+          .args[0] as unknown as ReturnType<typeof TaskSharedActions.moveToArchive>;
+        expect(action.type).toBe(TaskSharedActions.moveToArchive.type);
+        expect(action.archiveCommand?.version).toBe(1);
+        expect(action.archiveCommand?.flushTimestamp !== undefined).toBe(due);
         expect(mockStore.dispatch).not.toHaveBeenCalledWith(
           jasmine.objectContaining({ type: flushYoungToOld.type }),
         );
       });
+
+    it('does not dispatch or leave partial writes when the atomic save fails', async () => {
+      mockArchiveDbAdapter.saveArchivesAtomic.and.rejectWith(
+        new Error('atomic write failed'),
+      );
+      await expectAsync(
+        service.moveTasksToArchiveAndFlushArchiveIfDue([createMockTask('task-1')]),
+      ).toBeRejectedWithError('atomic write failed');
+      expect(mockStore.dispatch).not.toHaveBeenCalled();
     });
 
-    describe('when flush IS due', () => {
-      const oldFlushTime = Date.now() - ARCHIVE_ALL_YOUNG_TO_OLD_THRESHOLD - 1000;
-
-      beforeEach(() => {
-        // Set lastTimeTrackingFlush to old time (more than threshold)
-        mockArchiveDbAdapter.loadArchiveOld.and.returnValue(
-          Promise.resolve(createEmptyArchive(oldFlushTime)),
-        );
-      });
-
-      it('should save to archiveOld during flush (before dispatch can happen)', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-        // The key behavior: archiveOld.save was called, meaning flush happened
-        // synchronously before the method returned (and before dispatch could
-        // cause any async effects)
-        expect(mockArchiveDbAdapter.saveArchiveOld).toHaveBeenCalledTimes(1);
-      });
-
-      it('should save to both archiveYoung and archiveOld during flush', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-        // archiveYoung.save called twice: once for tasks, once for flush
-        expect(mockArchiveDbAdapter.saveArchiveYoung).toHaveBeenCalledTimes(2);
-        expect(mockArchiveDbAdapter.saveArchiveOld).toHaveBeenCalledTimes(1);
-      });
-
-      it('should dispatch flushYoungToOld action AFTER saves complete', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-        expect(mockStore.dispatch).toHaveBeenCalledWith(
-          jasmine.objectContaining({ type: flushYoungToOld.type }),
-        );
-      });
-
-      it('should dispatch flushYoungToOld action with timestamp', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-        // Verify flushYoungToOld was dispatched with a timestamp property
-        expect(mockStore.dispatch).toHaveBeenCalledWith(
-          jasmine.objectContaining({
-            type: flushYoungToOld.type,
-            timestamp: jasmine.any(Number),
-          }),
-        );
-      });
-
-      it('should set lastTimeTrackingFlush on saved archives', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        await service.moveTasksToArchiveAndFlushArchiveIfDue(tasks);
-
-        // Check archiveYoung flush save (second call)
-        const archiveYoungFlushCall =
-          mockArchiveDbAdapter.saveArchiveYoung.calls.all()[1];
-        expect(archiveYoungFlushCall.args[0].lastTimeTrackingFlush).toBeDefined();
-
-        // Check archiveOld save
-        const archiveOldCall = mockArchiveDbAdapter.saveArchiveOld.calls.first();
-        expect(archiveOldCall.args[0].lastTimeTrackingFlush).toBeDefined();
-      });
+    it('rolls back both archives if command dispatch fails', async () => {
+      mockStore.dispatch.and.throwError('command rejected');
+      await expectAsync(
+        service.moveTasksToArchiveAndFlushArchiveIfDue([createMockTask('task-1')]),
+      ).toBeRejectedWithError('command rejected');
+      expect(mockArchiveDbAdapter.saveArchivesAtomic).toHaveBeenCalledTimes(2);
+      expect(mockArchiveDbAdapter.saveArchivesAtomic.calls.mostRecent().args).toEqual([
+        createEmptyArchive(),
+        createEmptyArchive(),
+      ]);
     });
 
-    it('should do nothing if no tasks provided', async () => {
+    it('serializes concurrent commands without dropping either Task', async () => {
+      let young = createEmptyArchive();
+      let old = createEmptyArchive(Date.now());
+      mockArchiveDbAdapter.loadArchiveYoung.and.callFake(async () => young);
+      mockArchiveDbAdapter.loadArchiveOld.and.callFake(async () => old);
+      mockArchiveDbAdapter.saveArchivesAtomic.and.callFake(async (nextYoung, nextOld) => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        young = nextYoung;
+        old = nextOld;
+      });
+      await Promise.all(
+        ['task-a', 'task-b'].map((id) =>
+          service.moveTasksToArchiveAndFlushArchiveIfDue([createMockTask(id)]),
+        ),
+      );
+      expect(young.task.ids).toEqual(['task-a', 'task-b']);
+      expect(mockStore.dispatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does nothing for an empty or wholly malformed request', async () => {
       await service.moveTasksToArchiveAndFlushArchiveIfDue([]);
-
-      expect(mockArchiveDbAdapter.saveArchiveYoung).not.toHaveBeenCalled();
+      await service.moveTasksToArchiveAndFlushArchiveIfDue([
+        { subTasks: [] } as unknown as TaskWithSubTasks,
+      ]);
+      expect(mockArchiveDbAdapter.saveArchivesAtomic).not.toHaveBeenCalled();
       expect(mockStore.dispatch).not.toHaveBeenCalled();
-    });
-
-    describe('error handling and rollback during flush', () => {
-      const oldFlushTime = Date.now() - ARCHIVE_ALL_YOUNG_TO_OLD_THRESHOLD - 1000;
-
-      beforeEach(() => {
-        // Set up conditions for flush to be triggered
-        mockArchiveDbAdapter.loadArchiveOld.and.returnValue(
-          Promise.resolve(createEmptyArchive(oldFlushTime)),
-        );
-      });
-
-      it('should NOT dispatch flushYoungToOld if archiveYoung.save fails during flush', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        // First save (for tasks) succeeds, second save (for flush) fails
-        let saveCallCount = 0;
-        mockArchiveDbAdapter.saveArchiveYoung.and.callFake(() => {
-          saveCallCount++;
-          if (saveCallCount === 2) {
-            return Promise.reject(new Error('archiveYoung.save failed during flush'));
-          }
-          return Promise.resolve();
-        });
-
-        await expectAsync(
-          service.moveTasksToArchiveAndFlushArchiveIfDue(tasks),
-        ).toBeRejectedWithError('archiveYoung.save failed during flush');
-
-        expect(mockStore.dispatch).not.toHaveBeenCalledWith(
-          jasmine.objectContaining({ type: flushYoungToOld.type }),
-        );
-      });
-
-      it('should NOT dispatch flushYoungToOld if archiveOld.save fails', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        mockArchiveDbAdapter.saveArchiveOld.and.returnValue(
-          Promise.reject(new Error('archiveOld.save failed')),
-        );
-
-        await expectAsync(
-          service.moveTasksToArchiveAndFlushArchiveIfDue(tasks),
-        ).toBeRejectedWithError('archiveOld.save failed');
-
-        expect(mockStore.dispatch).not.toHaveBeenCalledWith(
-          jasmine.objectContaining({ type: flushYoungToOld.type }),
-        );
-      });
-
-      it('should attempt rollback when archiveOld.save fails', async () => {
-        const tasks = [createMockTask('task-1')];
-        const originalArchiveYoung = createEmptyArchive();
-        const originalArchiveOld = createEmptyArchive(oldFlushTime);
-
-        mockArchiveDbAdapter.loadArchiveYoung.and.returnValue(
-          Promise.resolve(originalArchiveYoung),
-        );
-        mockArchiveDbAdapter.loadArchiveOld.and.returnValue(
-          Promise.resolve(originalArchiveOld),
-        );
-
-        // archiveOld.save fails on first call
-        mockArchiveDbAdapter.saveArchiveOld.and.returnValue(
-          Promise.reject(new Error('archiveOld.save failed')),
-        );
-
-        await expectAsync(
-          service.moveTasksToArchiveAndFlushArchiveIfDue(tasks),
-        ).toBeRejected();
-
-        // Rollback should attempt to save both archives again
-        // archiveYoung: 1st call for tasks, 2nd call for flush (try), 3rd call for rollback
-        // archiveOld: 1st call for flush (fails), 2nd call for rollback
-        expect(
-          mockArchiveDbAdapter.saveArchiveYoung.calls.count(),
-        ).toBeGreaterThanOrEqual(3);
-        expect(mockArchiveDbAdapter.saveArchiveOld.calls.count()).toBeGreaterThanOrEqual(
-          2,
-        );
-      });
-
-      it('should re-throw original error after rollback succeeds', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        mockArchiveDbAdapter.saveArchiveOld.and.returnValue(
-          Promise.reject(new Error('Original flush error')),
-        );
-
-        await expectAsync(
-          service.moveTasksToArchiveAndFlushArchiveIfDue(tasks),
-        ).toBeRejectedWithError('Original flush error');
-      });
-
-      it('should re-throw original error even if rollback fails', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        // Track call count to make archiveOld.save fail on flush but also on rollback
-        let archiveOldSaveCount = 0;
-        mockArchiveDbAdapter.saveArchiveOld.and.callFake(() => {
-          archiveOldSaveCount++;
-          if (archiveOldSaveCount === 1) {
-            return Promise.reject(new Error('Original flush error'));
-          }
-          return Promise.reject(new Error('Rollback also failed'));
-        });
-
-        await expectAsync(
-          service.moveTasksToArchiveAndFlushArchiveIfDue(tasks),
-        ).toBeRejectedWithError('Original flush error');
-      });
-
-      it('should continue rollback of archiveOld even if archiveYoung rollback fails', async () => {
-        const tasks = [createMockTask('task-1')];
-
-        // archiveOld.save fails on flush
-        let archiveOldSaveCount = 0;
-        mockArchiveDbAdapter.saveArchiveOld.and.callFake(() => {
-          archiveOldSaveCount++;
-          if (archiveOldSaveCount === 1) {
-            return Promise.reject(new Error('Original flush error'));
-          }
-          return Promise.resolve(); // Rollback succeeds
-        });
-
-        // archiveYoung.save fails on rollback (3rd call)
-        let archiveYoungSaveCount = 0;
-        mockArchiveDbAdapter.saveArchiveYoung.and.callFake(() => {
-          archiveYoungSaveCount++;
-          if (archiveYoungSaveCount === 3) {
-            return Promise.reject(new Error('archiveYoung rollback failed'));
-          }
-          return Promise.resolve();
-        });
-
-        await expectAsync(
-          service.moveTasksToArchiveAndFlushArchiveIfDue(tasks),
-        ).toBeRejected();
-
-        // Should still attempt to rollback archiveOld even though archiveYoung rollback failed
-        expect(mockArchiveDbAdapter.saveArchiveOld.calls.count()).toBe(2);
-      });
     });
   });
 

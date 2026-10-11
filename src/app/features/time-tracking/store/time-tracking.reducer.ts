@@ -9,6 +9,11 @@ import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { AppDataComplete } from '../../../op-log/model/model-config';
 import { roundTsToMinutes } from '../../../util/round-ts-to-minutes';
 import { TODAY_TAG } from '../../tag/tag.const';
+import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
+import {
+  assertArchiveCommand,
+  removeTransferredTimeTracking,
+} from '../../archive/archive-command';
 
 export const TIME_TRACKING_FEATURE_KEY = 'timeTracking' as const;
 
@@ -28,6 +33,11 @@ export const timeTrackingReducer = createReducer(
       : state,
   ),
   on(TimeTrackingActions.updateWholeState, (state, { newState }) => newState),
+  on(TaskSharedActions.moveToArchive, (state, { tasks, archiveCommand }) => {
+    if (archiveCommand === undefined) return state;
+    assertArchiveCommand(archiveCommand, tasks);
+    return removeTransferredTimeTracking(state, archiveCommand.transferredTimeTracking);
+  }),
 
   on(TimeTrackingActions.addTimeSpent, (state, { task, date }) => {
     const isUpdateProject = !!task.projectId;

@@ -4,6 +4,8 @@ import { supportsRequiredEntityTypes } from '../src/full-state-capabilities';
 import {
   CLIENT_SYNC_READER_CAPABILITIES,
   TASK_FOLDER_OWNERSHIP_V1,
+  ROUTINES_V1,
+  ARCHIVE_COMMAND_V1,
   supportsRequiredCapabilities,
   getFullStateRequiredCapabilities,
 } from '../src/reader-capabilities';
@@ -15,8 +17,23 @@ import {
 describe('semantic sync reader capabilities', () => {
   it('does not grant ownership semantics to existing Folder readers', () => {
     expect(supportsRequiredEntityTypes(['FOLDER'], ENTITY_TYPES)).toBe(true);
-    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual([
+      TASK_FOLDER_OWNERSHIP_V1,
+      ROUTINES_V1,
+      ARCHIVE_COMMAND_V1,
+    ]);
     expect(supportsRequiredCapabilities([TASK_FOLDER_OWNERSHIP_V1], [])).toBe(false);
+  });
+  it('fences archive commands from pre-command readers', () => {
+    expect(
+      supportsRequiredCapabilities(
+        [ARCHIVE_COMMAND_V1],
+        [TASK_FOLDER_OWNERSHIP_V1, ROUTINES_V1],
+      ),
+    ).toBe(false);
+    expect(
+      supportsRequiredCapabilities([ARCHIVE_COMMAND_V1], CLIENT_SYNC_READER_CAPABILITIES),
+    ).toBe(true);
   });
   it('accepts a simulated future reader with ownership support', () => {
     expect(

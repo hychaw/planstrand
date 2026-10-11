@@ -218,8 +218,14 @@ export class ArchiveOperationHandler implements ArchiveSideEffectPort<Persistent
     if (!action.meta?.isRemote) {
       return; // Local: already written by ArchiveService before dispatch
     }
-    const tasks = (action as ReturnType<typeof TaskSharedActions.moveToArchive>).tasks;
-    await this._getArchiveService().writeTasksToArchiveForRemoteSync(tasks);
+    const { tasks, archiveCommand } = action as ReturnType<
+      typeof TaskSharedActions.moveToArchive
+    >;
+    if (archiveCommand !== undefined) {
+      await this._getArchiveService().applyArchiveCommand(tasks, archiveCommand);
+    } else {
+      await this._getArchiveService().writeTasksToArchiveForRemoteSync(tasks);
+    }
   }
 
   /**

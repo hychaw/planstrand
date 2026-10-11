@@ -17,6 +17,10 @@ import { INBOX_PROJECT } from '../../../features/project/project.const';
 import { TASK_REPEAT_CFG_FEATURE_NAME } from '../../../features/task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { unique } from '../../../util/unique';
 import {
+  ArchiveCommandV1,
+  assertArchiveCommand,
+} from '../../../features/archive/archive-command';
+import {
   ActionHandlerMap,
   collectTaskAndSubTaskIds,
   getProjectOrUndefined,
@@ -32,7 +36,11 @@ import {
 // ACTION HANDLERS
 // =============================================================================
 
-const handleMoveToArchive = (state: RootState, tasks: TaskWithSubTasks[]): RootState => {
+const handleMoveToArchive = (
+  state: RootState,
+  tasks: TaskWithSubTasks[],
+  command?: ArchiveCommandV1,
+): RootState => {
   const taskIdsToArchive = collectTaskAndSubTaskIds(
     state,
     tasks.map((task) => task.id),
@@ -41,6 +49,12 @@ const handleMoveToArchive = (state: RootState, tasks: TaskWithSubTasks[]): RootS
       ...task.subTasks.map((subTask) => subTask.id),
     ]),
   );
+  if (command !== undefined) {
+    assertArchiveCommand(command, tasks);
+    const archivedIds = new Set(command.archivedTasks.map((task) => task.id));
+    if (taskIdsToArchive.some((id) => !archivedIds.has(id)))
+      throw new Error('Archive command would remove an uncaptured Task');
+  }
 
   // Scan every project instead of trusting task.projectId. Older partial updates
   // could leave a task referenced by a different project than the task claims.
@@ -225,8 +239,10 @@ const handleRestoreTask = (
 
 const createActionHandlers = (state: RootState, action: Action): ActionHandlerMap => ({
   [TaskSharedActions.moveToArchive.type]: () => {
-    const { tasks } = action as ReturnType<typeof TaskSharedActions.moveToArchive>;
-    return handleMoveToArchive(state, tasks);
+    const { tasks, archiveCommand } = action as ReturnType<
+      typeof TaskSharedActions.moveToArchive
+    >;
+    return handleMoveToArchive(state, tasks, archiveCommand);
   },
   [TaskSharedActions.restoreTask.type]: () => {
     const { task, subTasks } = action as ReturnType<typeof TaskSharedActions.restoreTask>;

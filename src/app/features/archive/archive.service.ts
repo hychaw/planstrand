@@ -9,7 +9,10 @@ import {
 } from './util/sort-data-to-flush';
 import { Store } from '@ngrx/store';
 import { TimeTrackingActions } from '../time-tracking/store/time-tracking.actions';
-import { flushYoungToOld } from './store/archive.actions';
+import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
+import { ArchiveCommandV1, assertArchiveCommand } from './archive-command';
+import { OperationCaptureService } from '../../op-log/capture/operation-capture.service';
+import { isReducerRejectedAction } from '../../root-store/meta/reducer-failure-guard.meta-reducer';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { Log } from '../../core/log';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
@@ -177,6 +180,7 @@ export class ArchiveService {
   private readonly _archiveDbAdapter = inject(ArchiveDbAdapter);
   private readonly _store = inject(Store);
   private readonly _lockService = inject(LockService);
+  private readonly _captureService = inject(OperationCaptureService);
 
   /**
    * Serializes task archive read-modify-write cycles. Separate task actions can
@@ -188,11 +192,14 @@ export class ArchiveService {
     return this._lockService.request(LOCK_NAMES.TASK_ARCHIVE, mutation);
   }
 
-  // NOTE: we choose this method as trigger to check for flushing to archive, since
-  // it is usually triggered every work-day once
+  /** Owns archive insertion, optional flush, and their single captured command. */
   moveTasksToArchiveAndFlushArchiveIfDue(tasks: TaskWithSubTasks[]): Promise<void> {
-    return this._runTaskArchiveMutation(() =>
-      this._moveTasksToArchiveAndFlushArchiveIfDue(tasks),
+    // Same lock order as sync. Snapshots cannot observe unacknowledged archive
+    // writes; on release the dispatched action is counted as pending capture.
+    return this._lockService.request(LOCK_NAMES.OPERATION_LOG, () =>
+      this._runTaskArchiveMutation(() =>
+        this._moveTasksToArchiveAndFlushArchiveIfDue(tasks),
+      ),
     );
   }
 
@@ -202,151 +209,119 @@ export class ArchiveService {
     const now = Date.now();
     const sanitizedTasks = sanitizeTasksForArchiving(tasks, 'moveToArchive');
     const flatTasks = flattenTasks(sanitizedTasks);
-    // Local archive storage is written before the Task-removal action. Enforce
-    // the same domain guard before that first write, not only in the reducer.
+    if (!flatTasks.length) return;
     const sessions = await firstValueFrom(
       this._store.select(selectWorkSessionFeatureState).pipe(first()),
     );
     assertNoWorkSessionsForTasks(sessions, new Set(flatTasks.map((task) => task.id)));
-
-    Log.log('[ArchiveService] moveTasksToArchiveAndFlushArchiveIfDue:', {
-      inputTasksCount: tasks.length,
-      sanitizedTaskCount: sanitizedTasks.length,
-      flatTasksCount: flatTasks.length,
-      taskIds: flatTasks.map((t) => t.id),
-    });
-
-    if (!flatTasks.length) {
-      Log.log('[ArchiveService] No valid tasks to archive after flattening');
-      return;
-    }
-
     const archiveYoung =
       (await this._archiveDbAdapter.loadArchiveYoung()) || DEFAULT_ARCHIVE;
-    const taskArchiveState = archiveYoung.task || createEmptyEntity();
-
-    const archiveTasks = mapTasksToArchiveFormat(flatTasks, now, 'moveToArchive');
-    const newTaskArchive = replaceTasksInArchive(archiveTasks, taskArchiveState);
-
-    // ------------------------------------------------
-    // Result A:
-    // Move all archived tasks to archiveYoung
-    // Move timeTracking data to archiveYoung
-    // Get time tracking from the store as it is fresher
+    const archiveOld = (await this._archiveDbAdapter.loadArchiveOld()) || DEFAULT_ARCHIVE;
     const timeTracking = await firstValueFrom(
       this._store.select(selectTimeTrackingState).pipe(first()),
     );
-    const newSorted1 = sortTimeTrackingDataToArchiveYoung({
+    // Only the transferred records belong to this command. Later reducers and
+    // archive-only crash retries must never read a later window's active store.
+    const transferred = sortTimeTrackingDataToArchiveYoung({
       timeTracking: timeTracking || DEFAULT_TIME_TRACKING,
-      archiveYoung,
+      archiveYoung: DEFAULT_ARCHIVE,
       todayStr: getDbDateStr(now),
-    });
-    const newArchiveYoung = {
-      ...newSorted1.archiveYoung,
-      task: newTaskArchive,
-      // Note: lastFlush tracks when tasks were last moved to archiveYoung (daily).
-      // This is different from lastTimeTrackingFlush which tracks young→old flushes.
-      lastFlush: now,
-    };
-    await this._archiveDbAdapter.saveArchiveYoung(newArchiveYoung);
-
-    Log.log('[ArchiveService] Saved tasks to archiveYoung:', {
-      archivedTaskCount: Object.keys(newTaskArchive.entities).length,
-      archivedTaskIds: newTaskArchive.ids,
-    });
-
-    this._store.dispatch(
-      TimeTrackingActions.updateWholeState({
-        newState: newSorted1.timeTracking,
-      }),
-    );
-
-    // ------------------------------------------------
-    // Check if it's time to flush archiveYoung to archiveOld
-    const archiveOld = (await this._archiveDbAdapter.loadArchiveOld()) || DEFAULT_ARCHIVE;
-    // If lastTimeTrackingFlush is undefined (legacy backup), treat as needing flush
-    const isFlushArchiveOld =
+    }).archiveYoung.timeTracking;
+    const isFlushDue =
       archiveOld.lastTimeTrackingFlush === undefined ||
       now - archiveOld.lastTimeTrackingFlush > ARCHIVE_ALL_YOUNG_TO_OLD_THRESHOLD;
-
-    if (!isFlushArchiveOld) {
-      return;
-    }
-
-    // Perform the flush BEFORE dispatching the action.
-    // This prevents a race condition where sync starts before the effect completes:
-    // 1. Action dispatch -> effect queued
-    // 2. Method returns -> daily summary starts sync -> DB locked
-    // 3. Effect runs -> tries to write -> blocked by DB lock
-    //
-    // By doing the flush here, we ensure it completes before this method returns.
-    // The action is still dispatched for op-log capture (syncs to other clients).
-    // ArchiveOperationHandler._handleFlushYoungToOld skips local operations.
-    //
-    // IMPORTANT: We use `newArchiveYoung` directly instead of reloading from DB
-    // to avoid a race condition where the archive could change between save and load.
-
-    // Store original state for potential rollback
-    const originalArchiveYoung = newArchiveYoung;
-    const originalArchiveOld = archiveOld;
-
-    const newSorted = sortTimeTrackingAndTasksFromArchiveYoungToOld({
-      archiveYoung: newArchiveYoung,
-      archiveOld,
-      threshold: ARCHIVE_TASK_YOUNG_TO_OLD_THRESHOLD,
-      now,
-    });
-
-    try {
-      await this._archiveDbAdapter.saveArchiveYoung({
-        ...newSorted.archiveYoung,
-        lastTimeTrackingFlush: now,
-      });
-
-      await this._archiveDbAdapter.saveArchiveOld({
-        ...newSorted.archiveOld,
-        lastTimeTrackingFlush: now,
-      });
-    } catch (e) {
-      // Attempt rollback: restore BOTH archiveYoung and archiveOld to original state
-      Log.err('[ArchiveService] Archive flush failed, attempting rollback...', e);
-      const rollbackErrors: Error[] = [];
-
-      // Rollback archiveYoung
-      try {
-        await this._archiveDbAdapter.saveArchiveYoung(originalArchiveYoung);
-      } catch (rollbackErr) {
-        rollbackErrors.push(rollbackErr as Error);
-      }
-
-      // Rollback archiveOld
-      try {
-        await this._archiveDbAdapter.saveArchiveOld(originalArchiveOld);
-      } catch (rollbackErr) {
-        rollbackErrors.push(rollbackErr as Error);
-      }
-
-      if (rollbackErrors.length > 0) {
-        Log.err(
-          '[ArchiveService] Archive flush rollback FAILED - archive may be inconsistent',
-          rollbackErrors,
-        );
-      } else {
-        Log.log('[ArchiveService] Archive flush rollback successful');
-      }
-
-      // Don't dispatch action if flush failed - prevents op-log pollution
-      // and ensures remote clients don't try to apply a failed operation
-      throw e;
-    }
-
-    Log.log(
-      '______________________\nFLUSHED ALL FROM ARCHIVE YOUNG TO OLD (via ArchiveService)\n_______________________',
+    // Normalize the source through the wire representation too: optional fields
+    // must not differ between local IndexedDB and a serialized remote command.
+    const archiveCommand: ArchiveCommandV1 = JSON.parse(
+      JSON.stringify({
+        version: 1,
+        archivedTasks: mapTasksToArchiveFormat(flatTasks, now, 'moveToArchive'),
+        transferredTimeTracking: transferred,
+        lastFlush: now,
+        ...(isFlushDue ? { flushTimestamp: now } : {}),
+      }),
     );
+    assertArchiveCommand(archiveCommand, sanitizedTasks);
+    const result = this._applyArchiveCommand(archiveYoung, archiveOld, archiveCommand);
+    await this._archiveDbAdapter.saveArchivesAtomic(
+      result.archiveYoung,
+      result.archiveOld,
+    );
+    const action = TaskSharedActions.moveToArchive({
+      tasks: sanitizedTasks,
+      archiveCommand,
+    });
+    try {
+      this._store.dispatch(action);
+      if (isReducerRejectedAction(action))
+        throw new Error('Archive command reducer rejected');
+    } catch (error) {
+      try {
+        await this._archiveDbAdapter.saveArchivesAtomic(archiveYoung, archiveOld);
+      } catch (rollbackError) {
+        this._captureService.markUnrecoveredPersistFailure();
+        throw new AggregateError(
+          [error, rollbackError],
+          'Archive command rollback failed',
+        );
+      }
+      throw error;
+    }
+  }
 
-    // Dispatch for op-log capture - syncs to other clients
-    // The handler skips local operations since we already did the flush above
-    this._store.dispatch(flushYoungToOld({ timestamp: now }));
+  /** Replay also uses the prepared records on archive-only retries. */
+  applyArchiveCommand(
+    tasks: TaskWithSubTasks[],
+    command: ArchiveCommandV1,
+  ): Promise<void> {
+    assertArchiveCommand(command, tasks);
+    return this._runTaskArchiveMutation(async () => {
+      const young = (await this._archiveDbAdapter.loadArchiveYoung()) || DEFAULT_ARCHIVE;
+      const old = (await this._archiveDbAdapter.loadArchiveOld()) || DEFAULT_ARCHIVE;
+      const result = this._applyArchiveCommand(young, old, command);
+      await this._archiveDbAdapter.saveArchivesAtomic(
+        result.archiveYoung,
+        result.archiveOld,
+      );
+    });
+  }
+
+  private _applyArchiveCommand(
+    young: ArchiveModel,
+    old: ArchiveModel,
+    command: ArchiveCommandV1,
+  ): { archiveYoung: ArchiveModel; archiveOld: ArchiveModel } {
+    const timeTracking: TimeTrackingState = {
+      project: { ...young.timeTracking.project },
+      tag: { ...young.timeTracking.tag },
+    };
+    for (const category of ['project', 'tag'] as const) {
+      for (const [id, dates] of Object.entries(
+        command.transferredTimeTracking[category],
+      )) {
+        timeTracking[category][id] = { ...timeTracking[category][id], ...dates };
+      }
+    }
+    const archiveYoung = {
+      ...young,
+      task: replaceTasksInArchive(command.archivedTasks, young.task),
+      timeTracking,
+      lastFlush: command.lastFlush,
+    };
+    if (command.flushTimestamp === undefined) return { archiveYoung, archiveOld: old };
+    const sorted = sortTimeTrackingAndTasksFromArchiveYoungToOld({
+      archiveYoung,
+      archiveOld: old,
+      threshold: ARCHIVE_TASK_YOUNG_TO_OLD_THRESHOLD,
+      now: command.flushTimestamp,
+    });
+    return {
+      archiveYoung: {
+        ...sorted.archiveYoung,
+        lastTimeTrackingFlush: command.flushTimestamp,
+      },
+      archiveOld: { ...sorted.archiveOld, lastTimeTrackingFlush: command.flushTimestamp },
+    };
   }
 
   /**
@@ -354,7 +329,7 @@ export class ArchiveService {
    * Also moves historical time tracking data to archiveYoung to keep
    * the client's archive consistent with the originating client.
    *
-   * Used when receiving moveToArchive operations from other clients.
+   * Used only for legacy moveToArchive operations without a prepared command.
    *
    * Note: This method does NOT check if flush is due. Flushes are triggered
    * only on the originating client and synced via the flushYoungToOld action.

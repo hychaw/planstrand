@@ -569,7 +569,7 @@ describe('TaskService', () => {
   });
 
   describe('moveToArchive', () => {
-    it('should persist parent tasks before dispatching the archive action', async () => {
+    it('delegates the complete archive command to its producer without another dispatch', async () => {
       const task = createMockTaskWithSubTasks(createMockTask('task-1'));
       const callOrder: string[] = [];
       archiveService.moveTasksToArchiveAndFlushArchiveIfDue.and.callFake(async () => {
@@ -581,7 +581,7 @@ describe('TaskService', () => {
 
       await service.moveToArchive(task);
 
-      expect(callOrder).toEqual(['persist-archive', 'dispatch']);
+      expect(callOrder).toEqual(['persist-archive']);
     });
 
     it('should coalesce concurrent archive requests for the same task', async () => {
@@ -613,7 +613,7 @@ describe('TaskService', () => {
       await Promise.all([first, duplicate]);
 
       expect(duplicateResolved).toBeTrue();
-      expect(store.dispatch).toHaveBeenCalledTimes(1);
+      expect(store.dispatch).not.toHaveBeenCalled();
     });
 
     it('should release the in-flight archive guard after persistence fails', async () => {
@@ -632,19 +632,17 @@ describe('TaskService', () => {
       expect(archiveService.moveTasksToArchiveAndFlushArchiveIfDue).toHaveBeenCalledTimes(
         2,
       );
-      expect(store.dispatch).toHaveBeenCalledTimes(1);
+      expect(store.dispatch).not.toHaveBeenCalled();
     });
 
-    it('should dispatch moveToArchive and call archive service for parent tasks', async () => {
+    it('delegates parent tasks to the authoritative archive producer', async () => {
       const task = createMockTaskWithSubTasks(
         createMockTask('task-1', { projectId: 'test-project' }),
       );
 
       await service.moveToArchive(task);
 
-      expect(store.dispatch).toHaveBeenCalledWith(
-        TaskSharedActions.moveToArchive({ tasks: [task] }),
-      );
+      expect(store.dispatch).not.toHaveBeenCalled();
       expect(archiveService.moveTasksToArchiveAndFlushArchiveIfDue).toHaveBeenCalledWith([
         task,
       ]);
@@ -658,9 +656,7 @@ describe('TaskService', () => {
 
       await service.moveToArchive(tasks);
 
-      expect(store.dispatch).toHaveBeenCalledWith(
-        TaskSharedActions.moveToArchive({ tasks }),
-      );
+      expect(store.dispatch).not.toHaveBeenCalled();
     });
 
     it('should only archive parent tasks (subtasks are handled separately)', async () => {
@@ -670,9 +666,7 @@ describe('TaskService', () => {
 
       await service.moveToArchive([parentTask]);
 
-      expect(store.dispatch).toHaveBeenCalledWith(
-        TaskSharedActions.moveToArchive({ tasks: [parentTask] }),
-      );
+      expect(store.dispatch).not.toHaveBeenCalled();
     });
 
     it('should handle null/undefined gracefully', async () => {

@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
-import { TASK_FOLDER_OWNERSHIP_V1 } from '@sp/shared-schema';
+import {
+  TASK_FOLDER_OWNERSHIP_V1,
+  ROUTINES_V1,
+  ARCHIVE_COMMAND_V1,
+} from '@sp/shared-schema';
 const mocks = vi.hoisted(() => ({
   prisma: {
     $queryRaw: vi.fn(),
@@ -21,7 +25,10 @@ vi.mock('../src/middleware', () => ({
 }));
 vi.mock('../src/sync/sync.service', () => ({ getSyncService: () => mocks.service }));
 import { syncRoutes } from '../src/sync/sync.routes';
-import { RoutinesReplayUnsupportedError } from '../src/sync/op-replay';
+import {
+  RoutinesReplayUnsupportedError,
+  ArchiveCommandReplayUnsupportedError,
+} from '../src/sync/op-replay';
 const encrypted = {
   serverSeq: 8,
   receivedAt: 100,
@@ -59,6 +66,53 @@ describe('Server full-state reader fence through HTTP', () => {
   });
   afterEach(async () => {
     await app.close();
+  });
+  it('rejects pre-command readers and writers before delivering encrypted archive commands', async () => {
+    mocks.prisma.$queryRaw.mockImplementation(async (query) =>
+      query.values.includes(ARCHIVE_COMMAND_V1) ? [] : [{ id: 'archive-command' }],
+    );
+    mocks.service.getOpsSinceWithSeq.mockResolvedValue({
+      ops: [
+        {
+          ...encrypted,
+          op: {
+            ...encrypted.op,
+            entityType: 'TASK',
+            opType: 'UPD',
+            requiredCapabilities: [ARCHIVE_COMMAND_V1],
+          },
+        },
+      ],
+      latestSeq: 8,
+      gapDetected: false,
+    });
+    const old = `supportedEntityTypes=TASK,FOLDER&supportedCapabilities=${TASK_FOLDER_OWNERSHIP_V1},${ROUTINES_V1}`;
+    const blocked = await app.inject(`/api/sync/ops?sinceSeq=0&${old}`);
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json().ops).toBeUndefined();
+    expect(mocks.service.getOpsSinceWithSeq).not.toHaveBeenCalled();
+    const write = await app.inject({
+      method: 'POST',
+      url: `/api/sync/ops?${old}`,
+      payload: {},
+    });
+    expect(write.statusCode).toBe(409);
+    expect(mocks.service.uploadOps).not.toHaveBeenCalled();
+    const aware = await app.inject(
+      `/api/sync/ops?sinceSeq=0&${old},${ARCHIVE_COMMAND_V1}`,
+    );
+    expect(aware.statusCode).toBe(200);
+    expect(aware.json().ops).toHaveLength(1);
+  });
+  it('reports unsupported archive command restore without returning partial state', async () => {
+    mocks.prisma.operation.findUnique.mockResolvedValue(null);
+    mocks.service.generateSnapshotAtSeq.mockRejectedValue(
+      new ArchiveCommandReplayUnsupportedError(),
+    );
+    const response = await app.inject('/api/sync/restore/8');
+    expect(response.statusCode).toBe(400);
+    expect(response.json().errorCode).toBe('ARCHIVE_COMMAND_REPLAY_UNSUPPORTED');
+    expect(response.json().state).toBeUndefined();
   });
   it('reports unsupported Routines restore replay without returning partial state', async () => {
     mocks.prisma.$queryRaw.mockResolvedValue([]);

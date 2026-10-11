@@ -990,10 +990,7 @@ export class TaskService {
         await this._archiveService.moveTasksToArchiveAndFlushArchiveIfDue(
           parentTasksToArchive,
         );
-        TaskLog.log('[TaskService] Dispatching moveToArchive action for parent tasks');
-        this._store.dispatch(
-          TaskSharedActions.moveToArchive({ tasks: parentTasksToArchive }),
-        );
+        // ArchiveService owns the command dispatch while its mutation lock is held.
         TaskLog.log('[TaskService] Archive operation completed successfully');
       })();
       for (const taskId of reservedTaskIds) {

@@ -16,4 +16,6 @@ export interface ArchiveModel {
    * @see https://github.com/johannesjo/super-productivity/issues/6200
    */
   lastTimeTrackingFlush?: number;
+  /** Last Task insertion into archiveYoung, retained on replay. */
+  lastFlush?: number;
 }

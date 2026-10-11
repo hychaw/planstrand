@@ -3,6 +3,7 @@ import {
   getFullStateRequiredCapabilities,
   supportsRequiredCapabilities,
   ROUTINES_V1,
+  ARCHIVE_COMMAND_V1,
 } from '@sp/shared-schema';
 import { extractFullStateFromPayload } from '../core/operation.types';
 import {
@@ -146,6 +147,10 @@ export const getOperationRequiredCapabilities = (
 ): string[] => [
   ...new Set([
     ...(operation.requiredCapabilities ?? []),
+    ...(isMultiEntityPayload(operation.payload) &&
+    operation.payload.actionPayload?.['archiveCommand'] !== undefined
+      ? [ARCHIVE_COMMAND_V1]
+      : []),
     ...(operation.entityType === 'EVENT_SERIES' ||
     operation.entityType === 'WEEKLY_TEMPLATE' ||
     operation.entityType === 'OCCURRENCE_EXCEPTION'
