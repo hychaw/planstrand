@@ -465,7 +465,7 @@ describeWithDb('encrypted Routines snapshot-plus-tail operator recovery', () => 
       refuses(source.userId, source.seq);
     },
   );
-  it('keeps Folder tails explicitly unsupported', async () => {
+  it('keeps invented per-entity Folder formats explicitly unsupported', async () => {
     const source = await seed([
       recoveryOperation(
         '[Folder] Add Folder',
@@ -475,6 +475,6 @@ describeWithDb('encrypted Routines snapshot-plus-tail operator recovery', () => 
         'CRT',
       ),
     ]);
-    refuses(source.userId, source.seq, 'FOLDER_REPLAY_UNSUPPORTED');
+    refuses(source.userId, source.seq, 'RECOVERY_INVALID_FOLDER_OPERATION');
   });
 });

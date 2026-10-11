@@ -43,6 +43,7 @@ export const applyPlanningReplay = (
           ].sort(comparePlanningStrings),
           entities: { ...(taskEntities ?? {}), [id]: created },
         };
+      return true;
     }
   }
   if (entityType === 'TASK' && opType === 'DEL' && task && taskEntities) {
@@ -63,6 +64,7 @@ export const applyPlanningReplay = (
       ),
       entities,
     };
+    return true;
   }
   if (opType !== PLANNING_V1) return false;
   if (

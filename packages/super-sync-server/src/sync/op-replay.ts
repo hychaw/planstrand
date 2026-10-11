@@ -181,6 +181,10 @@ export const replayOpsToState = (
   ops: ReplayOperationRow[],
   initialState: Record<string, unknown> = {},
   operatorReplay?: {
+    applyClientOperation?: (
+      state: Record<string, unknown>,
+      row: ReplayOperationRow,
+    ) => boolean;
     applyRoutinesOperation: (
       state: Record<string, unknown>,
       row: ReplayOperationRow,
@@ -203,7 +207,8 @@ export const replayOpsToState = (
       throw new LegacyFullStateAfterCutoverError();
     }
 
-    if (row.entityType === 'FOLDER') throw new FolderReplayUnsupportedError();
+    if (row.entityType === 'FOLDER' && !operatorReplay?.applyClientOperation)
+      throw new FolderReplayUnsupportedError();
     if (
       ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(
         row.entityType,
@@ -326,14 +331,16 @@ export const replayOpsToState = (
         if (opSchemaVersion >= 5) hasSchema5Authority = true;
         continue;
       }
+      const replayRow = {
+        ...row,
+        opType: processOpType,
+        entityType: processEntityType,
+        entityId: processEntityId,
+        payload: processPayload,
+      };
       if (
-        operatorReplay?.applyRoutinesOperation(state, {
-          ...row,
-          opType: processOpType,
-          entityType: processEntityType,
-          entityId: processEntityId,
-          payload: processPayload,
-        })
+        operatorReplay?.applyClientOperation?.(state, replayRow) ||
+        operatorReplay?.applyRoutinesOperation(state, replayRow)
       ) {
         // Normalized slices also grow ids arrays; measure their full size rather
         // than relying on the generic entity-map overhead estimate.
@@ -346,6 +353,7 @@ export const replayOpsToState = (
         )
       )
         throw new RoutinesReplayUnsupportedError();
+      if (processEntityType === 'FOLDER') throw new FolderReplayUnsupportedError();
 
       if (
         applyPlanningReplay(

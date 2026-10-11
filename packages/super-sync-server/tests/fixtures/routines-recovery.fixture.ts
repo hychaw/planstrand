@@ -43,6 +43,30 @@ export const recoveryException = (
   modified,
 });
 export const recoveryBase = () => ({
+  project: { ids: [], entities: {} },
+  tag: { ids: [], entities: {} },
+  globalConfig: {},
+  note: { ids: [], entities: {} },
+  issueProvider: { ids: [], entities: {} },
+  planner: {},
+  boards: {},
+  metric: { ids: [], entities: {} },
+  simpleCounter: { ids: [], entities: {} },
+  taskRepeatCfg: { ids: [], entities: {} },
+  menuTree: {},
+  timeTracking: {},
+  reminders: [],
+  section: { ids: [], entities: {} },
+  archiveYoung: {
+    task: { ids: [], entities: {} },
+    timeTracking: {},
+    lastTimeTrackingFlush: 0,
+  },
+  archiveOld: {
+    task: { ids: [], entities: {} },
+    timeTracking: {},
+    lastTimeTrackingFlush: 0,
+  },
   task: {
     ids: ['task'],
     entities: {
@@ -50,8 +74,11 @@ export const recoveryBase = () => ({
     },
   },
   folder: {
-    ids: ['folder'],
-    entities: { folder: { id: 'folder', title: 'ordinary folder', parentId: null } },
+    ids: ['INBOX_FOLDER', 'folder'],
+    entities: {
+      INBOX_FOLDER: { id: 'INBOX_FOLDER', title: 'Inbox', parentId: null },
+      folder: { id: 'folder', title: 'ordinary folder', parentId: null },
+    },
   },
   event: {
     ids: ['event'],

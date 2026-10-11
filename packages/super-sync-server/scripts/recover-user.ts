@@ -23,7 +23,8 @@ import {
  *
  * Encrypted snapshot-plus-tail recovery is verified with disposable PostgreSQL data.
  * Routines tails use the client's exact validated reducers in this dev-checkout
- * operator process. Server replay and unsupported Folder tails stay fail-closed.
+ * operator process. Folder tails install validated client hierarchy snapshots.
+ * Server replay and unsupported formats stay fail-closed.
  * See docs/backup-and-recovery.md for the full procedure.
  */
 
@@ -281,7 +282,7 @@ const recover = async (
       op.repairBaseServerSeq != null &&
       (!Number.isSafeInteger(op.repairBaseServerSeq) ||
         op.repairBaseServerSeq < 0 ||
-        op.repairBaseServerSeq >= op.serverSeq)
+        op.repairBaseServerSeq !== op.serverSeq - 1)
     )
       throw new Error(`Invalid REPAIR causal base at sequence ${op.serverSeq}`);
   }
@@ -351,14 +352,54 @@ const recover = async (
     ) => boolean;
     validateRoutinesRecoveryState: (state: Record<string, unknown>) => void;
   };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const folders = require('../../../src/app/features/folder/folder-recovery') as {
+    applyFolderRecoveryOperation: (
+      state: Record<string, unknown>,
+      row: ReplayOperationRow,
+    ) => boolean;
+    validateFolderRecoveryState: (state: Record<string, unknown>) => void;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { validateRecoverySnapshot } =
+    require('../../../src/app/op-log/validation/validate-recovery-snapshot') as {
+      validateRecoverySnapshot: (state: Record<string, unknown>) => void;
+    };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const sessions =
+    require('../../../src/app/features/work-session/work-session-recovery') as {
+      applyWorkSessionRecoveryOperation: (
+        state: Record<string, unknown>,
+        row: ReplayOperationRow,
+      ) => boolean;
+    };
+  const snapshotCapabilities = new Set<string>();
   const state = replayOpsToState(
     rows,
     {},
     {
       applyRoutinesOperation: routines.applyRoutinesRecoveryOperation,
-      validateFullState: routines.validateRoutinesRecoveryState,
+      applyClientOperation: (state, row) => {
+        if (
+          folders.applyFolderRecoveryOperation(state, row) ||
+          sessions.applyWorkSessionRecoveryOperation(state, row)
+        )
+          return true;
+        const payload = row.payload as { entityChanges?: unknown[] } | null;
+        if (Array.isArray(payload?.entityChanges) && payload.entityChanges.length)
+          throw new Error(
+            `RECOVERY_UNSUPPORTED_ENTITY_CHANGES at sequence ${row.serverSeq}`,
+          );
+        return false;
+      },
+      validateFullState: (snapshot) => {
+        validateRecoverySnapshot(snapshot);
+        for (const capability of getFullStateRequiredCapabilities(snapshot))
+          snapshotCapabilities.add(capability);
+      },
     },
   );
+  validateRecoverySnapshot(state);
 
   console.log(
     `\nReconstructed state at seq ${targetSeq} ` +
@@ -377,6 +418,7 @@ const recover = async (
   const requiredCapabilities = [
     ...new Set([
       ...(syncState?.requiredCapabilities ?? []),
+      ...snapshotCapabilities,
       ...ops.flatMap((op) => op.requiredCapabilities),
       ...(ops.some((op) =>
         ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(

@@ -6,6 +6,7 @@ import { resolve, join, dirname, basename } from 'node:path';
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { encrypt } from '@sp/sync-core';
 import { prisma } from '../../src/db';
+import { recoveryBase } from '../fixtures/routines-recovery.fixture';
 
 const describeWithDb = process.env.DATABASE_URL ? describe : describe.skip;
 describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () => {
@@ -13,6 +14,8 @@ describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () =
   const password = randomBytes(32).toString('base64url');
   let userId: number;
   const state = {
+    ...recoveryBase(),
+    workSession: { ids: [], entities: {} },
     task: {
       ids: ['one', 'two'],
       entities: {

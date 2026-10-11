@@ -234,11 +234,37 @@ Routines operations, unknown schema versions and incomplete sequence ranges fail
 without writing a new output. Causal REPAIR metadata and batch entity IDs remain
 intact. Routines multi-entity batch actions are not part of the V1.2 vocabulary;
 unrecognized batch footprints/envelopes are refused instead of partially applied.
-Folder tails and markerless REPAIR remain explicitly unsupported. An unsupported
-operation earlier in the selected range still prevents recovery, even if a later
-snapshot exists. Compare persisted records after importing into a fresh supported
-client before relying on a recovered export. See
-[Phase 5b.3 validation](../../../docs/routines-phase-5b3.md).
+Supported Folder tails now replay through the client Folder reducer: Add, Update,
+Move and Remove use their complete `FOLDER:*` hierarchy snapshots, and full-state
+`[FOLDER] LWW Update` compensation uses the same validated replacement semantics.
+Do not substitute per-Folder CRUD, hierarchy patches, invented batches or partial
+compensation. Task ownership references remain as persisted; Folder removal does
+not rewrite Tasks. Normal WorkSession create/update/delete/complete/reopen tails
+use the actual WorkSession reducer and validate live Task references.
+
+The operator authenticates and validates the **entire retained range**. It does
+not skip prefixes or guess a newer base. Covered valid Folder operations before
+a later complete snapshot therefore succeed; the snapshot replaces earlier state
+and the subsequent tail is replayed. Every replacement requires the persisted
+models of a complete Planstrand snapshot, coherent normalized identities and valid
+Folder/Routines/Planning/WorkSession domains. A causal REPAIR must include the
+immediately preceding accepted server sequence. Missing final operations, leading
+non-snapshot gaps and all internal gaps remain errors, even across a later snapshot.
+Snapshot capability evidence is retained across replacement with empty state.
+
+Markerless REPAIR, patch-mode Folder compensation, unknown/future formats and
+unsupported multi-entity footprints remain refused. Generic uppercase Task/Event/
+WorkSession reconstruction is not an alternative normalized recovery format;
+tails not supported by the existing normalized replay or client bridges fail
+instead of exporting an ordinary-data subset. This is not a general implementation
+of every historical Task action or WorkSession LWW compensation. Unsupported or
+malformed history earlier in the range still prevents recovery despite a later
+snapshot. Use a complete supported client backup when available; preserve an
+isolated database copy for unresolved incident recovery rather than skipping rows.
+
+Compare persisted records after importing into a fresh supported client before
+relying on a recovered export. See [Phase 5b.3](../../../docs/routines-phase-5b3.md)
+and [Phase 6a.1 validation](../../../docs/routines-phase-6a1.md).
 
 **1. Inspect** — find the cutoff sequence (no encryption key needed):
 

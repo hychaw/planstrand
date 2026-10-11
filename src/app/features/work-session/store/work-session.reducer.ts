@@ -4,11 +4,11 @@ import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { WorkSession, WorkSessionState } from '../work-session.model';
 import * as WorkSessionActions from './work-session.actions';
 import { isValidEntityId } from '../../../op-log/validation/is-valid-entity-id';
-import { isValidIanaTimeZone } from '../../../util/iana-time-zone';
+import { isValidIanaTimeZone } from '../../../util/is-valid-iana-time-zone';
 import {
   parseLegacyTaskWorkSessionId,
   isLegacyTaskWorkSessionId,
-} from '../legacy-task-work-session-backfill';
+} from '../legacy-work-session-id';
 
 export const WORK_SESSION_FEATURE_NAME = 'workSession';
 

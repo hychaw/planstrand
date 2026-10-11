@@ -31,6 +31,19 @@ const row = (overrides: Partial<ReplayOperationRow>): ReplayOperationRow => ({
 });
 
 describe('op replay', () => {
+  it('never falls through to a generic Folder map when an operator adapter declines it', () => {
+    expect(() =>
+      replayOpsToState(
+        [row({ entityType: 'FOLDER', entityId: '*', opType: 'UPD' })],
+        {},
+        {
+          applyClientOperation: () => false,
+          applyRoutinesOperation: () => false,
+          validateFullState: () => {},
+        },
+      ),
+    ).toThrow(FolderReplayUnsupportedError);
+  });
   it('never falls through to generic maps when an operator adapter declines a Routines operation', () => {
     expect(() =>
       replayOpsToState(
