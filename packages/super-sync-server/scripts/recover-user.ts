@@ -22,8 +22,9 @@ import {
  * numbers, timestamps and entity-type counts — never task content, never the key.
  *
  * Encrypted snapshot-plus-tail recovery is verified with disposable PostgreSQL data.
- * Routines tails use the client's exact validated reducers in this dev-checkout
- * operator process. Folder tails install validated client hierarchy snapshots.
+ * Task/Event tails run the production browser applier, complete store and real
+ * IndexedDB archive services in an isolated local browser. Other supported tails
+ * retain their validated client bridges.
  * Server replay and unsupported formats stay fail-closed.
  * See docs/backup-and-recovery.md for the full procedure.
  */
@@ -247,6 +248,9 @@ const recover = async (
     orderBy: { serverSeq: 'asc' },
     select: {
       id: true,
+      clientId: true,
+      clientTimestamp: true,
+      vectorClock: true,
       serverSeq: true,
       actionType: true,
       opType: true,
@@ -322,9 +326,18 @@ const recover = async (
   const decryptedByIndex =
     encryptedCount > 0 && key ? await decryptPayloads(ops, key) : new Map();
 
-  const rows: ReplayOperationRow[] = ops.map((op, i) => ({
+  const rows: (ReplayOperationRow & {
+    clientId: string;
+    timestamp: number;
+    vectorClock: unknown;
+    requiredCapabilities: string[];
+  })[] = ops.map((op, i) => ({
     id: op.id,
     serverSeq: op.serverSeq,
+    clientId: op.clientId,
+    timestamp: Number(op.clientTimestamp),
+    vectorClock: op.vectorClock,
+    requiredCapabilities: op.requiredCapabilities,
     actionType: op.actionType,
     opType: op.opType,
     entityType: op.entityType,
@@ -374,46 +387,62 @@ const recover = async (
       ) => boolean;
     };
   const snapshotCapabilities = new Set<string>();
-  const state = replayOpsToState(
-    rows,
-    {},
-    {
-      applyRoutinesOperation: routines.applyRoutinesRecoveryOperation,
-      applyClientOperation: (state, row) => {
-        if (
-          folders.applyFolderRecoveryOperation(state, row) ||
-          sessions.applyWorkSessionRecoveryOperation(state, row)
-        )
-          return true;
-        const payload = row.payload as { entityChanges?: unknown[] } | null;
-        if (Array.isArray(payload?.entityChanges) && payload.entityChanges.length)
-          throw new Error(
-            `RECOVERY_UNSUPPORTED_ENTITY_CHANGES at sequence ${row.serverSeq}`,
-          );
-        // Only explicitly supported semantic replay may continue. The generic
-        // server fallback is not an AppDataComplete reducer: even its normalized
-        // TASK create/delete path omits initial Planning and relationship cleanup.
-        // A structurally valid output can therefore still be incomplete.
-        if (
-          ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(
-            row.entityType,
-          ) ||
-          (row.entityType === 'PLANNING' &&
-            row.opType === 'PLANNING_V1' &&
-            ['[Planning] Set Placement', '[Planning] Remove Placement'].includes(
-              row.actionType ?? '',
-            ))
-        )
-          return false;
-        throw new Error(`RECOVERY_UNSUPPORTED_OPERATION at sequence ${row.serverSeq}`);
-      },
-      validateFullState: (snapshot) => {
-        validateRecoverySnapshot(snapshot);
-        for (const capability of getFullStateRequiredCapabilities(snapshot))
-          snapshotCapabilities.add(capability);
-      },
-    },
+  const needsProductionReplay = rows.some(
+    (row) =>
+      ['TASK', 'EVENT'].includes(row.entityType) ||
+      row.actionType === '[Task Shared] batchUpdateForProject' ||
+      row.actionType === '[Archive] Flush Young to Old',
   );
+  // Load the operator host only for histories requiring the production lifecycle.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const state = needsProductionReplay
+    ? await (
+        require('./recovery-browser') as {
+          replayProductionRecovery: (rows: unknown[]) => Promise<Record<string, unknown>>;
+        }
+      ).replayProductionRecovery(rows)
+    : replayOpsToState(
+        rows,
+        {},
+        {
+          applyRoutinesOperation: routines.applyRoutinesRecoveryOperation,
+          applyClientOperation: (state, row) => {
+            if (
+              folders.applyFolderRecoveryOperation(state, row) ||
+              sessions.applyWorkSessionRecoveryOperation(state, row)
+            )
+              return true;
+            const payload = row.payload as { entityChanges?: unknown[] } | null;
+            if (Array.isArray(payload?.entityChanges) && payload.entityChanges.length)
+              throw new Error(
+                `RECOVERY_UNSUPPORTED_ENTITY_CHANGES at sequence ${row.serverSeq}`,
+              );
+            // Only explicitly supported semantic replay may continue. The generic
+            // server fallback is not an AppDataComplete reducer: even its normalized
+            // TASK create/delete path omits initial Planning and relationship cleanup.
+            // A structurally valid output can therefore still be incomplete.
+            if (
+              ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(
+                row.entityType,
+              ) ||
+              (row.entityType === 'PLANNING' &&
+                row.opType === 'PLANNING_V1' &&
+                ['[Planning] Set Placement', '[Planning] Remove Placement'].includes(
+                  row.actionType ?? '',
+                ))
+            )
+              return false;
+            throw new Error(
+              `RECOVERY_UNSUPPORTED_OPERATION at sequence ${row.serverSeq}`,
+            );
+          },
+          validateFullState: (snapshot) => {
+            validateRecoverySnapshot(snapshot);
+            for (const capability of getFullStateRequiredCapabilities(snapshot))
+              snapshotCapabilities.add(capability);
+          },
+        },
+      );
   validateRecoverySnapshot(state);
 
   console.log(

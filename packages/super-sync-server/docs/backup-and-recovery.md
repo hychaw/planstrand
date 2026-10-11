@@ -253,21 +253,29 @@ immediately preceding accepted server sequence. Missing final operations, leadin
 non-snapshot gaps and all internal gaps remain errors, even across a later snapshot.
 Snapshot capability evidence is retained across replacement with empty state.
 
-**Material coverage gap:** Task and one-off Event operation tails are not
-implemented by an authoritative client replay path. This includes current
-production Task create/delete/update/move/batch/archive operations and LWW
-compensation, not just historical formats. Generic normalized Task create/delete
-previously could succeed while omitting initial Planning or project/tag cleanup;
-the operator now explicitly refuses all unimplemented generic tails with
-`RECOVERY_UNSUPPORTED_OPERATION`. No new backup is written. Complete snapshots
-still preserve Task/Event records. Explicit `PLANNING_V1` register replay and the
-validated Folder, normal WorkSession and Routines bridges remain available.
+Task/Event histories use the production `OperationApplierService`, the same complete
+feature and meta reducers as the client, and real IndexedDB archive services in a
+disposable local Chrome profile. Each snapshot's entire tail is one replay window
+for batch/LWW filtering. Archive effects finish before full schema, relationship
+and persisted archive validation and export. Every browser request is fulfilled
+locally; decrypted content is never sent to a web server.
+
+Supported tails include Task creation with explicit Planning membership, deletion
+with relationship cleanup, context-bearing single/batch edits (active or archived),
+explicit patch/replace Task compensation, deterministic archive commands, restore,
+archive flush and captured plugin batches, plus one-off Event create/update/delete.
+Mixed Folder, WorkSession, Planning and Routines tails retain their strict contracts.
+The checkout must also have Chrome, Playwright, esbuild and the existing Typia
+transformer installed. Runtime/build/validation failures prevent export.
 
 Markerless REPAIR, patch-mode Folder compensation, unknown/future formats,
 unsupported multi-entity footprints and WorkSession LWW compensation remain
-refused. Task patch compensation is emitted by supported clients and must not be
-classified as obsolete; complete recovery needs the existing client converter,
-batch handling, cross-model reducers **and asynchronous archive side effects**.
+refused. Task edits/compensation without source replay context, scheduled legacy
+Task creation without source-calendar context, legacy archive moves without commands,
+uncaptured plugin create IDs/timestamps, compensation for Tasks already archived at
+the snapshot boundary and actions outside the admitted vocabulary remain refused.
+Task patch compensation with supported context uses the production converter,
+whole-window filtering, cross-model reducers and asynchronous archive side effects.
 Markerless REPAIR may also be produced when no valid server-base context exists;
 it remains outside the operator's provable causal-boundary contract. Neither
 limitation permits discarding rows or approving a potentially incomplete backup.

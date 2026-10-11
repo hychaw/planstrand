@@ -1,0 +1,1856 @@
+{
+  "provenance": "Captured from the current production client: real operation capture, reducers, compensation builder, asynchronous archives and complete StateSnapshotService persisted checkpoints. Source zone America/Los_Angeles; import/restart zone Pacific/Auckland. Delayed archive read held for 80 ms before mutation. No user data.",
+  "operations": [
+    {
+      "id": "01a12c98-4d43-747d-bf22-7342b9e2d490",
+      "actionType": "[SP_ALL] Load(import) all data",
+      "opType": "BACKUP_IMPORT",
+      "entityType": "ALL",
+      "payload": {
+        "task": {
+          "ids": ["2zHV1yCQRXQ-IJGtiCR3Q"],
+          "entities": {
+            "2zHV1yCQRXQ-IJGtiCR3Q": {
+              "id": "2zHV1yCQRXQ-IJGtiCR3Q",
+              "subTaskIds": [],
+              "timeSpentOnDay": {},
+              "timeSpent": 0,
+              "timeEstimate": 0,
+              "isDone": false,
+              "title": "Upgrade Task",
+              "tagIds": [],
+              "created": 1791141662016,
+              "attachments": [],
+              "projectId": "INBOX_PROJECT",
+              "folderId": "01a1085c-cc08-7a48-8bc3-2f2cdddfe8b3"
+            }
+          },
+          "currentTaskId": null,
+          "selectedTaskId": null,
+          "taskDetailTargetPanel": null,
+          "lastCurrentTaskId": null,
+          "isDataLoaded": true,
+          "dismissedCalendarAutoImportEventIdsByProvider": {}
+        },
+        "project": {
+          "ids": ["INBOX_PROJECT"],
+          "entities": {
+            "INBOX_PROJECT": {
+              "isHiddenFromMenu": false,
+              "isArchived": false,
+              "isDone": false,
+              "doneOn": null,
+              "isEnableBacklog": false,
+              "backlogTaskIds": [],
+              "noteIds": [],
+              "advancedCfg": {
+                "worklogExportSettings": {
+                  "cols": ["DATE", "START", "END", "TIME_CLOCK", "TITLES_INCLUDING_SUB"],
+                  "roundWorkTimeTo": null,
+                  "roundStartTimeTo": null,
+                  "roundEndTimeTo": null,
+                  "separateTasksBy": " | ",
+                  "groupBy": "DATE"
+                }
+              },
+              "theme": {
+                "isAutoContrast": true,
+                "isDisableBackgroundTint": false,
+                "primary": "rgb(144, 187, 165)",
+                "huePrimary": "500",
+                "accent": "#ff4081",
+                "hueAccent": "500",
+                "warn": "#e11826",
+                "hueWarn": "500",
+                "backgroundImageDark": "",
+                "backgroundImageLight": null,
+                "backgroundOverlayOpacity": 20,
+                "backgroundImageBlur": 0
+              },
+              "taskIds": ["2zHV1yCQRXQ-IJGtiCR3Q"],
+              "icon": "inbox",
+              "id": "INBOX_PROJECT",
+              "title": "Inbox"
+            }
+          }
+        },
+        "tag": {
+          "ids": ["TODAY"],
+          "entities": {
+            "TODAY": {
+              "color": null,
+              "created": 1791141663624,
+              "advancedCfg": {
+                "worklogExportSettings": {
+                  "cols": ["DATE", "START", "END", "TIME_CLOCK", "TITLES_INCLUDING_SUB"],
+                  "roundWorkTimeTo": null,
+                  "roundStartTimeTo": null,
+                  "roundEndTimeTo": null,
+                  "separateTasksBy": " | ",
+                  "groupBy": "DATE"
+                }
+              },
+              "theme": {
+                "isAutoContrast": true,
+                "isDisableBackgroundTint": true,
+                "primary": "#6495ED",
+                "huePrimary": "400",
+                "accent": "#ff4081",
+                "hueAccent": "500",
+                "warn": "#e11826",
+                "hueWarn": "500",
+                "backgroundImageDark": "",
+                "backgroundImageLight": null,
+                "backgroundOverlayOpacity": 20,
+                "backgroundImageBlur": 0
+              },
+              "taskIds": [],
+              "icon": "wb_sunny",
+              "id": "TODAY",
+              "title": "Today"
+            }
+          }
+        },
+        "globalConfig": {
+          "appFeatures": {
+            "isTimeTrackingEnabled": true,
+            "isFocusModeEnabled": false,
+            "isSchedulerEnabled": true,
+            "isPlannerEnabled": true,
+            "isBoardsEnabled": false,
+            "isScheduleDayPanelEnabled": false,
+            "isIssuesPanelEnabled": false,
+            "isProjectNotesEnabled": true,
+            "isSyncIconEnabled": true,
+            "isSearchEnabled": true,
+            "isDonatePageEnabled": true,
+            "isHabitsEnabled": false,
+            "isFinishDayEnabled": false
+          },
+          "localization": {},
+          "tasks": {
+            "isConfirmBeforeDelete": true,
+            "isAutoAddWorkedOnToToday": true,
+            "isAutoMarkParentAsDone": false,
+            "isTrayShowCurrent": true,
+            "defaultProjectId": "INBOX_PROJECT",
+            "isMarkdownFormattingInNotesEnabled": true,
+            "notesTemplate": "**How can I best achieve it now?**\n\n**What do I want?**\n\n**Why do I want it?**\n",
+            "priorityIconPreset": "chevrons"
+          },
+          "misc": {
+            "isConfirmBeforeExit": false,
+            "isConfirmBeforeExitWithoutFinishDay": true,
+            "isMinimizeToTray": false,
+            "isLocalRestApiEnabled": false,
+            "isCheckForUpdates": true,
+            "isTrayShowCurrentCountdown": true,
+            "startOfNextDay": 0,
+            "startOfNextDayTime": "00:00",
+            "isDisableAnimations": false,
+            "isVerticalActionBar": false,
+            "isDisableCelebration": true,
+            "isShowProductivityTipLonger": false,
+            "customTheme": "default",
+            "defaultStartPage": 5,
+            "backgroundImageDark": null,
+            "backgroundImageLight": null
+          },
+          "shortSyntax": {
+            "isEnableProject": true,
+            "isEnableDue": true,
+            "isEnableDeadline": false,
+            "isEnableTag": true,
+            "urlBehavior": "keep"
+          },
+          "evaluation": {
+            "isHideEvaluationSheet": false
+          },
+          "idle": {
+            "isOnlyOpenIdleWhenCurrentTask": false,
+            "isSuppressIdleDuringFocusMode": false,
+            "isEnableIdleTimeTracking": true,
+            "minIdleTime": 300000
+          },
+          "takeABreak": {
+            "isTakeABreakEnabled": true,
+            "isLockScreen": false,
+            "isTimedFullScreenBlocker": false,
+            "timedFullScreenBlockerDuration": 8000,
+            "isFocusWindow": false,
+            "takeABreakMessage": "You have been working for ${duration} without one. Go away from the computer! Take a short walk! Makes you more productive in the long run!",
+            "takeABreakMinWorkingTime": 3600000,
+            "takeABreakSnoozeTime": 900000,
+            "motivationalImgs": []
+          },
+          "dominaMode": {
+            "isEnabled": false,
+            "interval": 300000,
+            "volume": 75,
+            "text": "Your current task is: ${currentTaskTitle}",
+            "voice": ""
+          },
+          "focusMode": {
+            "isSkipPreparation": false,
+            "isShowPreparation": false,
+            "isPlayTick": false,
+            "focusModeSound": "off",
+            "isPauseTrackingDuringBreak": true,
+            "autoStartFocusOnPlay": false,
+            "isManualBreakStart": false
+          },
+          "flowtime": {
+            "isBreakEnabled": false,
+            "breakMode": "ratio",
+            "breakPercentage": 20,
+            "breakRules": []
+          },
+          "clipboardImages": {
+            "imagePath": null
+          },
+          "pomodoro": {
+            "duration": 1500000,
+            "breakDuration": 300000,
+            "longerBreakDuration": 900000,
+            "cyclesBeforeLongerBreak": 4
+          },
+          "keyboard": {
+            "globalShowHide": "Ctrl+Shift+X",
+            "globalToggleTaskStart": null,
+            "globalAddNote": null,
+            "globalAddTask": null,
+            "globalToggleTaskWidget": null,
+            "addNewTask": "Shift+A",
+            "addNewProject": "Shift+P",
+            "addNewNote": "Alt+N",
+            "openProjectNotes": "Shift+N",
+            "toggleTaskViewCustomizerPanel": "C",
+            "toggleIssuePanel": "P",
+            "focusSideNav": "Shift+D",
+            "toggleSideNavMode": "Ctrl+B",
+            "showHelp": "?",
+            "showSearchBar": "Shift+F",
+            "toggleBacklog": "B",
+            "goToFocusMode": "F",
+            "goToWorkView": "W",
+            "goToScheduledView": "Shift+S",
+            "goToTimeline": "Shift+T",
+            "goToSettings": null,
+            "zoomIn": "Ctrl++",
+            "zoomOut": "Ctrl+-",
+            "zoomDefault": "Ctrl+0",
+            "triggerSync": "Ctrl+S",
+            "taskEditTitle": null,
+            "taskToggleDetailPanelOpen": "I",
+            "taskOpenNotesPanel": "N",
+            "taskOpenNotesFullscreen": null,
+            "taskOpenEstimationDialog": "T",
+            "taskSchedule": "S",
+            "taskScheduleToday": "Shift+T",
+            "taskScheduleTomorrow": null,
+            "taskScheduleNextWeek": null,
+            "taskScheduleNextMonth": null,
+            "taskScheduleDeadline": "Shift+S",
+            "taskUnschedule": "U",
+            "taskToggleDone": "D",
+            "taskAddSubTask": "A",
+            "taskDuplicate": "Ctrl+D",
+            "taskAddAttachment": "L",
+            "taskDelete": "Backspace",
+            "taskMoveToProject": "E",
+            "taskOpenContextMenu": "Q",
+            "selectPreviousTask": "K",
+            "selectNextTask": "J",
+            "moveTaskUp": "Ctrl+Shift+ArrowUp",
+            "moveTaskDown": "Ctrl+Shift+ArrowDown",
+            "moveTaskToTop": "Ctrl+Alt+ArrowUp",
+            "moveTaskToBottom": "Ctrl+Alt+ArrowDown",
+            "moveToBacklog": "Shift+B",
+            "expandSubTasks": null,
+            "collapseSubTasks": null,
+            "togglePlay": "Y",
+            "taskEditTags": "G",
+            "taskToggleSelect": "X"
+          },
+          "localBackup": {
+            "isEnabled": true,
+            "maxBackupFiles": 51
+          },
+          "sound": {
+            "volume": 75,
+            "isIncreaseDoneSoundPitch": true,
+            "doneSound": "ding-small-bell.mp3",
+            "breakReminderSound": null,
+            "trackTimeSound": null
+          },
+          "timeTracking": {
+            "defaultEstimate": 0,
+            "defaultEstimateSubTasks": 0,
+            "isNotifyWhenTimeEstimateExceeded": true,
+            "isAutoStartNextTask": false,
+            "isTrackingReminderEnabled": false,
+            "isTrackingReminderShowOnMobile": false,
+            "trackingReminderMinTime": 300000,
+            "isTrackingReminderNotify": false,
+            "isTrackingReminderFocusWindow": false
+          },
+          "reminder": {
+            "isCountdownBannerEnabled": true,
+            "countdownDuration": 600000,
+            "defaultTaskRemindOption": "AtStart",
+            "isFocusWindow": false,
+            "useAlarmStyleReminders": false,
+            "notifyOnDueDate": true,
+            "dueDateNotificationHour": 9
+          },
+          "schedule": {
+            "isWorkStartEndEnabled": false,
+            "workStart": "9:00",
+            "workEnd": "17:00",
+            "isLunchBreakEnabled": false,
+            "lunchBreakStart": "13:00",
+            "lunchBreakEnd": "14:00"
+          },
+          "sync": {
+            "isEnabled": false,
+            "isCompressionEnabled": false,
+            "isEncryptionEnabled": false,
+            "encryptKey": null,
+            "syncProvider": null,
+            "syncInterval": 60000,
+            "isManualSyncOnly": false,
+            "webDav": {
+              "baseUrl": null,
+              "userName": null,
+              "password": null,
+              "syncFolderPath": "super-productivity"
+            },
+            "superSync": {
+              "baseUrl": "",
+              "userName": null,
+              "password": null,
+              "accessToken": null,
+              "syncFolderPath": null
+            },
+            "localFileSync": {
+              "syncFolderPath": ""
+            },
+            "nextcloud": {
+              "serverUrl": null,
+              "loginName": null,
+              "userName": null,
+              "password": null,
+              "syncFolderPath": "super-productivity"
+            },
+            "oneDrive": {
+              "useCustomApp": true,
+              "clientId": null,
+              "tenantId": "common",
+              "syncFolderPath": "Super Productivity"
+            }
+          }
+        },
+        "note": {
+          "ids": [],
+          "entities": {},
+          "todayOrder": []
+        },
+        "issueProvider": {
+          "ids": [],
+          "entities": {}
+        },
+        "planner": {
+          "days": {}
+        },
+        "boards": {
+          "boardCfgs": [
+            {
+              "id": "EISENHOWER_MATRIX",
+              "title": "F.BOARDS.DEFAULT.EISENHAUER_MATRIX",
+              "cols": 2,
+              "panels": [
+                {
+                  "id": "URGENT_AND_IMPORTANT",
+                  "title": "F.BOARDS.DEFAULT.URGENT_IMPORTANT",
+                  "includedTagIds": ["EM_IMPORTANT", "EM_URGENT"],
+                  "excludedTagIds": [],
+                  "taskIds": [],
+                  "taskDoneState": 1,
+                  "scheduledState": 1,
+                  "backlogState": 1,
+                  "isParentTasksOnly": true,
+                  "projectIds": [""]
+                },
+                {
+                  "id": "NOT_URGENT_AND_IMPORTANT",
+                  "title": "F.BOARDS.DEFAULT.NOT_URGENT_IMPORTANT",
+                  "includedTagIds": ["EM_IMPORTANT"],
+                  "excludedTagIds": ["EM_URGENT"],
+                  "taskIds": [],
+                  "taskDoneState": 1,
+                  "scheduledState": 1,
+                  "backlogState": 1,
+                  "isParentTasksOnly": true,
+                  "projectIds": [""]
+                },
+                {
+                  "id": "URGENT_AND_NOT_IMPORTANT",
+                  "title": "F.BOARDS.DEFAULT.URGENT_NOT_IMPORTANT",
+                  "includedTagIds": ["EM_URGENT"],
+                  "excludedTagIds": ["EM_IMPORTANT"],
+                  "taskIds": [],
+                  "taskDoneState": 1,
+                  "scheduledState": 1,
+                  "backlogState": 1,
+                  "isParentTasksOnly": true,
+                  "projectIds": [""]
+                },
+                {
+                  "id": "NOT_URGENT_AND_NOT_IMPORTANT",
+                  "title": "F.BOARDS.DEFAULT.NOT_URGENT_NOT_IMPORTANT",
+                  "includedTagIds": [],
+                  "excludedTagIds": ["EM_IMPORTANT", "EM_URGENT"],
+                  "taskIds": [],
+                  "taskDoneState": 1,
+                  "scheduledState": 1,
+                  "backlogState": 1,
+                  "isParentTasksOnly": true,
+                  "projectIds": [""]
+                }
+              ]
+            },
+            {
+              "id": "KANBAN_DEFAULT",
+              "title": "F.BOARDS.DEFAULT.KANBAN",
+              "cols": 3,
+              "panels": [
+                {
+                  "id": "TODO",
+                  "title": "F.BOARDS.DEFAULT.TO_DO",
+                  "taskDoneState": 3,
+                  "includedTagIds": [],
+                  "excludedTagIds": ["KANBAN_IN_PROGRESS"],
+                  "taskIds": [],
+                  "scheduledState": 1,
+                  "backlogState": 2,
+                  "isParentTasksOnly": false,
+                  "projectIds": [""]
+                },
+                {
+                  "id": "IN_PROGRESS",
+                  "title": "F.BOARDS.DEFAULT.IN_PROGRESS",
+                  "taskDoneState": 3,
+                  "includedTagIds": ["KANBAN_IN_PROGRESS"],
+                  "excludedTagIds": [],
+                  "taskIds": [],
+                  "scheduledState": 1,
+                  "backlogState": 2,
+                  "isParentTasksOnly": false,
+                  "projectIds": [""]
+                },
+                {
+                  "id": "DONE",
+                  "title": "F.BOARDS.DEFAULT.DONE",
+                  "taskDoneState": 2,
+                  "includedTagIds": [],
+                  "excludedTagIds": [],
+                  "taskIds": [],
+                  "scheduledState": 1,
+                  "backlogState": 2,
+                  "isParentTasksOnly": false,
+                  "projectIds": [""]
+                }
+              ]
+            }
+          ]
+        },
+        "metric": {
+          "ids": [],
+          "entities": {}
+        },
+        "simpleCounter": {
+          "ids": ["STANDING_DESK_ID", "COFFEE_COUNTER", "STRETCHING_COUNTER"],
+          "entities": {
+            "STANDING_DESK_ID": {
+              "id": "STANDING_DESK_ID",
+              "title": "Standing Desk Timer",
+              "isEnabled": false,
+              "icon": "directions_walk",
+              "type": "StopWatch",
+              "countOnDay": {},
+              "isOn": false,
+              "isTrackStreaks": true,
+              "streakMinValue": 1800000,
+              "streakMode": "specific-days",
+              "streakWeekDays": {
+                "0": false,
+                "1": true,
+                "2": true,
+                "3": true,
+                "4": true,
+                "5": true,
+                "6": false
+              }
+            },
+            "COFFEE_COUNTER": {
+              "id": "COFFEE_COUNTER",
+              "title": "Coffee Counter",
+              "isEnabled": false,
+              "icon": "free_breakfast",
+              "type": "ClickCounter",
+              "countOnDay": {},
+              "isOn": false,
+              "isTrackStreaks": false,
+              "streakMinValue": 2,
+              "streakMode": "specific-days",
+              "streakWeekDays": {
+                "0": false,
+                "1": true,
+                "2": true,
+                "3": true,
+                "4": true,
+                "5": true,
+                "6": false
+              }
+            },
+            "STRETCHING_COUNTER": {
+              "id": "STRETCHING_COUNTER",
+              "title": "Stretching Counter",
+              "isEnabled": false,
+              "icon": "fitness_center",
+              "type": "RepeatedCountdownReminder",
+              "countOnDay": {},
+              "isOn": false,
+              "isTrackStreaks": true,
+              "streakMinValue": 8,
+              "streakMode": "specific-days",
+              "streakWeekDays": {
+                "0": false,
+                "1": true,
+                "2": true,
+                "3": true,
+                "4": true,
+                "5": true,
+                "6": false
+              },
+              "countdownDuration": 1800000
+            }
+          }
+        },
+        "taskRepeatCfg": {
+          "ids": [],
+          "entities": {}
+        },
+        "menuTree": {
+          "projectTree": [],
+          "tagTree": []
+        },
+        "timeTracking": {
+          "tag": {},
+          "project": {}
+        },
+        "pluginUserData": [],
+        "pluginMetadata": [],
+        "reminders": [],
+        "section": {
+          "ids": [],
+          "entities": {}
+        },
+        "workSession": {
+          "ids": [],
+          "entities": {}
+        },
+        "event": {
+          "ids": ["dIQG-6DQnWPGWa3foBcks"],
+          "entities": {
+            "dIQG-6DQnWPGWa3foBcks": {
+              "title": "Upgrade Event",
+              "isAllDay": false,
+              "start": 1791140400000,
+              "end": 1791144000000,
+              "timeZone": "America/Vancouver",
+              "id": "dIQG-6DQnWPGWa3foBcks",
+              "created": 1791141663001,
+              "modified": 1791141663001
+            }
+          }
+        },
+        "planning": {
+          "ids": ["2zHV1yCQRXQ-IJGtiCR3Q"],
+          "entities": {
+            "2zHV1yCQRXQ-IJGtiCR3Q": {
+              "id": "2zHV1yCQRXQ-IJGtiCR3Q",
+              "placement": {
+                "target": {
+                  "type": "DAY",
+                  "key": "2026-10-04"
+                },
+                "orderKey": "V"
+              },
+              "revision": {
+                "counter": 1,
+                "clientId": "E_6NTDKd",
+                "opId": "01a1085c-cd69-745f-b63b-2e31329c7308"
+              }
+            }
+          }
+        },
+        "folder": {
+          "ids": ["01a1085c-cc08-7a48-8bc3-2f2cdddfe8b3", "INBOX_FOLDER"],
+          "entities": {
+            "INBOX_FOLDER": {
+              "id": "INBOX_FOLDER",
+              "title": "Inbox",
+              "parentId": null
+            },
+            "01a1085c-cc08-7a48-8bc3-2f2cdddfe8b3": {
+              "id": "01a1085c-cc08-7a48-8bc3-2f2cdddfe8b3",
+              "title": "Upgrade Folder",
+              "parentId": null,
+              "orderKey": "k"
+            }
+          },
+          "legacyProjectMigrationComplete": true
+        },
+        "archiveYoung": {
+          "task": {
+            "ids": [],
+            "entities": {}
+          },
+          "timeTracking": {
+            "tag": {},
+            "project": {}
+          },
+          "lastTimeTrackingFlush": 0
+        },
+        "archiveOld": {
+          "task": {
+            "ids": [],
+            "entities": {}
+          },
+          "timeTracking": {
+            "tag": {},
+            "project": {}
+          },
+          "lastTimeTrackingFlush": 0
+        },
+        "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"],
+        "occurrenceException": {
+          "ids": [],
+          "entities": {}
+        },
+        "eventSeries": {
+          "ids": [],
+          "entities": {}
+        },
+        "weeklyTemplate": {
+          "ids": [],
+          "entities": {}
+        }
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 1
+      },
+      "timestamp": 1791749541187,
+      "schemaVersion": 5,
+      "entityId": "01a12c98-4d43-747d-bf22-7342b9e2d490",
+      "syncImportReason": "BACKUP_RESTORE",
+      "requiredEntityTypes": ["FOLDER", "EVENT"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"],
+      "serverSeq": 1
+    },
+    {
+      "id": "01a12c98-4d68-7558-b2d4-c71992add8f7",
+      "actionType": "[Task Shared] addTask",
+      "opType": "CRT",
+      "entityType": "TASK",
+      "payload": {
+        "actionPayload": {
+          "task": {
+            "id": "recover-created",
+            "subTaskIds": [],
+            "timeSpentOnDay": {},
+            "timeSpent": 0,
+            "timeEstimate": 0,
+            "isDone": false,
+            "title": "Synthetic recovery fixture",
+            "tagIds": [],
+            "created": 100,
+            "attachments": [],
+            "projectId": "INBOX_PROJECT",
+            "folderId": "INBOX_FOLDER",
+            "modified": 100
+          },
+          "workContextId": "TODAY",
+          "workContextType": "TAG",
+          "isAddToBacklog": false,
+          "isAddToBottom": false,
+          "isIgnoreShortSyntax": true,
+          "initialPlanning": {
+            "id": "recover-created",
+            "placement": {
+              "target": {
+                "type": "DAY",
+                "key": "2026-10-11"
+              },
+              "orderKey": "V"
+            },
+            "revision": {
+              "counter": 1,
+              "clientId": "source",
+              "opId": "fixture-create"
+            }
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 2
+      },
+      "timestamp": 1791749541214,
+      "schemaVersion": 5,
+      "entityId": "recover-created",
+      "entityIds": ["recover-created"],
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"],
+      "serverSeq": 2
+    },
+    {
+      "id": "01a12c98-4d86-7853-b379-9faf32d3edde",
+      "actionType": "[Task Shared] updateTask",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "taskReplayContext": {
+          "version": 1,
+          "modified": 1791749541248,
+          "today": "2026-10-11",
+          "todayStart": 1791702000000,
+          "todayEnd": 1791788400000
+        },
+        "actionPayload": {
+          "task": {
+            "id": "recover-created",
+            "changes": {
+              "title": "Edited fixture"
+            }
+          },
+          "isIgnoreShortSyntax": true
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 3
+      },
+      "timestamp": 1791749541249,
+      "schemaVersion": 5,
+      "entityId": "recover-created",
+      "entityIds": ["recover-created"],
+      "requiredCapabilities": ["TASK_REPLAY_CONTEXT_V1"],
+      "serverSeq": 3
+    },
+    {
+      "id": "01a12c98-4daa-7969-aaba-38f85a460c87",
+      "actionType": "[Event] Add Event",
+      "opType": "CRT",
+      "entityType": "EVENT",
+      "payload": {
+        "actionPayload": {
+          "event": {
+            "id": "recover-event",
+            "title": "Synthetic event",
+            "isAllDay": true,
+            "date": "2026-10-11",
+            "created": 100,
+            "modified": 100
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 4
+      },
+      "timestamp": 1791749541282,
+      "schemaVersion": 5,
+      "entityId": "recover-event",
+      "entityIds": ["recover-event"],
+      "serverSeq": 4
+    },
+    {
+      "id": "01a12c98-4dca-7471-bda1-a0614bc28be8",
+      "actionType": "[Event] Update Event",
+      "opType": "UPD",
+      "entityType": "EVENT",
+      "payload": {
+        "actionPayload": {
+          "id": "recover-event",
+          "changes": {
+            "title": "Timed event",
+            "isAllDay": false,
+            "start": 1791633600000,
+            "end": 1791637200000,
+            "timeZone": "Pacific/Auckland"
+          },
+          "modified": 200
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 5
+      },
+      "timestamp": 1791749541316,
+      "schemaVersion": 5,
+      "entityId": "recover-event",
+      "entityIds": ["recover-event"],
+      "serverSeq": 5
+    },
+    {
+      "id": "01a12c98-4de7-76f3-be78-01df3fb524ff",
+      "actionType": "[Event] Remove Event",
+      "opType": "DEL",
+      "entityType": "EVENT",
+      "payload": {
+        "actionPayload": {
+          "id": "recover-event"
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 6
+      },
+      "timestamp": 1791749541347,
+      "schemaVersion": 5,
+      "entityId": "recover-event",
+      "entityIds": ["recover-event"],
+      "serverSeq": 6
+    },
+    {
+      "id": "01a12c98-4e05-7b2b-9838-5e8283c54a8f",
+      "actionType": "[Task Shared] deleteTask",
+      "opType": "DEL",
+      "entityType": "TASK",
+      "payload": {
+        "actionPayload": {
+          "task": {
+            "id": "recover-created",
+            "subTaskIds": [],
+            "timeSpentOnDay": {},
+            "timeSpent": 0,
+            "timeEstimate": 0,
+            "isDone": false,
+            "title": "Synthetic recovery fixture",
+            "tagIds": [],
+            "created": 100,
+            "attachments": [],
+            "projectId": "INBOX_PROJECT",
+            "folderId": "INBOX_FOLDER",
+            "modified": 100,
+            "subTasks": []
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 7
+      },
+      "timestamp": 1791749541376,
+      "schemaVersion": 5,
+      "entityId": "recover-created",
+      "entityIds": ["recover-created"],
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"],
+      "serverSeq": 7
+    },
+    {
+      "id": "01a12c98-4e2e-7bc7-951e-922251e20694",
+      "actionType": "[Task Shared] addTask",
+      "opType": "CRT",
+      "entityType": "TASK",
+      "payload": {
+        "actionPayload": {
+          "task": {
+            "id": "archive-one",
+            "subTaskIds": [],
+            "timeSpentOnDay": {},
+            "timeSpent": 0,
+            "timeEstimate": 0,
+            "isDone": false,
+            "title": "Synthetic recovery fixture",
+            "tagIds": [],
+            "created": 100,
+            "attachments": [],
+            "projectId": "INBOX_PROJECT",
+            "folderId": "INBOX_FOLDER",
+            "modified": 100
+          },
+          "workContextId": "TODAY",
+          "workContextType": "TAG",
+          "isAddToBacklog": false,
+          "isAddToBottom": false,
+          "isIgnoreShortSyntax": true
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 8
+      },
+      "timestamp": 1791749541406,
+      "schemaVersion": 5,
+      "entityId": "archive-one",
+      "entityIds": ["archive-one"],
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"],
+      "serverSeq": 8
+    },
+    {
+      "id": "01a12c98-4e30-7efc-8336-35991a862884",
+      "actionType": "[Task Shared] addTask",
+      "opType": "CRT",
+      "entityType": "TASK",
+      "payload": {
+        "actionPayload": {
+          "task": {
+            "id": "archive-two",
+            "subTaskIds": [],
+            "timeSpentOnDay": {},
+            "timeSpent": 0,
+            "timeEstimate": 0,
+            "isDone": false,
+            "title": "Synthetic recovery fixture",
+            "tagIds": [],
+            "created": 100,
+            "attachments": [],
+            "projectId": "INBOX_PROJECT",
+            "folderId": "INBOX_FOLDER",
+            "modified": 100
+          },
+          "workContextId": "TODAY",
+          "workContextType": "TAG",
+          "isAddToBacklog": false,
+          "isAddToBottom": false,
+          "isIgnoreShortSyntax": true
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 9
+      },
+      "timestamp": 1791749541424,
+      "schemaVersion": 5,
+      "entityId": "archive-two",
+      "entityIds": ["archive-two"],
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"],
+      "serverSeq": 9
+    },
+    {
+      "id": "01a12c98-4e45-786b-a393-1446beb0223b",
+      "actionType": "[Task Shared] moveToArchive",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "actionPayload": {
+          "tasks": [
+            {
+              "id": "archive-one",
+              "subTaskIds": [],
+              "timeSpentOnDay": {},
+              "timeSpent": 0,
+              "timeEstimate": 0,
+              "isDone": false,
+              "title": "Synthetic recovery fixture",
+              "tagIds": [],
+              "created": 100,
+              "attachments": [],
+              "projectId": "INBOX_PROJECT",
+              "folderId": "INBOX_FOLDER",
+              "modified": 100,
+              "subTasks": []
+            },
+            {
+              "id": "archive-two",
+              "subTaskIds": [],
+              "timeSpentOnDay": {},
+              "timeSpent": 0,
+              "timeEstimate": 0,
+              "isDone": false,
+              "title": "Synthetic recovery fixture",
+              "tagIds": [],
+              "created": 100,
+              "attachments": [],
+              "projectId": "INBOX_PROJECT",
+              "folderId": "INBOX_FOLDER",
+              "modified": 100,
+              "subTasks": []
+            }
+          ],
+          "archiveCommand": {
+            "version": 1,
+            "archivedTasks": [
+              {
+                "id": "archive-one",
+                "subTaskIds": [],
+                "timeSpentOnDay": {},
+                "timeSpent": 0,
+                "timeEstimate": 0,
+                "isDone": true,
+                "title": "Synthetic recovery fixture",
+                "tagIds": [],
+                "created": 100,
+                "attachments": [],
+                "projectId": "INBOX_PROJECT",
+                "folderId": "INBOX_FOLDER",
+                "modified": 100,
+                "subTasks": [],
+                "doneOn": 1791749541436
+              },
+              {
+                "id": "archive-two",
+                "subTaskIds": [],
+                "timeSpentOnDay": {},
+                "timeSpent": 0,
+                "timeEstimate": 0,
+                "isDone": true,
+                "title": "Synthetic recovery fixture",
+                "tagIds": [],
+                "created": 100,
+                "attachments": [],
+                "projectId": "INBOX_PROJECT",
+                "folderId": "INBOX_FOLDER",
+                "modified": 100,
+                "subTasks": [],
+                "doneOn": 1791749541436
+              }
+            ],
+            "transferredTimeTracking": {
+              "project": {},
+              "tag": {}
+            },
+            "lastFlush": 1791749541436,
+            "flushTimestamp": 1791749541436
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 10
+      },
+      "timestamp": 1791749541439,
+      "schemaVersion": 5,
+      "entityId": "archive-one",
+      "entityIds": ["archive-one", "archive-two"],
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "ARCHIVE_COMMAND_V1"],
+      "serverSeq": 10
+    },
+    {
+      "id": "01a12c98-4e63-76fe-bd1f-90a0dc5fef3d",
+      "actionType": "[Task Shared] updateTask",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "taskReplayContext": {
+          "version": 1,
+          "modified": 1791749541473,
+          "today": "2026-10-11",
+          "todayStart": 1791702000000,
+          "todayEnd": 1791788400000
+        },
+        "actionPayload": {
+          "task": {
+            "id": "archive-one",
+            "changes": {
+              "title": "Archived edit"
+            }
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 11
+      },
+      "timestamp": 1791749541475,
+      "schemaVersion": 5,
+      "entityId": "archive-one",
+      "entityIds": ["archive-one"],
+      "requiredCapabilities": ["TASK_REPLAY_CONTEXT_V1"],
+      "serverSeq": 11
+    },
+    {
+      "id": "01a12c98-4e80-704f-92f6-c090c27abd12",
+      "actionType": "[Task Shared] updateTasks",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "taskReplayContext": {
+          "archive-one": {
+            "version": 1,
+            "modified": 1791749541502,
+            "today": "2026-10-11",
+            "todayStart": 1791702000000,
+            "todayEnd": 1791788400000
+          },
+          "archive-two": {
+            "version": 1,
+            "modified": 1791749541502,
+            "today": "2026-10-11",
+            "todayStart": 1791702000000,
+            "todayEnd": 1791788400000
+          }
+        },
+        "actionPayload": {
+          "tasks": [
+            {
+              "id": "archive-one",
+              "changes": {
+                "notes": "Batch one"
+              }
+            },
+            {
+              "id": "archive-two",
+              "changes": {
+                "notes": "Batch two"
+              }
+            }
+          ]
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 12
+      },
+      "timestamp": 1791749541504,
+      "schemaVersion": 5,
+      "entityId": "archive-one",
+      "entityIds": ["archive-one", "archive-two"],
+      "requiredCapabilities": ["TASK_REPLAY_CONTEXT_V1"],
+      "serverSeq": 12
+    },
+    {
+      "id": "01a12c98-4efb-7a7f-84ab-808dac2390b3",
+      "actionType": "[Task Shared] updateTask",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "taskReplayContext": {
+          "version": 1,
+          "modified": 1791749541544,
+          "today": "2026-10-11",
+          "todayStart": 1791702000000,
+          "todayEnd": 1791788400000
+        },
+        "actionPayload": {
+          "task": {
+            "id": "archive-one",
+            "changes": {
+              "title": "Delayed archived source edit"
+            }
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 13
+      },
+      "timestamp": 1791749541627,
+      "schemaVersion": 5,
+      "entityId": "archive-one",
+      "entityIds": ["archive-one"],
+      "requiredCapabilities": ["TASK_REPLAY_CONTEXT_V1"],
+      "serverSeq": 13
+    },
+    {
+      "id": "01a12c98-4f12-7890-9ed4-7e721dc93ee2",
+      "actionType": "[WorkSession] Add WorkSession",
+      "opType": "CRT",
+      "entityType": "WORK_SESSION",
+      "payload": {
+        "actionPayload": {
+          "workSession": {
+            "id": "recover-session",
+            "taskId": "2zHV1yCQRXQ-IJGtiCR3Q",
+            "start": 1791633600000,
+            "end": 1791637200000,
+            "timeZone": "America/Los_Angeles",
+            "created": 100,
+            "modified": 100
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 14
+      },
+      "timestamp": 1791749541643,
+      "schemaVersion": 5,
+      "entityId": "recover-session",
+      "entityIds": ["recover-session"],
+      "serverSeq": 14
+    },
+    {
+      "id": "01a12c98-4f15-7f68-8e76-b35d794745ab",
+      "actionType": "[WorkSession] Complete WorkSession",
+      "opType": "UPD",
+      "entityType": "WORK_SESSION",
+      "payload": {
+        "actionPayload": {
+          "id": "recover-session",
+          "completedAt": 200,
+          "modified": 200
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 15
+      },
+      "timestamp": 1791749541651,
+      "schemaVersion": 5,
+      "entityId": "recover-session",
+      "entityIds": ["recover-session"],
+      "serverSeq": 15
+    },
+    {
+      "id": "01a12c98-4f1d-7278-9e2b-1913318fd6ac",
+      "actionType": "[Folder] Update",
+      "opType": "UPD",
+      "entityType": "FOLDER",
+      "payload": {
+        "actionPayload": {
+          "folderState": {
+            "ids": ["01a1085c-cc08-7a48-8bc3-2f2cdddfe8b3", "INBOX_FOLDER"],
+            "entities": {
+              "INBOX_FOLDER": {
+                "id": "INBOX_FOLDER",
+                "title": "Inbox",
+                "parentId": null
+              },
+              "01a1085c-cc08-7a48-8bc3-2f2cdddfe8b3": {
+                "id": "01a1085c-cc08-7a48-8bc3-2f2cdddfe8b3",
+                "title": "Recovered hierarchy",
+                "parentId": null,
+                "orderKey": "k"
+              }
+            },
+            "legacyProjectMigrationComplete": true
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 16
+      },
+      "timestamp": 1791749541660,
+      "schemaVersion": 5,
+      "entityId": "*",
+      "entityIds": ["*"],
+      "serverSeq": 16
+    },
+    {
+      "id": "01a12c98-4f37-79a0-8fcf-cdf14d9e4534",
+      "actionType": "[EventSeries] Add Event Series",
+      "opType": "CRT",
+      "entityType": "EVENT_SERIES",
+      "payload": {
+        "actionPayload": {
+          "eventSeries": {
+            "id": "daily",
+            "title": "daily",
+            "created": 1,
+            "modified": 1,
+            "segments": [
+              {
+                "id": "daily-segment",
+                "recurrence": {
+                  "frequency": "daily",
+                  "interval": 1,
+                  "startDate": "2026-10-05",
+                  "endDate": "2026-12-31"
+                },
+                "timing": {
+                  "kind": "allDay"
+                }
+              }
+            ]
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 17
+      },
+      "timestamp": 1791749541668,
+      "schemaVersion": 5,
+      "entityId": "daily",
+      "entityIds": ["daily"],
+      "requiredEntityTypes": ["EVENT_SERIES"],
+      "requiredCapabilities": ["ROUTINES_V1"],
+      "serverSeq": 17
+    },
+    {
+      "id": "01a12c98-4f3f-7dce-ae40-6ef7b831aedb",
+      "actionType": "[WeeklyTemplate] Add Weekly Template",
+      "opType": "CRT",
+      "entityType": "WEEKLY_TEMPLATE",
+      "payload": {
+        "actionPayload": {
+          "weeklyTemplate": {
+            "id": "template",
+            "title": "Week",
+            "startDate": "2026-10-05",
+            "endDate": "2026-12-31",
+            "isActive": true,
+            "created": 1,
+            "modified": 1
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 18
+      },
+      "timestamp": 1791749541695,
+      "schemaVersion": 5,
+      "entityId": "template",
+      "entityIds": ["template"],
+      "requiredEntityTypes": ["WEEKLY_TEMPLATE"],
+      "requiredCapabilities": ["ROUTINES_V1"],
+      "serverSeq": 18
+    },
+    {
+      "id": "01a12c98-4f40-772e-8132-784a8e483488",
+      "actionType": "[EventSeries] Add Event Series",
+      "opType": "CRT",
+      "entityType": "EVENT_SERIES",
+      "payload": {
+        "actionPayload": {
+          "eventSeries": {
+            "id": "owned",
+            "title": "owned",
+            "created": 1,
+            "modified": 1,
+            "templateId": "template",
+            "segments": [
+              {
+                "id": "owned-segment",
+                "recurrence": {
+                  "frequency": "daily",
+                  "interval": 1,
+                  "startDate": "2026-10-05",
+                  "endDate": "2026-12-31"
+                },
+                "timing": {
+                  "kind": "allDay"
+                }
+              }
+            ]
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 19
+      },
+      "timestamp": 1791749541696,
+      "schemaVersion": 5,
+      "entityId": "owned",
+      "entityIds": ["owned"],
+      "requiredEntityTypes": ["EVENT_SERIES"],
+      "requiredCapabilities": ["ROUTINES_V1"],
+      "serverSeq": 19
+    },
+    {
+      "id": "01a12c98-4f41-72e4-9d5a-eac1694b7bac",
+      "actionType": "[OccurrenceException] Set Occurrence Exception",
+      "opType": "UPD",
+      "entityType": "OCCURRENCE_EXCEPTION",
+      "payload": {
+        "actionPayload": {
+          "occurrenceException": {
+            "id": "occurrenceException:[\"daily\",1]",
+            "seriesId": "daily",
+            "slot": 1,
+            "value": {
+              "kind": "override",
+              "event": {
+                "title": "Moved",
+                "isAllDay": true,
+                "date": "2026-10-15"
+              }
+            },
+            "modified": 2
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 20
+      },
+      "timestamp": 1791749541696,
+      "schemaVersion": 5,
+      "entityId": "occurrenceException:[\"daily\",1]",
+      "entityIds": ["occurrenceException:[\"daily\",1]"],
+      "requiredEntityTypes": ["OCCURRENCE_EXCEPTION"],
+      "requiredCapabilities": ["ROUTINES_V1"],
+      "serverSeq": 20
+    },
+    {
+      "id": "01a12c98-4f4b-76eb-84ca-30af2db0bdee",
+      "actionType": "[EventSeries] Delete Entire Series",
+      "opType": "UPD",
+      "entityType": "EVENT_SERIES",
+      "payload": {
+        "actionPayload": {
+          "eventSeries": {
+            "id": "owned",
+            "title": "owned",
+            "created": 1,
+            "modified": 300,
+            "templateId": "template",
+            "segments": [
+              {
+                "id": "owned-segment",
+                "recurrence": {
+                  "frequency": "daily",
+                  "interval": 1,
+                  "startDate": "2026-10-05",
+                  "endDate": "2026-12-31"
+                },
+                "timing": {
+                  "kind": "allDay"
+                }
+              }
+            ],
+            "deletedAt": 300
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 21
+      },
+      "timestamp": 1791749541699,
+      "schemaVersion": 5,
+      "entityId": "owned",
+      "entityIds": ["owned"],
+      "requiredEntityTypes": ["EVENT_SERIES"],
+      "requiredCapabilities": ["ROUTINES_V1"],
+      "serverSeq": 21
+    },
+    {
+      "id": "01a12c98-4f4d-7ff2-a359-b8bdb38febf5",
+      "actionType": "[WeeklyTemplate] Delete Weekly Template",
+      "opType": "UPD",
+      "entityType": "WEEKLY_TEMPLATE",
+      "payload": {
+        "actionPayload": {
+          "weeklyTemplate": {
+            "id": "template",
+            "title": "Week",
+            "startDate": "2026-10-05",
+            "endDate": "2026-12-31",
+            "isActive": true,
+            "created": 1,
+            "modified": 300,
+            "deletedAt": 300
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 22
+      },
+      "timestamp": 1791749541709,
+      "schemaVersion": 5,
+      "entityId": "template",
+      "entityIds": ["template"],
+      "requiredEntityTypes": ["WEEKLY_TEMPLATE"],
+      "requiredCapabilities": ["ROUTINES_V1"],
+      "serverSeq": 22
+    },
+    {
+      "id": "01a12c98-4f74-7cd8-b79b-c081e2601ca3",
+      "actionType": "[Task Shared] batchUpdateForProject",
+      "opType": "BATCH",
+      "entityType": "PROJECT",
+      "payload": {
+        "actionPayload": {
+          "projectId": "INBOX_PROJECT",
+          "folderId": "INBOX_FOLDER",
+          "createdTaskIds": {
+            "temp-recovery": "plugin-created"
+          },
+          "createdTaskTimestamp": 100,
+          "operations": [
+            {
+              "type": "create",
+              "tempId": "temp-recovery",
+              "data": {
+                "title": "Plugin-created Task"
+              }
+            },
+            {
+              "type": "update",
+              "taskId": "plugin-created",
+              "updates": {
+                "notes": "Batch notes"
+              }
+            }
+          ]
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 23
+      },
+      "timestamp": 1791749541739,
+      "schemaVersion": 5,
+      "entityId": "INBOX_PROJECT",
+      "entityIds": ["INBOX_PROJECT"],
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"],
+      "serverSeq": 23
+    },
+    {
+      "id": "01a12c98-4f8f-76f4-960e-db6e321b0901",
+      "actionType": "[TASK] LWW Update",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "taskReplayContext": {
+          "version": 1,
+          "modified": 333,
+          "today": "2026-10-11",
+          "todayStart": 1791702000000,
+          "todayEnd": 1791788400000
+        },
+        "actionPayload": {
+          "id": "plugin-created",
+          "title": "Patch winner",
+          "modified": 333
+        },
+        "entityChanges": [],
+        "lwwUpdateMode": "patch"
+      },
+      "clientId": "compensation",
+      "vectorClock": {
+        "compensation": 1791749541775
+      },
+      "timestamp": 500,
+      "schemaVersion": 5,
+      "entityId": "plugin-created",
+      "requiredCapabilities": ["TASK_REPLAY_CONTEXT_V1"],
+      "serverSeq": 24
+    },
+    {
+      "id": "01a12c98-4fb1-7072-ae3b-4264f3ca2a16",
+      "actionType": "[TASK] LWW Update",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "taskReplayContext": {
+          "version": 1,
+          "modified": 444,
+          "today": "2026-10-11",
+          "todayStart": 1791702000000,
+          "todayEnd": 1791788400000
+        },
+        "actionPayload": {
+          "id": "plugin-created",
+          "subTaskIds": [],
+          "timeSpentOnDay": {},
+          "timeSpent": 0,
+          "timeEstimate": 0,
+          "isDone": false,
+          "title": "Patch winner",
+          "tagIds": [],
+          "created": 100,
+          "attachments": [],
+          "projectId": "INBOX_PROJECT",
+          "folderId": "INBOX_FOLDER",
+          "notes": "Complete winning record",
+          "modified": 444
+        },
+        "entityChanges": [],
+        "lwwUpdateMode": "replace"
+      },
+      "clientId": "compensation",
+      "vectorClock": {
+        "compensation": 1791749541809
+      },
+      "timestamp": 500,
+      "schemaVersion": 5,
+      "entityId": "plugin-created",
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "TASK_REPLAY_CONTEXT_V1"],
+      "serverSeq": 25
+    },
+    {
+      "id": "01a12c98-4fde-7dab-a51f-e787a047a6e7",
+      "actionType": "[Task Shared] moveToArchive",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "actionPayload": {
+          "tasks": [
+            {
+              "id": "plugin-created",
+              "subTaskIds": [],
+              "timeSpentOnDay": {},
+              "timeSpent": 0,
+              "timeEstimate": 0,
+              "isDone": false,
+              "title": "Patch winner",
+              "tagIds": [],
+              "created": 100,
+              "attachments": [],
+              "projectId": "INBOX_PROJECT",
+              "folderId": "INBOX_FOLDER",
+              "notes": "Complete winning record",
+              "modified": 444,
+              "subTasks": []
+            }
+          ],
+          "archiveCommand": {
+            "version": 1,
+            "archivedTasks": [
+              {
+                "id": "plugin-created",
+                "subTaskIds": [],
+                "timeSpentOnDay": {},
+                "timeSpent": 0,
+                "timeEstimate": 0,
+                "isDone": true,
+                "title": "Patch winner",
+                "tagIds": [],
+                "created": 100,
+                "attachments": [],
+                "projectId": "INBOX_PROJECT",
+                "folderId": "INBOX_FOLDER",
+                "notes": "Complete winning record",
+                "modified": 444,
+                "subTasks": [],
+                "doneOn": 1791749541845
+              }
+            ],
+            "transferredTimeTracking": {
+              "project": {},
+              "tag": {}
+            },
+            "lastFlush": 1791749541845
+          }
+        },
+        "entityChanges": []
+      },
+      "clientId": "B_MbGGFw",
+      "vectorClock": {
+        "B_MbGGFw": 24
+      },
+      "timestamp": 1791749541847,
+      "schemaVersion": 5,
+      "entityId": "plugin-created",
+      "entityIds": ["plugin-created"],
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "ARCHIVE_COMMAND_V1"],
+      "serverSeq": 26
+    },
+    {
+      "id": "01a12c98-4ff3-7aa7-8d2c-4e779505057d",
+      "actionType": "[TASK] LWW Update",
+      "opType": "UPD",
+      "entityType": "TASK",
+      "payload": {
+        "taskReplayContext": {
+          "version": 1,
+          "modified": 444,
+          "today": "2026-10-11",
+          "todayStart": 1791702000000,
+          "todayEnd": 1791788400000
+        },
+        "actionPayload": {
+          "id": "plugin-created",
+          "subTaskIds": [],
+          "timeSpentOnDay": {},
+          "timeSpent": 0,
+          "timeEstimate": 0,
+          "isDone": false,
+          "title": "Must remain archived",
+          "tagIds": [],
+          "created": 100,
+          "attachments": [],
+          "projectId": "INBOX_PROJECT",
+          "folderId": "INBOX_FOLDER",
+          "notes": "Complete winning record",
+          "modified": 444
+        },
+        "entityChanges": [],
+        "lwwUpdateMode": "replace"
+      },
+      "clientId": "compensation",
+      "vectorClock": {
+        "compensation": 1791749541875
+      },
+      "timestamp": 500,
+      "schemaVersion": 5,
+      "entityId": "plugin-created",
+      "requiredEntityTypes": ["FOLDER"],
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "TASK_REPLAY_CONTEXT_V1"],
+      "serverSeq": 27
+    }
+  ],
+  "checks": [
+    {
+      "name": "task-planning-create",
+      "count": 2,
+      "stateSha256": "1d5383b646c22dc33efe25c1575c57a42ad75efb66d0e0a11a05aa77e4ffe716",
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1"]
+    },
+    {
+      "name": "task-context-update",
+      "count": 3,
+      "stateSha256": "96d47810947dd7a6137ca46e2cf0431d62ed33ab6c44b3814cad2c584f4c2fda",
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "TASK_REPLAY_CONTEXT_V1"]
+    },
+    {
+      "name": "event-create",
+      "count": 4,
+      "stateSha256": "42f47ae45ec66d5aa6009f3d8ee5a698ac7088ca1a0b29472138e4c8c43a1a66",
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "TASK_REPLAY_CONTEXT_V1"]
+    },
+    {
+      "name": "event-update",
+      "count": 5,
+      "stateSha256": "281670bd73c6feb34ed1140c9573ffaa07558c97d8cae513e8677854a872b4c9",
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "TASK_REPLAY_CONTEXT_V1"]
+    },
+    {
+      "name": "event-delete",
+      "count": 6,
+      "stateSha256": "96d47810947dd7a6137ca46e2cf0431d62ed33ab6c44b3814cad2c584f4c2fda",
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "TASK_REPLAY_CONTEXT_V1"]
+    },
+    {
+      "name": "task-delete-cleanup",
+      "count": 7,
+      "stateSha256": "09b8332282b195aef922b441ade56da40da4807824132d1f2970e2ce97a4958f",
+      "requiredCapabilities": ["TASK_FOLDER_OWNERSHIP_V1", "TASK_REPLAY_CONTEXT_V1"]
+    },
+    {
+      "name": "archive-command",
+      "count": 10,
+      "stateSha256": "f828525dd1e37ad20a04f79cdd23b1ab92be87042162fa0a23d4c4c95e11a828",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "archived-edit",
+      "count": 11,
+      "stateSha256": "e71ff022b2670edea5d24fb6a9a6f451aba368f4856c437d8b2cf387bbeb7f39",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "archived-batch",
+      "count": 12,
+      "stateSha256": "b52b27e0edc3348bdfb2494b6697f118b9ae9e7501970eb0b1903bfcde76155f",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "delayed-archived-edit",
+      "count": 13,
+      "stateSha256": "3a66453ac0e567b8cd5de0d144f67168539a7eaea339011fc3b9a0f9161acfe4",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "mixed-routines-tombstones",
+      "count": 22,
+      "stateSha256": "101fea9907f84fa930ecef2028925c7cc65356fff0b0552889133bac09592bd1",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "ROUTINES_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "plugin-batch",
+      "count": 23,
+      "stateSha256": "7fce99b90e64c24767c2581fc88bea47fc874c38b2255767321bf4b84bfd294a",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "ROUTINES_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "task-lww-patch",
+      "count": 24,
+      "stateSha256": "dc6a6b0a0d6ad604daeef97625428eed1ff95edce3ccd367b05b82c3a6b08368",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "ROUTINES_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "task-lww-replace",
+      "count": 25,
+      "stateSha256": "cecfc85461af8a349b8bb74ddbf993f58b2c2edc5ab82319d8d7a30f6799f064",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "ROUTINES_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    },
+    {
+      "name": "whole-window-archive-compensation",
+      "count": 27,
+      "stateSha256": "83c80d871d7943aa50baa906aa8ef3acf2bc1d2cb7216a5aa313fb847712ef5a",
+      "requiredCapabilities": [
+        "ARCHIVE_COMMAND_V1",
+        "ROUTINES_V1",
+        "TASK_FOLDER_OWNERSHIP_V1",
+        "TASK_REPLAY_CONTEXT_V1"
+      ]
+    }
+  ]
+}

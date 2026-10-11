@@ -57,7 +57,7 @@ const DEFAULT_ARCHIVE: ArchiveModel = {
  */
 type NgRxModelKey = keyof Omit<AppStateSnapshot, 'archiveYoung' | 'archiveOld'>;
 
-const SNAPSHOT_SELECTORS: readonly {
+export const SNAPSHOT_SELECTORS: readonly {
   key: NgRxModelKey;
   selector: Selector<object, unknown>;
 }[] = [

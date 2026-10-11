@@ -1,80 +1,19 @@
-import {
-  OCCURRENCE_EXCEPTION_FEATURE_NAME,
-  occurrenceExceptionReducer,
-} from '../features/routines/store/occurrence-exception.reducer';
-import {
-  EVENT_SERIES_FEATURE_NAME,
-  eventSeriesReducer,
-} from '../features/routines/store/event-series.reducer';
-import {
-  WEEKLY_TEMPLATE_FEATURE_NAME,
-  weeklyTemplateReducer,
-} from '../features/routines/store/weekly-template.reducer';
-import { EVENT_FEATURE_NAME, eventReducer } from '../features/event/store/event.reducer';
-import {
-  PLANNING_FEATURE_NAME,
-  planningReducer,
-} from '../features/planning/store/planning.reducer';
+import { FEATURE_STORE_REDUCERS } from './feature-store-reducers';
 import { NgModule } from '@angular/core';
-import {
-  FOLDER_FEATURE_NAME,
-  folderReducer,
-} from '../features/folder/store/folder.reducer';
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
-import {
-  LAYOUT_FEATURE_NAME,
-  layoutReducer,
-} from '../core-ui/layout/store/layout.reducer';
 import { LayoutEffects } from '../core-ui/layout/store/layout.effects';
-import {
-  CONFIG_FEATURE_NAME,
-  globalConfigReducer,
-} from '../features/config/store/global-config.reducer';
 import { GlobalConfigEffects } from '../features/config/store/global-config.effects';
-import {
-  FOCUS_MODE_FEATURE_KEY,
-  focusModeReducer,
-} from '../features/focus-mode/store/focus-mode.reducer';
-import { IDLE_FEATURE_KEY, idleReducer } from '../features/idle/store/idle.reducer';
 import { IdleEffects } from '../features/idle/store/idle.effects';
-import { issueProvidersFeature } from '../features/issue/store/issue-provider.reducer';
 import { PollToBacklogEffects } from '../features/issue/store/poll-to-backlog.effects';
 import { PollIssueUpdatesEffects } from '../features/issue/store/poll-issue-updates.effects';
-import {
-  METRIC_FEATURE_NAME,
-  metricReducer,
-} from '../features/metric/store/metric.reducer';
-import { NOTE_FEATURE_NAME, noteReducer } from '../features/note/store/note.reducer';
 import { NoteEffects } from '../features/note/store/note.effects';
-import {
-  PROJECT_FEATURE_NAME,
-  projectReducer,
-} from '../features/project/store/project.reducer';
 import { ProjectEffects } from '../features/project/store/project.effects';
-import {
-  menuTreeFeatureKey,
-  menuTreeReducer,
-} from '../features/menu-tree/store/menu-tree.reducer';
-import {
-  SIMPLE_COUNTER_FEATURE_NAME,
-  simpleCounterReducer,
-} from '../features/simple-counter/store/simple-counter.reducer';
 import { SimpleCounterEffects } from '../features/simple-counter/store/simple-counter.effects';
-import {
-  SECTION_FEATURE_NAME,
-  sectionReducer,
-} from '../features/section/store/section.reducer';
-import { TAG_FEATURE_NAME, tagReducer } from '../features/tag/store/tag.reducer';
 import { TagEffects } from '../features/tag/store/tag.effects';
-import {
-  TASK_REPEAT_CFG_FEATURE_NAME,
-  taskRepeatCfgReducer,
-} from '../features/task-repeat-cfg/store/task-repeat-cfg.reducer';
 import { TaskRepeatCfgEffects } from '../features/task-repeat-cfg/store/task-repeat-cfg.effects';
 import { TaskRepeatCleanupEffects } from '../features/task-repeat-cfg/store/task-repeat-cleanup.effects';
 import { TaskDueEffects } from '../features/tasks/store/task-due.effects';
-import { TASK_FEATURE_NAME, taskReducer } from '../features/tasks/store/task.reducer';
 import { TaskInternalEffects } from '../features/tasks/store/task-internal.effects';
 import { TaskRelatedModelEffects } from '../features/tasks/store/task-related-model.effects';
 import { TaskReminderEffects } from '../features/tasks/store/task-reminder.effects';
@@ -82,8 +21,6 @@ import { TaskUiEffects } from '../features/tasks/store/task-ui.effects';
 import { ShortSyntaxEffects } from '../features/tasks/store/short-syntax.effects';
 import { IS_ELECTRON } from '../app.constants';
 import { TaskElectronEffects } from '../features/tasks/store/task-electron.effects';
-import { WORK_CONTEXT_FEATURE_NAME } from '../features/work-context/store/work-context.selectors';
-import { workContextReducer } from '../features/work-context/store/work-context.reducer';
 import { WorkContextEffects } from '../features/work-context/store/work-context.effects';
 import { IS_ANDROID_WEB_VIEW } from '../util/is-android-web-view';
 import { AndroidEffects } from '../features/android/store/android.effects';
@@ -106,87 +43,32 @@ import { OpenProjectEffects } from '../features/issue/providers/open-project/ope
 import { RedmineEffects } from '../features/issue/providers/redmine/redmine.effects';
 import { ReminderCountdownEffects } from '../features/reminder/store/reminder-countdown.effects';
 import { SyncEffects } from '../imex/sync/sync.effects';
-import { boardsFeature } from '../features/boards/store/boards.reducer';
-import { timeTrackingFeature } from '../features/time-tracking/store/time-tracking.reducer';
 import { ArchiveOperationHandlerEffects } from '../op-log/apply/archive-operation-handler.effects';
-import { plannerFeature } from '../features/planner/store/planner.reducer';
 import { PlannerEffects } from '../features/planner/store/planner.effects';
 import { AppStateEffects } from './app-state/app-state.effects';
-import { appStateFeature } from './app-state/app-state.reducer';
 import { PluginHooksEffects } from '../plugins/plugin-hooks.effects';
 import { OperationLogEffects } from '../op-log/capture/operation-log.effects';
 import { IssueTwoWaySyncEffects } from '../features/issue/two-way-sync/issue-two-way-sync.effects';
-import {
-  PLUGIN_USER_DATA_FEATURE_NAME,
-  pluginUserDataReducer,
-} from '../plugins/store/plugin-user-data.reducer';
-import {
-  PLUGIN_METADATA_FEATURE_NAME,
-  pluginMetadataReducer,
-} from '../plugins/store/plugin-metadata.reducer';
-import {
-  REMINDER_FEATURE_NAME,
-  reminderReducer,
-} from '../features/reminder/store/reminder.reducer';
 import { PluginOAuthLifecycleEffects } from '../plugins/oauth/plugin-oauth-lifecycle.effects';
 import { ReducerFailureSnackEffects } from './meta/reducer-failure-snack.effects';
-import {
-  WORK_SESSION_FEATURE_NAME,
-  workSessionReducer,
-} from '../features/work-session/store/work-session.reducer';
 @NgModule({
   declarations: [],
   imports: [
-    StoreModule.forFeature(FOLDER_FEATURE_NAME, folderReducer),
+    ...Object.entries(FEATURE_STORE_REDUCERS).map(([name, reducer]) =>
+      StoreModule.forFeature(name, reducer),
+    ),
     EffectsModule.forFeature([OperationLogEffects, ReducerFailureSnackEffects]),
-
-    StoreModule.forFeature(appStateFeature),
     EffectsModule.forFeature([AppStateEffects]),
-
-    StoreModule.forFeature(LAYOUT_FEATURE_NAME, layoutReducer),
     EffectsModule.forFeature([LayoutEffects]),
-
-    StoreModule.forFeature(CONFIG_FEATURE_NAME, globalConfigReducer),
     EffectsModule.forFeature([GlobalConfigEffects]),
-
-    StoreModule.forFeature(FOCUS_MODE_FEATURE_KEY, focusModeReducer),
     // FocusModeEffects lazy-loaded in main.ts via requestIdleCallback
-
-    StoreModule.forFeature(IDLE_FEATURE_KEY, idleReducer),
     EffectsModule.forFeature([IdleEffects]),
-
-    StoreModule.forFeature(issueProvidersFeature),
     EffectsModule.forFeature([PollToBacklogEffects, PollIssueUpdatesEffects]),
-
-    StoreModule.forFeature(METRIC_FEATURE_NAME, metricReducer),
-
-    StoreModule.forFeature(NOTE_FEATURE_NAME, noteReducer),
     EffectsModule.forFeature([NoteEffects]),
-
-    StoreModule.forFeature(PROJECT_FEATURE_NAME, projectReducer),
     EffectsModule.forFeature([ProjectEffects]),
-
-    StoreModule.forFeature(menuTreeFeatureKey, menuTreeReducer),
-
-    StoreModule.forFeature(SIMPLE_COUNTER_FEATURE_NAME, simpleCounterReducer),
     EffectsModule.forFeature([SimpleCounterEffects]),
-
-    StoreModule.forFeature(SECTION_FEATURE_NAME, sectionReducer),
-
-    StoreModule.forFeature(WORK_SESSION_FEATURE_NAME, workSessionReducer),
-    StoreModule.forFeature(EVENT_FEATURE_NAME, eventReducer),
-    StoreModule.forFeature(OCCURRENCE_EXCEPTION_FEATURE_NAME, occurrenceExceptionReducer),
-    StoreModule.forFeature(EVENT_SERIES_FEATURE_NAME, eventSeriesReducer),
-    StoreModule.forFeature(WEEKLY_TEMPLATE_FEATURE_NAME, weeklyTemplateReducer),
-    StoreModule.forFeature(PLANNING_FEATURE_NAME, planningReducer),
-
-    StoreModule.forFeature(TAG_FEATURE_NAME, tagReducer),
     EffectsModule.forFeature([TagEffects]),
-
-    StoreModule.forFeature(TASK_REPEAT_CFG_FEATURE_NAME, taskRepeatCfgReducer),
     EffectsModule.forFeature([TaskRepeatCfgEffects, TaskRepeatCleanupEffects]),
-
-    StoreModule.forFeature(TASK_FEATURE_NAME, taskReducer),
     EffectsModule.forFeature([
       TaskInternalEffects,
       TaskRelatedModelEffects,
@@ -196,22 +78,9 @@ import {
       TaskDueEffects,
       ...(IS_ELECTRON ? [TaskElectronEffects] : []),
     ]),
-
-    StoreModule.forFeature(WORK_CONTEXT_FEATURE_NAME, workContextReducer),
     EffectsModule.forFeature([WorkContextEffects]),
-
-    StoreModule.forFeature(boardsFeature),
-
-    StoreModule.forFeature(timeTrackingFeature),
     EffectsModule.forFeature([ArchiveOperationHandlerEffects]),
-
-    StoreModule.forFeature(plannerFeature),
     EffectsModule.forFeature([PlannerEffects]),
-
-    StoreModule.forFeature(PLUGIN_USER_DATA_FEATURE_NAME, pluginUserDataReducer),
-    StoreModule.forFeature(PLUGIN_METADATA_FEATURE_NAME, pluginMetadataReducer),
-    StoreModule.forFeature(REMINDER_FEATURE_NAME, reminderReducer),
-
     // EFFECTS ONLY
     EffectsModule.forFeature([
       ...(IS_ANDROID_WEB_VIEW
