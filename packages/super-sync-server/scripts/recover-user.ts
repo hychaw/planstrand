@@ -1,6 +1,10 @@
 import {
   getFullStateRequiredCapabilities,
   getFullStateRequiredEntityTypes,
+  CURRENT_SCHEMA_VERSION,
+  ROUTINES_V1,
+  ENTITY_TYPES,
+  SUPER_SYNC_OP_TYPES,
 } from '@sp/shared-schema';
 /**
  * recover-user.ts — operator data-recovery tool for SuperSync accounts.
@@ -17,9 +21,9 @@ import {
  * delete every copy once recovery is confirmed. The script logs only sequence
  * numbers, timestamps and entity-type counts — never task content, never the key.
  *
- * Encrypted full-state recovery is verified with disposable PostgreSQL data.
- * Folder and Routines operation tails require client replay or a full snapshot;
- * the shared replay engine refuses them rather than exporting incomplete state.
+ * Encrypted snapshot-plus-tail recovery is verified with disposable PostgreSQL data.
+ * Routines tails use the client's exact validated reducers in this dev-checkout
+ * operator process. Server replay and unsupported Folder tails stay fail-closed.
  * See docs/backup-and-recovery.md for the full procedure.
  */
 
@@ -243,6 +247,7 @@ const recover = async (
     select: {
       id: true,
       serverSeq: true,
+      actionType: true,
       opType: true,
       entityType: true,
       entityId: true,
@@ -256,6 +261,29 @@ const recover = async (
   });
   if (ops.length === 0) {
     throw new Error('No operations found at or below the target sequence.');
+  }
+  for (const op of ops) {
+    if (
+      !ENTITY_TYPES.some((type) => type === op.entityType) ||
+      !SUPER_SYNC_OP_TYPES.some((type) => type === op.opType)
+    )
+      throw new Error(`Unsupported operation vocabulary at sequence ${op.serverSeq}`);
+    if (FULL_STATE_OP_TYPES.includes(op.opType) && op.entityType !== 'ALL')
+      throw new Error(`Invalid full-state operation at sequence ${op.serverSeq}`);
+    if (
+      !Number.isSafeInteger(op.schemaVersion) ||
+      op.schemaVersion < 1 ||
+      op.schemaVersion > CURRENT_SCHEMA_VERSION
+    )
+      throw new Error(`Unsupported operation schema version at sequence ${op.serverSeq}`);
+    if (
+      op.opType === 'REPAIR' &&
+      op.repairBaseServerSeq != null &&
+      (!Number.isSafeInteger(op.repairBaseServerSeq) ||
+        op.repairBaseServerSeq < 0 ||
+        op.repairBaseServerSeq >= op.serverSeq)
+    )
+      throw new Error(`Invalid REPAIR causal base at sequence ${op.serverSeq}`);
   }
 
   // Contiguity: a mid-stream gap means lost data. A leading gap (log not
@@ -296,6 +324,7 @@ const recover = async (
   const rows: ReplayOperationRow[] = ops.map((op, i) => ({
     id: op.id,
     serverSeq: op.serverSeq,
+    actionType: op.actionType,
     opType: op.opType,
     entityType: op.entityType,
     entityId: op.entityId,
@@ -307,19 +336,36 @@ const recover = async (
     repairBaseServerSeq: op.repairBaseServerSeq,
   }));
 
-  const state = replayOpsToState(rows);
+  // This supported tool already runs from a dev checkout through ts-node.
+  // Prefer TS source over ignored build leftovers, and load NgRx's JIT compiler
+  // only here; the production server never loads Angular or gains decryption.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('ts-node').register({ transpileOnly: true, preferTsExts: true });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('@angular/compiler');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const routines = require('../../../src/app/features/routines/routines-recovery') as {
+    applyRoutinesRecoveryOperation: (
+      state: Record<string, unknown>,
+      row: ReplayOperationRow,
+    ) => boolean;
+    validateRoutinesRecoveryState: (state: Record<string, unknown>) => void;
+  };
+  const state = replayOpsToState(
+    rows,
+    {},
+    {
+      applyRoutinesOperation: routines.applyRoutinesRecoveryOperation,
+      validateFullState: routines.validateRoutinesRecoveryState,
+    },
+  );
 
   console.log(
     `\nReconstructed state at seq ${targetSeq} ` +
       `(replayed ${rows.length} ops, ${encryptedCount} decrypted):`,
   );
-  for (const [entityType, value] of Object.entries(state)) {
-    if (value && typeof value === 'object') {
-      const map = value as Record<string, unknown>;
-      const count = Array.isArray(map.ids) ? map.ids.length : Object.keys(map).length;
-      console.log(`  ${entityType.padEnd(26)} ~${count}`);
-    }
-  }
+  // State keys are decrypted client input too; only counts belong in logs.
+  console.log(`  State slices: ${Object.keys(state).length}`);
 
   if (dryRun) {
     console.log('\n--dry-run: nothing written. Re-run with --out to save the file.');
@@ -332,6 +378,13 @@ const recover = async (
     ...new Set([
       ...(syncState?.requiredCapabilities ?? []),
       ...ops.flatMap((op) => op.requiredCapabilities),
+      ...(ops.some((op) =>
+        ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(
+          op.entityType,
+        ),
+      )
+        ? [ROUTINES_V1]
+        : []),
       ...getFullStateRequiredCapabilities(state),
     ]),
   ];

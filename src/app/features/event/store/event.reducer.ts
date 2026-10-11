@@ -2,7 +2,7 @@ import { createEntityAdapter } from '@ngrx/entity';
 import { createReducer, on } from '@ngrx/store';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { isValidEntityId } from '../../../op-log/validation/is-valid-entity-id';
-import { isValidIanaTimeZone } from '../../../util/iana-time-zone';
+import { isValidIanaTimeZone } from '../../../util/is-valid-iana-time-zone';
 import { isValidDBDateStr } from '../../../util/get-db-date-str';
 import { EventState, LocalEvent } from '../event.model';
 import { addEvent, updateEvent, removeEvent } from './event.actions';

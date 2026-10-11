@@ -137,6 +137,7 @@ export class RoutinesReplayUnsupportedError extends Error {
 export type ReplayOperationRow = {
   id: string;
   serverSeq: number;
+  actionType?: string;
   opType: string;
   entityType: string;
   entityId: string | null;
@@ -179,6 +180,13 @@ export const assertContiguousReplayBatch = (
 export const replayOpsToState = (
   ops: ReplayOperationRow[],
   initialState: Record<string, unknown> = {},
+  operatorReplay?: {
+    applyRoutinesOperation: (
+      state: Record<string, unknown>,
+      row: ReplayOperationRow,
+    ) => boolean;
+    validateFullState: (state: Record<string, unknown>) => void;
+  },
 ): Record<string, unknown> => {
   const state = { ...(initialState as Record<string, Record<string, unknown>>) };
   let estimatedBytes = Object.keys(state).length === 0 ? 2 : assertReplayStateSize(state);
@@ -197,7 +205,10 @@ export const replayOpsToState = (
 
     if (row.entityType === 'FOLDER') throw new FolderReplayUnsupportedError();
     if (
-      ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(row.entityType)
+      ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(
+        row.entityType,
+      ) &&
+      !operatorReplay
     )
       throw new RoutinesReplayUnsupportedError();
 
@@ -291,7 +302,7 @@ export const replayOpsToState = (
         // A malformed full-state op (null/primitive payload) would silently
         // wipe state if we cleared first. Refuse to replay it — a corrupt
         // SYNC_IMPORT is invariant-breaking, not a no-op.
-        if (!fullState || typeof fullState !== 'object') {
+        if (!fullState || typeof fullState !== 'object' || Array.isArray(fullState)) {
           throw new Error(
             `SNAPSHOT_REPLAY_INCOMPLETE: ${processOpType} op ${row.id} has non-object payload`,
           );
@@ -310,10 +321,31 @@ export const replayOpsToState = (
           if (isUnsafeEntityKey(key)) continue;
           state[key] = fullStateRecord[key] as Record<string, unknown>;
         }
+        operatorReplay?.validateFullState(state);
         forceStateSizeMeasurement = true;
         if (opSchemaVersion >= 5) hasSchema5Authority = true;
         continue;
       }
+      if (
+        operatorReplay?.applyRoutinesOperation(state, {
+          ...row,
+          opType: processOpType,
+          entityType: processEntityType,
+          entityId: processEntityId,
+          payload: processPayload,
+        })
+      ) {
+        // Normalized slices also grow ids arrays; measure their full size rather
+        // than relying on the generic entity-map overhead estimate.
+        forceStateSizeMeasurement = true;
+        continue;
+      }
+      if (
+        ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(
+          processEntityType,
+        )
+      )
+        throw new RoutinesReplayUnsupportedError();
 
       if (
         applyPlanningReplay(

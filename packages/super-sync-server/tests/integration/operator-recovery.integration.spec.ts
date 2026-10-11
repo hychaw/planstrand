@@ -22,15 +22,48 @@ describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () =
     },
     eventSeries: {
       ids: ['series'],
-      entities: { series: { id: 'series', deletedAt: 10 } },
+      entities: {
+        series: {
+          id: 'series',
+          title: 'Series',
+          created: 1,
+          modified: 10,
+          deletedAt: 10,
+          segments: [
+            {
+              id: 'first',
+              recurrence: { frequency: 'daily', interval: 1, startDate: '2026-01-01' },
+              timing: { kind: 'allDay' },
+            },
+          ],
+        },
+      },
     },
     occurrenceException: {
-      ids: ['exception'],
-      entities: { exception: { id: 'exception', seriesId: 'series', slot: 1 } },
+      ids: ['occurrenceException:["series",1]'],
+      entities: {
+        'occurrenceException:["series",1]': {
+          id: 'occurrenceException:["series",1]',
+          seriesId: 'series',
+          slot: 1,
+          value: { kind: 'cancelled' },
+          modified: 10,
+        },
+      },
     },
     weeklyTemplate: {
       ids: ['template'],
-      entities: { template: { id: 'template', deletedAt: 10 } },
+      entities: {
+        template: {
+          id: 'template',
+          title: 'Template',
+          isActive: false,
+          startDate: '2026-01-01',
+          created: 1,
+          modified: 10,
+          deletedAt: 10,
+        },
+      },
     },
   };
   const run = (seq: number, name: string, key = password) => {
@@ -114,7 +147,7 @@ describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () =
     expect(result.stderr).toContain('before target 2');
     expect(existsSync(result.out)).toBe(false);
   });
-  it('refuses a Routines tail instead of returning a successful incomplete state', async () => {
+  it('refuses a malformed Routines tail instead of returning a successful incomplete state', async () => {
     await prisma.operation.create({
       data: {
         id: randomUUID(),
@@ -139,7 +172,7 @@ describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () =
     });
     const result = run(2, 'routines-tail');
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('ROUTINES_REPLAY_UNSUPPORTED');
+    expect(result.stderr).toContain('RECOVERY_INVALID_ROUTINES_OPERATION');
     expect(existsSync(result.out)).toBe(false);
   });
   it('preserves batch entity IDs and causal REPAIR metadata during decryption', async () => {

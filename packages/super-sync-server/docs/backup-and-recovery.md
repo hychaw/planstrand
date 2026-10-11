@@ -215,20 +215,30 @@ to a chosen `serverSeq`, decrypting encrypted payloads with the user's
 passphrase, and writes an importable `AppDataComplete` JSON file. It is
 **read-only** on the database.
 
-Encrypted full-state recovery has been executed against disposable PostgreSQL
-data, including Routines series, exceptions, templates, terminal tombstones and
-durable capability requirements. Wrong/missing keys and incomplete sequence
-ranges fail without writing an output. Causal REPAIR metadata and batch entity
-IDs are retained during decryption.
+Encrypted snapshot-plus-tail recovery has been executed against disposable
+PostgreSQL data, including Routines schedule edits/splits, exceptions, templates,
+compensation values, terminal tombstones and durable capability requirements.
+The operator CLI uses the **actual client Routines reducers and shared payload
+validators** after decryption; it does not project Calendar occurrences or create
+Tasks, WorkSessions or Planning memberships. The same capability floor remains
+in the protected output even after full-state replacement removes all Routines.
 
-**Routines operation-tail recovery remains unsupported.** The generic server
-replayer cannot reproduce the client's whole-value ordering and terminal-delete
-semantics. It refuses these tails with `ROUTINES_REPLAY_UNSUPPORTED`, just as it
-refuses Folder tails, rather than writing an apparently successful incomplete
-backup. Use client replay or a complete retained full-state recovery point.
-An earlier unsupported tail in the selected range is also refused, even if a
-later snapshot exists. Compare persisted records after importing into a fresh
-supported client before relying on a recovered export.
+Run from a full development checkout with **Node 22.18+ and installed root dev
+dependencies**, using the existing ts-node command below. NgRx's Angular compiler
+is loaded only in this operator process. The production server still cannot
+decrypt payloads and still refuses generic Routines replay with
+`ROUTINES_REPLAY_UNSUPPORTED`; no key or client runtime is loaded by server routes.
+
+Missing/wrong keys, authenticated-ciphertext tampering, malformed/unsupported
+Routines operations, unknown schema versions and incomplete sequence ranges fail
+without writing a new output. Causal REPAIR metadata and batch entity IDs remain
+intact. Routines multi-entity batch actions are not part of the V1.2 vocabulary;
+unrecognized batch footprints/envelopes are refused instead of partially applied.
+Folder tails and markerless REPAIR remain explicitly unsupported. An unsupported
+operation earlier in the selected range still prevents recovery, even if a later
+snapshot exists. Compare persisted records after importing into a fresh supported
+client before relying on a recovered export. See
+[Phase 5b.3 validation](../../../docs/routines-phase-5b3.md).
 
 **1. Inspect** — find the cutoff sequence (no encryption key needed):
 

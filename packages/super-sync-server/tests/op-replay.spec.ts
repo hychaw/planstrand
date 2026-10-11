@@ -31,6 +31,25 @@ const row = (overrides: Partial<ReplayOperationRow>): ReplayOperationRow => ({
 });
 
 describe('op replay', () => {
+  it('never falls through to generic maps when an operator adapter declines a Routines operation', () => {
+    expect(() =>
+      replayOpsToState(
+        [row({ entityType: 'EVENT_SERIES' })],
+        {},
+        {
+          applyRoutinesOperation: () => false,
+          validateFullState: () => {},
+        },
+      ),
+    ).toThrow(RoutinesReplayUnsupportedError);
+  });
+  it('refuses an array masquerading as a full-state snapshot', () => {
+    expect(() =>
+      replayOpsToState([
+        row({ opType: 'BACKUP_IMPORT', entityType: 'ALL', payload: [] }),
+      ]),
+    ).toThrow('non-object payload');
+  });
   for (const entityType of ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE']) {
     it(`refuses ${entityType} tail reconstruction without mutating a full snapshot`, () => {
       const snapshot = {

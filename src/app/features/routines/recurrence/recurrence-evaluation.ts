@@ -1,5 +1,5 @@
 import { isValidDBDateStr } from '../../../util/get-db-date-str';
-import { isValidIanaTimeZone } from '../../../util/iana-time-zone';
+import { isValidIanaTimeZone } from '../../../util/is-valid-iana-time-zone';
 import { RecurrenceCandidate } from './recurrence-candidates';
 
 export type RecurrenceTiming =
