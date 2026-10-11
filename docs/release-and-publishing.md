@@ -12,6 +12,10 @@ Electron publishing is disabled in [electron-builder.yaml](../electron-builder.y
 
 ## Build and validation
 
+The candidate being prepared is **V1.2.0 RC1**; see the
+[release notes and production deployment checklist](releases/v1.2.0-rc.1.md).
+It is not published. The public V1.1 download links remain current until publication.
+
 For V1.2 RC1, use the [final readiness requirement and result](routines-rc1-final-readiness.md)
 and complete the [independent pre-upgrade backup/restore rehearsal](v1.2-backup-restore.md).
 Complete backup restoration is required; encrypted operator tail reconstruction

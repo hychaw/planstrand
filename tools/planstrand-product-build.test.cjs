@@ -7,7 +7,7 @@ const config = require('./planstrand-product-build.cjs');
 test('desktop metadata uses the product version without changing compatibility semver', async () => {
   const { getConfig } = require('app-builder-lib/out/util/config/config');
   const merged = await getConfig(path.join(__dirname, '..'), undefined, undefined);
-  assert.equal(product.version, '1.1.0-rc.1');
+  assert.equal(product.version, '1.2.0-rc.1');
   assert.equal(merged.extraMetadata.version, product.version);
   assert.equal(merged.buildVersion, config.buildVersion);
   assert.match(merged.buildVersion, /^\d+\.\d+\.\d+$/);
