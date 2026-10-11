@@ -1,5 +1,11 @@
 # Scoped production recovery workflow comparison
 
+**RC1 contract update, October 11:** the supported-data tail-recovery gate below
+is superseded by the explicitly narrowed [final RC1 requirement](routines-rc1-final-readiness.md).
+Verified complete backup/snapshot restoration is required; universal encrypted
+tail replay is not promised. The unsupported vocabulary below remains current
+and refused. No recovery safety guard or operation admission changes with this decision.
+
 Starting revision: `751af9172690d7cd73373ffaeddc989136a7ae6b` on
 `feature/v1.2-routines`. This comparison covers current persistent producers and
 the operator admission boundary; it does not reinterpret historical formats.

@@ -1,5 +1,15 @@
 # Routines Phase 6a — RC1 release readiness
 
+**October 11 final RC1 requirement supersedes the broader recovery gate below:**
+RC1 requires verified complete backup/snapshot restoration and usable independent
+pre-upgrade backups. Encrypted operator operation-tail reconstruction is a limited,
+fail-closed incident tool, not a guarantee for every supported application history.
+Current reachable unsupported operations are accepted release limitations under
+this explicitly narrowed requirement; they do not require additional replay work.
+See [the final readiness report](routines-rc1-final-readiness.md) and
+[pre-upgrade backup/restore procedure](v1.2-backup-restore.md). Earlier NO-GO/P1
+findings below record the former requirement and are historical.
+
 **Phase 6a.2 follow-up:** supported Task/Event recovery remains **P1 / unresolved**.
 Real encrypted CLI diagnostics also exposed successful but incomplete Task create
 and delete results (missing initial Planning; stale project membership). The

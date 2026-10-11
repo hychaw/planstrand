@@ -12,6 +12,11 @@ Electron publishing is disabled in [electron-builder.yaml](../electron-builder.y
 
 ## Build and validation
 
+For V1.2 RC1, use the [final readiness requirement and result](routines-rc1-final-readiness.md)
+and complete the [independent pre-upgrade backup/restore rehearsal](v1.2-backup-restore.md).
+Complete backup restoration is required; encrypted operator tail reconstruction
+is limited to admitted histories and is not a universal recovery guarantee.
+
 ```sh
 npm ci
 node --test tools/verify-planstrand-release.test.cjs tools/verify-windows-artifact-contract.test.js tools/verify-linux-wm-class.test.js

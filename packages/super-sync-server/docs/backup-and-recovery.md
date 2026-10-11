@@ -4,7 +4,35 @@
 
 Super Productivity uses an append-only operation log for sync. Every client (desktop, mobile, web) keeps a full copy of its data in local IndexedDB. The server is a relay — **clients are the source of truth**, not the server.
 
-This means disaster recovery is simpler than in a traditional server-authoritative system: as long as one client device survives, all data can be recovered.
+A surviving client is useful only if its copy is verified complete and current.
+A stale or already overwritten client cannot recover missing data merely by syncing.
+
+## Planstrand V1.2 RC1 recovery guarantee
+
+RC1 guarantees the verified complete backup/snapshot restore path, subject to
+having a valid compatible backup and any required encryption key. It does not
+guarantee encrypted operation-tail reconstruction for arbitrary supported app
+usage. Follow the [independent pre-upgrade backup and restore procedure](../../../docs/v1.2-backup-restore.md)
+before upgrading; a local profile, sync replica or rotating recovery ring alone
+is not an independent backup.
+
+The operator CLI below is a limited fail-closed incident tool. Scheduled Task
+creation, other Task lifecycle/deadline/short-syntax actions, Project lifecycle,
+ordering and advanced settings, configuration, Tag creation/deletion, Notes,
+Sections, time tracking and plugin data can produce unsupported histories today.
+Markerless REPAIR, insufficient source context, unsupported compensation,
+unknown formats and missing sequence ranges also prevent reconstruction. A later
+snapshot does not authorize skipping an unsupported retained prefix. A complete
+independently exported backup can instead be restored through the client without
+replaying that server history; an arbitrary server snapshot is not automatically
+an admissible CLI base.
+
+If no verified complete copy/backup remains and the retained history is refused,
+some or all data may be unrecoverable. Restoring an older backup loses subsequent
+changes unless separately reconciled from verified copies. Preserve original
+profiles, database and files for incident work. Never skip rows, forge replay
+context, change encryption flags, weaken validation or clear capability floors
+to manufacture success. This release-scope decision changes no recovery guard.
 
 ## What the Backup Protects
 
@@ -65,7 +93,9 @@ RCLONE_REMOTE=b2:my-bucket/supersync ./scripts/backup.sh --upload
 
 ### Recommended: Accounts-Only Restore
 
-This is the simplest and most reliable recovery method when at least one client device has been online recently.
+Use only with a verified complete client copy and an empty, migrated destination
+database. Recent online activity alone does not establish completeness. Keep
+other clients offline until the selected source and fresh-client result are verified.
 
 **How it works:**
 
@@ -289,7 +319,8 @@ Unsupported or malformed history earlier in the retained range still prevents
 recovery despite a later snapshot. Use a complete supported client backup when
 available; preserve an isolated database copy for unresolved incident recovery
 rather than skipping rows. See [Phase 6a.2](../../../docs/routines-phase-6a2.md)
-for the confirmed blocker and safety regression evidence. Operator recovery is
+for the historical broader gate and safety regression evidence; the RC1 contract
+above explicitly accepts these limitations. Operator recovery is
 **not complete for all supported application operations**.
 
 Current reachable refusals still include scheduled Task creation, other Task
