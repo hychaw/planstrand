@@ -17,8 +17,10 @@ import {
  * delete every copy once recovery is confirmed. The script logs only sequence
  * numbers, timestamps and entity-type counts — never task content, never the key.
  *
- * Status: UNVERIFIED against real encrypted data — test against a known account
- * first. See docs/backup-and-recovery.md for the full procedure.
+ * Encrypted full-state recovery is verified with disposable PostgreSQL data.
+ * Folder and Routines operation tails require client replay or a full snapshot;
+ * the shared replay engine refuses them rather than exporting incomplete state.
+ * See docs/backup-and-recovery.md for the full procedure.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -244,10 +246,12 @@ const recover = async (
       opType: true,
       entityType: true,
       entityId: true,
+      entityIds: true,
       payload: true,
       schemaVersion: true,
       isPayloadEncrypted: true,
       requiredCapabilities: true,
+      repairBaseServerSeq: true,
     },
   });
   if (ops.length === 0) {
@@ -272,6 +276,12 @@ const recover = async (
       );
     }
   }
+  if (ops[ops.length - 1].serverSeq !== targetSeq) {
+    throw new Error(
+      `Operation log ends at seq ${ops[ops.length - 1].serverSeq}, before target ` +
+        `${targetSeq}. Operations are missing; recovery would be incomplete.`,
+    );
+  }
 
   const encryptedCount = ops.filter((o) => o.isPayloadEncrypted).length;
   if (encryptedCount > 0 && !key) {
@@ -289,10 +299,12 @@ const recover = async (
     opType: op.opType,
     entityType: op.entityType,
     entityId: op.entityId,
+    entityIds: op.entityIds,
     payload: decryptedByIndex.has(i) ? decryptedByIndex.get(i) : op.payload,
     schemaVersion: op.schemaVersion,
     // Payloads are plaintext at this point — replay rejects encrypted rows.
     isPayloadEncrypted: false,
+    repairBaseServerSeq: op.repairBaseServerSeq,
   }));
 
   const state = replayOpsToState(rows);

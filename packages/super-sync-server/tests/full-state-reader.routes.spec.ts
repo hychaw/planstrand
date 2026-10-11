@@ -21,6 +21,7 @@ vi.mock('../src/middleware', () => ({
 }));
 vi.mock('../src/sync/sync.service', () => ({ getSyncService: () => mocks.service }));
 import { syncRoutes } from '../src/sync/sync.routes';
+import { RoutinesReplayUnsupportedError } from '../src/sync/op-replay';
 const encrypted = {
   serverSeq: 8,
   receivedAt: 100,
@@ -58,6 +59,17 @@ describe('Server full-state reader fence through HTTP', () => {
   });
   afterEach(async () => {
     await app.close();
+  });
+  it('reports unsupported Routines restore replay without returning partial state', async () => {
+    mocks.prisma.$queryRaw.mockResolvedValue([]);
+    mocks.prisma.operation.findUnique.mockResolvedValue(null);
+    mocks.service.generateSnapshotAtSeq.mockRejectedValue(
+      new RoutinesReplayUnsupportedError(),
+    );
+    const response = await app.inject('/api/sync/restore/8');
+    expect(response.statusCode).toBe(400);
+    expect(response.json().errorCode).toBe('ROUTINES_REPLAY_UNSUPPORTED');
+    expect(response.json().state).toBeUndefined();
   });
   it('blocks a Folder-only reader before delivery when the tail requires ownership semantics', async () => {
     mocks.prisma.$queryRaw.mockImplementation(async (query) =>

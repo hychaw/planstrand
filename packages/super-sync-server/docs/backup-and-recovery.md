@@ -215,11 +215,20 @@ to a chosen `serverSeq`, decrypting encrypted payloads with the user's
 passphrase, and writes an importable `AppDataComplete` JSON file. It is
 **read-only** on the database.
 
-> **Status: unverified against real encrypted data.** The script lints, builds,
-> and its module graph loads, but it has not been run end-to-end against an
-> actual encrypted account. Before relying on it in an incident, verify it
-> against a known account (e.g. your own): recover at the latest seq and confirm
-> the entity counts match the live app.
+Encrypted full-state recovery has been executed against disposable PostgreSQL
+data, including Routines series, exceptions, templates, terminal tombstones and
+durable capability requirements. Wrong/missing keys and incomplete sequence
+ranges fail without writing an output. Causal REPAIR metadata and batch entity
+IDs are retained during decryption.
+
+**Routines operation-tail recovery remains unsupported.** The generic server
+replayer cannot reproduce the client's whole-value ordering and terminal-delete
+semantics. It refuses these tails with `ROUTINES_REPLAY_UNSUPPORTED`, just as it
+refuses Folder tails, rather than writing an apparently successful incomplete
+backup. Use client replay or a complete retained full-state recovery point.
+An earlier unsupported tail in the selected range is also refused, even if a
+later snapshot exists. Compare persisted records after importing into a fresh
+supported client before relying on a recovered export.
 
 **1. Inspect** — find the cutoff sequence (no encryption key needed):
 

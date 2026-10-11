@@ -5,7 +5,10 @@ import {
   SuperSyncDownloadOpsQuerySchema,
 } from '@sp/shared-schema';
 import { authenticate, getAuthUser } from '../middleware';
-import { FolderReplayUnsupportedError } from './op-replay';
+import {
+  FolderReplayUnsupportedError,
+  RoutinesReplayUnsupportedError,
+} from './op-replay';
 import { assertFullStateReader } from './full-state-reader-gate';
 import {
   supportsRequiredEntityTypes,
@@ -496,6 +499,11 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
           return reply
             .status(400)
             .send({ error: err.message, errorCode: 'FOLDER_REPLAY_UNSUPPORTED' });
+        }
+        if (err instanceof RoutinesReplayUnsupportedError) {
+          return reply
+            .status(400)
+            .send({ error: err.message, errorCode: 'ROUTINES_REPLAY_UNSUPPORTED' });
         }
         // Handle encrypted ops error - this is a known limitation, not a server error
         if (err instanceof EncryptedOpsNotSupportedError) {

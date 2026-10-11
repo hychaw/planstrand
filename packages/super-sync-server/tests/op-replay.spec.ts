@@ -10,6 +10,7 @@ import {
   assertReplayStateSize,
   EncryptedOpsNotSupportedError,
   FolderReplayUnsupportedError,
+  RoutinesReplayUnsupportedError,
   LegacyRepairReplayUnsupportedError,
   LegacyFullStateAfterCutoverError,
   MAX_REPLAY_STATE_SIZE_BYTES,
@@ -30,6 +31,29 @@ const row = (overrides: Partial<ReplayOperationRow>): ReplayOperationRow => ({
 });
 
 describe('op replay', () => {
+  for (const entityType of ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE']) {
+    it(`refuses ${entityType} tail reconstruction without mutating a full snapshot`, () => {
+      const snapshot = {
+        eventSeries: { ids: ['series'], entities: { series: { id: 'series' } } },
+        occurrenceException: { ids: [], entities: {} },
+        weeklyTemplate: { ids: [], entities: {} },
+      };
+      const initial = structuredClone(snapshot);
+      expect(() =>
+        replayOpsToState(
+          [row({ entityType, payload: { actionPayload: { id: 'series' } } })],
+          snapshot,
+        ),
+      ).toThrow(RoutinesReplayUnsupportedError);
+      expect(snapshot).toEqual(initial);
+      expect(
+        replayOpsToState([
+          row({ opType: 'SYNC_IMPORT', entityType: 'ALL', payload: snapshot }),
+        ]),
+      ).toEqual(snapshot);
+    });
+  }
+
   it('preserves Folder in full-state round trips but refuses generic Folder tail reconstruction', () => {
     const folder = {
       ids: ['INBOX_FOLDER', 'user'],

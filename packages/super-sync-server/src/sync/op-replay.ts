@@ -124,6 +124,16 @@ export class FolderReplayUnsupportedError extends Error {
   }
 }
 
+/** Routines tails require the client's whole-value and terminal-delete semantics. */
+export class RoutinesReplayUnsupportedError extends Error {
+  constructor() {
+    super(
+      'ROUTINES_REPLAY_UNSUPPORTED: Routines history requires client replay or an uploaded full snapshot.',
+    );
+    this.name = 'RoutinesReplayUnsupportedError';
+  }
+}
+
 export type ReplayOperationRow = {
   id: string;
   serverSeq: number;
@@ -186,6 +196,10 @@ export const replayOpsToState = (
     }
 
     if (row.entityType === 'FOLDER') throw new FolderReplayUnsupportedError();
+    if (
+      ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(row.entityType)
+    )
+      throw new RoutinesReplayUnsupportedError();
 
     // Server cannot decrypt E2E payloads. Snapshot callers reject encrypted
     // ranges upfront; this guard prevents accidental partial replays.
