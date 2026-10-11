@@ -8,6 +8,10 @@ import { Update } from '@ngrx/entity';
 import { RoundTimeOption } from '../project/project.model';
 import { ArchiveService } from './archive.service';
 import { of } from 'rxjs';
+import {
+  appStateFeature,
+  appStateInitialState,
+} from '../../root-store/app-state/app-state.reducer';
 import { LockService } from '../../op-log/sync/lock.service';
 
 class TestLockService {
@@ -82,13 +86,20 @@ describe('TaskArchiveService', () => {
 
   beforeEach(() => {
     storeMock = jasmine.createSpyObj<Store>('Store', ['dispatch', 'select']);
-    storeMock.select.and.returnValue(of({ project: {}, tag: {} }));
+    storeMock.select.and.callFake((selector: unknown) =>
+      of(
+        selector === appStateFeature.selectAppStateState
+          ? appStateInitialState
+          : { project: {}, tag: {} },
+      ),
+    );
 
     archiveDbAdapterMock = jasmine.createSpyObj<ArchiveDbAdapter>('ArchiveDbAdapter', [
       'loadArchiveYoung',
       'saveArchiveYoung',
       'loadArchiveOld',
       'saveArchiveOld',
+      'saveArchivesAtomic',
     ]);
     archiveDbAdapterMock.loadArchiveYoung.and.returnValue(
       Promise.resolve(createMockArchiveModel([])),
@@ -139,6 +150,10 @@ describe('TaskArchiveService', () => {
           await firstSaveGate;
         }
         archiveYoung = nextArchive;
+      });
+
+      archiveDbAdapterMock.saveArchivesAtomic.and.callFake(async (young) => {
+        archiveYoung = young;
       });
 
       const updatePromise = service.updateTask('existing', { title: 'Updated' });
@@ -429,8 +444,11 @@ describe('TaskArchiveService', () => {
       await service.updateTask('task1', { title: 'Updated' });
 
       expect(storeMock.dispatch).toHaveBeenCalledWith(
-        TaskSharedActions.updateTask({
-          task: { id: 'task1', changes: { title: 'Updated' } },
+        jasmine.objectContaining({
+          ...TaskSharedActions.updateTask({
+            task: { id: 'task1', changes: { title: 'Updated' } },
+          }),
+          meta: jasmine.objectContaining({ taskReplayContext: jasmine.any(Object) }),
         }),
       );
     });
@@ -461,14 +479,29 @@ describe('TaskArchiveService', () => {
       await service.updateTask('task1', { title: 'Updated' });
 
       expect(storeMock.dispatch).toHaveBeenCalledWith(
-        TaskSharedActions.updateTask({
-          task: { id: 'task1', changes: { title: 'Updated' } },
+        jasmine.objectContaining({
+          ...TaskSharedActions.updateTask({
+            task: { id: 'task1', changes: { title: 'Updated' } },
+          }),
+          meta: jasmine.objectContaining({ taskReplayContext: jasmine.any(Object) }),
         }),
       );
     });
   });
 
   describe('updateTasks', () => {
+    it('rejects duplicate context members before changing persisted archives', async () => {
+      await expectAsync(
+        service.updateTasks([
+          { id: 'task1', changes: { title: 'First' } },
+          { id: 'task1', changes: { title: 'Second' } },
+        ]),
+      ).toBeRejectedWithError('Duplicate archived Task update');
+      expect(archiveDbAdapterMock.saveArchiveYoung).not.toHaveBeenCalled();
+      expect(archiveDbAdapterMock.saveArchiveOld).not.toHaveBeenCalled();
+      expect(storeMock.dispatch).not.toHaveBeenCalled();
+    });
+
     it('should update multiple tasks across young and old archives', async () => {
       const youngTask1 = createMockTask('young1', { title: 'Young 1' });
       const youngTask2 = createMockTask('young2', { title: 'Young 2' });
@@ -519,11 +552,19 @@ describe('TaskArchiveService', () => {
       // This is critical for performance - prevents 470 operations for repeating task updates
       expect(storeMock.dispatch).toHaveBeenCalledTimes(1);
       expect(storeMock.dispatch).toHaveBeenCalledWith(
-        TaskSharedActions.updateTasks({
-          tasks: [
-            { id: 'task1', changes: { title: 'Updated 1' } },
-            { id: 'task2', changes: { title: 'Updated 2' } },
-          ],
+        jasmine.objectContaining({
+          ...TaskSharedActions.updateTasks({
+            tasks: [
+              { id: 'task1', changes: { title: 'Updated 1' } },
+              { id: 'task2', changes: { title: 'Updated 2' } },
+            ],
+          }),
+          meta: jasmine.objectContaining({
+            taskReplayContexts: {
+              task1: jasmine.any(Object),
+              task2: jasmine.any(Object),
+            },
+          }),
         }),
       );
     });

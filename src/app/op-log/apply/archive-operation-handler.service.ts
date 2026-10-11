@@ -272,6 +272,9 @@ export class ArchiveOperationHandler implements ArchiveSideEffectPort<Persistent
     await taskArchiveService.updateTask(id as string, changes, {
       isSkipDispatch: true,
       isIgnoreDBLock: true,
+      ...(action.meta.taskReplayContext
+        ? { taskReplayContext: action.meta.taskReplayContext }
+        : {}),
     });
   }
 
@@ -306,6 +309,9 @@ export class ArchiveOperationHandler implements ArchiveSideEffectPort<Persistent
       await taskArchiveService.updateTasks(archiveUpdates, {
         isSkipDispatch: true,
         isIgnoreDBLock: true,
+        ...(action.meta.taskReplayContexts
+          ? { taskReplayContexts: action.meta.taskReplayContexts }
+          : {}),
       });
     }
   }

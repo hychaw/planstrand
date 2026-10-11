@@ -18,7 +18,10 @@ import { applyClearedFields } from '../../util/cleared-update-fields';
 import { PLANNING_V1, isPlanningRecord, ARCHIVE_COMMAND_V1 } from '@sp/shared-schema';
 import { assertArchiveCommand } from '../../features/archive/archive-command';
 import type { TaskWithSubTasks } from '../../features/tasks/task.model';
-import { getOperationTaskReplayContext } from '../core/task-replay-context';
+import {
+  getOperationTaskReplayContext,
+  getOperationTaskReplayContexts,
+} from '../core/task-replay-context';
 import { isMaterializingLegacyState } from '../persistence/schema-migration.service';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -301,7 +304,10 @@ export const convertOpToAction = (
 ): PersistentAction => {
   // Resolve any aliased action types to their current names
   const actionType = ACTION_TYPE_ALIASES[op.actionType] ?? op.actionType;
-  const taskReplayContext = getOperationTaskReplayContext({ ...op, actionType });
+  const taskReplayContexts = getOperationTaskReplayContexts({ ...op, actionType });
+  const taskReplayContext = taskReplayContexts
+    ? undefined
+    : getOperationTaskReplayContext({ ...op, actionType });
   const lwwEntityType = getLwwEntityType(actionType);
 
   // Handle full-state operations (SYNC_IMPORT, BACKUP_IMPORT, Repair) specially
@@ -484,6 +490,7 @@ export const convertOpToAction = (
       opType: op.opType,
       isRemote: true, // Important to prevent re-logging during replay/sync
       ...(taskReplayContext ? { taskReplayContext } : {}),
+      ...(taskReplayContexts ? { taskReplayContexts } : {}),
       ...(lwwPayload ? { lwwUpdateMode: lwwPayload.lwwUpdateMode } : {}),
       ...(lwwPayload?.recreatesEntityAfterDelete === true
         ? { recreatesEntityAfterDelete: true }

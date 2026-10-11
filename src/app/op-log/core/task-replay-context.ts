@@ -2,8 +2,11 @@ import { Action } from '@ngrx/store';
 import { TASK_REPLAY_CONTEXT_V1 } from '@sp/shared-schema';
 import { AppState } from '../../root-store/app-state/app-state.reducer';
 import { getDbDateStr, isValidDBDateStr } from '../../util/get-db-date-str';
+import { isValidEntityId } from '../validation/is-valid-entity-id';
 import { ActionType } from './action-types.enum';
 import type { PersistentAction } from './persistent-action.interface';
+
+export type TaskReplayContexts = Record<string, TaskReplayContext>;
 
 /** Source mutation values; the operation's ordering timestamp remains independent. */
 export interface TaskReplayContext {
@@ -77,13 +80,19 @@ export const prepareTaskReplayAction = <A extends Action>(
   if (original.type !== ActionType.TASK_SHARED_UPDATE) return original;
   const action = original as unknown as PersistentAction;
   const changes = action.task.changes;
-  const context = captureTaskReplayContext(state?.appState);
+  // Archive mutations prepare their action before I/O and dispatch the same
+  // context afterwards. Never resample it at that later capture boundary.
+  const supplied = readTaskReplayContext(action.meta?.taskReplayContext);
+  const context = supplied ?? captureTaskReplayContext(state?.appState);
   const timestamp = context.modified!;
-  if (changes.isDone === true)
+  if (changes.isDone === true && !supplied)
     context.completionDay = getDbDateStr(
       typeof changes.doneOn === 'number' ? changes.doneOn : timestamp,
     );
   assertTaskReplayContext(context);
+  if (context.modified === null) throw new Error('Missing source Task update timestamp');
+  if (changes.isDone === true && !context.completionDay)
+    throw new Error('Missing source Task completion day');
   return {
     ...original,
     task: {
@@ -105,12 +114,77 @@ export const readTaskReplayContext = (value: unknown): TaskReplayContext | undef
   return value;
 };
 
-export const getOperationTaskReplayContext = (op: {
+interface TaskContextOperation {
   actionType: string;
   entityType?: string;
   payload: unknown;
   requiredCapabilities?: string[];
-}): TaskReplayContext | undefined => {
+  entityId?: string;
+}
+
+/** Each batch member keeps its own source calendar/completion values. */
+export const getOperationTaskReplayContexts = (
+  op: TaskContextOperation,
+): TaskReplayContexts | undefined => {
+  const outer = op.payload as {
+    taskReplayContext?: unknown;
+    actionPayload?: { tasks?: unknown };
+    tasks?: unknown;
+  } | null;
+  const contexts = outer?.taskReplayContext;
+  if (op.actionType !== ActionType.TASK_SHARED_UPDATE_MULTIPLE) return undefined;
+  if (
+    contexts === undefined &&
+    !op.requiredCapabilities?.includes(TASK_REPLAY_CONTEXT_V1)
+  )
+    return undefined;
+  const tasks = (outer?.actionPayload ?? outer)?.tasks;
+  if (
+    op.entityType !== 'TASK' ||
+    !op.requiredCapabilities?.includes(TASK_REPLAY_CONTEXT_V1) ||
+    !contexts ||
+    typeof contexts !== 'object' ||
+    Array.isArray(contexts) ||
+    !Array.isArray(tasks) ||
+    !tasks.length
+  )
+    throw new Error('Invalid batch Task replay context');
+  const ids = new Set<string>();
+  for (const task of tasks) {
+    if (
+      !task ||
+      !isValidEntityId(task.id) ||
+      ids.has(task.id) ||
+      !task.changes ||
+      typeof task.changes !== 'object' ||
+      Array.isArray(task.changes) ||
+      !Object.hasOwn(contexts, task.id)
+    )
+      throw new Error('Invalid batch Task replay context footprint');
+    ids.add(task.id);
+    const context = (contexts as TaskReplayContexts)[task.id];
+    assertTaskReplayContext(context);
+    if (
+      context.modified === null ||
+      (task.changes.isDone === true && !context.completionDay)
+    )
+      throw new Error('Missing source batch Task mutation values');
+  }
+  if (Object.keys(contexts).length !== ids.size)
+    throw new Error('Invalid batch Task replay context footprint');
+  return contexts as TaskReplayContexts;
+};
+
+export const getOperationTaskReplayContext = (
+  op: TaskContextOperation,
+  entityId = op.entityId,
+): TaskReplayContext | undefined => {
+  if (op.actionType === ActionType.TASK_SHARED_UPDATE_MULTIPLE) {
+    const contexts = getOperationTaskReplayContexts(op);
+    return contexts && entityId && Object.hasOwn(contexts, entityId)
+      ? contexts[entityId]
+      : undefined;
+  }
   const context = (op.payload as { taskReplayContext?: unknown } | null)
     ?.taskReplayContext;
   if (context === undefined && !op.requiredCapabilities?.includes(TASK_REPLAY_CONTEXT_V1))

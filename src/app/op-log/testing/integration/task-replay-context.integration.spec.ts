@@ -54,6 +54,7 @@ import { validateOperationPayload } from '../../validation/validate-operation-pa
 import { TaskArchiveService } from '../../../features/archive/task-archive.service';
 import {
   getOperationTaskReplayContext,
+  getOperationTaskReplayContexts,
   captureTaskReplayContext,
 } from '../../core/task-replay-context';
 import { setIsApplyingRemoteOps } from '../../capture/operation-capture.meta-reducer';
@@ -95,6 +96,8 @@ interface TaskTestRuntime {
   dispatched: Action[];
   store: { dispatch: (action: Action) => void };
   service: ArchiveService;
+  archiveTasks: TaskArchiveService;
+  seedArchives: (young: ArchiveModel, old: ArchiveModel) => void;
   applier: OperationApplierService;
   archives: () => { young: ArchiveModel; old: ArchiveModel };
   gate: (gate?: () => Promise<void>) => void;
@@ -149,7 +152,12 @@ const runtime = (seed: RootState, flush = NOW): TaskTestRuntime => {
       old = copy(nextOld);
     },
     saveArchiveYoung: async (next: ArchiveModel) => {
+      await writeGate?.();
       young = copy(next);
+    },
+    saveArchiveOld: async (next: ArchiveModel) => {
+      await writeGate?.();
+      old = copy(next);
     },
   };
   const operations: Operation[] = [];
@@ -163,7 +171,7 @@ const runtime = (seed: RootState, flush = NOW): TaskTestRuntime => {
       LockService,
       SuperSyncStatusService,
       { provide: Store, useValue: store },
-      { provide: TaskArchiveService, useValue: { hasTask: async () => false } },
+      TaskArchiveService,
       { provide: ArchiveDbAdapter, useValue: adapter },
       { provide: OperationCaptureService, useValue: capture },
       { provide: ALL_ACTIONS, useValue: actions },
@@ -218,6 +226,11 @@ const runtime = (seed: RootState, flush = NOW): TaskTestRuntime => {
     dispatched,
     store,
     service: injector.get(ArchiveService),
+    archiveTasks: injector.get(TaskArchiveService),
+    seedArchives: (nextYoung, nextOld) => {
+      young = copy(nextYoung);
+      old = copy(nextOld);
+    },
     applier: injector.get(OperationApplierService),
     archives: () => copy({ young, old }),
     gate: (gate?: () => Promise<void>) => {
@@ -651,5 +664,244 @@ describe('deterministic Task timestamps through production capture and replay', 
     delete legacy.requiredCapabilities;
     expect(() => convertOpToAction(legacy)).not.toThrow();
     expect(convertOpToAction(legacy).meta.taskReplayContext).toBeUndefined();
+  });
+
+  const archiveSeed = (): { young: ArchiveModel; old: ArchiveModel } => {
+    const young = emptyArchive(NOW),
+      old = emptyArchive(NOW);
+    for (const [archive, id] of [
+      [young, 'young-edit'],
+      [old, 'old-edit'],
+    ] as const) {
+      const task = createMockTask({
+        id,
+        folderId: 'INBOX_FOLDER',
+        projectId: '',
+        tagIds: [],
+        subTaskIds: [],
+        isDone: false,
+        created: 10,
+        modified: 20,
+        dueDay: '2026-10-01',
+      });
+      archive.task = { ids: [id], entities: { [id]: task } };
+    }
+    return { young, old };
+  };
+  const seedArchiveClient = (seed: ReturnType<typeof archiveSeed>): TaskTestRuntime => {
+    const result = client();
+    result.seedArchives(seed.young, seed.old);
+    return result;
+  };
+  for (const target of ['young', 'old'] as const)
+    it(`archive ${target} edit retains source context across delayed midnight writes, zones and replay retry`, async () => {
+      const seed = archiveSeed();
+      const source = seedArchiveClient(seed);
+      const stamp = Date.parse('2026-10-12T06:59:59.900Z'); // LA, just before midnight
+      (Date.now as jasmine.Spy).and.returnValue(stamp);
+      const id = target + '-edit';
+      let entered!: () => void, release!: () => void;
+      const entry = new Promise<void>((resolve) => (entered = resolve));
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      source.gate(async () => {
+        entered();
+        await gate;
+      });
+      let finished = false;
+      const mutation = source.archiveTasks
+        .updateTask(id, {
+          title: 'Archived edit',
+          isDone: true,
+          dueDay: '2026-10-11',
+          modified: 1,
+        })
+        .then(() => {
+          finished = true;
+        });
+      await entry;
+      expect(finished).toBeFalse();
+      expect(source.operations).toEqual([]);
+      (Date.now as jasmine.Spy).and.returnValue(stamp + 5000);
+      source.state.value.appState.todayStr = '2026-10-12';
+      release();
+      await mutation;
+      await source.settle();
+      const op = source.operations[0];
+      const context = getOperationTaskReplayContext(op)!;
+      expect(context.modified).toBe(stamp);
+      expect(context.completionDay).toBe('2026-10-11');
+      expect(op.timestamp).toBe(stamp + 5000);
+      expect(op.requiredCapabilities).toContain(TASK_REPLAY_CONTEXT_V1);
+      expect(source.archives()[target].task.entities[id]!.modified).toBe(stamp);
+      expect(source.archives()[target].task.entities[id]!.doneOn).toBe(stamp);
+      // The synthetic completion day must not replace the existing schedule.
+      expect(source.archives()[target].task.entities[id]!.dueDay).toBe('2026-10-01');
+      zone = 'Pacific/Auckland';
+      (Date.now as jasmine.Spy).and.returnValue(stamp + 86400000);
+      const replay = seedArchiveClient(seed);
+      const result = await replay.applier.applyOperations(copy(source.operations), {
+        skipDeferredLocalActions: true,
+      });
+      expect(result.failedOp).toBeUndefined();
+      expect(result.reducerFailures ?? []).toEqual([]);
+      equality(source, replay);
+      (Date.now as jasmine.Spy).and.returnValue(stamp + 172800000);
+      await replay.applier.applyOperations(copy(source.operations), {
+        skipDeferredLocalActions: true,
+        skipReducerDispatch: true,
+      });
+      equality(source, replay);
+    });
+
+  it('archive batch preserves each member context and complete records across both archive generations', async () => {
+    const seed = archiveSeed();
+    const source = seedArchiveClient(seed);
+    const stamp = Date.parse('2026-10-12T06:59:59.900Z');
+    (Date.now as jasmine.Spy).and.returnValue(stamp);
+    let entered!: () => void, release!: () => void;
+    const entry = new Promise<void>((resolve) => (entered = resolve));
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    source.gate(async () => {
+      entered();
+      await gate;
+    });
+    const mutation = source.archiveTasks.updateTasks([
+      {
+        id: 'young-edit',
+        changes: { title: 'Young', isDone: true, dueDay: '2026-10-11' },
+      },
+      {
+        id: 'old-edit',
+        changes: {
+          title: 'Old',
+          isDone: true,
+          doneOn: stamp - 86400000,
+          dueDay: '2026-10-10',
+        },
+      },
+    ]);
+    await entry;
+    (Date.now as jasmine.Spy).and.returnValue(stamp + 5000);
+    source.state.value.appState.todayStr = '2026-10-12';
+    release();
+    await mutation;
+    await source.settle();
+    expect(source.operations.length).toBe(1);
+    const op = source.operations[0];
+    expect(op.actionType).toBe(TaskSharedActions.updateTasks.type);
+    const contexts = getOperationTaskReplayContexts(op)!;
+    expect(contexts['young-edit'].completionDay).toBe('2026-10-11');
+    expect(contexts['old-edit'].completionDay).toBe('2026-10-10');
+    for (const target of ['young', 'old'] as const)
+      expect(source.archives()[target].task.entities[target + '-edit']!.modified).toBe(
+        stamp,
+      );
+    zone = 'Asia/Tokyo';
+    (Date.now as jasmine.Spy).and.returnValue(stamp + 86400000);
+    const replay = seedArchiveClient(seed);
+    const result = await replay.applier.applyOperations(copy(source.operations), {
+      skipDeferredLocalActions: true,
+    });
+    expect(result.failedOp).toBeUndefined();
+    expect(result.reducerFailures ?? []).toEqual([]);
+    equality(source, replay);
+    await replay.applier.applyOperations(copy(source.operations), {
+      skipDeferredLocalActions: true,
+      skipReducerDispatch: true,
+    });
+    equality(source, replay);
+    const bad = copy(op);
+    delete (bad.payload as { taskReplayContext: Record<string, unknown> })
+      .taskReplayContext['old-edit'];
+    expect(validateOperationPayload(bad).success).toBeFalse();
+    expect(() => convertOpToAction(bad)).toThrow();
+    expect(() => convertOpToAction({ ...op, requiredCapabilities: [] })).toThrow();
+  });
+
+  it('archive replay retries a failed write without resampling the persisted timestamp', async () => {
+    const seed = archiveSeed();
+    const source = seedArchiveClient(seed);
+    await source.archiveTasks.updateTask('old-edit', { title: 'Retry archive' });
+    await source.settle();
+    const replay = seedArchiveClient(seed);
+    let attempts = 0;
+    replay.gate(async () => {
+      if (++attempts === 1) throw new Error('Transient archive write failure');
+    });
+    const failed = await replay.applier.applyOperations(copy(source.operations), {
+      skipDeferredLocalActions: true,
+    });
+    expect(failed.failedOp?.op.id).toBe(source.operations[0].id);
+    expect(replay.archives()).toEqual(seed);
+    zone = 'Asia/Tokyo';
+    (Date.now as jasmine.Spy).and.returnValue(NOW + 86400000);
+    const result = await replay.applier.applyOperations(copy(source.operations), {
+      skipDeferredLocalActions: true,
+      skipReducerDispatch: true,
+    });
+    expect(result.failedOp).toBeUndefined();
+    equality(source, replay);
+  });
+
+  it('archive deferred capture retries retain context and winning compensation keeps the same source values', async () => {
+    const seed = archiveSeed();
+    const source = seedArchiveClient(seed);
+    setIsApplyingRemoteOps(true);
+    await source.archiveTasks.updateTask('young-edit', { title: 'Deferred archive' });
+    setIsApplyingRemoteOps(false);
+    let attempts = 0;
+    source.logGate(async () => {
+      if (++attempts === 1) {
+        (Date.now as jasmine.Spy).and.returnValue(NOW + 86400000);
+        zone = 'Asia/Tokyo';
+        throw new Error('Transient append failure');
+      }
+    });
+    await source.effects.processDeferredActions();
+    expect(attempts).toBe(2);
+    const op = source.operations[0];
+    const context = getOperationTaskReplayContext(op)!;
+    expect(context.modified).toBe(NOW);
+    const winning = source.archives().young.task.entities['young-edit']!;
+    for (const mode of ['patch', 'replace'] as const) {
+      const compensation = buildReplacementOperation(
+        'TASK',
+        winning.id,
+        winning,
+        'source',
+        { source: 2 },
+        NOW + 86400000,
+        mode,
+        undefined,
+        false,
+        context,
+      );
+      expect(getOperationTaskReplayContext(compensation)).toEqual(context);
+      expect(convertOpToAction(compensation).meta.taskReplayContext).toEqual(context);
+      expect(extractActionPayload(compensation.payload)['modified']).toBe(
+        winning.modified,
+      );
+      // Existing compensation replay installs the winning record in the Task
+      // store; compare the complete record as well as its retained context.
+      const compensated = client();
+      const result = await compensated.applier.applyOperations([copy(compensation)], {
+        skipDeferredLocalActions: true,
+      });
+      expect(result.reducerFailures ?? []).toEqual([]);
+      expect(copy(compensated.state.value.tasks.entities[winning.id])).toEqual(
+        copy(winning),
+      );
+      await compensated.applier.applyOperations([copy(compensation)], {
+        skipDeferredLocalActions: true,
+      });
+      expect(copy(compensated.state.value.tasks.entities[winning.id])).toEqual(
+        copy(winning),
+      );
+    }
+    const replay = seedArchiveClient(seed);
+    await replay.applier.applyOperations(copy(source.operations), {
+      skipDeferredLocalActions: true,
+    });
+    equality(source, replay);
   });
 });

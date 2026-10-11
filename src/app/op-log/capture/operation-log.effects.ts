@@ -321,8 +321,8 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
 
         // Create multi-entity payload with action payload and computed changes
         const multiEntityPayload: MultiEntityPayload = {
-          ...(meta.taskReplayContext
-            ? { taskReplayContext: meta.taskReplayContext }
+          ...((meta.taskReplayContext ?? meta.taskReplayContexts)
+            ? { taskReplayContext: meta.taskReplayContext ?? meta.taskReplayContexts }
             : {}),
           actionPayload: actionPayload as Record<string, unknown>,
           entityChanges,
@@ -386,7 +386,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
             : {}),
         };
 
-        if (meta.taskReplayContext) {
+        if (meta.taskReplayContext || meta.taskReplayContexts) {
           op.requiredCapabilities = [
             ...new Set([...(op.requiredCapabilities ?? []), TASK_REPLAY_CONTEXT_V1]),
           ];

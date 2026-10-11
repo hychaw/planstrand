@@ -1,5 +1,5 @@
 import { Action } from '@ngrx/store';
-import type { TaskReplayContext } from './task-replay-context';
+import type { TaskReplayContext, TaskReplayContexts } from './task-replay-context';
 import { EntityType, LwwUpdateMode, PlanstrandOpType } from './operation.types';
 
 /**
@@ -11,6 +11,7 @@ export const ENVELOPE_SHADOWED_KEYS = ['type', 'meta'] as const;
 
 export interface PersistentActionMeta {
   taskReplayContext?: TaskReplayContext;
+  taskReplayContexts?: TaskReplayContexts;
   isPersistent?: boolean; // When false, the action is blacklisted and not persisted
   entityType: EntityType;
   entityId?: string; // Optional if entityIds is provided

@@ -1,5 +1,14 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { Action, Store } from '@ngrx/store';
+import { take } from 'rxjs';
+import { PersistentActionMeta } from '../../op-log/core/persistent-action.interface';
+import { appStateFeature, AppState } from '../../root-store/app-state/app-state.reducer';
+import {
+  prepareTaskReplayAction,
+  TaskReplayContext,
+  TaskReplayContexts,
+} from '../../op-log/core/task-replay-context';
+
 import { roundTimeSpentForDay } from '../tasks/store/task.actions';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { TASK_FEATURE_NAME, taskReducer } from '../tasks/store/task.reducer';
@@ -19,6 +28,13 @@ import { plannerFeatureKey } from '../planner/store/planner.reducer';
 import { TODAY_TAG } from '../tag/tag.const';
 import { LockService } from '../../op-log/sync/lock.service';
 import { LOCK_NAMES } from '../../op-log/core/operation-log.const';
+
+interface ArchiveEditOptions {
+  isSkipDispatch?: boolean;
+  isIgnoreDBLock?: boolean;
+  taskReplayContext?: TaskReplayContext;
+  taskReplayContexts?: TaskReplayContexts;
+}
 
 // Normalize timeSpentOnDay at the data boundary so all consumers can trust the
 // invariant: timeSpentOnDay is always a valid object, never undefined. This mirrors
@@ -296,67 +312,97 @@ export class TaskArchiveService {
     }
   }
 
-  updateTask(
-    id: string,
-    changedFields: Partial<Task>,
-    options?: { isSkipDispatch?: boolean; isIgnoreDBLock?: boolean },
-  ): Promise<void> {
-    return this._runTaskArchiveMutation(() =>
-      this._updateTask(id, changedFields, options),
+  /** Prepare once before lock waits, reads or writes; capture must reuse this action. */
+  private _prepareUpdate(
+    task: Update<Task>,
+    context?: TaskReplayContext,
+  ): ReturnType<typeof TaskSharedActions.updateTask> & { meta: PersistentActionMeta } {
+    let calendar: AppState | undefined;
+    if (!context)
+      this.store
+        .select(appStateFeature.selectAppStateState)
+        .pipe(take(1))
+        .subscribe((value) => {
+          calendar = value;
+        });
+    const action = TaskSharedActions.updateTask({ task });
+    return prepareTaskReplayAction(
+      { appState: calendar },
+      {
+        ...action,
+        meta: { ...action.meta, ...(context ? { taskReplayContext: context } : {}) },
+      },
     );
   }
 
-  private async _updateTask(
+  updateTask(
     id: string,
     changedFields: Partial<Task>,
-    options?: { isSkipDispatch?: boolean; isIgnoreDBLock?: boolean },
+    options?: ArchiveEditOptions,
   ): Promise<void> {
+    // Legacy remote edits retain their existing fallback; do not fabricate context.
+    const action =
+      options?.isSkipDispatch && !options.taskReplayContext
+        ? TaskSharedActions.updateTask({ task: { id, changes: changedFields } })
+        : this._prepareUpdate({ id, changes: changedFields }, options?.taskReplayContext);
+    return this._runTaskArchiveMutation(() => this._updateTask(action, options));
+  }
+
+  private async _updateTask(
+    action: ReturnType<typeof TaskSharedActions.updateTask>,
+    options?: ArchiveEditOptions,
+  ): Promise<void> {
+    const id = action.task.id;
     const archiveYoung =
       (await this.archiveDbAdapter.loadArchiveYoung()) || DEFAULT_ARCHIVE;
     if (archiveYoung.task.entities[id]) {
-      await this._execAction(
-        'archiveYoung',
-        archiveYoung,
-        TaskSharedActions.updateTask({ task: { id, changes: changedFields } }),
-      );
-      // Dispatch persistent action for sync (skip for remote handler calls)
-      if (!options?.isSkipDispatch) {
-        this.store.dispatch(
-          TaskSharedActions.updateTask({ task: { id, changes: changedFields } }),
-        );
-      }
+      await this._execAction('archiveYoung', archiveYoung, action);
+      if (!options?.isSkipDispatch) this.store.dispatch(action);
       return;
     }
     const archiveOld = (await this.archiveDbAdapter.loadArchiveOld()) || DEFAULT_ARCHIVE;
     if (archiveOld.task.entities[id]) {
-      await this._execAction(
-        'archiveOld',
-        archiveOld,
-        TaskSharedActions.updateTask({ task: { id, changes: changedFields } }),
-      );
-      // Dispatch persistent action for sync (skip for remote handler calls)
-      if (!options?.isSkipDispatch) {
-        this.store.dispatch(
-          TaskSharedActions.updateTask({ task: { id, changes: changedFields } }),
-        );
-      }
+      await this._execAction('archiveOld', archiveOld, action);
+      if (!options?.isSkipDispatch) this.store.dispatch(action);
       return;
     }
     throw new Error('Archive task to update not found');
   }
 
-  updateTasks(
-    updates: Update<Task>[],
-    options?: { isSkipDispatch?: boolean; isIgnoreDBLock?: boolean },
-  ): Promise<void> {
-    return this._runTaskArchiveMutation(() => this._updateTasks(updates, options));
+  updateTasks(updates: Update<Task>[], options?: ArchiveEditOptions): Promise<void> {
+    // A member context is keyed by Task ID; reject ambiguous batches before I/O.
+    if (new Set(updates.map((update) => update.id)).size !== updates.length)
+      return Promise.reject(new Error('Duplicate archived Task update'));
+    const prepared = options?.isSkipDispatch
+      ? undefined
+      : updates.map((update) =>
+          this._prepareUpdate(update, options?.taskReplayContexts?.[update.id]),
+        );
+    const taskReplayContexts = prepared
+      ? Object.fromEntries(
+          prepared.map((action) => [action.task.id, action.meta.taskReplayContext!]),
+        )
+      : options?.taskReplayContexts;
+    const capturedUpdates = prepared?.map((action) => action.task) ?? updates;
+    return this._runTaskArchiveMutation(() =>
+      this._updateTasks(capturedUpdates, {
+        ...options,
+        ...(taskReplayContexts ? { taskReplayContexts } : {}),
+      }),
+    );
   }
 
   private async _updateTasks(
     updates: Update<Task>[],
-    options?: { isSkipDispatch?: boolean; isIgnoreDBLock?: boolean },
+    options?: ArchiveEditOptions,
   ): Promise<void> {
-    const allUpdates = updates.map((upd) => TaskSharedActions.updateTask({ task: upd }));
+    const allUpdates = updates.map((upd) => {
+      const action = TaskSharedActions.updateTask({ task: upd });
+      const context = options?.taskReplayContexts?.[upd.id];
+      return context
+        ? { ...action, meta: { ...action.meta, taskReplayContext: context } }
+        : action;
+    });
     const archiveYoung =
       (await this.archiveDbAdapter.loadArchiveYoung()) || DEFAULT_ARCHIVE;
     const updatesYoung = allUpdates.filter(
@@ -400,7 +446,16 @@ export class TaskArchiveService {
     // Skip dispatch for empty updates to avoid an invalid operation-log entry
     // with entityIds: [] (see operation-log.effects.ts validator).
     if (!options?.isSkipDispatch && updates.length > 0) {
-      this.store.dispatch(TaskSharedActions.updateTasks({ tasks: updates }));
+      const action = TaskSharedActions.updateTasks({ tasks: updates });
+      this.store.dispatch({
+        ...action,
+        meta: {
+          ...action.meta,
+          ...(options?.taskReplayContexts
+            ? { taskReplayContexts: options.taskReplayContexts }
+            : {}),
+        },
+      });
     }
   }
 

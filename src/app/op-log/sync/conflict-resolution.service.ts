@@ -846,7 +846,7 @@ export class ConflictResolutionService {
         'replace',
         undefined,
         false,
-        getOperationTaskReplayContext(remoteOp),
+        getOperationTaskReplayContext(remoteOp, conflict.entityId),
       ),
     );
   }
@@ -2669,7 +2669,9 @@ export class ConflictResolutionService {
     // New source operations provide the same calendar and modified value to
     // independently synthesized merges, without consulting either receiver.
     const contexts =
-      conflict.entityType === 'TASK' ? inputOps.map(getOperationTaskReplayContext) : [];
+      conflict.entityType === 'TASK'
+        ? inputOps.map((op) => getOperationTaskReplayContext(op, conflict.entityId))
+        : [];
     const mergeContext =
       contexts.length && contexts.every((context) => context !== undefined)
         ? contexts[contexts.length - 1]
@@ -3449,7 +3451,7 @@ export class ConflictResolutionService {
         'replace',
         undefined,
         false,
-        getOperationTaskReplayContext(convertedOp),
+        getOperationTaskReplayContext(convertedOp, conflict.entityId),
       ),
     );
   }
@@ -4046,7 +4048,7 @@ export class ConflictResolutionService {
         const original = convertibleRemoteOps.find(
           (candidate) => candidate.id === op.id,
         )!;
-        const context = getOperationTaskReplayContext(original);
+        const context = getOperationTaskReplayContext(original, conflict.entityId);
         const converted =
           context && isLwwUpdatePayload(op.payload)
             ? { ...op, payload: { ...op.payload, taskReplayContext: context } }
