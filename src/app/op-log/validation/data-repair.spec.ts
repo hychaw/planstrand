@@ -18,6 +18,10 @@ import { EMPTY_SIMPLE_COUNTER } from '../../features/simple-counter/simple-count
 import { AppDataComplete } from '../model/model-config';
 import { dirtyDeepCopy } from '../../util/dirtyDeepCopy';
 import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
+import { EventSeries } from '../../features/routines/event-series.model';
+import { WeeklyTemplate } from '../../features/routines/weekly-template.model';
+import { OccurrenceException } from '../../features/routines/occurrence-exception.model';
+import { occurrenceExceptionId } from '../../features/routines/occurrence-exception.validation';
 
 const FAKE_PROJECT_ID = 'FAKE_PROJECT_ID';
 describe('dataRepair()', () => {
@@ -25,6 +29,9 @@ describe('dataRepair()', () => {
   beforeEach(() => {
     mock = createAppDataCompleteMock();
     mock.event = createEmptyEntity();
+    mock.eventSeries = createEmptyEntity();
+    mock.weeklyTemplate = createEmptyEntity();
+    mock.occurrenceException = createEmptyEntity();
     mock.folder = structuredClone(initialFolderState);
     mock.project = {
       ...fakeEntityStateFromArray([
@@ -55,6 +62,75 @@ describe('dataRepair()', () => {
     delete legacy.folder;
     expect(dataRepair(legacy).data.folder).toEqual(initialFolderState);
     expect(legacy.folder).toBeUndefined();
+  });
+
+  it('defaults absent legacy Routines slices without changing the input', () => {
+    const legacy = { ...mock };
+    delete legacy.eventSeries;
+    delete legacy.weeklyTemplate;
+    delete legacy.occurrenceException;
+    const before = structuredClone(legacy);
+
+    const { data } = dataRepair(legacy);
+
+    expect(data.eventSeries).toEqual(createEmptyEntity());
+    expect(data.weeklyTemplate).toEqual(createEmptyEntity());
+    expect(data.occurrenceException).toEqual(createEmptyEntity());
+    expect(legacy).toEqual(before);
+  });
+
+  it('preserves populated Routines slices and their input during repair', () => {
+    const template: WeeklyTemplate = {
+      id: 'template',
+      title: 'Inactive template',
+      isActive: false,
+      startDate: '2026-10-05',
+      created: 1,
+      modified: 2,
+    };
+    const series: EventSeries = {
+      id: 'series',
+      templateId: template.id,
+      title: 'Weekly entry',
+      created: 1,
+      modified: 2,
+      segments: [
+        {
+          id: 'segment',
+          recurrence: {
+            frequency: 'weekly',
+            interval: 1,
+            startDate: '2026-10-05',
+            weekdays: [1],
+          },
+          timing: { kind: 'allDay' },
+        },
+      ],
+    };
+    const key = { seriesId: series.id, slot: 0 };
+    const exception: OccurrenceException = {
+      ...key,
+      id: occurrenceExceptionId(key),
+      value: { kind: 'cancelled' },
+      modified: 3,
+    };
+    const input = {
+      ...mock,
+      eventSeries: { ...fakeEntityStateFromArray([series]), ids: [series.id] },
+      weeklyTemplate: { ...fakeEntityStateFromArray([template]), ids: [template.id] },
+      occurrenceException: {
+        ...fakeEntityStateFromArray([exception]),
+        ids: [exception.id],
+      },
+    };
+    const before = structuredClone(input);
+
+    const { data } = dataRepair(input);
+
+    expect(data.eventSeries).toEqual(before.eventSeries);
+    expect(data.weeklyTemplate).toEqual(before.weeklyTemplate);
+    expect(data.occurrenceException).toEqual(before.occurrenceException);
+    expect(input).toEqual(before);
   });
 
   // Regression for #8333: production builds disable NgRx runtime freezing, so
