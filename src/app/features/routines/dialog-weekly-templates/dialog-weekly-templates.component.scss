@@ -1,6 +1,7 @@
 :host {
   display: block;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .workspace {
   display: grid;
@@ -32,9 +33,20 @@ nav {
   gap: var(--s);
   margin-bottom: var(--s2);
 }
+button[color='warn'] {
+  color: var(--button-warn-label);
+}
 article {
   border-top: 1px solid var(--separator);
   margin-top: var(--s2);
+}
+article button {
+  max-width: 100%;
+  height: auto;
+  min-height: 40px;
+  padding-block: var(--s2);
+  white-space: normal;
+  text-align: start;
 }
 p {
   color: var(--ink-muted);
@@ -60,6 +72,10 @@ input {
   background: var(--surface-hover);
   border: 1px solid var(--separator);
   border-radius: var(--radius-md);
+}
+// Avoid inverting the browser's dark-scheme picker icon a second time.
+input::-webkit-calendar-picker-indicator {
+  filter: none;
 }
 @media (max-width: 600px) {
   .workspace {

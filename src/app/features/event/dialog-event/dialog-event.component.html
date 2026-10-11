@@ -52,7 +52,16 @@
       @if (scope === 'occurrence' && occurrence()?.kind === 'cancelled') {
         <p role="status">{{ T.F.EVENT.OCCURRENCE_CANCELLED | translate }}</p>
       } @else {
-        <fieldset [disabled]="busy()">
+        <fieldset
+          [disabled]="busy()"
+          [attr.aria-describedby]="
+            invalid
+              ? 'event-validation-error'
+              : seriesError()
+                ? 'event-series-error'
+                : null
+          "
+        >
           <label
             >{{ T.F.EVENT.TITLE | translate
             }}<input
@@ -204,12 +213,22 @@
           }
         </fieldset>
         @if (invalid) {
-          <p role="alert">{{ T.F.EVENT.INVALID | translate }}</p>
+          <p
+            id="event-validation-error"
+            role="alert"
+          >
+            {{ T.F.EVENT.INVALID | translate }}
+          </p>
         }
       }
     }
     @if (seriesError(); as error) {
-      <p role="alert">{{ error | translate }}</p>
+      <p
+        id="event-series-error"
+        role="alert"
+      >
+        {{ error | translate }}
+      </p>
     }
   </mat-dialog-content>
   <mat-dialog-actions align="end">

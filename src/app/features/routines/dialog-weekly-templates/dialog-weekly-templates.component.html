@@ -47,7 +47,10 @@
           (ngSubmit)="save()"
           novalidate
         >
-          <fieldset [disabled]="busy()">
+          <fieldset
+            [disabled]="busy()"
+            [attr.aria-describedby]="invalid() ? 'template-validation-error' : null"
+          >
             <label
               >{{ T.F.EVENT.TITLE | translate
               }}<input
@@ -74,7 +77,12 @@
             /></label>
             <p>{{ 'F.WEEKLY_TEMPLATE.DATE_HELP' | translate }}</p>
             @if (invalid()) {
-              <p role="alert">{{ 'F.WEEKLY_TEMPLATE.INVALID' | translate }}</p>
+              <p
+                id="template-validation-error"
+                role="alert"
+              >
+                {{ 'F.WEEKLY_TEMPLATE.INVALID' | translate }}
+              </p>
             }
             <button
               mat-button
@@ -156,8 +164,8 @@
                   {{ T.F.EVENT.ALL_DAY | translate }}
                 } @else {
                   {{ segment.timing.localTime }} &middot;
-                  {{ segment.timing.durationMs / 60000 }}
-                  {{ T.F.EVENT.DURATION_MINUTES | translate }} &middot;
+                  {{ T.G.MINUTES | translate: { m: segment.timing.durationMs / 60000 } }}
+                  &middot;
                   {{ segment.timing.timeZone }}
                 }
               </p>

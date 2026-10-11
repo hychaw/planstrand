@@ -35,6 +35,7 @@ input[name='title'] {
 }
 mat-dialog-actions button[color='warn'] {
   margin-inline-end: auto;
+  color: var(--button-warn-label);
 }
 mat-dialog-content {
   padding-block: var(--s2);
@@ -86,7 +87,12 @@ select:focus,
 textarea:focus {
   border-color: var(--brand);
 }
+// Native controls already follow Blue Thread's color-scheme in both themes.
+input::-webkit-calendar-picker-indicator {
+  filter: none;
+}
 .occurrence-scope {
   color: var(--ink-muted);
   font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }
