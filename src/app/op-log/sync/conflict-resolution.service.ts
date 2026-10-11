@@ -67,7 +67,13 @@ import {
   getOpEntityIds,
   isMultiEntityOperation,
 } from '../util/get-op-entity-ids.util';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, take } from 'rxjs';
+import { appStateFeature, AppState } from '../../root-store/app-state/app-state.reducer';
+import {
+  TaskReplayContext,
+  captureTaskReplayContext,
+  getOperationTaskReplayContext,
+} from '../core/task-replay-context';
 import { SnackService } from '../../core/snack/snack.service';
 import { BannerService } from '../../core/banner/banner.service';
 import { BannerId } from '../../core/banner/banner.model';
@@ -544,7 +550,25 @@ export class ConflictResolutionService {
     lwwUpdateMode: LwwUpdateMode = 'replace',
     entityIds?: string[],
     listClearedFields: boolean = false,
+    taskReplayContext?: TaskReplayContext,
   ): Operation {
+    let context = taskReplayContext;
+    if (entityType === 'TASK' && !context) {
+      let calendar: AppState | undefined;
+      // Store selectors emit synchronously: capture the source calendar before
+      // the synthetic operation is persisted or its reducer runs.
+      this.store
+        .select(appStateFeature.selectAppStateState)
+        .pipe(take(1))
+        .subscribe((value) => {
+          calendar = value;
+        });
+      const modified = (entityState as { modified?: number } | null)?.modified;
+      context = captureTaskReplayContext(
+        calendar,
+        modified ?? (lwwUpdateMode === 'replace' ? null : undefined),
+      );
+    }
     return buildReplacementOperation(
       entityType,
       entityId,
@@ -555,6 +579,7 @@ export class ConflictResolutionService {
       lwwUpdateMode,
       entityIds,
       listClearedFields,
+      context,
     );
   }
 
@@ -818,6 +843,10 @@ export class ConflictResolutionService {
           clientId,
         ),
         remoteOp.timestamp,
+        'replace',
+        undefined,
+        false,
+        getOperationTaskReplayContext(remoteOp),
       ),
     );
   }
@@ -2631,6 +2660,20 @@ export class ConflictResolutionService {
     // Deterministic timestamp both clients agree on (max across both sides), so
     // two independently-synthesized merged ops tie under LWW and converge.
     const mergedTimestamp = Math.max(localTs, remoteTs);
+    const inputOps = [...conflict.localOps, ...conflict.remoteOps].sort(
+      (a, b) =>
+        a.timestamp - b.timestamp ||
+        (a.clientId < b.clientId ? -1 : a.clientId > b.clientId ? 1 : 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
+    // New source operations provide the same calendar and modified value to
+    // independently synthesized merges, without consulting either receiver.
+    const contexts =
+      conflict.entityType === 'TASK' ? inputOps.map(getOperationTaskReplayContext) : [];
+    const mergeContext =
+      contexts.length && contexts.every((context) => context !== undefined)
+        ? contexts[contexts.length - 1]
+        : undefined;
 
     return this.createLWWUpdateOp(
       conflict.entityType,
@@ -2648,6 +2691,7 @@ export class ConflictResolutionService {
       // clears the conflicting ops themselves declared (#9776), keeping both
       // clients' independently-synthesized merged ops field-identical.
       true,
+      mergeContext,
     );
   }
 
@@ -3402,6 +3446,10 @@ export class ConflictResolutionService {
         clientId,
         this.mergeAndIncrementClocks(allClocks, clientId),
         remoteOp.timestamp,
+        'replace',
+        undefined,
+        false,
+        getOperationTaskReplayContext(convertedOp),
       ),
     );
   }
@@ -3994,14 +4042,24 @@ export class ConflictResolutionService {
     // envelope; restamp it so the stored row's version matches its semantics.
     // Ops returned unchanged keep their original (honest) stamp.
     const convertedById = new Map(
-      convertedOps.map((op) => [
-        op.id,
-        isLwwUpdatePayload(op.payload) &&
-        op.payload.lwwUpdateMode === 'replace' &&
-        (op.schemaVersion ?? 1) < CURRENT_SCHEMA_VERSION
-          ? { ...op, schemaVersion: CURRENT_SCHEMA_VERSION }
-          : op,
-      ]),
+      convertedOps.map((op): [string, Operation] => {
+        const original = convertibleRemoteOps.find(
+          (candidate) => candidate.id === op.id,
+        )!;
+        const context = getOperationTaskReplayContext(original);
+        const converted =
+          context && isLwwUpdatePayload(op.payload)
+            ? { ...op, payload: { ...op.payload, taskReplayContext: context } }
+            : op;
+        return [
+          op.id,
+          isLwwUpdatePayload(converted.payload) &&
+          converted.payload.lwwUpdateMode === 'replace' &&
+          (converted.schemaVersion ?? 1) < CURRENT_SCHEMA_VERSION
+            ? { ...converted, schemaVersion: CURRENT_SCHEMA_VERSION }
+            : converted,
+        ];
+      }),
     );
     return conflict.remoteOps.map((op) => convertedById.get(op.id) ?? op);
   }

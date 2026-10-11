@@ -6,6 +6,7 @@ import {
 import { OperationCaptureService } from './operation-capture.service';
 import { OpLog } from '../../core/log';
 import { devError } from '../../util/dev-error';
+import { prepareTaskReplayAction } from '../core/task-replay-context';
 import {
   prepareTaskFolderAction,
   rememberTaskFolderCaptureAction,
@@ -269,7 +270,10 @@ export const operationCaptureMetaReducer = <S, A extends Action = Action>(
     // Call inner reducer first
     const prepared =
       isPersistentAction(action) && !action.meta.isRemote
-        ? prepareTaskFolderAction(state as TaskFolderState | undefined, action)
+        ? prepareTaskReplayAction(
+            state as Parameters<typeof prepareTaskReplayAction>[0],
+            prepareTaskFolderAction(state as TaskFolderState | undefined, action),
+          )
         : action;
     const afterState = reducer(state, prepared);
     rememberTaskFolderCaptureAction(action, prepared);

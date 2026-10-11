@@ -51,6 +51,10 @@ import { TaskWithSubTasks } from '../../features/tasks/task.model';
 import { TIME_TRACKING_FEATURE_KEY } from '../../features/time-tracking/store/time-tracking.reducer';
 import { lwwUpdateMetaReducer } from '../../root-store/meta/task-shared-meta-reducers/lww-update.meta-reducer';
 
+import {
+  captureTaskReplayContext,
+  getOperationTaskReplayContext,
+} from '../core/task-replay-context';
 describe('ConflictResolutionService', () => {
   let service: ConflictResolutionService;
   let mockStore: jasmine.SpyObj<Store>;
@@ -191,6 +195,62 @@ describe('ConflictResolutionService', () => {
       ),
       skippedCount: 0,
     }));
+  });
+
+  it('captures LWW source calendar before delayed persistence and preserves the winning modified value', () => {
+    spyOn(Date, 'now').and.returnValue(5000);
+    mockStore.select.and.returnValue(
+      of({ todayStr: '2026-10-11', startOfNextDayDiffMs: 14400000 }),
+    );
+    const op = service.createLWWUpdateOp(
+      'TASK',
+      'task-1',
+      { id: 'task-1', modified: 1234 },
+      TEST_CLIENT_ID,
+      { local: 1 },
+      4000,
+    );
+    const context = getOperationTaskReplayContext(op)!;
+    expect(context.modified).toBe(1234);
+    expect(context.today).toBe('2026-10-11');
+    expect(context.todayStart).toBe(new Date(2026, 9, 11).getTime() + 14400000);
+    (Date.now as jasmine.Spy).and.returnValue(9000);
+    expect(
+      convertOpToAction(JSON.parse(JSON.stringify(op))).meta.taskReplayContext,
+    ).toEqual(context);
+    expect(op.timestamp).toBe(4000);
+  });
+
+  it('preserves authenticated context when a remote update becomes delete compensation', () => {
+    const context = captureTaskReplayContext(
+      { todayStr: '2026-10-11', startOfNextDayDiffMs: 14400000 },
+      1234,
+    );
+    const remote: Operation = {
+      ...createMockOp('remote', 'B'),
+      actionType: ActionType.TASK_SHARED_UPDATE,
+      requiredCapabilities: ['TASK_REPLAY_CONTEXT_V1'],
+      payload: {
+        actionPayload: { task: { id: 'task-1', changes: { title: 'Remote' } } },
+        taskReplayContext: context,
+        entityChanges: [],
+      },
+    };
+    const local = {
+      ...createMockOp('delete', 'A'),
+      opType: OpType.Delete,
+      payload: { id: 'task-1', title: 'Base', modified: 1, created: 1 },
+    };
+    const converted: Operation[] = (service as any)._convertToLWWUpdatesIfNeeded({
+      entityType: 'TASK',
+      entityId: 'task-1',
+      localOps: [local],
+      remoteOps: [remote],
+      suggestedResolution: 'manual',
+    });
+    expect(converted[0].actionType).toBe('[TASK] LWW Update');
+    expect(getOperationTaskReplayContext(converted[0])).toEqual(context);
+    expect(convertOpToAction(converted[0]).meta.taskReplayContext).toEqual(context);
   });
 
   describe('getCurrentEntityState', () => {

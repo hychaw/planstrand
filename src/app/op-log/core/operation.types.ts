@@ -123,6 +123,7 @@ export interface MultiEntityPayload extends Omit<
   LibMultiEntityPayload<PlanstrandOpType>,
   'entityChanges'
 > {
+  taskReplayContext?: import('./task-replay-context').TaskReplayContext;
   entityChanges: EntityChange[];
 }
 
@@ -130,6 +131,7 @@ export interface LwwUpdatePayload extends Omit<
   LibLwwUpdatePayload<PlanstrandOpType>,
   'entityChanges'
 > {
+  taskReplayContext?: import('./task-replay-context').TaskReplayContext;
   entityChanges: EntityChange[];
 }
 

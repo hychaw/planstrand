@@ -2,6 +2,7 @@ import {
   ENTITY_TYPES,
   TASK_FOLDER_OWNERSHIP_V1,
   ARCHIVE_COMMAND_V1,
+  TASK_REPLAY_CONTEXT_V1,
 } from '@sp/shared-schema';
 import {
   evaluateOperationCompatibility,
@@ -32,6 +33,29 @@ const capabilities = (
 });
 
 describe('sync capability requirements', () => {
+  it('infers Task context requirements even if its envelope capability was lost', () => {
+    const task = {
+      ...op('TASK', 5, { taskReplayContext: { version: 1 } }),
+      requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+    };
+    expect(getOperationRequiredCapabilities(task)).toEqual([
+      TASK_FOLDER_OWNERSHIP_V1,
+      TASK_REPLAY_CONTEXT_V1,
+    ]);
+    const old = {
+      ...capabilities([...ENTITY_TYPES], { maxSchemaVersion: 5 }),
+      supportedCapabilities: [TASK_FOLDER_OWNERSHIP_V1, ARCHIVE_COMMAND_V1],
+    };
+    expect(evaluateOperationCompatibility([task], old).unsupportedCapabilities).toEqual([
+      TASK_REPLAY_CONTEXT_V1,
+    ]);
+    expect(
+      evaluateOperationCompatibility([task], {
+        ...old,
+        supportedCapabilities: [...old.supportedCapabilities, TASK_REPLAY_CONTEXT_V1],
+      }).compatible,
+    ).toBeTrue();
+  });
   it('fences archive commands while preserving other semantic requirements', () => {
     const command = {
       ...op('TASK', 4, {

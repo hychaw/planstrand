@@ -58,6 +58,11 @@ import {
   updateTags,
 } from './task-shared-helpers';
 import { plannerFeatureKey } from '../../../features/planner/store/planner.reducer';
+import {
+  TaskReplayContext,
+  readTaskReplayContext,
+} from '../../../op-log/core/task-replay-context';
+import type { PersistentAction } from '../../../op-log/core/persistent-action.interface';
 
 // =============================================================================
 // ACTION HANDLERS
@@ -741,6 +746,7 @@ const sanitizeDoneScheduleChanges = (
   taskUpdate: Update<Task>,
   currentTask: Task,
   todayStr: string,
+  context?: TaskReplayContext,
 ): Update<Task> => {
   const { changes } = taskUpdate;
   if (changes.isDone !== true || typeof changes.dueDay !== 'string') {
@@ -754,7 +760,11 @@ const sanitizeDoneScheduleChanges = (
   }
 
   const completionDay =
-    typeof changes.doneOn === 'number' ? getDbDateStr(changes.doneOn) : todayStr;
+    typeof changes.doneOn === 'number'
+      ? context
+        ? context.completionDay!
+        : getDbDateStr(changes.doneOn)
+      : todayStr;
   const isSyntheticCompletionDay =
     changes.dueDay === completionDay &&
     (changes.dueDay !== currentTask.dueDay || !!currentTask.parentId);
@@ -799,7 +809,9 @@ const handleUpdateTask = (
   state: RootState,
   taskUpdate: Update<Task>,
   projectMoveSubTaskIds?: string[],
+  context?: TaskReplayContext,
 ): RootState => {
+  if (context?.modified === null) throw new Error('Missing source Task update timestamp');
   const taskId = taskUpdate.id as string;
   const currentTask = state[TASK_FEATURE_NAME].entities[taskId] as Task;
 
@@ -808,11 +820,13 @@ const handleUpdateTask = (
   }
 
   let updatedState = state;
-  const todayStr = state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
+  const todayStr =
+    context?.today ?? state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
   const sanitizedTaskUpdate = sanitizeDoneScheduleChanges(
     taskUpdate,
     currentTask,
     todayStr,
+    context,
   );
   let cleanedTaskUpdate = removeInProgressTagOnCompletion(
     sanitizedTaskUpdate,
@@ -921,13 +935,17 @@ const handleUpdateTask = (
     ? updateTimeSpentForTask(taskId, timeSpentOnDay, taskState)
     : taskState;
   taskState = updateTimeEstimateForTask(cleanedTaskUpdate, timeEstimate, taskState);
-  taskState = updateDoneOnForTask(cleanedTaskUpdate, taskState);
+  taskState = updateDoneOnForTask(
+    cleanedTaskUpdate,
+    taskState,
+    context?.modified ?? undefined,
+  );
   taskState = taskAdapter.updateOne(
     {
       ...cleanedTaskUpdate,
       changes: {
         ...cleanedTaskUpdate.changes,
-        modified: Date.now(),
+        modified: context?.modified ?? Date.now(),
       },
     },
     taskState,
@@ -1117,7 +1135,12 @@ const createActionHandlers = (state: RootState, action: Action): ActionHandlerMa
     const { task, projectMoveSubTaskIds } = action as ReturnType<
       typeof TaskSharedActions.updateTask
     >;
-    return handleUpdateTask(state, task, projectMoveSubTaskIds);
+    return handleUpdateTask(
+      state,
+      task,
+      projectMoveSubTaskIds,
+      readTaskReplayContext((action as PersistentAction).meta?.taskReplayContext),
+    );
   },
 });
 

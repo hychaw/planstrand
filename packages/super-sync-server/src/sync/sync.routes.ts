@@ -9,6 +9,7 @@ import {
   FolderReplayUnsupportedError,
   RoutinesReplayUnsupportedError,
   ArchiveCommandReplayUnsupportedError,
+  TaskContextReplayUnsupportedError,
 } from './op-replay';
 import { assertFullStateReader } from './full-state-reader-gate';
 import {
@@ -511,6 +512,11 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
             error: err.message,
             errorCode: 'ARCHIVE_COMMAND_REPLAY_UNSUPPORTED',
           });
+        }
+        if (err instanceof TaskContextReplayUnsupportedError) {
+          return reply
+            .status(400)
+            .send({ error: err.message, errorCode: 'TASK_CONTEXT_REPLAY_UNSUPPORTED' });
         }
         // Handle encrypted ops error - this is a known limitation, not a server error
         if (err instanceof EncryptedOpsNotSupportedError) {

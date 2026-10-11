@@ -123,7 +123,11 @@ export const reCalcTimeEstimateForParentIfParent = (
   );
 };
 
-export const updateDoneOnForTask = (upd: Update<Task>, state: TaskState): TaskState => {
+export const updateDoneOnForTask = (
+  upd: Update<Task>,
+  state: TaskState,
+  capturedTimestamp?: number,
+): TaskState => {
   const task = state.entities[upd.id] as Task;
   const isToDone = upd.changes.isDone === true;
   const isToUnDone = upd.changes.isDone === false;
@@ -132,7 +136,9 @@ export const updateDoneOnForTask = (upd: Update<Task>, state: TaskState): TaskSt
     // stays a pure planning field. Any existing schedule is left untouched, and
     // the Today "Done" list is driven by `isDone`/`doneOn`, not `dueDay`.
     const doneOn =
-      typeof upd.changes.doneOn === 'number' ? upd.changes.doneOn : Date.now();
+      typeof upd.changes.doneOn === 'number'
+        ? upd.changes.doneOn
+        : (capturedTimestamp ?? Date.now());
     const changes = {
       ...(isToDone ? { doneOn } : {}),
       ...(isToUnDone ? { doneOn: undefined } : {}),

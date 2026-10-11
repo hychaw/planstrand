@@ -4,6 +4,7 @@ import {
   supportsRequiredCapabilities,
   ROUTINES_V1,
   ARCHIVE_COMMAND_V1,
+  TASK_REPLAY_CONTEXT_V1,
 } from '@sp/shared-schema';
 import { extractFullStateFromPayload } from '../core/operation.types';
 import {
@@ -147,6 +148,10 @@ export const getOperationRequiredCapabilities = (
 ): string[] => [
   ...new Set([
     ...(operation.requiredCapabilities ?? []),
+    ...((operation.payload as { taskReplayContext?: unknown } | null)
+      ?.taskReplayContext !== undefined
+      ? [TASK_REPLAY_CONTEXT_V1]
+      : []),
     ...(isMultiEntityPayload(operation.payload) &&
     operation.payload.actionPayload?.['archiveCommand'] !== undefined
       ? [ARCHIVE_COMMAND_V1]

@@ -39,6 +39,10 @@ import { withLocalOnlySyncSettings } from '../../../features/config/local-only-s
 import { SyncConfig } from '../../../features/config/global-config.model';
 import { LwwUpdateMode } from '../../../op-log/core/operation.types';
 import { ENVELOPE_SHADOWED_KEYS } from '../../../op-log/core/persistent-action.interface';
+import {
+  TaskReplayContext,
+  readTaskReplayContext,
+} from '../../../op-log/core/task-replay-context';
 
 /**
  * Updates project.taskIds arrays when a task's project membership changes via LWW Update.
@@ -244,16 +248,23 @@ const syncTodayTagTaskIds = (
   newDueDay: string | undefined,
   oldDueWithTime: number | undefined,
   newDueWithTime: number | undefined,
+  context?: TaskReplayContext,
 ): RootState => {
-  const todayStr = state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
+  const todayStr =
+    context?.today ?? state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
   const offsetMs = state[appStateFeatureKey]?.startOfNextDayDiffMs ?? 0;
 
   const isDueToday = (
     dueDay: string | undefined,
     dueWithTime: number | undefined,
-  ): boolean =>
-    dueDay === todayStr ||
-    (!!dueWithTime && isTodayWithOffset(dueWithTime, todayStr, offsetMs));
+  ): boolean => {
+    if (dueDay === todayStr) return true;
+    if (!dueWithTime) return false;
+    if (!(new Date(dueWithTime).getTime() > 0)) throw new Error('Invalid date passed');
+    return context
+      ? dueWithTime >= context.todayStart && dueWithTime < context.todayEnd
+      : isTodayWithOffset(dueWithTime, todayStr, offsetMs);
+  };
 
   const wasToday = isDueToday(oldDueDay, oldDueWithTime);
   const isNowToday = isDueToday(newDueDay, newDueWithTime);
@@ -596,8 +607,13 @@ export const lwwUpdateMetaReducer: MetaReducer = (
           recreatesEntityAfterDelete?: boolean;
           projectMoveFootprint?: readonly string[];
           lwwShadowedFields?: Readonly<Record<string, unknown>>;
+          taskReplayContext?: TaskReplayContext;
         }
       | undefined;
+    const taskContext =
+      entityType === 'TASK'
+        ? readTaskReplayContext(actionMeta?.taskReplayContext)
+        : undefined;
     let entityData: Record<string, unknown> = {};
     for (const key of Object.keys(actionAny)) {
       if (key !== 'type' && key !== 'meta') {
@@ -864,16 +880,13 @@ export const lwwUpdateMetaReducer: MetaReducer = (
       // "Repair attempted but failed" dialog. For TASK entities we merge with
       // DEFAULT_TASK so the recreated entity is always schema-valid.
       //
-      // INTENTIONAL: We set modified to Date.now() (local time), not the original timestamp.
-      // Rationale:
-      // - Vector clocks are the authoritative conflict resolution mechanism, not `modified`
-      // - The `modified` field is used for UI display ("last edited X minutes ago")
-      // - Setting it to local time reflects when THIS client applied the winning state
-      // - The original timestamp from the winning client is preserved in entityData but
-      //   gets overwritten here because local display should show local application time
+      // Versioned Task operations use the authoritative source modified value.
+      // Legacy operations and other models retain their existing receiver-time policy.
       let entityToAdd: Record<string, unknown>;
       const fallback = RECREATE_FALLBACK[entityType];
       if (fallback) {
+        if (taskContext && !Number.isSafeInteger(entityData['created']))
+          throw new Error('Cannot recreate Task without its source created timestamp');
         // null and undefined both count as "missing": producers that emit
         // explicit `null` for a required field would otherwise slip past the
         // warn AND have `null` overwrite the default in the spread below.
@@ -889,11 +902,17 @@ export const lwwUpdateMetaReducer: MetaReducer = (
         }
         // Spread does not skip null/undefined-valued keys; strip them so they
         // can't clobber a backfilled default.
-        const stripped: Record<string, unknown> = { modified: Date.now() };
+        const stripped: Record<string, unknown> = {
+          modified: taskContext ? taskContext.modified : Date.now(),
+        };
         for (const k of Object.keys(entityData)) {
           if (entityData[k] != null) stripped[k] = entityData[k];
         }
         entityToAdd = { ...fallback.defaults, ...stripped };
+        if (taskContext) {
+          if (taskContext.modified === null) delete entityToAdd['modified'];
+          else entityToAdd['modified'] = taskContext.modified;
+        }
 
         // INBOX_PROJECT may legitimately be missing from state (corrupted
         // import, partial migration). Mirror normalizeRestoredTask's guard at
@@ -909,20 +928,25 @@ export const lwwUpdateMetaReducer: MetaReducer = (
           }
         }
       } else {
-        entityToAdd = { ...entityData, modified: Date.now() };
+        entityToAdd = {
+          ...entityData,
+          modified: taskContext ? taskContext.modified : Date.now(),
+        };
       }
       updatedFeatureState = (adapter as EntityAdapter<any>).addOne(
         entityToAdd as any,
         featureState as any,
       );
     } else {
-      const entityWithLocalModified = {
+      const entityWithLocalModified: Record<string, unknown> = {
         ...entityData,
-        // INTENTIONAL: We set modified to Date.now() (local time), not the original timestamp.
-        // See comment above for rationale - vector clocks drive conflict resolution,
-        // `modified` is for UI display of "when this client last saw this change"
-        modified: Date.now(),
+        modified: taskContext ? taskContext.modified : Date.now(),
       };
+      if (taskContext?.modified === null) {
+        if (actionMeta?.lwwUpdateMode === 'replace')
+          delete entityWithLocalModified.modified;
+        else entityWithLocalModified.modified = undefined;
+      }
       // An op that carried no `type`/`meta` of its own keeps the existing
       // values: a replace must not drop them (SimpleCounter.type would fail
       // validation and repair would reset e.g. a Stopwatch habit).
@@ -1033,6 +1057,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
         newDueDay,
         oldDueWithTime,
         newDueWithTime,
+        taskContext,
       );
 
       // Sync parent.subTaskIds when parentId changes

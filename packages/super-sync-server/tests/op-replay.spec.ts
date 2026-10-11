@@ -12,6 +12,7 @@ import {
   FolderReplayUnsupportedError,
   RoutinesReplayUnsupportedError,
   ArchiveCommandReplayUnsupportedError,
+  TaskContextReplayUnsupportedError,
   LegacyRepairReplayUnsupportedError,
   LegacyFullStateAfterCutoverError,
   MAX_REPLAY_STATE_SIZE_BYTES,
@@ -32,6 +33,28 @@ const row = (overrides: Partial<ReplayOperationRow>): ReplayOperationRow => ({
 });
 
 describe('op replay', () => {
+  it('refuses versioned Task context without exporting a partial generic Task map', () => {
+    const base = {
+      task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1', title: 'Keep' } } },
+    };
+    const before = JSON.stringify(base);
+    expect(() =>
+      replayOpsToState(
+        [
+          row({
+            opType: 'UPD',
+            payload: {
+              actionPayload: { task: { id: 'task-1', changes: { title: 'New' } } },
+              taskReplayContext: { version: 1 },
+              entityChanges: [],
+            },
+          }),
+        ],
+        base,
+      ),
+    ).toThrow(TaskContextReplayUnsupportedError);
+    expect(JSON.stringify(base)).toBe(before);
+  });
   it('refuses client archive commands instead of exporting a generic partial Task map', () => {
     const base = {
       task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1', title: 'Keep' } } },

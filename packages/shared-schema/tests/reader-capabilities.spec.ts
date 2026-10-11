@@ -6,6 +6,7 @@ import {
   TASK_FOLDER_OWNERSHIP_V1,
   ROUTINES_V1,
   ARCHIVE_COMMAND_V1,
+  TASK_REPLAY_CONTEXT_V1,
   supportsRequiredCapabilities,
   getFullStateRequiredCapabilities,
 } from '../src/reader-capabilities';
@@ -21,6 +22,7 @@ describe('semantic sync reader capabilities', () => {
       TASK_FOLDER_OWNERSHIP_V1,
       ROUTINES_V1,
       ARCHIVE_COMMAND_V1,
+      TASK_REPLAY_CONTEXT_V1,
     ]);
     expect(supportsRequiredCapabilities([TASK_FOLDER_OWNERSHIP_V1], [])).toBe(false);
   });
@@ -33,6 +35,20 @@ describe('semantic sync reader capabilities', () => {
     ).toBe(false);
     expect(
       supportsRequiredCapabilities([ARCHIVE_COMMAND_V1], CLIENT_SYNC_READER_CAPABILITIES),
+    ).toBe(true);
+  });
+  it('does not grant Task timestamp semantics to archive-capable readers', () => {
+    expect(
+      supportsRequiredCapabilities(
+        [TASK_REPLAY_CONTEXT_V1],
+        [TASK_FOLDER_OWNERSHIP_V1, ROUTINES_V1, ARCHIVE_COMMAND_V1],
+      ),
+    ).toBe(false);
+    expect(
+      supportsRequiredCapabilities(
+        [TASK_REPLAY_CONTEXT_V1],
+        CLIENT_SYNC_READER_CAPABILITIES,
+      ),
     ).toBe(true);
   });
   it('accepts a simulated future reader with ownership support', () => {

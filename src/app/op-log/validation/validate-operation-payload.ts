@@ -20,6 +20,7 @@ import { validateRoutinesOperation } from './validate-routines-operation';
 import { assertArchiveCommand } from '../../features/archive/archive-command';
 import type { TaskWithSubTasks } from '../../features/tasks/task.model';
 import { ARCHIVE_COMMAND_V1 } from '@sp/shared-schema';
+import { getOperationTaskReplayContext } from '../core/task-replay-context';
 
 /**
  * Result of validating an operation payload.
@@ -600,6 +601,11 @@ const extractActionPayloadForValidation = (payload: unknown): Record<string, unk
  * Full Typia validation happens at state checkpoints (B, C, D).
  */
 export const validateOperationPayload = (op: Operation): PayloadValidationResult => {
+  try {
+    getOperationTaskReplayContext(op);
+  } catch {
+    return { success: false, error: 'Invalid or unsupported Task replay context' };
+  }
   const allWarnings: string[] = [];
 
   // 1. Basic structural validation

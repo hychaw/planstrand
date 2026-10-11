@@ -4,6 +4,7 @@ import {
   TASK_FOLDER_OWNERSHIP_V1,
   ROUTINES_V1,
   ARCHIVE_COMMAND_V1,
+  TASK_REPLAY_CONTEXT_V1,
 } from '@sp/shared-schema';
 const mocks = vi.hoisted(() => ({
   prisma: {
@@ -28,6 +29,7 @@ import { syncRoutes } from '../src/sync/sync.routes';
 import {
   RoutinesReplayUnsupportedError,
   ArchiveCommandReplayUnsupportedError,
+  TaskContextReplayUnsupportedError,
 } from '../src/sync/op-replay';
 const encrypted = {
   serverSeq: 8,
@@ -103,6 +105,53 @@ describe('Server full-state reader fence through HTTP', () => {
     );
     expect(aware.statusCode).toBe(200);
     expect(aware.json().ops).toHaveLength(1);
+  });
+  it('rejects archive-capable older readers and writers before delivering encrypted Task context', async () => {
+    mocks.prisma.$queryRaw.mockImplementation(async (query) =>
+      query.values.includes(TASK_REPLAY_CONTEXT_V1) ? [] : [{ id: 'archive-command' }],
+    );
+    mocks.service.getOpsSinceWithSeq.mockResolvedValue({
+      ops: [
+        {
+          ...encrypted,
+          op: {
+            ...encrypted.op,
+            entityType: 'TASK',
+            opType: 'UPD',
+            requiredCapabilities: [TASK_REPLAY_CONTEXT_V1],
+          },
+        },
+      ],
+      latestSeq: 8,
+      gapDetected: false,
+    });
+    const old = `supportedEntityTypes=TASK,FOLDER&supportedCapabilities=${TASK_FOLDER_OWNERSHIP_V1},${ROUTINES_V1},${ARCHIVE_COMMAND_V1}`;
+    const blocked = await app.inject(`/api/sync/ops?sinceSeq=0&${old}`);
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json().ops).toBeUndefined();
+    expect(mocks.service.getOpsSinceWithSeq).not.toHaveBeenCalled();
+    const write = await app.inject({
+      method: 'POST',
+      url: `/api/sync/ops?${old}`,
+      payload: {},
+    });
+    expect(write.statusCode).toBe(409);
+    expect(mocks.service.uploadOps).not.toHaveBeenCalled();
+    const aware = await app.inject(
+      `/api/sync/ops?sinceSeq=0&${old},${TASK_REPLAY_CONTEXT_V1}`,
+    );
+    expect(aware.statusCode).toBe(200);
+    expect(aware.json().ops).toHaveLength(1);
+  });
+  it('reports unsupported Task context restore without returning partial state', async () => {
+    mocks.prisma.operation.findUnique.mockResolvedValue(null);
+    mocks.service.generateSnapshotAtSeq.mockRejectedValue(
+      new TaskContextReplayUnsupportedError(),
+    );
+    const response = await app.inject('/api/sync/restore/8');
+    expect(response.statusCode).toBe(400);
+    expect(response.json().errorCode).toBe('TASK_CONTEXT_REPLAY_UNSUPPORTED');
+    expect(response.json().state).toBeUndefined();
   });
   it('reports unsupported archive command restore without returning partial state', async () => {
     mocks.prisma.operation.findUnique.mockResolvedValue(null);

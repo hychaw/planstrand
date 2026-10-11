@@ -143,6 +143,15 @@ export class ArchiveCommandReplayUnsupportedError extends Error {
   }
 }
 
+export class TaskContextReplayUnsupportedError extends Error {
+  constructor() {
+    super(
+      'TASK_CONTEXT_REPLAY_UNSUPPORTED: Task replay context requires the production client replay host.',
+    );
+    this.name = 'TaskContextReplayUnsupportedError';
+  }
+}
+
 export type ReplayOperationRow = {
   id: string;
   serverSeq: number;
@@ -231,6 +240,11 @@ export const replayOpsToState = (
     if (row.isPayloadEncrypted) {
       throw new EncryptedOpsNotSupportedError(1);
     }
+    if (
+      (row.payload as { taskReplayContext?: unknown } | null)?.taskReplayContext !==
+      undefined
+    )
+      throw new TaskContextReplayUnsupportedError();
     const archivePayload = row.payload as {
       actionPayload?: { archiveCommand?: unknown };
       archiveCommand?: unknown;

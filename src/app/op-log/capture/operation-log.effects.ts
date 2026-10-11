@@ -5,6 +5,7 @@ import {
   hasTaskFolderOwnership,
   ROUTINES_V1,
   ARCHIVE_COMMAND_V1,
+  TASK_REPLAY_CONTEXT_V1,
 } from '@sp/shared-schema';
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
@@ -320,6 +321,9 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
 
         // Create multi-entity payload with action payload and computed changes
         const multiEntityPayload: MultiEntityPayload = {
+          ...(meta.taskReplayContext
+            ? { taskReplayContext: meta.taskReplayContext }
+            : {}),
           actionPayload: actionPayload as Record<string, unknown>,
           entityChanges,
         };
@@ -382,6 +386,11 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
             : {}),
         };
 
+        if (meta.taskReplayContext) {
+          op.requiredCapabilities = [
+            ...new Set([...(op.requiredCapabilities ?? []), TASK_REPLAY_CONTEXT_V1]),
+          ];
+        }
         if (
           action.type === TaskSharedActions.moveToArchive.type &&
           rawActionPayload['archiveCommand'] !== undefined

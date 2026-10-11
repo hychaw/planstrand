@@ -39,6 +39,10 @@ import { appStateFeatureKey } from '../../root-store/app-state/app-state.reducer
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { UnsupportedMultiEntityConflictError } from '../core/errors/sync-errors';
 
+import {
+  captureTaskReplayContext,
+  getOperationTaskReplayContext,
+} from '../core/task-replay-context';
 /**
  * Minimal RootState for exercising the PRODUCTION `lwwUpdateMetaReducer` on a
  * single TASK. Includes the slices its relationship-repair reads (project INBOX,
@@ -273,6 +277,56 @@ describe('ConflictResolutionService — disjoint-field merge', () => {
       .allArgs()
       .flatMap(([, ops]) => ops);
     expect(checkpointedOps.every((o) => pendingAppendedIds.has(o.id))).toBeTrue();
+  });
+
+  it('gives mirrored versioned merges identical source context even when receiver clocks differ', async () => {
+    spyOn(Date, 'now').and.returnValue(5000);
+    mockStore.select.and.returnValue(of({ id: 'task-1', title: 'Local', notes: 'Base' }));
+    const older = captureTaskReplayContext(
+      { todayStr: '2026-10-10', startOfNextDayDiffMs: 0 },
+      1000,
+    );
+    const newer = captureTaskReplayContext(
+      { todayStr: '2026-10-11', startOfNextDayDiffMs: 14400000 },
+      2000,
+    );
+    const local = op({
+      id: 'a',
+      clientId: 'A',
+      timestamp: 2000,
+      actionType: ActionType.TASK_SHARED_UPDATE,
+      requiredCapabilities: ['TASK_REPLAY_CONTEXT_V1'],
+      payload: {
+        actionPayload: { task: { id: 'task-1', changes: { title: 'Local' } } },
+        taskReplayContext: newer,
+        entityChanges: [],
+      },
+    });
+    const remote = op({
+      id: 'b',
+      clientId: 'B',
+      vectorClock: { B: 1 },
+      timestamp: 1000,
+      actionType: ActionType.TASK_SHARED_UPDATE,
+      requiredCapabilities: ['TASK_REPLAY_CONTEXT_V1'],
+      payload: {
+        actionPayload: { task: { id: 'task-1', changes: { notes: 'Remote' } } },
+        taskReplayContext: older,
+        entityChanges: [],
+      },
+    });
+    await service.autoResolveConflictsLWW([conflictOf([local], [remote])]);
+    const first = mergedOpArgs()!;
+    expect(getOperationTaskReplayContext(first)).toEqual(newer);
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.calls.reset();
+    (Date.now as jasmine.Spy).and.returnValue(9000000);
+    await service.autoResolveConflictsLWW([conflictOf([remote], [local])]);
+    const mirrored = mergedOpArgs()!;
+    expect(getOperationTaskReplayContext(mirrored)).toEqual(newer);
+    expect(extractActionPayload(mirrored.payload)).toEqual(
+      extractActionPayload(first.payload),
+    );
+    expect(mirrored.timestamp).toBe(first.timestamp);
   });
 
   it('persists merge writes through the atomic mixed-source batch, never the clock-overwriting append', async () => {

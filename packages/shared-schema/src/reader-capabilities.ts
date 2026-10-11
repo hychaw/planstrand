@@ -8,16 +8,19 @@ import {
 export const TASK_FOLDER_OWNERSHIP_V1 = 'TASK_FOLDER_OWNERSHIP_V1' as const;
 export const ROUTINES_V1 = 'ROUTINES_V1' as const;
 export const ARCHIVE_COMMAND_V1 = 'ARCHIVE_COMMAND_V1' as const;
+export const TASK_REPLAY_CONTEXT_V1 = 'TASK_REPLAY_CONTEXT_V1' as const;
 export type SyncReaderCapability =
   | typeof TASK_FOLDER_OWNERSHIP_V1
   | typeof ROUTINES_V1
-  | typeof ARCHIVE_COMMAND_V1;
+  | typeof ARCHIVE_COMMAND_V1
+  | typeof TASK_REPLAY_CONTEXT_V1;
 
-/** Current readers implement ownership, recurring series, and archive commands. */
+/** Current readers implement ownership, routines, archive commands and Task context. */
 export const CLIENT_SYNC_READER_CAPABILITIES: readonly SyncReaderCapability[] = [
   TASK_FOLDER_OWNERSHIP_V1,
   ROUTINES_V1,
   ARCHIVE_COMMAND_V1,
+  TASK_REPLAY_CONTEXT_V1,
 ];
 
 /** Payloads/snapshots carrying ownership need the same semantic wire fence. */
@@ -69,6 +72,7 @@ export const SERVER_SYNC_READER_CAPABILITIES: readonly SyncReaderCapability[] = 
   TASK_FOLDER_OWNERSHIP_V1,
   ROUTINES_V1,
   ARCHIVE_COMMAND_V1,
+  TASK_REPLAY_CONTEXT_V1,
 ];
 
 export const supportsRequiredCapabilities = (

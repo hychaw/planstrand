@@ -11,11 +11,17 @@ import {
   hasTaskFolderOwnership,
   TASK_FOLDER_OWNERSHIP_V1,
   ROUTINES_V1,
+  TASK_REPLAY_CONTEXT_V1,
 } from '@sp/shared-schema';
 import { uuidv7 } from '../../util/uuid-v7';
 import { isLwwPayloadIdCanonical, isSingletonEntityId } from '../core/entity-registry';
 import { toLwwUpdateActionType } from '../core/lww-update-action-types';
 import { clearedFieldsProps } from '../../util/cleared-update-fields';
+import {
+  TaskReplayContext,
+  captureTaskReplayContext,
+  assertTaskReplayContext,
+} from '../core/task-replay-context';
 export const buildReplacementOperation = (
   entityType: EntityType,
   entityId: string,
@@ -26,6 +32,7 @@ export const buildReplacementOperation = (
   lwwUpdateMode: LwwUpdateMode = 'replace',
   entityIds?: string[],
   listClearedFields: boolean = false,
+  taskReplayContext?: TaskReplayContext,
 ): Operation => {
   if (entityType === 'PLANNING')
     throw new Error('Planning registers cannot use conflict compensation');
@@ -62,6 +69,22 @@ export const buildReplacementOperation = (
       ? (entityState as Record<string, unknown>)
       : {};
   const actionPayload = { ...basePayload };
+  // Replace snapshots preserve the winning record's modified value, including
+  // its absence. A new patch without a record timestamp samples its own source
+  // mutation time. Neither policy substitutes the operation ordering timestamp.
+  const context =
+    entityType === 'TASK'
+      ? (taskReplayContext ??
+        captureTaskReplayContext(
+          undefined,
+          typeof basePayload['modified'] === 'number'
+            ? basePayload['modified']
+            : lwwUpdateMode === 'replace'
+              ? null
+              : undefined,
+        ))
+      : undefined;
+  if (context) assertTaskReplayContext(context);
   if (isLwwPayloadIdCanonical(entityType) || !isSingletonEntityId(entityId)) {
     actionPayload['id'] = entityId;
   } else {
@@ -76,6 +99,7 @@ export const buildReplacementOperation = (
   const moveFootprint =
     entityIds !== undefined ? Array.from(new Set([entityId, ...entityIds])) : undefined;
   const payload: LwwUpdatePayload = {
+    ...(context ? { taskReplayContext: context } : {}),
     actionPayload,
     entityChanges: [],
     lwwUpdateMode,
@@ -119,8 +143,11 @@ export const buildReplacementOperation = (
     ...(entityType === 'TASK' && hasTaskFolderOwnership(entityState)
       ? {
           requiredEntityTypes: ['FOLDER'],
-          requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1],
+          requiredCapabilities: [TASK_FOLDER_OWNERSHIP_V1, TASK_REPLAY_CONTEXT_V1],
         }
+      : {}),
+    ...(entityType === 'TASK' && !hasTaskFolderOwnership(entityState)
+      ? { requiredCapabilities: [TASK_REPLAY_CONTEXT_V1] }
       : {}),
   };
 };
