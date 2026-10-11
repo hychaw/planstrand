@@ -390,7 +390,22 @@ const recover = async (
           throw new Error(
             `RECOVERY_UNSUPPORTED_ENTITY_CHANGES at sequence ${row.serverSeq}`,
           );
-        return false;
+        // Only explicitly supported semantic replay may continue. The generic
+        // server fallback is not an AppDataComplete reducer: even its normalized
+        // TASK create/delete path omits initial Planning and relationship cleanup.
+        // A structurally valid output can therefore still be incomplete.
+        if (
+          ['EVENT_SERIES', 'OCCURRENCE_EXCEPTION', 'WEEKLY_TEMPLATE'].includes(
+            row.entityType,
+          ) ||
+          (row.entityType === 'PLANNING' &&
+            row.opType === 'PLANNING_V1' &&
+            ['[Planning] Set Placement', '[Planning] Remove Placement'].includes(
+              row.actionType ?? '',
+            ))
+        )
+          return false;
+        throw new Error(`RECOVERY_UNSUPPORTED_OPERATION at sequence ${row.serverSeq}`);
       },
       validateFullState: (snapshot) => {
         validateRecoverySnapshot(snapshot);

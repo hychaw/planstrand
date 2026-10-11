@@ -1,5 +1,14 @@
 # Routines Phase 6a — RC1 release readiness
 
+**Phase 6a.2 follow-up:** supported Task/Event recovery remains **P1 / unresolved**.
+Real encrypted CLI diagnostics also exposed successful but incomplete Task create
+and delete results (missing initial Planning; stale project membership). The
+operator now refuses unimplemented generic tails instead of returning those
+backups. This is a safety correction, **not completion of Task/Event replay**.
+See [Phase 6a.2](routines-phase-6a2.md) for evidence and the required client
+replay/archive integration. Current recommendation remains **NO-GO for Phase 6b**;
+native Windows sign-off is also incomplete. Historical assessments follow.
+
 **Phase 6a.1 follow-up:** the supported Folder recovery P1 below is resolved by
 the validated client-reducer operator path documented in
 [Phase 6a.1](routines-phase-6a1.md). The original Phase 6a assessment is preserved

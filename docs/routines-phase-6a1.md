@@ -1,5 +1,13 @@
 # Routines Phase 6a.1 — Folder operator recovery
 
+**Phase 6a.2 correction:** the remaining-limit statement below that every unhandled
+normalized tail fails was too broad. The generic normalized Task create/delete
+paths could succeed while omitting Planning or relationship changes. The operator
+now rejects those paths; the mixed Folder test uses a snapshotted Task instead of
+claiming Task-tail coverage. Folder/Routines/normal WorkSession support is retained.
+See [Phase 6a.2](routines-phase-6a2.md). The wider recovery P1 remains unresolved.
+The original Phase 6a.1 findings below are retained as historical evidence.
+
 October 11, 2026 UTC, on `feature/v1.2-routines`, starting at
 `b0575382b19cf26319fc96f0ba4cd8dab4a1d59b`. The only initial worktree change was
 the uncommitted Phase 6a report; it is preserved with a follow-up status note.

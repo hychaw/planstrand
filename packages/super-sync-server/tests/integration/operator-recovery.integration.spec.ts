@@ -178,7 +178,7 @@ describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () =
     expect(result.stderr).toContain('RECOVERY_INVALID_ROUTINES_OPERATION');
     expect(existsSync(result.out)).toBe(false);
   });
-  it('preserves batch entity IDs and causal REPAIR metadata during decryption', async () => {
+  it('refuses incomplete Task batch replay, including before a causal REPAIR', async () => {
     await prisma.operation.deleteMany({ where: { userId, serverSeq: 2 } });
     const common = {
       userId,
@@ -203,11 +203,9 @@ describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () =
       },
     });
     const deleted = run(2, 'batch-delete');
-    expect(deleted.status, deleted.stderr).toBe(0);
-    expect(JSON.parse(readFileSync(deleted.out, 'utf8')).appDataComplete.task).toEqual({
-      ids: [],
-      entities: {},
-    });
+    expect(deleted.status).not.toBe(0);
+    expect(deleted.stderr).toContain('RECOVERY_UNSUPPORTED_OPERATION at sequence 2');
+    expect(existsSync(deleted.out)).toBe(false);
     await prisma.operation.create({
       data: {
         ...common,
@@ -223,8 +221,9 @@ describeWithDb('operator recovery CLI with real encrypted PostgreSQL data', () =
     });
     await prisma.userSyncState.update({ where: { userId }, data: { lastSeq: 3 } });
     const repaired = run(3, 'causal-repair');
-    expect(repaired.status, repaired.stderr).toBe(0);
-    expect(JSON.parse(readFileSync(repaired.out, 'utf8')).appDataComplete).toEqual(state);
+    expect(repaired.status).not.toBe(0);
+    expect(repaired.stderr).toContain('RECOVERY_UNSUPPORTED_OPERATION at sequence 2');
+    expect(existsSync(repaired.out)).toBe(false);
   });
   it('refuses a gap inside the encrypted log without producing an output', async () => {
     await prisma.operation.deleteMany({ where: { userId, serverSeq: 2 } });

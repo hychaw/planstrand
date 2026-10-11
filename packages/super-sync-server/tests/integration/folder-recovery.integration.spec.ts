@@ -216,7 +216,7 @@ describeWithDb(
       });
       expect(f.final.folder.entities.temporary).toBeUndefined();
     });
-    it('interleaves Folder, Task, WorkSession, exceptions, templates and terminal Routines tombstones', async () => {
+    it('interleaves Folder, WorkSession and Routines tails with a snapshotted Task', async () => {
       const f = fixture(),
         routines = routinesRecoveryFixture();
       const task = {
@@ -225,6 +225,16 @@ describeWithDb(
         subTaskIds: [],
         tagIds: [],
         folderId: 'child',
+      };
+      // Task-tail replay is not authoritative. Keep the Task in the verified
+      // snapshot so this test isolates the supported Folder/session/Routines path.
+      const initial = {
+        ...f.initial,
+        task: {
+          ...f.initial.task,
+          ids: ['new-task', 'task'],
+          entities: { ...f.initial.task.entities, [task.id]: task },
+        },
       };
       const add = workActions.addWorkSession({
         workSession: {
@@ -257,20 +267,11 @@ describeWithDb(
         eventSeries: routines.expected.eventSeries,
         occurrenceException: routines.expected.occurrenceException,
         weeklyTemplate: routines.expected.weeklyTemplate,
-        task: {
-          ...f.initial.task,
-          ids: ['new-task', 'task'],
-          entities: { ...f.initial.task.entities, [task.id]: task },
-        },
+        task: initial.task,
         workSession: work,
       };
       recovered(
-        await seed([
-          snapshot(f.initial),
-          recoveryOperation('[Task Shared] addTask', 'TASK', task.id, { task }, 'CRT'),
-          ...interleaved,
-          ...capturedWork,
-        ]),
+        await seed([snapshot(initial), ...interleaved, ...capturedWork]),
         expected,
       );
       expect(task.folderId).toBe('child');

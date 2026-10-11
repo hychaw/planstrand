@@ -210,7 +210,8 @@ recovery against an isolated database restore rather than a normal sync path.
 The real-shape recovery regression is
 `e2e/tests/sync/supersync-plaintext-history-recovery-9439.spec.ts`.
 
-`scripts/recover-user.ts` fills the encrypted-recovery gap. It replays the user's operation log up
+`scripts/recover-user.ts` provides encrypted recovery for the explicitly supported
+operation families below. It replays the user's operation log up
 to a chosen `serverSeq`, decrypting encrypted payloads with the user's
 passphrase, and writes an importable `AppDataComplete` JSON file. It is
 **read-only** on the database.
@@ -252,15 +253,31 @@ immediately preceding accepted server sequence. Missing final operations, leadin
 non-snapshot gaps and all internal gaps remain errors, even across a later snapshot.
 Snapshot capability evidence is retained across replacement with empty state.
 
-Markerless REPAIR, patch-mode Folder compensation, unknown/future formats and
-unsupported multi-entity footprints remain refused. Generic uppercase Task/Event/
-WorkSession reconstruction is not an alternative normalized recovery format;
-tails not supported by the existing normalized replay or client bridges fail
-instead of exporting an ordinary-data subset. This is not a general implementation
-of every historical Task action or WorkSession LWW compensation. Unsupported or
-malformed history earlier in the range still prevents recovery despite a later
-snapshot. Use a complete supported client backup when available; preserve an
-isolated database copy for unresolved incident recovery rather than skipping rows.
+**Material coverage gap:** Task and one-off Event operation tails are not
+implemented by an authoritative client replay path. This includes current
+production Task create/delete/update/move/batch/archive operations and LWW
+compensation, not just historical formats. Generic normalized Task create/delete
+previously could succeed while omitting initial Planning or project/tag cleanup;
+the operator now explicitly refuses all unimplemented generic tails with
+`RECOVERY_UNSUPPORTED_OPERATION`. No new backup is written. Complete snapshots
+still preserve Task/Event records. Explicit `PLANNING_V1` register replay and the
+validated Folder, normal WorkSession and Routines bridges remain available.
+
+Markerless REPAIR, patch-mode Folder compensation, unknown/future formats,
+unsupported multi-entity footprints and WorkSession LWW compensation remain
+refused. Task patch compensation is emitted by supported clients and must not be
+classified as obsolete; complete recovery needs the existing client converter,
+batch handling, cross-model reducers **and asynchronous archive side effects**.
+Markerless REPAIR may also be produced when no valid server-base context exists;
+it remains outside the operator's provable causal-boundary contract. Neither
+limitation permits discarding rows or approving a potentially incomplete backup.
+
+Unsupported or malformed history earlier in the retained range still prevents
+recovery despite a later snapshot. Use a complete supported client backup when
+available; preserve an isolated database copy for unresolved incident recovery
+rather than skipping rows. See [Phase 6a.2](../../../docs/routines-phase-6a2.md)
+for the confirmed blocker and safety regression evidence. Operator recovery is
+**not complete for all supported application operations**.
 
 Compare persisted records after importing into a fresh supported client before
 relying on a recovered export. See [Phase 5b.3](../../../docs/routines-phase-5b3.md)
