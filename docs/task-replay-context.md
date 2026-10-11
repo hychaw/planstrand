@@ -6,6 +6,14 @@ Ordinary persistent `TaskSharedActions.updateTask` operations and synthetic
 `TASK_REPLAY_CONTEXT_V1`; archive-command support alone does not imply support
 for this contract. There is no schema or application version bump.
 
+Scheduling, rescheduling, unscheduling and both Task conversions now capture the
+same authenticated context before mutation. Scheduling uses its absolute source
+day boundaries; unscheduling uses its source Today when the action has no explicit
+day. Conversion uses its sampled mutation time and Today when those values are
+absent from the action. The production converter does not substitute legacy
+operation-time defaults for versioned context. Full-state operations retain the
+durable capability floor without carrying an individual Task mutation context.
+
 The strict version-1 fields are:
 
 - `modified`: the source update's sampled timestamp, or the winning LWW record's
@@ -40,10 +48,10 @@ operations. Missing, malformed, unsupported, or capability-stripped context is
 rejected. Unmarked legacy operations retain existing synchronization semantics;
 that does not make their receiver-clock-dependent histories recoverable.
 
-This milestone does not integrate the recovery CLI or claim complete Task/Event
-tail support. The generic server snapshot replay explicitly refuses this context.
-Recovery still needs a production replay host with complete canonical windows,
-awaited archive writes, strict failure propagation and validated full-state export.
+The operator CLI uses the production browser replay host with complete canonical
+windows, awaited archive writes, strict failure propagation and validated full-state
+export for its explicitly admitted vocabulary. The generic server snapshot replay
+still refuses this context. This does not claim support for every Task action.
 Legacy ambiguous histories and other unsupported Task/Event operations must
 continue to fail closed; neither snapshots nor ordering timestamps supply missing
 historical clock/calendar context.

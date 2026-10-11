@@ -265,6 +265,11 @@ with relationship cleanup, context-bearing single/batch edits (active or archive
 explicit patch/replace Task compensation, deterministic archive commands, restore,
 archive flush and captured plugin batches, plus one-off Event create/update/delete.
 Mixed Folder, WorkSession, Planning and Routines tails retain their strict contracts.
+Versioned Task scheduling/rescheduling/unscheduling and conversion to/from subtasks
+also use their source replay context through the same production converter and
+reducers. Ordinary Project creation/update and their Project-tree/Tag-update
+follow-ups are admitted. Existing WorkSession links, Planning, relationships and
+durable capability requirements are validated in the complete exported state.
 The checkout must also have Chrome, Playwright, esbuild and the existing Typia
 transformer installed. Runtime/build/validation failures prevent export.
 
@@ -286,6 +291,13 @@ available; preserve an isolated database copy for unresolved incident recovery
 rather than skipping rows. See [Phase 6a.2](../../../docs/routines-phase-6a2.md)
 for the confirmed blocker and safety regression evidence. Operator recovery is
 **not complete for all supported application operations**.
+
+Current reachable refusals still include scheduled Task creation, other Task
+lifecycle/deadline/short-syntax actions, Project lifecycle/order/advanced-config
+actions, and persistent operations outside the admitted families (for example
+settings, Tag creation/deletion, Notes, Sections, time tracking and plugin data).
+These are production workflows, not necessarily obsolete formats. See
+[the scoped workflow comparison](../../../docs/recovery-production-workflows.md).
 
 Compare persisted records after importing into a fresh supported client before
 relying on a recovered export. See [Phase 5b.3](../../../docs/routines-phase-5b3.md)

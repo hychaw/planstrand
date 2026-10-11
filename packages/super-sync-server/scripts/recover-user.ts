@@ -390,6 +390,12 @@ const recover = async (
   const needsProductionReplay = rows.some(
     (row) =>
       ['TASK', 'EVENT'].includes(row.entityType) ||
+      [
+        '[Project] Add Project',
+        '[Project] Update Project',
+        '[MenuTree] Update Project Tree',
+        '[Tag] Update Tag',
+      ].includes(row.actionType ?? '') ||
       row.actionType === '[Task Shared] batchUpdateForProject' ||
       row.actionType === '[Archive] Flush Young to Old',
   );

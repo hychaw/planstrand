@@ -8,6 +8,16 @@ import type { PersistentAction } from './persistent-action.interface';
 
 export type TaskReplayContexts = Record<string, TaskReplayContext>;
 
+/** Actions whose source calendar/mutation values must survive replay. */
+export const TASK_CONTEXT_ACTIONS: readonly string[] = [
+  ActionType.TASK_SHARED_UPDATE,
+  ActionType.TASK_SHARED_SCHEDULE_WITH_TIME,
+  ActionType.TASK_SHARED_RESCHEDULE_WITH_TIME,
+  ActionType.TASK_SHARED_UNSCHEDULE,
+  ActionType.TASK_SHARED_CONVERT_TO_MAIN,
+  ActionType.TASK_SHARED_CONVERT_TO_SUB,
+];
+
 /** Source mutation values; the operation's ordering timestamp remains independent. */
 export interface TaskReplayContext {
   version: 1;
@@ -77,13 +87,21 @@ export const prepareTaskReplayAction = <A extends Action>(
   state: { appState?: AppState } | undefined,
   original: A,
 ): A => {
-  if (original.type !== ActionType.TASK_SHARED_UPDATE) return original;
+  if (!TASK_CONTEXT_ACTIONS.includes(original.type)) return original;
   const action = original as unknown as PersistentAction;
-  const changes = action.task.changes;
   // Archive mutations prepare their action before I/O and dispatch the same
   // context afterwards. Never resample it at that later capture boundary.
   const supplied = readTaskReplayContext(action.meta?.taskReplayContext);
   const context = supplied ?? captureTaskReplayContext(state?.appState);
+  if (original.type !== ActionType.TASK_SHARED_UPDATE) {
+    if (context.modified === null)
+      throw new Error('Missing source Task mutation timestamp');
+    return {
+      ...original,
+      meta: { ...action.meta, taskReplayContext: context },
+    };
+  }
+  const changes = action.task.changes;
   const timestamp = context.modified!;
   if (changes.isDone === true && !supplied)
     context.completionDay = getDbDateStr(
@@ -187,17 +205,21 @@ export const getOperationTaskReplayContext = (
   }
   const context = (op.payload as { taskReplayContext?: unknown } | null)
     ?.taskReplayContext;
+  // A full-state snapshot carries the durable account floor, not an individual
+  // Task mutation. That floor must survive replacement without requiring a
+  // synthetic Task context on the snapshot itself.
+  if (op.entityType === 'ALL' && context === undefined) return undefined;
   if (context === undefined && !op.requiredCapabilities?.includes(TASK_REPLAY_CONTEXT_V1))
     return undefined;
   if (
     (op.entityType !== undefined && op.entityType !== 'TASK') ||
-    ![ActionType.TASK_SHARED_UPDATE as string, '[TASK] LWW Update'].includes(
-      op.actionType,
-    ) ||
+    ![...TASK_CONTEXT_ACTIONS, '[TASK] LWW Update'].includes(op.actionType) ||
     !op.requiredCapabilities?.includes(TASK_REPLAY_CONTEXT_V1)
   )
     throw new Error('Task replay context requires its semantic reader capability');
   assertTaskReplayContext(context);
+  if (TASK_CONTEXT_ACTIONS.includes(op.actionType) && context.modified === null)
+    throw new Error('Missing source Task mutation timestamp');
   if (op.actionType === ActionType.TASK_SHARED_UPDATE) {
     if (context.modified === null)
       throw new Error('Missing source Task update timestamp');

@@ -26,6 +26,11 @@ import {
   updateTags,
 } from './task-shared-helpers';
 import { filterOutId } from '../../../util/filter-out-id';
+import {
+  readTaskReplayContext,
+  TaskReplayContext,
+} from '../../../op-log/core/task-replay-context';
+import { PersistentAction } from '../../../op-log/core/persistent-action.interface';
 
 // =============================================================================
 // ACTION HANDLERS
@@ -43,6 +48,7 @@ const handleScheduleTaskWithTime = (
   dueWithTime: number,
   remindAt?: number,
   isMoveToBacklog?: boolean,
+  context?: TaskReplayContext,
 ): RootState => {
   // Check if task already has the same dueWithTime
   const currentTask = state[TASK_FEATURE_NAME].entities[task.id] as Task;
@@ -53,11 +59,9 @@ const handleScheduleTaskWithTime = (
   const todayTag = getTag(state, TODAY_TAG.id);
   const todayStr = state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
   const startOfNextDayDiffMs = state[appStateFeatureKey]?.startOfNextDayDiffMs ?? 0;
-  const isScheduledForToday = isTodayWithOffset(
-    dueWithTime,
-    todayStr,
-    startOfNextDayDiffMs,
-  );
+  const isScheduledForToday = context
+    ? dueWithTime >= context.todayStart && dueWithTime < context.todayEnd
+    : isTodayWithOffset(dueWithTime, todayStr, startOfNextDayDiffMs);
   const isCurrentlyInToday = todayTag.taskIds.includes(task.id);
 
   // If task is already correctly scheduled, don't change state (unless backlog move requested)
@@ -322,6 +326,7 @@ const createActionHandlers = (state: RootState, action: Action): ActionHandlerMa
       dueWithTime,
       remindAt,
       isMoveToBacklog,
+      readTaskReplayContext((action as PersistentAction).meta?.taskReplayContext),
     );
   },
   [TaskSharedActions.reScheduleTaskWithTime.type]: () => {
@@ -334,13 +339,17 @@ const createActionHandlers = (state: RootState, action: Action): ActionHandlerMa
       dueWithTime,
       remindAt,
       isMoveToBacklog,
+      readTaskReplayContext((action as PersistentAction).meta?.taskReplayContext),
     );
   },
   [TaskSharedActions.unscheduleTask.type]: () => {
     const { id, isLeaveInToday, today } = action as ReturnType<
       typeof TaskSharedActions.unscheduleTask
     >;
-    return handleUnScheduleTask(state, id, isLeaveInToday, today);
+    const context = readTaskReplayContext(
+      (action as PersistentAction).meta?.taskReplayContext,
+    );
+    return handleUnScheduleTask(state, id, isLeaveInToday, today ?? context?.today);
   },
   [TaskSharedActions.dismissReminderOnly.type]: () => {
     const { id } = action as ReturnType<typeof TaskSharedActions.dismissReminderOnly>;

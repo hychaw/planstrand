@@ -381,7 +381,8 @@ export const convertOpToAction = (
   }
   if (!isMaterializingLegacyState()) {
     actionPayload = addLegacyPlanForTodayDate(actionType, actionPayload, op);
-    actionPayload = addLegacyUnscheduleDate(actionType, actionPayload, op);
+    if (!taskReplayContext)
+      actionPayload = addLegacyUnscheduleDate(actionType, actionPayload, op);
   } else if (
     !isValidDbDate(actionPayload['today']) &&
     (actionType === ActionType.TASK_SHARED_PLAN_FOR_TODAY ||
@@ -392,7 +393,8 @@ export const convertOpToAction = (
     // history cannot establish a date-addressable legacy placement.
     throw new Error(`Legacy Today operation ${op.id} lacks a recoverable date`);
   }
-  actionPayload = addLegacyConvertToMainTaskDates(actionType, actionPayload, op);
+  if (!taskReplayContext)
+    actionPayload = addLegacyConvertToMainTaskDates(actionType, actionPayload, op);
   actionPayload = addReplaySafeDoneFields(actionType, actionPayload, op);
   actionPayload = stripMalformedConvertToMainTaskParentTagIds(
     actionType,

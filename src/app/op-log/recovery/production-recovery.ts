@@ -36,6 +36,7 @@ import { validateOperationPayload } from '../validation/validate-operation-paylo
 import {
   getOperationTaskReplayContext,
   getOperationTaskReplayContexts,
+  TASK_CONTEXT_ACTIONS,
 } from '../core/task-replay-context';
 import { applyFolderRecoveryOperation } from '../../features/folder/folder-recovery';
 import { applyWorkSessionRecoveryOperation } from '../../features/work-session/work-session-recovery';
@@ -51,6 +52,8 @@ import {
 import { flushYoungToOld } from '../../features/archive/store/archive.actions';
 import { validateFull, appDataValidators } from '../validation/validation-fn';
 import { AppDataComplete } from '../model/model-config';
+import { isValidEntityId } from '../validation/is-valid-entity-id';
+import { isValidDBDateStr } from '../../util/get-db-date-str';
 
 const validatePersistedState = (value: unknown): void => {
   validateRecoverySnapshot(value as Record<string, unknown>);
@@ -85,6 +88,11 @@ const taskActions = new Map<string, string>([
   [T.deleteTasks.type, 'DEL'],
   [T.moveToArchive.type, 'UPD'],
   [T.restoreTask.type, 'UPD'],
+  [T.scheduleTaskWithTime.type, 'UPD'],
+  [T.reScheduleTaskWithTime.type, 'UPD'],
+  [T.unscheduleTask.type, 'UPD'],
+  [T.convertToMainTask.type, 'UPD'],
+  [T.convertToSubTask.type, 'UPD'],
   [flushYoungToOld.type, 'BATCH'],
   [T.batchUpdateForProject.type, 'BATCH'],
 ]);
@@ -128,10 +136,63 @@ const admit = (op: RecoveryOperation): void => {
             : 'TASK')
     )
       fail();
-    if (op.actionType === T.updateTask.type && !getOperationTaskReplayContext(op)) fail();
+    if (
+      TASK_CONTEXT_ACTIONS.includes(op.actionType) &&
+      !getOperationTaskReplayContext(op)
+    )
+      fail();
     if (op.actionType === T.updateTasks.type && !getOperationTaskReplayContexts(op))
       fail();
     if (op.actionType === T.moveToArchive.type && !body['archiveCommand']) fail();
+    if (
+      op.actionType === T.scheduleTaskWithTime.type ||
+      op.actionType === T.reScheduleTaskWithTime.type
+    ) {
+      if (
+        !record(body['task']) ||
+        body['task'].id !== op.entityId ||
+        !isValidEntityId(op.entityId) ||
+        !timestamp(body['dueWithTime']) ||
+        typeof body['isMoveToBacklog'] !== 'boolean' ||
+        (body['remindAt'] !== undefined && !timestamp(body['remindAt']))
+      )
+        fail();
+    }
+    if (op.actionType === T.unscheduleTask.type) {
+      if (
+        !isValidEntityId(body['id']) ||
+        body['id'] !== op.entityId ||
+        (body['isLeaveInToday'] !== undefined &&
+          typeof body['isLeaveInToday'] !== 'boolean') ||
+        (body['today'] !== undefined &&
+          (typeof body['today'] !== 'string' || !isValidDBDateStr(body['today'])))
+      )
+        fail();
+    }
+    if (op.actionType === T.convertToSubTask.type) {
+      if (
+        !isValidEntityId(body['taskId']) ||
+        body['taskId'] !== op.entityId ||
+        !isValidEntityId(body['targetParentId']) ||
+        (body['afterTaskId'] !== null && !isValidEntityId(body['afterTaskId']))
+      )
+        fail();
+    }
+    if (op.actionType === T.convertToMainTask.type) {
+      if (
+        !record(body['task']) ||
+        !isValidEntityId(body['task'].id) ||
+        body['task'].id !== op.entityId ||
+        (body['today'] !== undefined &&
+          (typeof body['today'] !== 'string' || !isValidDBDateStr(body['today']))) ||
+        (body['modified'] !== undefined && !timestamp(body['modified'])) ||
+        (body['doneOn'] !== undefined && !timestamp(body['doneOn'])) ||
+        (body['isDone'] !== undefined && typeof body['isDone'] !== 'boolean') ||
+        (body['isPlanForToday'] !== undefined &&
+          typeof body['isPlanForToday'] !== 'boolean')
+      )
+        fail();
+    }
     if (op.actionType === T.addTask.type) {
       // Legacy scheduling fields do not capture handleAddTask's source calendar.
       if (
@@ -167,6 +228,44 @@ const admit = (op: RecoveryOperation): void => {
       op.opType !== 'UPD' ||
       !['patch', 'replace'].includes(op.payload['lwwUpdateMode']) ||
       !getOperationTaskReplayContext(op)
+    )
+      fail();
+    return;
+  }
+  if (
+    op.entityType === 'PROJECT' &&
+    ((op.actionType === '[Project] Add Project' && op.opType === 'CRT') ||
+      (op.actionType === '[Project] Update Project' && op.opType === 'UPD'))
+  ) {
+    if (
+      !record(body['project']) ||
+      !isValidEntityId(body['project'].id) ||
+      body['project'].id !== op.entityId ||
+      (op.entityIds !== undefined && op.entityIds.length > 1) ||
+      (op.opType === 'UPD' && !record(body['project'].changes))
+    )
+      fail();
+    return;
+  }
+  // Follow-up operations emitted by Project creation and Today retention.
+  if (op.actionType === '[MenuTree] Update Project Tree') {
+    if (
+      op.entityType !== 'MENU_TREE' ||
+      op.opType !== 'UPD' ||
+      op.entityId !== 'projectTree' ||
+      !Array.isArray(body['tree'])
+    )
+      fail();
+    return;
+  }
+  if (op.actionType === '[Tag] Update Tag') {
+    if (
+      op.entityType !== 'TAG' ||
+      op.opType !== 'UPD' ||
+      !record(body['tag']) ||
+      !isValidEntityId(body['tag'].id) ||
+      body['tag'].id !== op.entityId ||
+      !record(body['tag'].changes)
     )
       fail();
     return;

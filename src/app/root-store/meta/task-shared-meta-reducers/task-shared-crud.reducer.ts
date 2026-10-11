@@ -288,6 +288,7 @@ const handleConvertToSubTask = (
   taskId: string,
   targetParentId: string,
   afterTaskId: string | null,
+  capturedModified?: number,
 ): RootState => {
   const task = state[TASK_FEATURE_NAME].entities[taskId] as Task | undefined;
   const targetParent = state[TASK_FEATURE_NAME].entities[targetParentId] as
@@ -344,7 +345,7 @@ const handleConvertToSubTask = (
           parentId: targetParent.id,
           projectId: targetParent.projectId,
           dueDay: undefined,
-          modified: Date.now(),
+          modified: capturedModified ?? Date.now(),
         },
       },
     ],
@@ -1104,16 +1105,26 @@ const createActionHandlers = (state: RootState, action: Action): ActionHandlerMa
       isPlanForToday,
       afterTaskId,
       isDone,
-      today,
-      doneOn,
-      modified,
+      today ?? (action as PersistentAction).meta?.taskReplayContext?.today,
+      doneOn ??
+        (action as PersistentAction).meta?.taskReplayContext?.modified ??
+        undefined,
+      modified ??
+        (action as PersistentAction).meta?.taskReplayContext?.modified ??
+        undefined,
     );
   },
   [TaskSharedActions.convertToSubTask.type]: () => {
     const { taskId, targetParentId, afterTaskId } = action as ReturnType<
       typeof TaskSharedActions.convertToSubTask
     >;
-    return handleConvertToSubTask(state, taskId, targetParentId, afterTaskId);
+    return handleConvertToSubTask(
+      state,
+      taskId,
+      targetParentId,
+      afterTaskId,
+      (action as PersistentAction).meta?.taskReplayContext?.modified ?? undefined,
+    );
   },
   [TaskSharedActions.deleteTask.type]: () => {
     const { task } = action as ReturnType<typeof TaskSharedActions.deleteTask>;
