@@ -81,7 +81,9 @@ describe('UpdateCheckService', () => {
     it('compares Planstrand releases against the product RC, not the upstream package', async () => {
       await checkAndRespond({ tag_name: 'v1.0.0-rc.1' });
       expect(bannerService.open).not.toHaveBeenCalled();
-      await checkAndRespond({ tag_name: 'v1.1.0' });
+      await checkAndRespond({
+        tag_name: `v${PLANSTRAND_PRODUCT_VERSION.split('-')[0]}`,
+      });
       expect(bannerService.open).toHaveBeenCalledTimes(1);
     });
 

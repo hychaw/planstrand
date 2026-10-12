@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { Action, Store } from '@ngrx/store';
-import { Subject, Subscription } from 'rxjs';
+import { of, Subject, Subscription } from 'rxjs';
 import { ArchiveDbAdapter } from '../../../core/persistence/archive-db-adapter.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { ClientIdService } from '../../../core/util/client-id.service';
@@ -9,6 +9,7 @@ import { ArchiveModel } from '../../../features/archive/archive.model';
 import { TaskArchiveService } from '../../../features/archive/task-archive.service';
 import { DEFAULT_TASK, Task } from '../../../features/tasks/task.model';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
+import { appStateInitialState } from '../../../root-store/app-state/app-state.reducer';
 import { OperationApplierService } from '../../apply/operation-applier.service';
 import { OperationCaptureService } from '../../capture/operation-capture.service';
 import { clearDeferredActions } from '../../capture/operation-capture.meta-reducer';
@@ -16,6 +17,7 @@ import { OperationLogEffects } from '../../capture/operation-log.effects';
 import { buildEntityRegistry, ENTITY_REGISTRY } from '../../core/entity-registry';
 import { UnsupportedMultiEntityConflictError } from '../../core/errors/sync-errors';
 import { ActionType, Operation } from '../../core/operation.types';
+import { getOperationTaskReplayContexts } from '../../core/task-replay-context';
 import {
   isPersistentAction,
   PersistentAction,
@@ -69,7 +71,8 @@ describe('unsupported archive multi-entity conflict integration (#9405)', () => 
     resetTestUuidCounter();
     clearDeferredActions();
     actions$ = new Subject<Action>();
-    store = jasmine.createSpyObj<Store>('Store', ['dispatch']);
+    store = jasmine.createSpyObj<Store>('Store', ['dispatch', 'select']);
+    store.select.and.returnValue(of(appStateInitialState));
 
     operationApplier = jasmine.createSpyObj<OperationApplierService>(
       'OperationApplierService',
@@ -225,9 +228,16 @@ describe('unsupported archive multi-entity conflict integration (#9405)', () => 
     const localOperation = await pendingLocalOperation();
     expect(localOperation.actionType).toBe(ActionType.TASK_SHARED_UPDATE_MULTIPLE);
     expect(localOperation.entityIds).toEqual([YOUNG_TASK_ID, OLD_TASK_ID]);
+    const contexts = getOperationTaskReplayContexts(localOperation)!;
+    expect(Object.keys(contexts).sort()).toEqual([YOUNG_TASK_ID, OLD_TASK_ID].sort());
+    expect(contexts).toEqual(
+      (store.dispatch.calls.mostRecent().args[0] as unknown as PersistentAction).meta
+        .taskReplayContexts!,
+    );
     expect(localOperation.payload).toEqual({
       actionPayload: { tasks: updates },
       entityChanges: [],
+      taskReplayContext: contexts,
     });
 
     const thrown = await raceConcurrentRemoteEdit(YOUNG_TASK_ID, localOperation);

@@ -5,6 +5,9 @@ import {
   ENTITY_TYPES,
   SUPER_SYNC_OPERATION_CAPABILITIES,
   TASK_FOLDER_OWNERSHIP_V1,
+  TASK_REPLAY_CONTEXT_V1,
+  ROUTINES_V1,
+  ARCHIVE_COMMAND_V1,
   CLIENT_SYNC_READER_CAPABILITIES,
 } from '@sp/shared-schema';
 import { initialFolderState } from '../../features/folder/folder-state';
@@ -50,7 +53,10 @@ describe('Semantic ownership reader requirements', () => {
       { client: 1 },
       1,
     );
-    expect(replacement.requiredCapabilities).toEqual([TASK_FOLDER_OWNERSHIP_V1]);
+    expect(replacement.requiredCapabilities).toEqual([
+      TASK_FOLDER_OWNERSHIP_V1,
+      TASK_REPLAY_CONTEXT_V1,
+    ]);
     expect(replacement.requiredEntityTypes).toEqual(['FOLDER']);
     expect(
       getRemoteOpBlockReason(replacement, CURRENT_SCHEMA_VERSION, ENTITY_TYPES, []),
@@ -68,7 +74,12 @@ describe('Semantic ownership reader requirements', () => {
     requiredCapabilities: required,
   };
   it('blocks Folder-capable pre-4E replay and the pre-processing prefix', () => {
-    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual(required);
+    expect(CLIENT_SYNC_READER_CAPABILITIES).toEqual([
+      TASK_FOLDER_OWNERSHIP_V1,
+      ROUTINES_V1,
+      ARCHIVE_COMMAND_V1,
+      TASK_REPLAY_CONTEXT_V1,
+    ]);
     expect(getRemoteOpBlockReason(taskOp, CURRENT_SCHEMA_VERSION, ENTITY_TYPES, [])).toBe(
       'ENTITY_SUPPORT_REQUIRED',
     );
