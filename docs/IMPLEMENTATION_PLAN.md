@@ -1,6 +1,12 @@
 # Planstrand Implementation Plan
 
-## Active strategy: V1.1 Blue Thread (2026-10-06)
+This document preserves the V1/V1.1 implementation strategies and roadmap below.
+The current published release is [V1.2 RC1](https://github.com/hychaw/planstrand/releases/tag/v1.2.0-rc.1),
+which includes Recurring Events and Weekly Templates. Use the
+[release runbook](release-and-publishing.md) for current release status and
+[V1.2 notes](releases/v1.2.0-rc.1.md) for feature and compatibility details.
+
+## Historical strategy: V1.1 Blue Thread (2026-10-06)
 
 Baseline: `a03805daf9b4cb2bd4cb483d7731c253fe9cb429` on `development`.
 Implementation branch: `feature/v1.1-blue-thread`. Preserve published RC1.
@@ -23,7 +29,7 @@ V1.1 excludes Event recurrence, WeeklyTemplate, recurrence editing, normalized
 reminders, Trash, account/device/E2EE changes and external calendar export. The
 historical V1 plan and audit evidence below remain a record of the released base.
 
-## Active strategy: Fast-Track V1 (2026-10-04)
+## Historical strategy: Fast-Track V1 (2026-10-04)
 
 Milestone A is merged. Milestone B delivers minimal standalone local Events and
 one unified Calendar / Schedule using the Phase 3 projection and existing
