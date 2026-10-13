@@ -31,6 +31,7 @@ import {
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { IndexedDBOpenError } from '../core/errors/indexed-db-open.error';
+import * as DataFormat from '../core/errors/unsupported-data-version.error';
 import { alertDialog } from '../../util/native-dialogs';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { OperationApplierService } from '../apply/operation-applier.service';
@@ -108,6 +109,7 @@ export class OperationLogHydratorService {
       // clears it.
       this.hydrationStateService.setHydrationInProgress(true);
 
+      DataFormat.assertReadable(await this.opLogStore.loadStateCache());
       // PERF: Parallel startup operations - all access different IndexedDB stores
       // and don't depend on each other's results, so they can run concurrently.
       const [pendingRemoteOps, hasBackup] = await Promise.all([
@@ -146,8 +148,7 @@ export class OperationLogHydratorService {
         snapshot = await this.opLogStore.loadStateCache();
       }
 
-      // An acknowledged local replacement is confirmation, unlike compaction's
-      // schema stamp. Recover a crash between acknowledgement and cache install.
+      // Recover acknowledged local replacements after a crash before cache install.
       if (!snapshot || (snapshot.schemaVersion ?? 1) < 5) {
         const replacement = await this.opLogStore.getLatestFullStateOpEntry();
         if (
@@ -158,6 +159,7 @@ export class OperationLogHydratorService {
           (replacement.op.syncImportReason === 'FORCE_UPLOAD' ||
             replacement.op.syncImportReason === 'SERVER_MIGRATION')
         ) {
+          DataFormat.assertOperationsReadable([replacement]);
           const state = this._extractFullStateFromOp(replacement.op);
           if (!state) throw new Error('Confirmed cutover has no full state');
           snapshot = {
@@ -205,6 +207,7 @@ export class OperationLogHydratorService {
       }
 
       // 3. Validate snapshot if it exists
+      DataFormat.assertReadable(snapshot);
       if (snapshot && !this.snapshotService.isValidSnapshot(snapshot)) {
         OpLog.warn('OperationLogHydratorService: Snapshot is invalid/corrupted.');
         // The snapshot is only a load-time cache — the op-log is the source of
@@ -416,6 +419,8 @@ export class OperationLogHydratorService {
     } catch (e) {
       OpLog.err('OperationLogHydratorService: Error during hydration', e);
 
+      if (e instanceof DataFormat.UnsupportedDataVersionError) throw e;
+
       // Handle IndexedDB open failure with specific guidance
       if (e instanceof IndexedDBOpenError) {
         this._showIndexedDBOpenError(e);
@@ -538,6 +543,7 @@ export class OperationLogHydratorService {
     pendingRemoteOps: OperationLogEntry[],
   ): Promise<boolean> {
     const allTailEntries = await this.opLogStore.getOpsAfterSeq(lastAppliedOpSeq);
+    DataFormat.assertOperationsReadable(allTailEntries);
     // #9438: every entry read here is covered by this hydration pass —
     // including reducer-rejected ones, which replay deliberately skips
     // forever. Ops a concurrent tab appends AFTER this read lie beyond this
@@ -685,9 +691,9 @@ export class OperationLogHydratorService {
     );
     // We might be in a fresh install state or post-migration-check with no
     // legacy data. Replay ALL operations from the beginning of the log.
-    // Status-blind except for durable reducer rejections — see the replay
-    // policy note on _replayTailOps.
+    // See _replayTailOps for status filtering.
     const allEntries = await this.opLogStore.getOpsAfterSeq(0);
+    DataFormat.assertOperationsReadable(allEntries);
     if (
       !this.schemaMigrationService.isMaterializingLegacyState &&
       allEntries.some((entry) => (entry.op.schemaVersion ?? 1) < 5)

@@ -3,7 +3,11 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const Module = require('node:module');
 
-require('ts-node/register/transpile-only');
+require('ts-node').register({
+  transpileOnly: true,
+  preferTsExts: true,
+  project: path.join(__dirname, 'tsconfig.electron.json'),
+});
 
 const originalModuleLoad = Module._load;
 const backupModulePath = path.resolve(__dirname, 'backup.ts');
@@ -24,6 +28,7 @@ let handleHandlers;
 let onHandlers;
 // fileName -> mtime (ms) served by the mocked readdirSync/statSync
 let backupFiles;
+let backupWriter;
 
 const resetModule = () => {
   delete require.cache[backupModulePath];
@@ -43,6 +48,10 @@ const installMocks = () => {
 
     if (request === 'electron-log/main') {
       return { log: () => {}, error: () => {} };
+    }
+
+    if (request === './verified-backup' && parent?.filename === backupModulePath) {
+      return { writeVerifiedBackup: (...args) => backupWriter(...args) };
     }
 
     // Scoped to backup.ts so ts-node / node:test keep the real fs.
@@ -76,6 +85,7 @@ test.beforeEach(() => {
   handleHandlers = new Map();
   onHandlers = new Map();
   backupFiles = new Map();
+  backupWriter = () => 'verified.json';
   installMocks();
 });
 
@@ -99,6 +109,48 @@ test('registers backup writes as a completion-aware IPC handler', () => {
 
   assert.equal(handleHandlers.has('BACKUP'), true);
   assert.equal(onHandlers.has('BACKUP'), false);
+});
+
+test('BACKUP acknowledges only after verified writing and propagates failure', () => {
+  const { initBackupAdapter } = loadBackupModule();
+  initBackupAdapter();
+  let written = false;
+  backupWriter = (directory, data) => {
+    assert.equal(directory, BACKUP_DIR);
+    assert.deepEqual(data, { task: 'test' });
+    written = true;
+  };
+  assert.equal(handleHandlers.get('BACKUP')(null, { data: { task: 'test' } }), undefined);
+  assert.equal(written, true);
+  backupWriter = () => {
+    throw new Error('Backup could not be persisted and verified');
+  };
+  assert.throws(
+    () => handleHandlers.get('BACKUP')(null, { data: {} }),
+    /persisted and verified/,
+  );
+});
+
+test('checkpoint IPC uses separate storage and returns explicit failure', () => {
+  const { initBackupAdapter, UPGRADE_CHECKPOINT_DIR } = loadBackupModule();
+  initBackupAdapter();
+  assert.notEqual(UPGRADE_CHECKPOINT_DIR, BACKUP_DIR);
+  backupWriter = (directory) => {
+    assert.equal(directory, UPGRADE_CHECKPOINT_DIR);
+    return path.join(directory, 'verified.json');
+  };
+  assert.deepEqual(handleHandlers.get('BACKUP_UPGRADE_CHECKPOINT')(null, {}), {
+    ok: true,
+    path: path.join(UPGRADE_CHECKPOINT_DIR, 'verified.json'),
+    coverage: 'application-data',
+  });
+  backupWriter = () => {
+    throw new Error('private content must not escape');
+  };
+  assert.deepEqual(handleHandlers.get('BACKUP_UPGRADE_CHECKPOINT')(null, {}), {
+    ok: false,
+    reason: 'WRITE_FAILED',
+  });
 });
 
 test('BACKUP_LIST returns every backup file newest first', () => {

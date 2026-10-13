@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Operation, VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
+import { UnsupportedDataVersionError } from '../core/errors/unsupported-data-version.error';
 import {
   CURRENT_SCHEMA_VERSION as SHARED_CURRENT_SCHEMA_VERSION,
   MIN_SUPPORTED_SCHEMA_VERSION as SHARED_MIN_SUPPORTED_SCHEMA_VERSION,
@@ -132,7 +133,10 @@ export class SchemaMigrationService {
     // Handle old caches that don't have schemaVersion
     const currentVersion = cache.schemaVersion ?? 1;
 
-    if (currentVersion >= targetVersion) {
+    if (!Number.isInteger(currentVersion) || currentVersion > targetVersion) {
+      throw new UnsupportedDataVersionError();
+    }
+    if (currentVersion === targetVersion) {
       // Already at current version
       return {
         ...cache,

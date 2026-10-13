@@ -7,6 +7,7 @@ import {
   ElectronDistChannel,
 } from './shared-with-frontend/get-dist-channel';
 import { LocalBackupMeta } from '../src/app/imex/local-backup/local-backup.model';
+import type { UpgradeCheckpointResult } from './shared-with-frontend/upgrade-checkpoint.model';
 import {
   PluginNodeScriptRequest,
   PluginNodeScriptResult,
@@ -211,6 +212,8 @@ const ea: ElectronAPI = {
   showFullScreenBlocker: (args) => _send('FULL_SCREEN_BLOCKER', args),
 
   backupAppData: (appData) => _invoke('BACKUP', appData) as Promise<void>,
+  writeUpgradeCheckpoint: (data) =>
+    _invoke('BACKUP_UPGRADE_CHECKPOINT', data) as Promise<UpgradeCheckpointResult>,
 
   updateCurrentTask: (
     task,

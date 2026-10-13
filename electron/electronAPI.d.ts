@@ -16,6 +16,10 @@ import { AppDataCompleteLegacy } from '../src/app/imex/sync/sync.model';
 import { Task } from '../src/app/features/tasks/task.model';
 import { LocalBackupMeta } from '../src/app/imex/local-backup/local-backup.model';
 import { AppDataComplete } from '../src/app/op-log/model/model-config';
+import type {
+  UpgradeCheckpointData,
+  UpgradeCheckpointResult,
+} from './shared-with-frontend/upgrade-checkpoint.model';
 import { PluginNodeExecutionElectronApi } from './shared-with-frontend/plugin-node-execution.model';
 import {
   LocalRestApiRequestPayload,
@@ -256,6 +260,8 @@ export interface ElectronAPI {
       | { requiredEntityTypes: string[]; appDataComplete: AppDataComplete };
     maxBackupFiles?: number | null;
   }): Promise<void>;
+
+  writeUpgradeCheckpoint(data: UpgradeCheckpointData): Promise<UpgradeCheckpointResult>;
 
   updateCurrentTask(
     task: Task | null,

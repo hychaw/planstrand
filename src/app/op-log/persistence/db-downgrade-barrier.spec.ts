@@ -232,6 +232,24 @@ describe('V1.2 local downgrade barrier', () => {
   ];
 
   for (const opener of openers) {
+    it(`reopens an existing V1.2 database without migration or record changes when ${opener.name} opens first`, async () => {
+      await seedV11();
+      const released = await openDB(DB_NAME, 12, {
+        upgrade: (db, oldVersion, _newVersion, tx) => runDbUpgrade(db, oldVersion, tx),
+      });
+      const original = await readContents(released);
+      released.close();
+      await opener.open();
+      const reopened = await openDB(DB_NAME, 12, {
+        upgrade: () => fail('V1.2 must not migrate'),
+      });
+      try {
+        expect(await readContents(reopened)).toEqual(original);
+      } finally {
+        reopened.close();
+      }
+    });
+
     it(`preserves V1.1 data through upgrade, rejected downgrade and reopen when ${opener.name} opens first`, async () => {
       expect(DB_VERSION).toBe(12);
       await seedV11();

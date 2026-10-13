@@ -101,6 +101,14 @@ describe('SchemaMigrationService', () => {
   });
 
   describe('migrateStateIfNeeded', () => {
+    it('refuses to relabel a future snapshot as current', () => {
+      const cache = createMockCache(CURRENT_SCHEMA_VERSION + 1);
+      const before = structuredClone(cache);
+      expect(() => service.migrateStateIfNeeded(cache)).toThrowError(
+        /Unsupported snapshot/,
+      );
+      expect(cache).toEqual(before);
+    });
     it('should return cache unchanged if already at current version', () => {
       const cache = createMockCache(CURRENT_SCHEMA_VERSION);
       const result = service.migrateStateIfNeeded(cache);

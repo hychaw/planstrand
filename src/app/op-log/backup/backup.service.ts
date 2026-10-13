@@ -140,6 +140,13 @@ export class BackupService {
       let backupData: AppDataComplete;
 
       if ('crossModelVersion' in data && 'timestamp' in data && 'data' in data) {
+        if (
+          typeof data.crossModelVersion !== 'number' ||
+          !Number.isFinite(data.crossModelVersion) ||
+          data.crossModelVersion > CROSS_MODEL_VERSION
+        ) {
+          throw new Error('Unsupported backup cross-model version');
+        }
         backupData = data.data;
       } else {
         backupData = data as AppDataComplete;

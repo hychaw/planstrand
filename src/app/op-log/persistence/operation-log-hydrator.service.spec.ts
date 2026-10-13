@@ -68,6 +68,67 @@ describe('OperationLogHydratorService', () => {
     globalConfig: {},
   }) as any;
 
+  it('refuses future snapshots before startup recovery, dispatch or persistence', async () => {
+    mockOpLogStore.loadStateCache.and.resolveTo(
+      createMockSnapshot({
+        schemaVersion: CURRENT_SCHEMA_VERSION + 1,
+      }),
+    );
+    await expectAsync(service.hydrateStore()).toBeRejectedWithError(
+      /Unsupported snapshot/,
+    );
+    expect(mockRecoveryService.recoverPendingRemoteOps).not.toHaveBeenCalled();
+    expect(mockRecoveryService.cleanupCorruptOps).not.toHaveBeenCalled();
+    expect(mockRecoveryService.attemptRecovery).not.toHaveBeenCalled();
+    expect(mockStore.dispatch).not.toHaveBeenCalled();
+    expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    expect(mockCompactionService.compactIfBloated).not.toHaveBeenCalled();
+  });
+
+  for (const type of [OpType.Update, OpType.SyncImport]) {
+    it(`refuses future ${type} operations before replay or full-state shortcuts`, async () => {
+      mockOpLogStore.loadStateCache.and.resolveTo(null);
+      mockOpLogStore.getOpsAfterSeq.and.resolveTo([
+        createMockEntry(
+          1,
+          createMockOperation('future', type, {
+            schemaVersion: CURRENT_SCHEMA_VERSION + 1,
+            payload: { appDataComplete: mockState },
+          }),
+        ),
+      ]);
+      await expectAsync(service.hydrateStore()).toBeRejectedWithError(
+        /Unsupported operation/,
+      );
+      expect(mockStore.dispatch).not.toHaveBeenCalled();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+      expect(mockOpLogStore.mergeRemoteOpClocks).not.toHaveBeenCalled();
+      expect(mockRecoveryService.attemptRecovery).not.toHaveBeenCalled();
+    });
+  }
+
+  it('refuses a future acknowledged replacement before saving its snapshot', async () => {
+    mockOpLogStore.loadStateCache.and.resolveTo(null);
+    mockOpLogStore.getLatestFullStateOpEntry.and.resolveTo({
+      ...createMockEntry(
+        1,
+        createMockOperation('future-replacement', OpType.SyncImport, {
+          schemaVersion: CURRENT_SCHEMA_VERSION + 1,
+          syncImportReason: 'FORCE_UPLOAD',
+          payload: { appDataComplete: mockState },
+        }),
+      ),
+      source: 'local',
+      syncedAt: 1,
+    });
+    await expectAsync(service.hydrateStore()).toBeRejectedWithError(
+      /Unsupported operation/,
+    );
+    expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    expect(mockStore.dispatch).not.toHaveBeenCalled();
+    expect(mockRecoveryService.attemptRecovery).not.toHaveBeenCalled();
+  });
+
   const createMockSnapshot = (
     overrides: Partial<MigratableStateCache> = {},
   ): MigratableStateCache => ({
@@ -1659,21 +1720,17 @@ describe('OperationLogHydratorService', () => {
 
       // Additional version mismatch tests
 
-      it('should handle snapshot with version newer than current (future version)', async () => {
+      it('refuses snapshot versions newer than current without recovery or dispatch', async () => {
         // This scenario can happen if a user downgrades the app
         const futureSnapshot = createMockSnapshot({
           schemaVersion: CURRENT_SCHEMA_VERSION + 5, // Future version
         });
         mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(futureSnapshot));
-        // Future version doesn't need migration (migration is only for older versions)
-        mockSchemaMigrationService.needsMigration.and.returnValue(false);
-
-        // Should not throw, just load the data
-        await service.hydrateStore();
-
-        expect(mockStore.dispatch).toHaveBeenCalledWith(
-          loadAllData({ appDataComplete: mockState }),
+        await expectAsync(service.hydrateStore()).toBeRejectedWithError(
+          /Unsupported snapshot/,
         );
+        expect(mockStore.dispatch).not.toHaveBeenCalled();
+        expect(mockRecoveryService.attemptRecovery).not.toHaveBeenCalled();
       });
 
       it('should migrate snapshot and operations together when both need migration', async () => {

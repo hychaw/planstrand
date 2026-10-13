@@ -11,6 +11,7 @@ import { addFolder, moveFolder } from '../../features/folder/store/folder.action
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { BackupService } from './backup.service';
+import { CROSS_MODEL_VERSION } from '../model/model-config';
 import { OpLog } from '../../core/log';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { StateSnapshotService } from './state-snapshot.service';
@@ -189,6 +190,26 @@ describe('BackupService', () => {
 
     service = TestBed.inject(BackupService);
   });
+
+  for (const version of [CROSS_MODEL_VERSION + 1, NaN, Infinity, 'future']) {
+    it(`refuses unsupported cross-model version ${version} before replacement`, async () => {
+      await expectAsync(
+        service.importCompleteBackup(
+          {
+            timestamp: 1,
+            lastUpdate: 1,
+            crossModelVersion: version,
+            data: createMinimalValidBackup(),
+          } as any,
+          true,
+          true,
+        ),
+      ).toBeRejectedWithError(/Unsupported backup cross-model version/);
+      expect(mockOpLogStore.runDestructiveStateReplacement).not.toHaveBeenCalled();
+      expect(mockOpLogStore.saveImportBackup).not.toHaveBeenCalled();
+      expect(mockStore.dispatch).not.toHaveBeenCalled();
+    });
+  }
 
   it('preserves semantic requirements declared only by the backup wrapper through repair and persistence', async () => {
     await service.importCompleteBackup(

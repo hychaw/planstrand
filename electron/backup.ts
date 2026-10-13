@@ -1,28 +1,28 @@
 import { app, ipcMain } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from 'fs';
+import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from 'fs';
 import { IPC } from './shared-with-frontend/ipc-events.const';
 import { LocalBackupMeta } from '../src/app/imex/local-backup/local-backup.model';
 import * as path from 'path';
 import { error, log } from 'electron-log/main';
 import type { AppDataCompleteLegacy } from '../src/app/imex/sync/sync.model';
 import type { AppDataComplete } from '../src/app/op-log/model/model-config';
-import { getBackupTimestamp } from './shared-with-frontend/get-backup-timestamp';
 import { isPathInsideDir } from './file-path-guard';
+import { writeVerifiedBackup } from './verified-backup';
+import type {
+  UpgradeCheckpointData,
+  UpgradeCheckpointResult,
+} from './shared-with-frontend/upgrade-checkpoint.model';
 import {
   DEFAULT_MAX_BACKUP_FILES,
   selectBackupFilesToDelete,
 } from './shared-with-frontend/backup-file-cleanup.util';
 
 export const BACKUP_DIR = path.join(app.getPath('userData'), `backups`);
+export const UPGRADE_CHECKPOINT_DIR = path.join(
+  app.getPath('userData'),
+  'upgrade-checkpoints',
+);
 
 /**
  * Where a virtualized MSIX package's writes to BACKUP_DIR physically land, so
@@ -66,6 +66,21 @@ export function initBackupAdapter(): void {
 
   // BACKUP
   ipcMain.handle(IPC.BACKUP, backupData);
+  ipcMain.handle(
+    IPC.BACKUP_UPGRADE_CHECKPOINT,
+    (_ev, data: UpgradeCheckpointData): UpgradeCheckpointResult => {
+      try {
+        return {
+          ok: true,
+          path: writeVerifiedBackup(UPGRADE_CHECKPOINT_DIR, data),
+          coverage: 'application-data',
+        };
+      } catch {
+        log('Upgrade checkpoint write failed');
+        return { ok: false, reason: 'WRITE_FAILED' };
+      }
+    },
+  );
 
   // IS_BACKUP_AVAILABLE — newest file only (startup restore prompt)
   ipcMain.handle(IPC.BACKUP_IS_AVAILABLE, (): LocalBackupMeta | false => {
@@ -85,12 +100,12 @@ export function initBackupAdapter(): void {
     // `backupPath` comes from the renderer, which runs untrusted plugin code,
     // so it must be constrained to the backup directory. Otherwise any plugin
     // (or XSS payload) could read arbitrary files via window.ea.loadBackupData.
-    // See GHSA-x937-wf3j-88q3. Both the regular and the Windows-Store backup
-    // dirs are accepted; the legitimate caller only ever passes paths built
-    // from BACKUP_DIR (see IPC.BACKUP_IS_AVAILABLE above).
+    // See GHSA-x937-wf3j-88q3. Only routine backup roots and the protected
+    // checkpoint root are accepted. Checkpoints use the existing import path.
     if (
       !isPathInsideDir(BACKUP_DIR, backupPath) &&
-      !isPathInsideDir(BACKUP_DIR_WINSTORE, backupPath)
+      !isPathInsideDir(BACKUP_DIR_WINSTORE, backupPath) &&
+      !isPathInsideDir(UPGRADE_CHECKPOINT_DIR, backupPath)
     ) {
       throw new Error('BACKUP_LOAD_DATA: refused path outside backup directory');
     }
@@ -145,23 +160,14 @@ function backupData(
   ev: IpcMainInvokeEvent,
   dataOrArgs: AppDataCompleteLegacy | BackupDataArgs,
 ): void {
-  if (!existsSync(BACKUP_DIR)) {
-    mkdirSync(BACKUP_DIR);
-  }
-  const filePath = `${BACKUP_DIR}/${getBackupTimestamp()}.json`;
   const data = isBackupDataArgs(dataOrArgs) ? dataOrArgs.data : dataOrArgs;
   const maxBackupFiles = isBackupDataArgs(dataOrArgs)
     ? dataOrArgs.maxBackupFiles
     : DEFAULT_MAX_BACKUP_FILES;
 
-  try {
-    const backup = JSON.stringify(data);
-    writeFileSync(filePath, backup);
-    cleanupOldBackups(maxBackupFiles);
-  } catch (e) {
-    log('Error while backing up');
-    error(e);
-  }
+  writeVerifiedBackup(BACKUP_DIR, data);
+  // Retention remains best-effort, and only runs after a verified write.
+  cleanupOldBackups(maxBackupFiles);
 }
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
