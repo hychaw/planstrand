@@ -138,7 +138,7 @@ const {
   openUpdateResponse,
   validateUpdateUrl,
 } = require('./update-https.ts');
-const { isVerifiedDownloadEligible, initUpdateIpc } = require('./update-ipc.ts');
+const { initUpdateIpc } = require('./update-ipc.ts');
 let root;
 const service = (options = {}) =>
   new UpdateDownloadService({
@@ -426,22 +426,13 @@ test('metadata bounds, compressed bodies, and non-200 responses are rejected', a
     await assert.rejects(readUpdateBytes(api, false, 100));
   }
 });
-test('only installed packaged Windows x64 NSIS is eligible', () => {
-  assert.equal(isVerifiedDownloadEligible(true, 'win32', 'x64', 'win-nsis', true), true);
-  for (const args of [
-    [false, 'win32', 'x64', 'win-nsis', true],
-    [true, 'win32', 'x64', 'win-nsis', false],
-    [true, 'linux', 'x64', 'linux-native', true],
-    [true, 'win32', 'arm64', 'win-nsis', true],
-    [true, 'win32', 'x64', 'win-portable', true],
-    [true, 'win32', 'x64', 'win-store', true],
-    [true, 'darwin', 'x64', 'mac-dmg', true],
-    [true, 'win32', 'x64', null, true],
-  ])
-    assert.equal(isVerifiedDownloadEligible(...args), false);
-});
 test('IPC restricts callers to the trusted main window and sanitizes discovery errors', async () => {
   initUpdateIpc();
+  assert.deepEqual([...handlers.keys()].sort(), [
+    'UPDATE_DISCOVER',
+    'UPDATE_DOWNLOAD',
+    'UPDATE_STATUS',
+  ]);
   const check = handlers.get('UPDATE_DISCOVER');
   const status = handlers.get('UPDATE_STATUS');
   assert.throws(() => status({ sender: {}, senderFrame: mainFrame }));
@@ -499,6 +490,92 @@ test('concurrent actions do not initiate a second download', async () => {
   assert.equal(s.status().state, 'ready');
   assert.equal(requests.length, 4);
   assert.equal(fs.readdirSync(root).length, 1);
+});
+
+test('main-owned staged recheck authenticates the retained manifest and actual file again', async () => {
+  const s = service();
+  await s.download(tag);
+  assert.deepEqual(await s.revalidateStagedDownload(), {
+    state: 'ready',
+    tag,
+    percent: 100,
+  });
+  assert.equal(requests.length, 4);
+  assert.equal('path' in s.status(), false);
+});
+
+for (const mutation of ['changed', 'truncated', 'deleted', 'hardlinked']) {
+  test(`staged recheck refuses ${mutation} installer bytes and preserves unrelated staging`, async () => {
+    const s = service();
+    await s.download(tag);
+    const directory = path.join(root, fs.readdirSync(root)[0]);
+    const installer = path.join(directory, trust.UPDATE_INSTALLER);
+    fs.writeFileSync(path.join(root, 'previous-recovery-point'), 'keep');
+    if (mutation === 'changed')
+      fs.writeFileSync(installer, Buffer.alloc(artifact.length));
+    if (mutation === 'truncated') fs.truncateSync(installer, 1);
+    if (mutation === 'deleted') fs.unlinkSync(installer);
+    if (mutation === 'hardlinked')
+      fs.linkSync(installer, path.join(directory, 'other.exe'));
+    assert.equal((await s.revalidateStagedDownload()).state, 'error');
+    assert.equal(
+      fs.readFileSync(path.join(root, 'previous-recovery-point'), 'utf8'),
+      'keep',
+    );
+    assert.equal((await s.revalidateStagedDownload()).state, 'error');
+  });
+}
+
+test('staged recheck refuses lost registration and never treats idle or failed transfers as ready', async () => {
+  let eligible = true;
+  const s = service({ eligible: async () => eligible });
+  await s.download(tag);
+  eligible = false;
+  assert.equal((await s.revalidateStagedDownload()).state, 'error');
+  assert.equal((await service().revalidateStagedDownload()).state, 'error');
+});
+
+test('asynchronous eligibility rejection prevents network and staging work', async () => {
+  assert.equal(
+    (await service({ eligible: async () => false }).download(tag)).state,
+    'error',
+  );
+  assert.equal(
+    (
+      await service({
+        eligible: async () => {
+          throw new Error('probe unavailable');
+        },
+      }).download(tag)
+    ).state,
+    'error',
+  );
+  assert.equal(requests.length, 0);
+  assert.deepEqual(fs.readdirSync(root), []);
+});
+
+test('a concurrent staged recheck reports verifying until the eligibility probe completes', async () => {
+  let probe = async () => true;
+  const s = service({ eligible: () => probe() });
+  await s.download(tag);
+  let releaseProbe;
+  probe = () =>
+    new Promise((resolve) => {
+      releaseProbe = resolve;
+    });
+  const first = s.revalidateStagedDownload();
+  assert.equal((await s.revalidateStagedDownload()).state, 'verifying');
+  assert.equal(s.status().state, 'verifying');
+  releaseProbe(true);
+  assert.equal((await first).state, 'ready');
+});
+
+test('staged recheck does not accept a modified retained signature', async () => {
+  const s = service();
+  await s.download(tag);
+  // Test-only fault injection into main memory, never an IPC capability.
+  s._authentication.signature[0] ^= 1;
+  assert.equal((await s.revalidateStagedDownload()).state, 'error');
 });
 test('discovery refuses a truncated list when the finite pagination budget is exhausted', async () => {
   const data = Buffer.from(JSON.stringify(Array.from({ length: 100 }, () => release())));

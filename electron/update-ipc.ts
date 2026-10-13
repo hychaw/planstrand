@@ -1,24 +1,12 @@
 import { app, ipcMain } from 'electron';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { getDistChannel } from './shared-with-frontend/get-dist-channel';
 import { IPC } from './shared-with-frontend/ipc-events.const';
 import { UpdateDownloadService } from './update-download';
 import { isAppOriginUrl } from './navigation-guard';
 import { getAppLoadedUrl, getWin } from './main-window';
-
-export const isVerifiedDownloadEligible = (
-  packaged: boolean,
-  platform: string,
-  arch: string,
-  channel: string | null,
-  installed: boolean,
-): boolean =>
-  packaged &&
-  platform === 'win32' &&
-  arch === 'x64' &&
-  channel === 'win-nsis' &&
-  installed;
+import { isRegisteredUpdateInstallation } from './update-installation';
 
 export const initUpdateIpc = (): void => {
   const service = new UpdateDownloadService({
@@ -31,14 +19,13 @@ export const initUpdateIpc = (): void => {
           .version,
     stagingRoot: join(app.getPath('temp'), 'Planstrand-updates'),
     eligible: () =>
-      isVerifiedDownloadEligible(
-        app.isPackaged,
-        process.platform,
-        process.arch,
-        getDistChannel(),
-        existsSync(join(dirname(process.execPath), 'planstrand-install.ini')) &&
-          existsSync(join(dirname(process.execPath), 'Uninstall Planstrand.exe')),
-      ),
+      isRegisteredUpdateInstallation({
+        packaged: app.isPackaged,
+        platform: process.platform,
+        arch: process.arch,
+        channel: getDistChannel(),
+        executable: process.execPath,
+      }),
   });
   const authorize = (event: Electron.IpcMainInvokeEvent): void => {
     const frame = event.senderFrame;

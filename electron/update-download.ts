@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdir, mkdtemp, open, rename, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { lstat, mkdir, mkdtemp, open, realpath, rename, rm } from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
 import { newestPlanstrandRelease } from './shared-with-frontend/planstrand-release';
 import {
   UpdateDiscovery,
@@ -69,7 +69,7 @@ export const validateDownloadRelease = (value: unknown, tag: string): Release =>
 
 export interface UpdateDownloadOptions {
   currentVersion: string;
-  eligible: () => boolean;
+  eligible: () => boolean | Promise<boolean>;
   stagingRoot: string;
   keys?: Readonly<Record<string, string>>;
 }
@@ -79,10 +79,11 @@ export class UpdateDownloadService {
   private _busy = false;
   // Internal only: no arbitrary paths/URLs or signing keys accepted over IPC.
   private _stagedPath?: string;
+  private _authentication?: { bytes: Buffer; signature: Buffer; tag: string };
   private readonly _keys: Readonly<Record<string, string>>;
 
   constructor(private readonly _options: UpdateDownloadOptions) {
-    this._keys = _options.keys ?? UPDATE_PUBLIC_KEYS;
+    this._keys = Object.freeze({ ...(_options.keys ?? UPDATE_PUBLIC_KEYS) });
   }
 
   status(): UpdateDownloadStatus {
@@ -109,7 +110,7 @@ export class UpdateDownloadService {
       if (batch.length === 100) continue;
       const tag = newestPlanstrandRelease(releases, this._options.currentVersion);
       let canDownload = false;
-      if (tag && this._options.eligible() && Object.keys(this._keys).length) {
+      if (tag && Object.keys(this._keys).length && (await this._options.eligible())) {
         try {
           validateDownloadRelease(
             releases.find((r) => (r as Release)?.tag_name === tag),
@@ -134,8 +135,8 @@ export class UpdateDownloadService {
     let directory: string | undefined;
     try {
       if (
-        !this._options.eligible() ||
         !Object.keys(this._keys).length ||
+        !(await this._options.eligible()) ||
         typeof tag !== 'string' ||
         tag.length > 80 ||
         !tag.startsWith('v') ||
@@ -219,6 +220,11 @@ export class UpdateDownloadService {
         throw new Error('Staging verification failed');
       await rename(partial, destination);
       this._stagedPath = destination;
+      this._authentication = {
+        bytes: Buffer.from(bytes),
+        signature: Buffer.from(signature),
+        tag,
+      };
       this._status = { state: 'ready', tag, percent: 100 };
     } catch {
       if (directory) {
@@ -230,10 +236,91 @@ export class UpdateDownloadService {
       }
       // Fixed state only: no paths, CDN tokens, raw network errors or profile data.
       this._stagedPath = undefined;
+      this._authentication = undefined;
       this._status = {
         state: 'error',
         tag: typeof tag === 'string' && /^v[\d.rc-]{1,79}$/.test(tag) ? tag : undefined,
       };
+    } finally {
+      this._busy = false;
+    }
+    return this.status();
+  }
+
+  /** Main-only recheck of a process-owned download. This is NOT an execution
+   * grant: Windows native deny-write/delete handles must span verification and
+   * CreateProcess in the future external helper. No path leaves this service.
+   * A later helper must repeat authentication under that handle protection.
+   */
+  async revalidateStagedDownload(): Promise<UpdateDownloadStatus> {
+    if (this._busy) return this.status();
+    this._busy = true;
+    try {
+      const authentication = this._authentication;
+      const stagedPath = this._stagedPath;
+      if (this._status.state !== 'ready' || !stagedPath || !authentication)
+        throw new Error('Update unavailable');
+      this._status = { state: 'verifying', tag: authentication.tag };
+      if (
+        !(await this._options.eligible()) ||
+        newestPlanstrandRelease(
+          [
+            {
+              tag_name: authentication.tag,
+              draft: false,
+              prerelease: authentication.tag.includes('-rc.'),
+            },
+          ],
+          this._options.currentVersion,
+        ) !== authentication.tag
+      )
+        throw new Error('Update unavailable');
+      const manifest = verifyUpdateManifest(
+        authentication.bytes,
+        authentication.signature,
+        authentication.tag,
+        this._keys,
+      );
+      const root = resolve(this._options.stagingRoot);
+      const directory = dirname(stagedPath);
+      if (
+        basename(stagedPath) !== UPDATE_INSTALLER ||
+        dirname(directory) !== root ||
+        !/^update-[a-zA-Z0-9]+$/.test(basename(directory)) ||
+        (await realpath(root)) !== root ||
+        (await realpath(directory)) !== directory ||
+        (await lstat(stagedPath)).isSymbolicLink()
+      )
+        throw new Error('Update unavailable');
+      const file = await open(stagedPath, 'r');
+      try {
+        const before = await file.stat();
+        if (!before.isFile() || before.nlink !== 1 || before.size !== manifest.bytes)
+          throw new Error('Update unavailable');
+        const hash = createHash('sha256');
+        let size = 0;
+        for await (const chunk of file.createReadStream({ autoClose: false })) {
+          size += chunk.length;
+          if (size > manifest.bytes) throw new Error('Update unavailable');
+          hash.update(chunk);
+        }
+        const after = await file.stat();
+        if (
+          size !== manifest.bytes ||
+          hash.digest('hex') !== manifest.sha256 ||
+          after.size !== before.size ||
+          after.mtimeMs !== before.mtimeMs ||
+          after.ctimeMs !== before.ctimeMs
+        )
+          throw new Error('Update unavailable');
+      } finally {
+        await file.close();
+      }
+      this._status = { state: 'ready', tag: authentication.tag, percent: 100 };
+    } catch {
+      this._stagedPath = undefined;
+      this._authentication = undefined;
+      this._status = { state: 'error', tag: this._status.tag };
     } finally {
       this._busy = false;
     }
