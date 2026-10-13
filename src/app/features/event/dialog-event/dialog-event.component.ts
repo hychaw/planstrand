@@ -38,6 +38,11 @@ import { EventSeriesService } from '../../routines/event-series.service';
 import { EventSeriesInput, SeriesEditResult } from '../../routines/event-series.model';
 import { WeeklyTemplateService } from '../../routines/weekly-template.service';
 import { segmentForSlot } from '../../routines/event-series-plan';
+import {
+  LocalScheduleReminderService,
+  ScheduleReminderOffset,
+  SCHEDULE_REMINDER_OPTIONS,
+} from '../../reminder/local-schedule-reminder.service';
 
 type EditScope = 'occurrence' | 'future' | 'series';
 interface EditorDraft {
@@ -74,6 +79,11 @@ export class DialogEventComponent {
   readonly T = T;
   readonly data = inject<EventDialogData>(MAT_DIALOG_DATA);
   private readonly _events = inject(EventService);
+  private readonly _localReminders = inject(LocalScheduleReminderService);
+  readonly reminderOptions = SCHEDULE_REMINDER_OPTIONS;
+  reminderOffset: ScheduleReminderOffset | null = this.data.id
+    ? this._localReminders.offset('event', this.data.id)
+    : null;
   private readonly _ref = inject(MatDialogRef<DialogEventComponent>);
   private readonly _dialog = inject(MatDialog);
   private readonly _translate = inject(TranslateService);
@@ -225,6 +235,15 @@ export class DialogEventComponent {
         ? this._events.update(this.data.id, input)
         : this._events.create(input);
     if (saved) {
+      if (!this.occurrenceKey) {
+        const id = this.data.id ?? (typeof saved === 'string' ? saved : undefined);
+        if (id)
+          this._localReminders.set(
+            'event',
+            id,
+            this.isAllDay ? null : this.reminderOffset,
+          );
+      }
       if (!this.occurrenceKey && !this.data.id) this.busy.set(true);
       this._ref.close(true);
     } else this.invalid = true;

@@ -123,6 +123,14 @@
   <mat-menu #sessionContextMenu="matMenu">
     <button
       mat-menu-item
+      [matMenuTriggerFor]="sessionReminderMenu"
+      [disabled]="isWorkSessionCompleted()"
+    >
+      <mat-icon>alarm</mat-icon>
+      {{ T.F.TASK.ADDITIONAL_INFO.REMINDER | translate }}
+    </button>
+    <button
+      mat-menu-item
       (click)="setWorkSessionCompleted(!isWorkSessionCompleted())"
     >
       <mat-icon>{{
@@ -139,6 +147,24 @@
       <mat-icon>event_busy</mat-icon>
       {{ T.F.TASK.D_SCHEDULE_TASK.UNSCHEDULE | translate }}
     </button>
+  </mat-menu>
+  <mat-menu #sessionReminderMenu="matMenu">
+    @for (option of reminderOptions; track option.value) {
+      <button
+        mat-menu-item
+        role="menuitemradio"
+        (click)="setSessionReminder(option.value)"
+        [attr.aria-label]="option.label | translate"
+        [attr.aria-checked]="sessionReminderOffset() === option.value"
+      >
+        <mat-icon>{{
+          sessionReminderOffset() === option.value
+            ? 'radio_button_checked'
+            : 'radio_button_unchecked'
+        }}</mat-icon>
+        {{ option.label | translate }}
+      </button>
+    }
   </mat-menu>
 }
 

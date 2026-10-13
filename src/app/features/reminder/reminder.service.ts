@@ -15,6 +15,7 @@ import {
 import { Task, TaskWithReminder, TaskWithReminderData } from '../tasks/task.model';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
+import { LocalScheduleReminderService } from './local-schedule-reminder.service';
 
 // How long the reminder modal stays closed for a reminder the user dismissed
 // without acting on it (backdrop / Escape / Android back). The reminder itself
@@ -48,6 +49,7 @@ export class ReminderService {
   private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _store = inject(Store);
   private readonly _legacyPfDb = inject(LegacyPfDbService);
+  private readonly _localScheduleReminders = inject(LocalScheduleReminderService);
 
   private _onRemindersActive$: Subject<TaskWithReminderData[]> = new Subject<
     TaskWithReminderData[]
@@ -84,6 +86,8 @@ export class ReminderService {
   init(): void {
     this._w.addEventListener('message', this._onReminderActivated.bind(this));
     this._w.addEventListener('error', this._handleError.bind(this));
+    this._localScheduleReminders.init();
+    this._w.postMessage({ localScheduleTicks: true });
 
     // Migrate legacy reminders to task.remindAt (one-time migration)
     this._migrateLegacyReminders();
@@ -222,6 +226,10 @@ export class ReminderService {
   }
 
   private _onReminderActivated(msg: MessageEvent): void {
+    if (msg.data?.localScheduleTick === true) {
+      this._localScheduleReminders.checkDue();
+      return;
+    }
     const reminders = msg.data as WorkerReminder[];
     Log.log(`ReminderService: Worker activated ${reminders.length} reminder(s)`);
 

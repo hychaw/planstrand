@@ -7,6 +7,7 @@ import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { GlobalConfigService } from '../config/global-config.service';
 import { TaskWithReminder } from '../tasks/task.model';
 import { selectAllTasksWithReminder } from '../tasks/store/task.selectors';
+import { LocalScheduleReminderService } from './local-schedule-reminder.service';
 
 describe('ReminderService', () => {
   let service: ReminderService;
@@ -58,6 +59,13 @@ describe('ReminderService', () => {
     TestBed.configureTestingModule({
       providers: [
         ReminderService,
+        {
+          provide: LocalScheduleReminderService,
+          useValue: jasmine.createSpyObj('LocalScheduleReminderService', [
+            'init',
+            'checkDue',
+          ]),
+        },
         { provide: Store, useValue: mockStore },
         { provide: SnackService, useValue: snackServiceSpy },
         { provide: ImexViewService, useValue: imexViewServiceSpy },
@@ -74,6 +82,19 @@ describe('ReminderService', () => {
   });
 
   describe('init', () => {
+    it('routes local worker ticks without publishing Task reminders', () => {
+      const onTaskReminder = jasmine.createSpy('onTaskReminder');
+      service.onRemindersActive$.subscribe(onTaskReminder);
+      service.init();
+      const handler = mockWorker.addEventListener.calls
+        .allArgs()
+        .find((args) => args[0] === 'message')![1] as (message: MessageEvent) => void;
+      handler({ data: { localScheduleTick: true } } as MessageEvent);
+      expect(TestBed.inject(LocalScheduleReminderService).checkDue).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(onTaskReminder).not.toHaveBeenCalled();
+    });
     it('should add event listeners to worker', () => {
       service.init();
 

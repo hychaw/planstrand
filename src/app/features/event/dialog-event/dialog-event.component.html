@@ -151,6 +151,25 @@
               </select></label
             >
           }
+          @if (
+            !isAllDay &&
+            !occurrenceKey &&
+            !data.seriesId &&
+            !data.templateId &&
+            !isRecurringCreation
+          ) {
+            <label>
+              {{ T.F.TASK.ADDITIONAL_INFO.REMINDER | translate }}
+              <select
+                name="reminder"
+                [(ngModel)]="reminderOffset"
+              >
+                @for (option of reminderOptions; track option.value) {
+                  <option [ngValue]="option.value">{{ option.label | translate }}</option>
+                }
+              </select>
+            </label>
+          }
           @if (scope !== 'occurrence' || isRecurringCreation) {
             <fieldset>
               <legend>{{ T.F.EVENT.RECURRENCE | translate }}</legend>

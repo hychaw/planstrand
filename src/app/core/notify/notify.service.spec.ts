@@ -103,4 +103,23 @@ describe('NotifyService', () => {
       );
     });
   });
+
+  it('rechecks the schedule after asynchronous desktop notification permission', async () => {
+    const service = setupPlatform({ isLegacyAndroidWebView: false, isNative: false });
+    spyOn(
+      service as unknown as { _isServiceWorkerAvailable: () => boolean },
+      '_isServiceWorkerAvailable',
+    ).and.returnValue(false);
+    let resolvePermission!: (permission: NotificationPermission) => void;
+    spyOn(Notification, 'requestPermission').and.returnValue(
+      new Promise((resolve) => {
+        resolvePermission = resolve;
+      }),
+    );
+    let current = true;
+    const delivery = service.notify({ title: 'Moved meeting' }, () => current);
+    current = false;
+    resolvePermission('granted');
+    expect(await delivery).toBeUndefined();
+  });
 });

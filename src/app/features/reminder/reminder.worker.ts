@@ -6,10 +6,14 @@ import { Log } from '../../core/log';
 
 const CHECK_INTERVAL_DURATION = 10000;
 let cancelCheckInterval: (() => void) | undefined;
+let taskReminders: ReminderCopy[] = [];
+let localTicksEnabled = false;
 
 addEventListener('message', ({ data }) => {
   // Log.log('REMINDER WORKER', data);
-  reInitCheckInterval(data);
+  if (data?.localScheduleTicks === true) localTicksEnabled = true;
+  else taskReminders = data;
+  reInitCheckInterval(taskReminders);
 });
 
 const reInitCheckInterval = (reminders: ReminderCopy[]): void => {
@@ -17,11 +21,12 @@ const reInitCheckInterval = (reminders: ReminderCopy[]): void => {
     cancelCheckInterval();
     cancelCheckInterval = undefined;
   }
-  if (!reminders || !reminders.length) {
+  if ((!reminders || !reminders.length) && !localTicksEnabled) {
     return;
   }
 
   cancelCheckInterval = lazySetInterval(() => {
+    if (localTicksEnabled) postMessage({ localScheduleTick: true });
     const dueReminders = getDueReminders(reminders);
     if (dueReminders.length) {
       const oldest = dueReminders[0];

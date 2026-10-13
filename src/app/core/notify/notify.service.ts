@@ -23,14 +23,21 @@ export class NotifyService {
   private _platformService = inject(CapacitorPlatformService);
   private _notificationService = inject(CapacitorNotificationService);
 
-  async notifyDesktop(options: NotifyModel): Promise<Notification | undefined> {
+  async notifyDesktop(
+    options: NotifyModel,
+    isStillCurrent?: () => boolean,
+  ): Promise<Notification | undefined> {
     if (!IS_MOBILE) {
-      return this.notify(options);
+      return this.notify(options, isStillCurrent);
     }
     return;
   }
 
-  async notify(options: NotifyModel): Promise<Notification | undefined> {
+  async notify(
+    options: NotifyModel,
+    isStillCurrent: () => boolean = () => true,
+  ): Promise<Notification | undefined> {
+    if (!isStillCurrent()) return undefined;
     const title =
       options.title &&
       this._translateService.instant(options.title, options.translateParams);
@@ -96,7 +103,7 @@ export class NotifyService {
       // @see: https://github.com/super-productivity/super-productivity/issues/408
       const per = await Notification.requestPermission();
       // not supported for basic notifications so we delete them
-      if (per === 'granted') {
+      if (per === 'granted' && isStillCurrent()) {
         await svcReg.showNotification(title, {
           icon: 'assets/icons/icon-128x128.png',
           silent: false,
@@ -112,7 +119,7 @@ export class NotifyService {
       const permission = await Notification.requestPermission();
       // not supported for basic notifications so we delete them
       // delete options.actions;
-      if (permission === 'granted') {
+      if (permission === 'granted' && isStillCurrent()) {
         const instance = new Notification(title, {
           icon: 'assets/icons/icon-128x128.png',
           silent: false,

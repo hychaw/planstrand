@@ -24,6 +24,11 @@ import {
   ScheduleFromCalendarEvent,
 } from '../schedule.model';
 import { WorkSessionService } from '../../work-session/work-session.service';
+import {
+  LocalScheduleReminderService,
+  ScheduleReminderOffset,
+  SCHEDULE_REMINDER_OPTIONS,
+} from '../../reminder/local-schedule-reminder.service';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -117,6 +122,17 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   private _ngZone = inject(NgZone);
   private readonly _events = inject(EventService);
   private readonly _workSessionService = inject(WorkSessionService);
+  private readonly _localReminders = inject(LocalScheduleReminderService);
+  readonly reminderOptions = SCHEDULE_REMINDER_OPTIONS;
+  readonly sessionReminderOffset = computed(() => {
+    const item = editableWorkSession(this.se(), 'canDelete');
+    return item ? this._localReminders.offset('workSession', item.sourceId) : null;
+  });
+  setSessionReminder(offset: ScheduleReminderOffset | null): void {
+    const item = editableWorkSession(this.se(), 'canDelete');
+    if (item && !this.isDragPreview() && item.completedAt == null)
+      this._localReminders.set('workSession', item.sourceId, offset);
+  }
   readonly titleHasLinks = computed(() => {
     const t = this.title();
     return !!t && hasLinkHints(t);
