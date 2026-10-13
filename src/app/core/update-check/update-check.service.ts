@@ -1,30 +1,26 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { EMPTY, firstValueFrom, timer } from 'rxjs';
-import { distinctUntilChanged, map, switchMap, timeout } from 'rxjs/operators';
+import { EMPTY, timer } from 'rxjs';
+import { distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { PLANSTRAND_PRODUCT_VERSION } from '../../util/planstrand-product-version';
 import { T } from '../../t.const';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports -- grandfathered layer-boundary debt
 import { GlobalConfigService } from '../../features/config/global-config.service';
-import { newestPlanstrandRelease } from './planstrand-release';
+import { UpdateDownloadStatus } from '../../../../electron/shared-with-frontend/update.model';
 import { BannerService } from '../banner/banner.service';
 import { BannerId } from '../banner/banner.model';
 import { SnackService } from '../snack/snack.service';
 import { LS } from '../persistence/storage-keys.const';
 import { Log } from '../log';
 import { isUpdateCheckPossible } from './is-update-check-possible.util';
+import { IS_ELECTRON_TOKEN } from '../../app.constants';
 
-const RELEASES_API_URL = 'https://api.github.com/repos/hychaw/planstrand/releases';
-const RELEASES_PAGE_SIZE = 100;
 const INITIAL_CHECK_DELAY = 30 * 1000;
 const CHECK_INTERVAL = 24 * 60 * 60 * 1000;
-const REQUEST_TIMEOUT = 15 * 1000;
 
 /**
  * Desktop-only "new version available" check (#5463). Fetches the latest
  * eligible GitHub release and shows a once-per-version banner linking to the
- * release page — deliberately no auto-download/install, since the desktop
- * builds ship through too many package formats for one install path.
+ * release page or explicitly requested verified download on supported NSIS builds.
  *
  * Privacy: a bare unauthenticated GET with no identifiers or user data; the
  * automatic check can be disabled via `misc.isCheckForUpdates` and is skipped
@@ -32,15 +28,16 @@ const REQUEST_TIMEOUT = 15 * 1000;
  */
 @Injectable({ providedIn: 'root' })
 export class UpdateCheckService {
-  private _http = inject(HttpClient);
+  private _isElectron = inject(IS_ELECTRON_TOKEN);
   private _globalConfigService = inject(GlobalConfigService);
   private _bannerService = inject(BannerService);
   private _snackService = inject(SnackService);
 
   private _isCheckInFlight = false;
+  private _isDownloading = false;
 
   init(): void {
-    if (!isUpdateCheckPossible()) {
+    if (!isUpdateCheckPossible(this._isElectron)) {
       return;
     }
     this._globalConfigService.misc$
@@ -58,27 +55,12 @@ export class UpdateCheckService {
   }
 
   async checkForUpdate({ isUserTriggered = false } = {}): Promise<void> {
-    if (this._isCheckInFlight) {
+    if (this._isCheckInFlight || this._isDownloading) {
       return;
     }
     this._isCheckInFlight = true;
     try {
-      const releases: unknown[] = [];
-      // GitHub lists by creation date, so inspect every page before choosing by version.
-      for (let page = 1; ; page++) {
-        const batch = await firstValueFrom(
-          this._http
-            .get<unknown>(RELEASES_API_URL, {
-              headers: { Accept: 'application/vnd.github+json' },
-              params: { per_page: RELEASES_PAGE_SIZE, page },
-            })
-            .pipe(timeout(REQUEST_TIMEOUT)),
-        );
-        if (!Array.isArray(batch)) throw new Error('Malformed release data');
-        releases.push(...batch);
-        if (batch.length < RELEASES_PAGE_SIZE) break;
-      }
-      const tagName = newestPlanstrandRelease(releases, PLANSTRAND_PRODUCT_VERSION);
+      const { tag: tagName, canDownload } = await window.ea.discoverUpdate();
       if (!tagName) {
         if (isUserTriggered) {
           this._snackService.open({
@@ -95,10 +77,10 @@ export class UpdateCheckService {
       ) {
         return;
       }
-      this._showUpdateBanner(tagName);
-    } catch (err) {
+      this._showUpdateBanner(tagName, canDownload);
+    } catch {
       // being offline is a normal state for the automatic check → info log only
-      Log.log('Update check failed', { error: (err as Error)?.message });
+      Log.log('Update check unavailable');
       if (isUserTriggered) {
         this._snackService.open({ type: 'ERROR', msg: T.APP.UPDATE_CHECK.ERROR });
       }
@@ -107,7 +89,7 @@ export class UpdateCheckService {
     }
   }
 
-  private _showUpdateBanner(versionTag: string): void {
+  private _showUpdateBanner(versionTag: string, canDownload = false): void {
     // Built locally from the validated tag instead of trusting the response's
     // html_url: openExternalUrl only checks the scheme, so a forged response
     // could otherwise point "Download" at an arbitrary https host.
@@ -120,18 +102,93 @@ export class UpdateCheckService {
       // the plain X would not persist the dismissal → the banner would nag
       // again on the next check; both explicit actions below do persist
       isHideDismissBtn: true,
+      isKeepVisibleAfterAction: canDownload,
       action: {
         label: T.APP.B_UPDATE_AVAILABLE.DOWNLOAD,
         fn: () => {
           this._rememberVersion(versionTag);
-          window.ea.openExternalUrl(downloadUrl);
+          if (canDownload) {
+            void this._download(versionTag);
+          } else {
+            window.ea.openExternalUrl(downloadUrl);
+          }
         },
       },
       action2: {
         label: T.G.DISMISS,
-        fn: () => this._rememberVersion(versionTag),
+        fn: () => {
+          this._rememberVersion(versionTag);
+          this._bannerService.dismiss(BannerId.UpdateAvailable);
+        },
       },
     });
+  }
+
+  private async _download(tag: string): Promise<void> {
+    if (this._isDownloading) return;
+    this._isDownloading = true;
+    let visible = true;
+    let polling = false;
+    let finished = false;
+    const show = (status: UpdateDownloadStatus): void => {
+      if (!visible) return;
+      const messages = {
+        idle: T.APP.UPDATE_CHECK.VERIFYING,
+        downloading: T.APP.UPDATE_CHECK.DOWNLOADING,
+        verifying: T.APP.UPDATE_CHECK.VERIFYING,
+        ready: T.APP.UPDATE_CHECK.READY,
+        error: T.APP.UPDATE_CHECK.DOWNLOAD_ERROR,
+      };
+      this._bannerService.open({
+        id: BannerId.UpdateAvailable,
+        msg: messages[status.state],
+        translateParams: { version: tag, percent: status.percent ?? 0 },
+        ico: status.state === 'error' ? 'error_outline' : 'file_download',
+        action:
+          status.state === 'error'
+            ? {
+                label: T.APP.UPDATE_CHECK.RELEASE_PAGE,
+                fn: () =>
+                  window.ea.openExternalUrl(
+                    `https://github.com/hychaw/planstrand/releases/tag/${tag}`,
+                  ),
+              }
+            : undefined,
+        action2: {
+          label: T.G.DISMISS,
+          fn: () => {
+            visible = false;
+            this._bannerService.dismiss(BannerId.UpdateAvailable);
+          },
+        },
+        isHideDismissBtn: true,
+        isKeepVisibleAfterAction: true,
+      });
+    };
+    show({ state: 'verifying', tag });
+    const interval = setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        const status = await window.ea.getUpdateDownloadStatus();
+        if (!finished) show(status);
+      } catch {
+        /* Final invoke supplies the result. */
+      } finally {
+        polling = false;
+      }
+    }, 500);
+    try {
+      const status = await window.ea.downloadUpdate(tag);
+      finished = true;
+      show(status);
+    } catch {
+      finished = true;
+      show({ state: 'error', tag });
+    } finally {
+      clearInterval(interval);
+      this._isDownloading = false;
+    }
   }
 
   private _rememberVersion(versionTag: string): void {

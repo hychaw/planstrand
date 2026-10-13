@@ -9,6 +9,7 @@ import {
 } from './ipc-handlers';
 import { initClipboardImageHandlers } from './clipboard-image-handler';
 import { initLocalRestApi } from './local-rest-api';
+import { initUpdateIpc } from './update-ipc';
 
 export const initIpcInterfaces = (): void => {
   // Initialize plugin node executor (registers IPC handlers)
@@ -20,6 +21,7 @@ export const initIpcInterfaces = (): void => {
   }
 
   initAppDataIpc();
+  initUpdateIpc();
   initAppControlIpc();
   initSystemIpc();
   initJiraIpc();

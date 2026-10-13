@@ -60,6 +60,7 @@ let mainWin: BrowserWindow;
 // guards in `initWinEventListeners`. Set in `createWindow`, before listeners
 // are wired, so the guard never sees `undefined` at runtime.
 let appLoadedUrl: string | undefined;
+export const getAppLoadedUrl = (): string | undefined => appLoadedUrl;
 
 // Compact WCO band on Win/Linux. Native button width is OS-controlled
 // (~138px total); only height is configurable. Lower values may be

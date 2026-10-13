@@ -27,8 +27,15 @@ import {
 } from './shared-with-frontend/local-rest-api.model';
 import { ElectronDistChannel } from './shared-with-frontend/get-dist-channel';
 import { JiraElectronApi } from './shared-with-frontend/jira-request.model';
+import {
+  UpdateDiscovery,
+  UpdateDownloadStatus,
+} from './shared-with-frontend/update.model';
 
 export interface ElectronAPI {
+  discoverUpdate(): Promise<UpdateDiscovery>;
+  downloadUpdate(tag: string): Promise<UpdateDownloadStatus>;
+  getUpdateDownloadStatus(): Promise<UpdateDownloadStatus>;
   getSystemTimeZone(): string | null;
   on(channel: string, listener: (...args: unknown[]) => void): void;
 

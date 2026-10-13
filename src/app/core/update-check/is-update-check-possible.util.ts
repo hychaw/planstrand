@@ -19,8 +19,8 @@ const SELF_UPDATING_CHANNELS: readonly DistChannel[] = [
 ];
 
 /** Whether this build has no update channel of its own and should check for updates. */
-export const isUpdateCheckPossible = (): boolean => {
-  if (!IS_ELECTRON) {
+export const isUpdateCheckPossible = (isElectron = IS_ELECTRON): boolean => {
+  if (!isElectron) {
     // Mobile builds update via their stores; the web app updates via the
     // service worker (InitialPwaUpdateCheckService).
     return false;

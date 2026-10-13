@@ -8,6 +8,10 @@ import {
 } from './shared-with-frontend/get-dist-channel';
 import { LocalBackupMeta } from '../src/app/imex/local-backup/local-backup.model';
 import type { UpgradeCheckpointResult } from './shared-with-frontend/upgrade-checkpoint.model';
+import type {
+  UpdateDiscovery,
+  UpdateDownloadStatus,
+} from './shared-with-frontend/update.model';
 import {
   PluginNodeScriptRequest,
   PluginNodeScriptResult,
@@ -33,6 +37,11 @@ const _invoke: (channel: IPCEventValue, ...args: unknown[]) => Promise<unknown> 
 const consumeJiraApi = createJiraPreloadApiConsumer(_invoke);
 
 const ea: ElectronAPI = {
+  discoverUpdate: () => _invoke(IPC.UPDATE_DISCOVER) as Promise<UpdateDiscovery>,
+  downloadUpdate: (tag) =>
+    _invoke(IPC.UPDATE_DOWNLOAD, tag) as Promise<UpdateDownloadStatus>,
+  getUpdateDownloadStatus: () =>
+    _invoke(IPC.UPDATE_STATUS) as Promise<UpdateDownloadStatus>,
   getSystemTimeZone: () =>
     process.argv
       .find((arg) => arg.startsWith('--planstrand-system-time-zone='))

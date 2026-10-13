@@ -99,6 +99,11 @@
     },
     "SKIP_SYNC_WAIT": "Skip waiting for sync",
     "UPDATE_CHECK": {
+      "RELEASE_PAGE": "Open release page",
+      "DOWNLOADING": "Downloading Planstrand {{version}}: {{percent}}%",
+      "VERIFYING": "Verifying Planstrand {{version}}…",
+      "READY": "Planstrand {{version}} download verified and ready. Installation is not available yet.",
+      "DOWNLOAD_ERROR": "Could not verify or download Planstrand {{version}}. Check your connection or use the official GitHub release page.",
       "ERROR": "Could not check for updates. Please try again later.",
       "UP_TO_DATE": "You are on the latest version ({{version}})."
     },

@@ -1,245 +1,208 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
-import { of } from 'rxjs';
+import { fakeAsync, TestBed, tick, discardPeriodicTasks } from '@angular/core/testing';
+import { BehaviorSubject } from 'rxjs';
 import { UpdateCheckService } from './update-check.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { BannerService } from '../banner/banner.service';
 import { BannerId, Banner } from '../banner/banner.model';
 import { SnackService } from '../snack/snack.service';
 import { LS } from '../persistence/storage-keys.const';
-import { PLANSTRAND_PRODUCT_VERSION } from '../../util/planstrand-product-version';
-
-const RELEASES_API_URL =
-  'https://api.github.com/repos/hychaw/planstrand/releases?per_page=100&page=1';
+import { T } from '../../t.const';
+import { ElectronAPI } from '../../../../electron/electronAPI';
+import { IS_ELECTRON_TOKEN } from '../../app.constants';
 
 describe('UpdateCheckService', () => {
   let service: UpdateCheckService;
-  let httpMock: HttpTestingController;
-  let bannerService: jasmine.SpyObj<BannerService>;
-  let snackService: jasmine.SpyObj<SnackService>;
-  let windowEaBefore: unknown;
-
-  const checkAndRespond = (
-    body: Record<string, unknown>,
-    opts: { isUserTriggered?: boolean } = {},
-  ): Promise<void> => {
-    const p = service.checkForUpdate(opts);
-    httpMock
-      .expectOne(RELEASES_API_URL)
-      .flush('tag_name' in body ? [{ draft: false, prerelease: false, ...body }] : body);
-    return p;
-  };
+  let banners: jasmine.SpyObj<BannerService>;
+  let snacks: jasmine.SpyObj<SnackService>;
+  let bridge: jasmine.SpyObj<ElectronAPI>;
+  let original: ElectronAPI;
+  let preferences: BehaviorSubject<{ isCheckForUpdates?: boolean }>;
+  const latest = (): Banner => banners.open.calls.mostRecent().args[0];
 
   beforeEach(() => {
-    bannerService = jasmine.createSpyObj('BannerService', ['open', 'dismiss']);
-    snackService = jasmine.createSpyObj('SnackService', ['open']);
-
+    original = window.ea;
+    bridge = jasmine.createSpyObj('ea', [
+      'discoverUpdate',
+      'downloadUpdate',
+      'getUpdateDownloadStatus',
+      'openExternalUrl',
+      'getDistChannel',
+    ]);
+    bridge.discoverUpdate.and.resolveTo({ tag: 'v99.0.0', canDownload: false });
+    bridge.getDistChannel.and.returnValue('win-nsis');
+    window.ea = bridge;
+    preferences = new BehaviorSubject({});
+    banners = jasmine.createSpyObj('BannerService', ['open', 'dismiss']);
+    snacks = jasmine.createSpyObj('SnackService', ['open']);
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        UpdateCheckService,
-        { provide: BannerService, useValue: bannerService },
-        { provide: SnackService, useValue: snackService },
-        { provide: GlobalConfigService, useValue: { misc$: of(undefined) } },
+        { provide: IS_ELECTRON_TOKEN, useValue: true },
+        { provide: BannerService, useValue: banners },
+        { provide: SnackService, useValue: snacks },
+        { provide: GlobalConfigService, useValue: { misc$: preferences } },
       ],
     });
     service = TestBed.inject(UpdateCheckService);
-    httpMock = TestBed.inject(HttpTestingController);
     localStorage.removeItem(LS.UPDATE_CHECK_DISMISSED_VERSION);
-    windowEaBefore = (window as unknown as { ea?: unknown }).ea;
   });
-
   afterEach(() => {
-    httpMock.verify();
+    window.ea = original;
     localStorage.removeItem(LS.UPDATE_CHECK_DISMISSED_VERSION);
-    (window as unknown as { ea?: unknown }).ea = windowEaBefore;
   });
 
-  describe('checkForUpdate()', () => {
-    it('should open a banner when a newer version is available', async () => {
-      await checkAndRespond({ tag_name: 'v99.0.0' });
-      expect(bannerService.open).toHaveBeenCalledTimes(1);
-      const banner: Banner = bannerService.open.calls.mostRecent().args[0];
-      expect(banner.id).toBe(BannerId.UpdateAvailable);
-      expect(banner.translateParams).toEqual({ version: 'v99.0.0' });
-      expect(snackService.open).not.toHaveBeenCalled();
-    });
-
-    it('should do nothing when already on the latest version', async () => {
-      await checkAndRespond({ tag_name: `v${PLANSTRAND_PRODUCT_VERSION}` });
-      expect(bannerService.open).not.toHaveBeenCalled();
-      expect(snackService.open).not.toHaveBeenCalled();
-    });
-
-    it('should do nothing when the latest release is older (dev build)', async () => {
-      await checkAndRespond({ tag_name: 'v0.0.1' });
-      expect(bannerService.open).not.toHaveBeenCalled();
-    });
-
-    it('compares Planstrand releases against the product RC, not the upstream package', async () => {
-      await checkAndRespond({ tag_name: 'v1.0.0-rc.1' });
-      expect(bannerService.open).not.toHaveBeenCalled();
-      await checkAndRespond({
-        tag_name: `v${PLANSTRAND_PRODUCT_VERSION.split('-')[0]}`,
-      });
-      expect(bannerService.open).toHaveBeenCalledTimes(1);
-    });
-
-    it('should show an up-to-date snack for a user-triggered check', async () => {
-      await checkAndRespond(
-        { tag_name: `v${PLANSTRAND_PRODUCT_VERSION}` },
-        { isUserTriggered: true },
-      );
-      expect(snackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: 'SUCCESS' }),
-      );
-      expect(bannerService.open).not.toHaveBeenCalled();
-    });
-
-    it('should not re-show the banner for a dismissed version', async () => {
-      localStorage.setItem(LS.UPDATE_CHECK_DISMISSED_VERSION, 'v99.0.0');
-      await checkAndRespond({ tag_name: 'v99.0.0' });
-      expect(bannerService.open).not.toHaveBeenCalled();
-    });
-
-    it('should show the banner for a dismissed version when user-triggered', async () => {
-      localStorage.setItem(LS.UPDATE_CHECK_DISMISSED_VERSION, 'v99.0.0');
-      await checkAndRespond({ tag_name: 'v99.0.0' }, { isUserTriggered: true });
-      expect(bannerService.open).toHaveBeenCalledTimes(1);
-    });
-
-    it('should show the banner again for a newer version than the dismissed one', async () => {
-      localStorage.setItem(LS.UPDATE_CHECK_DISMISSED_VERSION, 'v99.0.0');
-      await checkAndRespond({ tag_name: 'v99.0.1' });
-      expect(bannerService.open).toHaveBeenCalledTimes(1);
-    });
-
-    it('should fail silently on network errors for automatic checks', async () => {
-      const p = service.checkForUpdate();
-      httpMock
-        .expectOne(RELEASES_API_URL)
-        .error(new ProgressEvent('error'), { status: 0 });
-      await p;
-      expect(bannerService.open).not.toHaveBeenCalled();
-      expect(snackService.open).not.toHaveBeenCalled();
-    });
-
-    it('should show an error snack on network errors for user-triggered checks', async () => {
-      const p = service.checkForUpdate({ isUserTriggered: true });
-      httpMock
-        .expectOne(RELEASES_API_URL)
-        .error(new ProgressEvent('error'), { status: 0 });
-      await p;
-      expect(snackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: 'ERROR' }),
-      );
-    });
-
-    it('should treat a non-ok response as an error', async () => {
-      const p = service.checkForUpdate({ isUserTriggered: true });
-      httpMock
-        .expectOne(RELEASES_API_URL)
-        .flush('rate limited', { status: 403, statusText: 'Forbidden' });
-      await p;
-      expect(bannerService.open).not.toHaveBeenCalled();
-      expect(snackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: 'ERROR' }),
-      );
-    });
-
-    it('should treat missing release data as an error', async () => {
-      await checkAndRespond({ foo: 'bar' }, { isUserTriggered: true });
-      expect(bannerService.open).not.toHaveBeenCalled();
-      expect(snackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: 'ERROR' }),
-      );
-    });
-
-    it('should ignore a tag that is not strictly a version tag', async () => {
-      // lenient parsing is fine for the LOCAL version, but remote tags are
-      // untrusted input and must match exactly
-      await checkAndRespond({ tag_name: '99.0.0<img src=x>' }, { isUserTriggered: true });
-      expect(bannerService.open).not.toHaveBeenCalled();
-      expect(snackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: 'SUCCESS' }),
-      );
-    });
-
-    it('discovers RC releases and ignores newer drafts and unsupported tags', async () => {
-      const p = service.checkForUpdate();
-      httpMock.expectOne(RELEASES_API_URL).flush([
-        { tag_name: 'v1.2.0-rc.2', draft: false, prerelease: true },
-        { tag_name: 'v99.0.0', draft: true, prerelease: false },
-        { tag_name: 'v99.0.0-beta.1', draft: false, prerelease: true },
-      ]);
-      await p;
-      expect(bannerService.open.calls.mostRecent().args[0].translateParams).toEqual({
-        version: 'v1.2.0-rc.2',
-      });
-    });
-
-    it('selects the highest version across API pages', async () => {
-      const p = service.checkForUpdate();
-      httpMock.expectOne(RELEASES_API_URL).flush(
-        Array.from({ length: 100 }, () => ({
-          tag_name: 'v1.2.0-rc.2',
-          draft: false,
-          prerelease: true,
-        })),
-      );
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      httpMock.expectOne(RELEASES_API_URL.replace('&page=1', '&page=2')).flush([
-        { tag_name: 'v1.3.0', draft: false, prerelease: false },
-        { tag_name: 'v1.2.0', draft: false, prerelease: false },
-      ]);
-      await p;
-      expect(bannerService.open.calls.mostRecent().args[0].translateParams).toEqual({
-        version: 'v1.3.0',
-      });
-    });
-
-    it('should not fire a second request while one is in flight', async () => {
-      const p1 = service.checkForUpdate();
-      const p2 = service.checkForUpdate();
-      // expectOne throws if the guard failed and two requests were made
-      httpMock
-        .expectOne(RELEASES_API_URL)
-        .flush([{ tag_name: 'v99.0.0', draft: false, prerelease: false }]);
-      await Promise.all([p1, p2]);
-      expect(bannerService.open).toHaveBeenCalledTimes(1);
-    });
+  it('uses main-process discovery and retains manual fallback without authenticated metadata', async () => {
+    await service.checkForUpdate();
+    expect(latest().translateParams).toEqual({ version: 'v99.0.0' });
+    latest().action?.fn();
+    expect(bridge.openExternalUrl).toHaveBeenCalledWith(
+      'https://github.com/hychaw/planstrand/releases/tag/v99.0.0',
+    );
+    expect(bridge.downloadUpdate).not.toHaveBeenCalled();
+    expect(localStorage.getItem(LS.UPDATE_CHECK_DISMISSED_VERSION)).toBe('v99.0.0');
   });
-
-  describe('banner actions', () => {
-    let banner: Banner;
-
-    beforeEach(async () => {
-      await checkAndRespond({ tag_name: 'v99.0.0' });
-      banner = bannerService.open.calls.mostRecent().args[0];
-    });
-
-    it('should persist the version and open the locally-built release page on download', () => {
-      const openExternalUrl = jasmine.createSpy('openExternalUrl');
-      (window as unknown as { ea: unknown }).ea = { openExternalUrl };
-      banner.action?.fn();
-      expect(localStorage.getItem(LS.UPDATE_CHECK_DISMISSED_VERSION)).toBe('v99.0.0');
-      expect(openExternalUrl).toHaveBeenCalledWith(
-        'https://github.com/hychaw/planstrand/releases/tag/v99.0.0',
-      );
-    });
-
-    it('should persist the version on dismiss so it is not shown again', async () => {
-      banner.action2?.fn();
-      expect(localStorage.getItem(LS.UPDATE_CHECK_DISMISSED_VERSION)).toBe('v99.0.0');
-
-      bannerService.open.calls.reset();
-      await checkAndRespond({ tag_name: 'v99.0.0' });
-      expect(bannerService.open).not.toHaveBeenCalled();
-    });
+  it('retains dismissal until an explicit check', async () => {
+    await service.checkForUpdate();
+    latest().action2?.fn();
+    banners.open.calls.reset();
+    await service.checkForUpdate();
+    expect(banners.open).not.toHaveBeenCalled();
+    await service.checkForUpdate({ isUserTriggered: true });
+    expect(banners.open).toHaveBeenCalledTimes(1);
   });
+  it('stays quiet offline during automatic checks and reports explicit failures', async () => {
+    bridge.discoverUpdate.and.rejectWith(new Error('offline'));
+    await service.checkForUpdate();
+    expect(snacks.open).not.toHaveBeenCalled();
+    await service.checkForUpdate({ isUserTriggered: true });
+    expect(snacks.open).toHaveBeenCalledWith(jasmine.objectContaining({ type: 'ERROR' }));
+  });
+  it('reports current version only for explicit checks', async () => {
+    bridge.discoverUpdate.and.resolveTo({ canDownload: false });
+    await service.checkForUpdate();
+    expect(snacks.open).not.toHaveBeenCalled();
+    await service.checkForUpdate({ isUserTriggered: true });
+    expect(snacks.open).toHaveBeenCalledWith(
+      jasmine.objectContaining({ type: 'SUCCESS' }),
+    );
+  });
+  it('does not overlap discovery', async () => {
+    await Promise.all([service.checkForUpdate(), service.checkForUpdate()]);
+    expect(bridge.discoverUpdate).toHaveBeenCalledTimes(1);
+  });
+  it('downloads only on action and shows progress, verification, and ready without an install action', fakeAsync(() => {
+    let finish!: (value: { state: 'ready' }) => void;
+    bridge.discoverUpdate.and.resolveTo({ tag: 'v99.0.0', canDownload: true });
+    bridge.downloadUpdate.and.returnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    bridge.getUpdateDownloadStatus.and.resolveTo({
+      state: 'downloading',
+      percent: 42,
+      tag: 'v99.0.0',
+    });
+    void service.checkForUpdate();
+    tick();
+    expect(bridge.downloadUpdate).not.toHaveBeenCalled();
+    latest().action?.fn();
+    tick();
+    expect(latest().msg).toBe(T.APP.UPDATE_CHECK.VERIFYING);
+    tick(500);
+    expect(latest().msg).toBe(T.APP.UPDATE_CHECK.DOWNLOADING);
+    expect(latest().translateParams?.['percent']).toBe(42);
+    bridge.getUpdateDownloadStatus.and.resolveTo({ state: 'verifying' });
+    tick(500);
+    expect(latest().msg).toBe(T.APP.UPDATE_CHECK.VERIFYING);
+    finish({ state: 'ready' });
+    tick();
+    expect(latest().msg).toBe(T.APP.UPDATE_CHECK.READY);
+    expect(latest().action).toBeUndefined();
+    expect(latest().action3).toBeUndefined();
+    expect(bridge.openExternalUrl).not.toHaveBeenCalled();
+  }));
+  it('does not reopen progress after dismissal', fakeAsync(() => {
+    let finish!: (value: { state: 'ready' }) => void;
+    bridge.discoverUpdate.and.resolveTo({ tag: 'v99.0.0', canDownload: true });
+    bridge.downloadUpdate.and.returnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    bridge.getUpdateDownloadStatus.and.resolveTo({ state: 'downloading', percent: 10 });
+    void service.checkForUpdate();
+    tick();
+    latest().action?.fn();
+    tick();
+    latest().action2?.fn();
+    const count = banners.open.calls.count();
+    tick(500);
+    finish({ state: 'ready' });
+    tick();
+    expect(banners.open.calls.count()).toBe(count);
+    expect(banners.dismiss).toHaveBeenCalledWith(BannerId.UpdateAvailable);
+  }));
+  it('shows a concise download failure', fakeAsync(() => {
+    bridge.discoverUpdate.and.resolveTo({ tag: 'v99.0.0', canDownload: true });
+    bridge.downloadUpdate.and.rejectWith(new Error('internal detail'));
+    void service.checkForUpdate();
+    tick();
+    latest().action?.fn();
+    tick();
+    expect(latest().msg).toBe(T.APP.UPDATE_CHECK.DOWNLOAD_ERROR);
+  }));
+  it('respects opt-out and re-enabling automatic discovery', fakeAsync(() => {
+    preferences.next({ isCheckForUpdates: false });
+    service.init();
+    tick(31000);
+    expect(bridge.discoverUpdate).not.toHaveBeenCalled();
+    preferences.next({ isCheckForUpdates: true });
+    tick(30000);
+    expect(bridge.discoverUpdate).toHaveBeenCalledTimes(1);
+    preferences.next({ isCheckForUpdates: false });
+    tick(24 * 60 * 60 * 1000);
+    expect(bridge.discoverUpdate).toHaveBeenCalledTimes(1);
+    discardPeriodicTasks();
+  }));
+
+  it('defaults missing preferences to enabled after the initial delay', fakeAsync(() => {
+    service.init();
+    tick(29000);
+    expect(bridge.discoverUpdate).not.toHaveBeenCalled();
+    tick(1000);
+    expect(bridge.discoverUpdate).toHaveBeenCalledTimes(1);
+    discardPeriodicTasks();
+  }));
+
+  it('skips automatic checks on a store-managed channel', fakeAsync(() => {
+    bridge.getDistChannel.and.returnValue('win-store');
+    service.init();
+    tick(31000);
+    expect(bridge.discoverUpdate).not.toHaveBeenCalled();
+  }));
+
+  it('ignores a late progress response after the final verified result', fakeAsync(() => {
+    let finish!: (value: { state: 'ready' }) => void;
+    let progress!: (value: { state: 'downloading' }) => void;
+    bridge.discoverUpdate.and.resolveTo({ tag: 'v99.0.0', canDownload: true });
+    bridge.downloadUpdate.and.returnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    bridge.getUpdateDownloadStatus.and.returnValue(
+      new Promise((resolve) => {
+        progress = resolve;
+      }),
+    );
+    void service.checkForUpdate();
+    tick();
+    latest().action?.fn();
+    tick(500);
+    finish({ state: 'ready' });
+    tick();
+    progress({ state: 'downloading' });
+    tick();
+    expect(latest().msg).toBe(T.APP.UPDATE_CHECK.READY);
+  }));
 });
