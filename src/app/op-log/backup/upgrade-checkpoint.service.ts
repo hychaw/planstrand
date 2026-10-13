@@ -6,6 +6,7 @@ import { OperationCaptureService } from '../capture/operation-capture.service';
 import { getPhantomChangeRisk } from '../capture/phantom-change-guard.util';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { UpgradeCheckpointResult } from '../../../../electron/shared-with-frontend/upgrade-checkpoint.model';
+import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 
 /** Read-only capture of supported models, for the future desktop updater. */
 @Injectable({ providedIn: 'root' })
@@ -15,15 +16,20 @@ export class UpgradeCheckpointService {
   private _taskTimeSync = inject(TaskTimeSyncService);
   private _capture = inject(OperationCaptureService);
   private _hydration = inject(HydrationStateService);
+  private _imexView = inject(ImexViewService);
 
   async prepare(): Promise<UpgradeCheckpointResult> {
     if (!window.ea?.writeUpgradeCheckpoint) {
       return { ok: false, reason: 'UNAVAILABLE' };
     }
     try {
+      if (this._imexView.isDataImportInProgress) {
+        return { ok: false, reason: 'PREPARATION_FAILED' };
+      }
       this._taskTimeSync.flush();
       const data = await this._writeFlush.flushThenRunExclusive(async () => {
         if (
+          this._imexView.isDataImportInProgress ||
           this._hydration.isHydrationInProgress() ||
           this._hydration.isHydrationFallbackActive() ||
           this._hydration.isInSyncWindow() ||
@@ -32,6 +38,11 @@ export class UpgradeCheckpointService {
           throw new Error('Checkpoint consistency boundary unavailable');
         }
         const backup = await this._backup.loadCompleteBackup(true);
+        // Import may begin while archive reads await I/O. This is a refusal
+        // check, not an import lock or an application-wide quiescence grant.
+        if (this._imexView.isDataImportInProgress) {
+          throw new Error('Checkpoint unavailable during import');
+        }
         const { validateFull, validateAppDataProperty } =
           await import('../validation/validation-fn');
         if (

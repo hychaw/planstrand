@@ -72,7 +72,13 @@ describe('Upgrade checkpoint through real export, flush and disposable persisten
         { provide: OperationCaptureService, useValue: capture },
         { provide: HydrationStateService, useValue: hydration },
         { provide: TaskTimeSyncService, useValue: taskTime },
-        { provide: ImexViewService, useValue: { setDataImportInProgress: () => {} } },
+        {
+          provide: ImexViewService,
+          useValue: {
+            isDataImportInProgress: false,
+            setDataImportInProgress: () => {},
+          },
+        },
       ],
     });
     store = TestBed.inject(MockStore);
@@ -236,6 +242,37 @@ describe('Upgrade checkpoint through real export, flush and disposable persisten
     capture.hasUnrecoveredPersistFailure.and.returnValue(true);
     expect((await service.prepare()).ok).toBeFalse();
     expect(nativeWrite).not.toHaveBeenCalled();
+  });
+
+  it('refuses an already active import before flushing task time or writing a checkpoint', async () => {
+    const imex = TestBed.inject(ImexViewService);
+    imex.isDataImportInProgress = true;
+    expect(await service.prepare()).toEqual({ ok: false, reason: 'PREPARATION_FAILED' });
+    expect(taskTime.flush).not.toHaveBeenCalled();
+    expect(nativeWrite).not.toHaveBeenCalled();
+    imex.isDataImportInProgress = false;
+    expect((await service.prepare()).ok).toBeTrue();
+  });
+
+  it('rechecks import state after the operation drain', async () => {
+    taskTime.flush.and.callFake(() => {
+      TestBed.inject(ImexViewService).isDataImportInProgress = true;
+    });
+    expect(await service.prepare()).toEqual({ ok: false, reason: 'PREPARATION_FAILED' });
+    expect(nativeWrite).not.toHaveBeenCalled();
+  });
+
+  it('refuses a checkpoint if an import starts during archive I/O without clearing stored data', async () => {
+    const loadYoung = archives.loadArchiveYoung.bind(archives);
+    spyOn(archives, 'loadArchiveYoung').and.callFake(async () => {
+      TestBed.inject(ImexViewService).isDataImportInProgress = true;
+      return loadYoung();
+    });
+    const before = await log.loadStateCache();
+    expect(await service.prepare()).toEqual({ ok: false, reason: 'PREPARATION_FAILED' });
+    expect(nativeWrite).not.toHaveBeenCalled();
+    expect(await log.loadStateCache()).toEqual(before);
+    expect(await archives.loadArchiveOld()).toEqual(source.archiveOld);
   });
 
   it('refuses undrained deferred actions', async () => {
