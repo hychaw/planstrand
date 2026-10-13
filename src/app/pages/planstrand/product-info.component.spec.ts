@@ -25,7 +25,7 @@ describe('Planstrand About identity', () => {
 
   it('presents the product version and short build with accurate attribution', () => {
     const element = render('526d9b156353dc9de6dc39b159d40b99fcf4a25f');
-    expect(element.textContent).toContain('Version 1.2.0-rc.1');
+    expect(element.textContent).toContain('Version 1.3.0-rc.1');
     expect(element.textContent).toContain('Build 526d9b1');
     expect(element.textContent).not.toContain('19.1.0');
     expect(element.querySelector('details')?.textContent).toContain('Super Productivity');

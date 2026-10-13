@@ -40,7 +40,7 @@ describe('distChannelSuffix', () => {
 describe('getAppVersionStr', () => {
   it('reports the product version without the inherited package/channel suffix', () => {
     expect(getAppVersionStr()).toBe(PLANSTRAND_PRODUCT_VERSION);
-    expect(getAppVersionStr()).toBe('1.2.0-rc.1');
+    expect(getAppVersionStr()).toBe('1.3.0-rc.1');
   });
 });
 
