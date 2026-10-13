@@ -13,7 +13,8 @@ import { SnackService } from '../snack/snack.service';
 import { LS } from '../persistence/storage-keys.const';
 import { PLANSTRAND_PRODUCT_VERSION } from '../../util/planstrand-product-version';
 
-const RELEASES_API_URL = 'https://api.github.com/repos/hychaw/planstrand/releases/latest';
+const RELEASES_API_URL =
+  'https://api.github.com/repos/hychaw/planstrand/releases?per_page=100&page=1';
 
 describe('UpdateCheckService', () => {
   let service: UpdateCheckService;
@@ -27,7 +28,9 @@ describe('UpdateCheckService', () => {
     opts: { isUserTriggered?: boolean } = {},
   ): Promise<void> => {
     const p = service.checkForUpdate(opts);
-    httpMock.expectOne(RELEASES_API_URL).flush(body);
+    httpMock
+      .expectOne(RELEASES_API_URL)
+      .flush('tag_name' in body ? [{ draft: false, prerelease: false, ...body }] : body);
     return p;
   };
 
@@ -157,21 +160,56 @@ describe('UpdateCheckService', () => {
       );
     });
 
-    it('should reject a tag that is not strictly a version tag', async () => {
+    it('should ignore a tag that is not strictly a version tag', async () => {
       // lenient parsing is fine for the LOCAL version, but remote tags are
       // untrusted input and must match exactly
       await checkAndRespond({ tag_name: '99.0.0<img src=x>' }, { isUserTriggered: true });
       expect(bannerService.open).not.toHaveBeenCalled();
       expect(snackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: 'ERROR' }),
+        jasmine.objectContaining({ type: 'SUCCESS' }),
       );
+    });
+
+    it('discovers RC releases and ignores newer drafts and unsupported tags', async () => {
+      const p = service.checkForUpdate();
+      httpMock.expectOne(RELEASES_API_URL).flush([
+        { tag_name: 'v1.2.0-rc.2', draft: false, prerelease: true },
+        { tag_name: 'v99.0.0', draft: true, prerelease: false },
+        { tag_name: 'v99.0.0-beta.1', draft: false, prerelease: true },
+      ]);
+      await p;
+      expect(bannerService.open.calls.mostRecent().args[0].translateParams).toEqual({
+        version: 'v1.2.0-rc.2',
+      });
+    });
+
+    it('selects the highest version across API pages', async () => {
+      const p = service.checkForUpdate();
+      httpMock.expectOne(RELEASES_API_URL).flush(
+        Array.from({ length: 100 }, () => ({
+          tag_name: 'v1.2.0-rc.2',
+          draft: false,
+          prerelease: true,
+        })),
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      httpMock.expectOne(RELEASES_API_URL.replace('&page=1', '&page=2')).flush([
+        { tag_name: 'v1.3.0', draft: false, prerelease: false },
+        { tag_name: 'v1.2.0', draft: false, prerelease: false },
+      ]);
+      await p;
+      expect(bannerService.open.calls.mostRecent().args[0].translateParams).toEqual({
+        version: 'v1.3.0',
+      });
     });
 
     it('should not fire a second request while one is in flight', async () => {
       const p1 = service.checkForUpdate();
       const p2 = service.checkForUpdate();
       // expectOne throws if the guard failed and two requests were made
-      httpMock.expectOne(RELEASES_API_URL).flush({ tag_name: 'v99.0.0' });
+      httpMock
+        .expectOne(RELEASES_API_URL)
+        .flush([{ tag_name: 'v99.0.0', draft: false, prerelease: false }]);
       await Promise.all([p1, p2]);
       expect(bannerService.open).toHaveBeenCalledTimes(1);
     });

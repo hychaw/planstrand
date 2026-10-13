@@ -6,7 +6,7 @@ import { PLANSTRAND_PRODUCT_VERSION } from '../../util/planstrand-product-versio
 import { T } from '../../t.const';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports -- grandfathered layer-boundary debt
 import { GlobalConfigService } from '../../features/config/global-config.service';
-import { isNewerVersion } from '../../util/is-newer-version';
+import { newestPlanstrandRelease } from './planstrand-release';
 import { BannerService } from '../banner/banner.service';
 import { BannerId } from '../banner/banner.model';
 import { SnackService } from '../snack/snack.service';
@@ -14,19 +14,15 @@ import { LS } from '../persistence/storage-keys.const';
 import { Log } from '../log';
 import { isUpdateCheckPossible } from './is-update-check-possible.util';
 
-const RELEASES_API_URL = 'https://api.github.com/repos/hychaw/planstrand/releases/latest';
+const RELEASES_API_URL = 'https://api.github.com/repos/hychaw/planstrand/releases';
+const RELEASES_PAGE_SIZE = 100;
 const INITIAL_CHECK_DELAY = 30 * 1000;
 const CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT = 15 * 1000;
 
-// Strict (anchored) on purpose, unlike the lenient parser in is-newer-version.ts:
-// the tag is remote input that ends up in a banner and in the release URL we
-// open, so anything that isn't exactly a version tag is treated as malformed.
-const RELEASE_TAG_REGEX = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
-
 /**
  * Desktop-only "new version available" check (#5463). Fetches the latest
- * published GitHub release and shows a once-per-version banner linking to the
+ * eligible GitHub release and shows a once-per-version banner linking to the
  * release page — deliberately no auto-download/install, since the desktop
  * builds ship through too many package formats for one install path.
  *
@@ -67,19 +63,23 @@ export class UpdateCheckService {
     }
     this._isCheckInFlight = true;
     try {
-      const release = await firstValueFrom(
-        this._http
-          .get<{ tag_name?: string }>(RELEASES_API_URL, {
-            headers: { Accept: 'application/vnd.github+json' },
-          })
-          .pipe(timeout(REQUEST_TIMEOUT)),
-      );
-      const tagName = release.tag_name;
-      if (!tagName || !RELEASE_TAG_REGEX.test(tagName)) {
-        throw new Error('Malformed release data');
+      const releases: unknown[] = [];
+      // GitHub lists by creation date, so inspect every page before choosing by version.
+      for (let page = 1; ; page++) {
+        const batch = await firstValueFrom(
+          this._http
+            .get<unknown>(RELEASES_API_URL, {
+              headers: { Accept: 'application/vnd.github+json' },
+              params: { per_page: RELEASES_PAGE_SIZE, page },
+            })
+            .pipe(timeout(REQUEST_TIMEOUT)),
+        );
+        if (!Array.isArray(batch)) throw new Error('Malformed release data');
+        releases.push(...batch);
+        if (batch.length < RELEASES_PAGE_SIZE) break;
       }
-
-      if (!isNewerVersion(tagName, PLANSTRAND_PRODUCT_VERSION)) {
+      const tagName = newestPlanstrandRelease(releases, PLANSTRAND_PRODUCT_VERSION);
+      if (!tagName) {
         if (isUserTriggered) {
           this._snackService.open({
             type: 'SUCCESS',
