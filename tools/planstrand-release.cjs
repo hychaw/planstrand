@@ -112,10 +112,14 @@ function verifyPackage(directory, identity) {
     extract(base + 'assets/fonts/inter/LICENSE').toString(),
     /SIL OPEN FONT LICENSE/,
   );
-  const scripts = asar
-    .listPackage(archive)
-    .map((file) => file.replaceAll('\\', '/'))
-    .filter((file) => file.startsWith('/' + base) && file.endsWith('.js'));
+  const entries = asar.listPackage(archive).map((file) => file.replaceAll('\\', '/'));
+  assert.ok(
+    !entries.some((file) => /^\/electron\/.*\.test\.cjs$/.test(file)),
+    'Development-only Electron tests must not be packaged',
+  );
+  const scripts = entries.filter(
+    (file) => file.startsWith('/' + base) && file.endsWith('.js'),
+  );
   assert.ok(
     scripts.some((file) =>
       extract(file.slice(1)).includes(Buffer.from(identity.revision)),

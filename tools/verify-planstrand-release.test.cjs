@@ -26,6 +26,7 @@ test('Planstrand packaging is distinct and cannot publish to upstream', () => {
     'the distributed app must include the Planstrand MIT license',
   );
   assert.ok(builder.files.includes('LICENSES/**/*'));
+  assert.ok(builder.files.includes('!electron/**/*.test.cjs'));
   assert.equal(builder.mac.notarize, false);
   assert.equal(builder.mac.identity, null);
   assert.equal(builder.dmg.sign, false);
