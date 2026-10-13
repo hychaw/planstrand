@@ -1,6 +1,7 @@
 import { expect, test } from '../../fixtures/test.fixture';
 
 const storageKey = 'planstrand_local_schedule_reminders_v1';
+test.use({ contextOptions: { timezoneId: 'Asia/Singapore' } });
 
 test('Event reminder choices persist, remain keyboard accessible and fit both themes on narrow screens', async ({
   page,
@@ -12,6 +13,7 @@ test('Event reminder choices persist, remain keyboard accessible and fit both th
   const reminder = editor.getByRole('combobox', { name: 'Reminder', exact: true });
   await expect(reminder.locator('option:checked')).toHaveText('Never');
   await expect(reminder.locator('option')).toHaveCount(7);
+  await expect(editor.locator('#event-reminder-hint')).toContainText('fully closed');
   await reminder.selectOption({ label: '15 minutes before it starts' });
   await editor.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(editor).toBeHidden();
@@ -58,6 +60,7 @@ test('Event reminder choices persist, remain keyboard accessible and fit both th
           .locator('mat-dialog-content')
           .evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
       ).toBe(true);
+      await page.screenshot({ path: `.tmp/phase5a-event-${theme}-${width}.png` });
     }
     await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -143,7 +146,9 @@ test('WorkSession calendar menu sets, persists and disables only the chosen sess
     .locator('schedule-event:not(.custom-drag-preview)')
     .filter({ hasText: 'Reminder focus' })
     .first();
-  await block.click({ button: 'right' });
+  const actions = block.getByRole('button', { name: 'Actions: Reminder focus' });
+  await actions.focus();
+  await page.keyboard.press('Enter');
   await page.getByRole('menuitem', { name: 'Reminder', exact: true }).click();
   await page
     .getByRole('menuitemradio', { name: '10 minutes before it starts', exact: true })
@@ -159,8 +164,11 @@ test('WorkSession calendar menu sets, persists and disables only the chosen sess
     )
     .toBe(10);
   await page.reload();
-  await block.click({ button: 'right' });
+  await actions.click();
   await page.getByRole('menuitem', { name: 'Reminder', exact: true }).click();
+  await expect(page.locator('.schedule-reminder-hint')).toContainText(
+    'On this device only',
+  );
   await expect(
     page
       .getByRole('menuitemradio', { name: '10 minutes before it starts', exact: true })
@@ -177,4 +185,44 @@ test('WorkSession calendar menu sets, persists and disables only the chosen sess
       ),
     )
     .toBeNull();
+  for (const theme of ['Light', 'Dark']) {
+    await page.goto('/#/config');
+    await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await page
+      .locator('theme-selector')
+      .getByRole('radio', { name: theme, exact: true })
+      .click();
+    await page.goto('/#/schedule');
+    for (const width of [1280, 390, 320]) {
+      await page.setViewportSize({ width, height: 800 });
+      await actions.scrollIntoViewIfNeeded();
+      await expect(actions).toBeInViewport();
+      await actions.focus();
+      await page.keyboard.press('Enter');
+      await page.getByRole('menuitem', { name: 'Reminder', exact: true }).focus();
+      await page.keyboard.press('ArrowRight');
+      await expect(
+        page.getByRole('menuitemradio', { name: 'Never', exact: true }),
+      ).toBeInViewport();
+      await expect
+        .poll(() =>
+          page
+            .getByRole('menu')
+            .last()
+            .evaluate((el) => getComputedStyle(el).opacity),
+        )
+        .toBe('1');
+      await expect(
+        page.getByRole('menuitemradio', { name: '1 hour before it starts', exact: true }),
+      ).toBeInViewport();
+      await page.screenshot({ path: `.tmp/phase5a-session-${theme}-${width}.png` });
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menuitemradio')).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await expect(
+        page.getByRole('menuitem', { name: 'Reminder', exact: true }),
+      ).toBeHidden();
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+  }
 });

@@ -1269,6 +1269,7 @@
       "MSG": "Reflection Note: ({{date}}): {{content}}"
     },
     "REMINDER": {
+      "LOCAL_SCHEDULE_HINT": "On this device only. Notifications require permission and Planstrand to be running; they will not appear while the app is fully closed.",
       "COUNTDOWN_BANNER": {
         "START_NOW": "Start now",
         "TXT": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!",

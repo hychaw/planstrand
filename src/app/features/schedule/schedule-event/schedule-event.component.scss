@@ -564,6 +564,43 @@
   visibility: hidden;
 }
 
+.session-menu-trigger {
+  position: relative;
+  z-index: 4;
+  pointer-events: auto;
+  flex: 0 0 28px;
+  height: 28px;
+  max-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--surface-hover);
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+  }
+}
+
+.schedule-reminder-hint {
+  margin: var(--s) var(--s2);
+  color: var(--ink-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
 :host.blue-thread-session {
   background: linear-gradient(
     120deg,

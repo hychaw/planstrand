@@ -162,6 +162,7 @@
               {{ T.F.TASK.ADDITIONAL_INFO.REMINDER | translate }}
               <select
                 name="reminder"
+                aria-describedby="event-reminder-hint"
                 [(ngModel)]="reminderOffset"
               >
                 @for (option of reminderOptions; track option.value) {
@@ -169,6 +170,12 @@
                 }
               </select>
             </label>
+            <p
+              id="event-reminder-hint"
+              class="occurrence-scope"
+            >
+              {{ T.F.REMINDER.LOCAL_SCHEDULE_HINT | translate }}
+            </p>
           }
           @if (scope !== 'occurrence' || isRecurringCreation) {
             <fieldset>

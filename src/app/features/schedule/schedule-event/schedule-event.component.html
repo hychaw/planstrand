@@ -115,11 +115,18 @@
 }
 
 @if (canRemoveWorkSession()) {
-  <div
+  <button
+    type="button"
     [matMenuTriggerFor]="sessionContextMenu"
     #sessionMenuTrigger="matMenuTrigger"
-    class="cal-menu-trigger"
-  ></div>
+    class="session-menu-trigger"
+    [attr.aria-label]="('PLANSTRAND.ACTIONS' | translate) + ': ' + title()"
+    (click)="$event.stopPropagation()"
+    (mousedown)="$event.stopPropagation()"
+    (touchstart)="$event.stopPropagation()"
+  >
+    <mat-icon>more_horiz</mat-icon>
+  </button>
   <mat-menu #sessionContextMenu="matMenu">
     <button
       mat-menu-item
@@ -149,6 +156,9 @@
     </button>
   </mat-menu>
   <mat-menu #sessionReminderMenu="matMenu">
+    <p class="schedule-reminder-hint">
+      {{ T.F.REMINDER.LOCAL_SCHEDULE_HINT | translate }}
+    </p>
     @for (option of reminderOptions; track option.value) {
       <button
         mat-menu-item

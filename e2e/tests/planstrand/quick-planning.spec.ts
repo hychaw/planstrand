@@ -32,6 +32,8 @@ for (const theme of ['Light', 'Dark']) {
     page,
   }) => {
     await page.clock.setFixedTime(new Date('2026-12-30T10:01:00Z'));
+    // Bootstrap timers against the pinned date instead of changing a running clock.
+    await page.reload();
     await page.goto('/#/config');
     await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
     await page
@@ -72,6 +74,10 @@ for (const theme of ['Light', 'Dark']) {
       ['Move to Next Week', { type: 'WEEK', key: '2027-01-04' }],
       ['Unplan', null],
     ] as const) {
+      // Exercise the same menu in all three planning surfaces.
+      if (label === 'Plan Tomorrow') await page.goto('/#/today');
+      if (label === 'Move to This Week') await page.goto('/#/this-week');
+      if (label === 'Unplan') await page.goto('/#/inbox');
       await openPlanstrandActions(row);
       const button = row.getByRole('button', { name: label, exact: true });
       await expect(button).toBeInViewport();
@@ -81,7 +87,10 @@ for (const theme of ['Light', 'Dark']) {
           fullPage: true,
         });
       }
-      await button.click();
+      if (label === 'Plan Tomorrow') {
+        await button.focus();
+        await page.keyboard.press('Enter');
+      } else await button.click();
       await expect(row.locator('.commands')).toBeHidden();
       await waitForStatePersistence(page);
       const after = await readState(page);

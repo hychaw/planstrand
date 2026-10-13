@@ -126,6 +126,19 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
       expect(component.canRemoveWorkSession()).toBeTrue();
       expect(component.sessionMenuTrigger()).toBeDefined();
       expect(component.calMenuTrigger()).toBeUndefined();
+      const actions: HTMLButtonElement = fixture.nativeElement.querySelector(
+        'button.session-menu-trigger',
+      );
+      expect(actions.getAttribute('aria-label')).toContain(item.title);
+      expect(actions.tabIndex).toBe(0);
+      actions.focus();
+      expect(document.activeElement).toBe(actions);
+      const clickHandler = spyOn(component, 'clickHandler').and.callThrough();
+      actions.click();
+      fixture.detectChanges();
+      expect(component.sessionMenuTrigger()!.menuOpen).toBeTrue();
+      expect(clickHandler).not.toHaveBeenCalled();
+      component.sessionMenuTrigger()!.closeMenu();
       await component.clickHandler(new MouseEvent('click'));
       component.onContextMenu(new MouseEvent('contextmenu'));
       component.deleteTask();
