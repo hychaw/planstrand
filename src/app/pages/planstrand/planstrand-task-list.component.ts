@@ -27,6 +27,7 @@ import { planningCommands } from '../../features/planning/planning-commands';
 import { PlanstrandService } from './planstrand.service';
 import { CurrentDateService } from '../../core/date/current-date.service';
 import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership';
+import { calendarAddDays } from '../../util/calendar-date';
 
 @Component({
   selector: 'planstrand-task-list',
@@ -102,6 +103,14 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
               >
                 {{ 'PLANSTRAND.MOVE_TASK' | translate }}
               </button>
+              @for (action of quickPlanningActions; track action.target) {
+                <button
+                  mat-button
+                  (click)="plan(task, action.target); actions.open = false"
+                >
+                  {{ action.label | translate }}
+                </button>
+              }
               <label
                 >{{ 'PLANSTRAND.PLAN' | translate }}
                 <select
@@ -109,12 +118,9 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
                   (ngModelChange)="plan(task, $event); actions.open = false"
                 >
                   <option value="">{{ 'PLANSTRAND.CHOOSE' | translate }}</option>
-                  <option value="TODAY">{{ 'PLANSTRAND.TODAY' | translate }}</option>
-                  <option value="WEEK">{{ 'PLANSTRAND.THIS_WEEK' | translate }}</option>
                   @for (day of days(); track day) {
                     <option [value]="day">{{ day }}</option>
                   }
-                  <option value="UNPLAN">{{ 'PLANSTRAND.UNPLAN' | translate }}</option>
                 </select>
               </label>
               <button
@@ -279,6 +285,13 @@ import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership'
   `,
 })
 export class PlanstrandTaskListComponent {
+  readonly quickPlanningActions = [
+    { target: 'TODAY', label: 'PLANSTRAND.PLAN_TODAY' },
+    { target: 'TOMORROW', label: 'PLANSTRAND.PLAN_TOMORROW' },
+    { target: 'WEEK', label: 'PLANSTRAND.MOVE_THIS_WEEK' },
+    { target: 'NEXT_WEEK', label: 'PLANSTRAND.MOVE_NEXT_WEEK' },
+    { target: 'UNPLAN', label: 'PLANSTRAND.UNPLAN' },
+  ];
   private readonly _externalDrag = inject(ScheduleExternalDragService);
   startDrag(task: TaskWithSubTasks, event: CdkDragStart): void {
     this._externalDrag.setCancelNextDrop(false);
@@ -324,12 +337,23 @@ export class PlanstrandTaskListComponent {
   plan(task: TaskWithSubTasks, target: string): void {
     const commands = planningCommands(this.store);
     if (target === 'UNPLAN') commands.unplan(task.id);
-    else if (target === 'WEEK')
-      commands.planWeek(task.id, new Date(this.dates.resolveToday() + 'T12:00:00'));
+    else if (target === 'WEEK' || target === 'NEXT_WEEK')
+      commands.planWeek(
+        task.id,
+        new Date(
+          calendarAddDays(this.dates.resolveToday(), target === 'NEXT_WEEK' ? 7 : 0) +
+            'T12:00:00',
+        ),
+      );
     else if (target)
       commands.planTaskForDay({
         task,
-        day: target === 'TODAY' ? this.dates.resolveToday() : target,
+        day:
+          target === 'TODAY'
+            ? this.dates.resolveToday()
+            : target === 'TOMORROW'
+              ? calendarAddDays(this.dates.resolveToday(), 1)
+              : target,
       });
   }
   schedule(task: TaskWithSubTasks): void {

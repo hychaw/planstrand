@@ -25,6 +25,7 @@ import { PlanstrandTaskListComponent } from './planstrand-task-list.component';
 import { CdkDragDrop, CdkDragStart } from '@angular/cdk/drag-drop';
 import { ScheduleExternalDragService } from '../../features/schedule/schedule-week/schedule-external-drag.service';
 import { DialogScheduleTaskComponent } from '../../features/planner/dialog-schedule-task/dialog-schedule-task.component';
+import { selectLocalizationConfig } from '../../features/config/store/global-config.reducer';
 
 describe('Fast-Track Milestone A commands and selectors', () => {
   const folders = {
@@ -100,6 +101,53 @@ describe('Fast-Track Milestone A commands and selectors', () => {
       type: 'DAY',
       key: '2026-10-07',
     });
+  });
+
+  for (const [date, target, firstDayOfWeek, type, key] of [
+    ['2026-12-31', 'TOMORROW', 1, 'DAY', '2027-01-01'],
+    ['2028-02-28', 'TOMORROW', 1, 'DAY', '2028-02-29'],
+    ['2026-12-31', 'NEXT_WEEK', 1, 'WEEK', '2027-01-04'],
+    ['2026-12-31', 'NEXT_WEEK', 0, 'WEEK', '2027-01-03'],
+    ['2027-01-03', 'WEEK', 1, 'WEEK', '2026-12-28'],
+    ['2027-01-03', 'WEEK', 0, 'WEEK', '2027-01-03'],
+  ] as const) {
+    it(
+      'resolves ' + target + ' on ' + date + ' with week start ' + firstDayOfWeek,
+      async () => {
+        spyOn(Date, 'now').and.returnValue(new Date(date + 'T00:01:00').getTime());
+        const config = store.selectSignal(selectLocalizationConfig)();
+        store.overrideSelector(selectLocalizationConfig, { ...config, firstDayOfWeek });
+        store.refreshState();
+        const list = TestBed.runInInjectionContext(
+          () => new PlanstrandTaskListComponent(),
+        );
+        const original = {
+          ...task('task', 'a'),
+          isDone: true,
+          dueDay: '2027-02-01',
+          deadlineDay: '2027-02-02',
+          reminderId: 'reminder',
+        };
+        const snapshot = JSON.stringify(original);
+        list.plan(original, target);
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        const action = dispatch.calls.mostRecent().args[0];
+        expect(action.type).toBe(setPlacement.type);
+        expect(action.record.placement.target).toEqual({ type, key });
+        expect(JSON.stringify(original)).toBe(snapshot);
+        expect(taskService.update).not.toHaveBeenCalled();
+      },
+    );
+  }
+
+  it('unplans through one Planning operation without updating the Task', async () => {
+    const list = TestBed.runInInjectionContext(() => new PlanstrandTaskListComponent());
+    list.plan(task('task'), 'UNPLAN');
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch.calls.mostRecent().args[0].type).toBe(removePlacement.type);
+    expect(taskService.update).not.toHaveBeenCalled();
   });
 
   it('groups stale, missing and explicit Inbox ownership without consulting Project', () => {

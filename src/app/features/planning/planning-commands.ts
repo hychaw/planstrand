@@ -16,9 +16,15 @@ import { selectPlanningState } from './store/planning.selectors';
 import { setPlacement, removePlacement } from './store/planning.actions';
 import { PlannerActions } from '../planner/store/planner.actions';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
-import { getWeekRange } from '../../util/get-week-range';
+import { calendarAddDays } from '../../util/calendar-date';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { selectLocalizationConfig } from '../config/store/global-config.reducer';
+
+/** Civil week key shared by Planning writes and the visible weekly sections. */
+export const planningWeekStart = (day: string, firstDayOfWeek: number): string => {
+  const weekday = new Date(day + 'T12:00:00').getDay();
+  return calendarAddDays(day, -((weekday - firstDayOfWeek + 7) % 7));
+};
 
 let identityProvider: Pick<ClientIdService, 'getOrGenerateClientId'> | undefined;
 let identityReady: () => void;
@@ -227,7 +233,7 @@ class PlanningCommands {
       id,
       {
         type: 'WEEK',
-        key: getDbDateStr(getWeekRange(date, cfg.firstDayOfWeek ?? 1).start),
+        key: planningWeekStart(getDbDateStr(date), cfg.firstDayOfWeek ?? 1),
       },
       Infinity,
     );

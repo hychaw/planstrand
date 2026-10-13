@@ -54,7 +54,7 @@ test('Today rolls over without reload and an already-open Task menu plans the ne
   await openPlanstrandActions(row);
   // Suspend callbacks and advance another day while this menu stays open.
   await page.clock.setSystemTime(new Date('2026-10-07T22:01:00Z'));
-  await row.locator('select').selectOption('TODAY');
+  await row.getByRole('button', { name: 'Plan Today', exact: true }).click();
   await page.goto('/#/today');
   await expect(page.locator('.period-label')).toContainText('Thursday, October 8, 2026');
   await expect(page.locator('.planning-sections > section').first()).toContainText(

@@ -110,7 +110,7 @@ test.describe('Blue Thread V1.1', () => {
     await actions.press('Escape');
     await expect(row.locator('.commands')).toBeHidden();
     await actions.press('Enter');
-    await row.getByRole('combobox', { name: 'Plan Task' }).selectOption('WEEK');
+    await row.getByRole('button', { name: 'Move to This Week', exact: true }).click();
     await expect(row.locator('.commands')).toBeHidden();
     await page.goto('/#/this-week');
     await expect(

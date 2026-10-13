@@ -212,7 +212,7 @@ test('completes one WorkSession independently in My Day and reopens it in Calend
   await savePrompt(page, title);
   const row = page.locator('.task-entry').filter({ hasText: title });
   await openPlanstrandActions(row);
-  await row.getByRole('combobox', { name: 'Plan Task' }).selectOption('TODAY');
+  await row.getByRole('button', { name: 'Plan Today', exact: true }).click();
   await page.goto('/#/today');
   await dragTaskToHour(page, title, 9);
   await dragTaskToHour(page, title, 14);
@@ -314,7 +314,7 @@ for (const nested of [false, true]) {
     await savePrompt(page, title);
     const row = page.locator('.task-entry').filter({ hasText: title });
     await openPlanstrandActions(row);
-    await row.getByRole('combobox', { name: 'Plan Task' }).selectOption('TODAY');
+    await row.getByRole('button', { name: 'Plan Today', exact: true }).click();
     await page.goto('/#/today');
     const focus = page.locator('.planning-sections > section').first();
     await expect(focus.locator('.task-entry').filter({ hasText: title })).toHaveCount(1);
@@ -436,7 +436,7 @@ test.describe('renderer timezone fallback', () => {
       await savePrompt(page, title);
       const row = page.locator('.task-entry').filter({ hasText: title });
       await openPlanstrandActions(row);
-      await row.getByRole('combobox', { name: 'Plan Task' }).selectOption('TODAY');
+      await row.getByRole('button', { name: 'Plan Today', exact: true }).click();
     }
     await page.goto('/#/today');
     const before = await audit(page, firstTitle);

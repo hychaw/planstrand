@@ -35,9 +35,7 @@ test.describe('Planstrand Milestone A', () => {
       .locator('planstrand-task-list .task-entry')
       .filter({ hasText: 'Milestone canonical Task' });
     await openPlanstrandActions(row);
-    await row
-      .getByRole('combobox', { name: 'Plan Task' })
-      .selectOption({ label: 'Today' });
+    await row.getByRole('button', { name: 'Plan Today', exact: true }).click();
     await page.goto('/#/today');
     const planned = page.locator('planstrand-page section').first();
     await expect(planned).toContainText('Milestone canonical Task');
@@ -55,7 +53,8 @@ test.describe('Planstrand Milestone A', () => {
       .locator('dialog-schedule-task [data-test-id="schedule-submit-btn"]')
       .click();
     await expect(page.locator('dialog-schedule-task')).toBeHidden();
-    await planned.getByRole('combobox', { name: 'Plan Task' }).selectOption('WEEK');
+    await openPlanstrandActions(planned);
+    await planned.getByRole('button', { name: 'Move to This Week', exact: true }).click();
     await expect(planned).not.toContainText('Milestone canonical Task');
     await page.goto('/#/this-week');
     const week = page.locator('planstrand-page section').first();
@@ -64,7 +63,7 @@ test.describe('Planstrand Milestone A', () => {
     const nextDay = await week
       .getByRole('combobox', { name: 'Plan Task' })
       .locator('option')
-      .nth(4)
+      .nth(2)
       .getAttribute('value');
     await week.getByRole('combobox', { name: 'Plan Task' }).selectOption(nextDay!);
     await expect(week).not.toContainText('Milestone canonical Task');
@@ -75,7 +74,7 @@ test.describe('Planstrand Milestone A', () => {
     await expect(day).toContainText('Milestone canonical Task');
     const dayHeading = await day.getByRole('heading').innerText();
     await openPlanstrandActions(day);
-    await day.getByRole('combobox', { name: 'Plan Task' }).selectOption('UNPLAN');
+    await day.getByRole('button', { name: 'Unplan', exact: true }).click();
     await expect(
       page.locator('planstrand-page section').filter({
         has: page.getByRole('heading', { name: dayHeading, exact: true }),

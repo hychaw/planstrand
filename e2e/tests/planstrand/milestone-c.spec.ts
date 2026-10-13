@@ -170,8 +170,8 @@ test.describe('Planstrand V1 shipping smoke', () => {
       await inbox
         .locator('.task-entry')
         .filter({ hasText: title })
-        .getByRole('combobox', { name: 'Plan Task' })
-        .selectOption({ label: 'Today' });
+        .getByRole('button', { name: 'Plan Today', exact: true })
+        .click();
     }
     await page.goto('/#/today');
     const planned = page.locator('planstrand-page section').first();
@@ -187,7 +187,7 @@ test.describe('Planstrand V1 shipping smoke', () => {
     await dialog.locator('input[type=time]').fill('10:00');
     await dialog.locator('[data-test-id=schedule-submit-btn]').click();
     await expect(dialog).toBeHidden();
-    await second.getByRole('combobox', { name: 'Plan Task' }).selectOption('UNPLAN');
+    await second.getByRole('button', { name: 'Unplan', exact: true }).click();
     await expect(planned).not.toContainText('Ship second Task');
     await page.goto('/#/schedule');
     await page.getByRole('button', { name: 'View Day', exact: true }).click();

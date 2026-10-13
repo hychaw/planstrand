@@ -10,7 +10,7 @@ test('Today separates completed planned Tasks without duplicating capture or pla
   await input.press('Enter');
   const row = page.locator('.task-entry').filter({ hasText: 'Review final flight plan' });
   await openPlanstrandActions(row);
-  await row.getByRole('combobox', { name: 'Plan Task' }).selectOption({ label: 'Today' });
+  await row.getByRole('button', { name: 'Plan Today', exact: true }).click();
   await page.goto('/#/today');
   await expect(page.locator('.planning-sections > section').first()).toContainText(
     'Review final flight plan',
@@ -29,9 +29,7 @@ test('Today separates completed planned Tasks without duplicating capture or pla
     await input.press('Enter');
     const captured = page.locator('.task-entry').filter({ hasText: title });
     await openPlanstrandActions(captured);
-    await captured
-      .getByRole('combobox', { name: 'Plan Task' })
-      .selectOption({ label: 'Today' });
+    await captured.getByRole('button', { name: 'Plan Today', exact: true }).click();
   }
   await page.goto('/#/today');
   const focus = page.locator('.planning-sections > section').first();

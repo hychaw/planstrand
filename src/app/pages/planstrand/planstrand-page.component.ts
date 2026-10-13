@@ -28,13 +28,15 @@ import {
   selectTaskFeatureState,
   mapSubTasksToTask,
 } from '../../features/tasks/store/task.selectors';
-import { planningCommands } from '../../features/planning/planning-commands';
+import {
+  planningCommands,
+  planningWeekStart,
+} from '../../features/planning/planning-commands';
 import { PlanningPlacement } from '../../features/planning/planning.model';
 import { TaskWithSubTasks } from '../../features/tasks/task.model';
 import { CurrentDateService } from '../../core/date/current-date.service';
 import { selectLocalizationConfig } from '../../features/config/store/global-config.reducer';
-import { getWeekRange } from '../../util/get-week-range';
-import { getDbDateStr } from '../../util/get-db-date-str';
+import { calendarAddDays } from '../../util/calendar-date';
 
 @Component({
   selector: 'planstrand-page',
@@ -71,15 +73,11 @@ export class PlanstrandPageComponent {
   private readonly taskState = this.store.selectSignal(selectTaskFeatureState);
   private readonly allTasks = this.store.selectSignal(selectAllTasksWithSubTasks);
   readonly days = computed(() => {
-    const start = getWeekRange(
-      new Date(this.today() + 'T12:00:00'),
+    const start = planningWeekStart(
+      this.today(),
       this.localization().firstDayOfWeek ?? 1,
-    ).start;
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(start);
-      date.setDate(date.getDate() + i);
-      return getDbDateStr(date);
-    });
+    );
+    return Array.from({ length: 7 }, (_, i) => calendarAddDays(start, i));
   });
   readonly folderRows = computed(() => {
     const id = this.mode() === 'inbox' ? INBOX_FOLDER_ID : this.params()?.get('id');
@@ -128,11 +126,9 @@ export class PlanstrandPageComponent {
         : target.type === 'WEEK'
           ? () => ({
               type: 'WEEK',
-              key: getDbDateStr(
-                getWeekRange(
-                  new Date(this.dates.resolveToday() + 'T12:00:00'),
-                  this.localization().firstDayOfWeek ?? 1,
-                ).start,
+              key: planningWeekStart(
+                this.dates.resolveToday(),
+                this.localization().firstDayOfWeek ?? 1,
               ),
             })
           : target,
