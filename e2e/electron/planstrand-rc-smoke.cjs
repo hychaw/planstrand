@@ -196,9 +196,7 @@ const checkData = async (page) => {
     .locator('planstrand-task-list .task-entry')
     .filter({ hasText: 'RC Task' });
   await task.locator('.task-actions summary').click();
-  await task
-    .getByRole('combobox', { name: 'Plan Task' })
-    .selectOption({ label: 'Today' });
+  await task.getByRole('button', { name: 'Plan Today', exact: true }).click();
   await goto(page, '/today');
   const focusTask = page
     .locator('planstrand-task-list .task-entry')

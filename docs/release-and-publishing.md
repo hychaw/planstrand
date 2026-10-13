@@ -12,6 +12,12 @@ Electron publishing is disabled in [electron-builder.yaml](../electron-builder.y
 
 ## Build and validation
 
+V1.3 RC1 is prepared separately from the published V1.2 release. See the
+[V1.3 release notes](releases/v1.3.0-rc.1.md) and
+[release-readiness and upgrade validation record](v1.3-phase-5b-release-readiness.md).
+Preparation does not create a tag, dispatch a workflow or publish assets. Keep
+README download links on the published version until publication is approved.
+
 The current published candidate is **V1.2 RC1**. The
 [release notes and conditional self-hosted deployment checklist](releases/v1.2.0-rc.1.md)
 preserve the preparation-time record; publication does not certify a server deployment.
