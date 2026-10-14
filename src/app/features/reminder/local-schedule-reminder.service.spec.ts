@@ -126,6 +126,21 @@ describe('device-local Event and WorkSession reminders', () => {
     service.checkDue();
     expect(notify).toHaveBeenCalledTimes(1);
   });
+  for (const [kind, id] of [
+    ['event', 'e'],
+    ['workSession', 'w'],
+  ] as const) {
+    it(`delivers ${kind} without a native toast tag and still deduplicates the instant`, () => {
+      service.set(kind, id, 0);
+      service.checkDue();
+      const [options, guard] = notify.calls.mostRecent().args;
+      expect(options.title).toBe(kind === 'event' ? 'Meeting' : 'Focus');
+      expect(options.tag).toBeUndefined();
+      expect(guard()).toBeTrue();
+      restart().checkDue();
+      expect(notify).toHaveBeenCalledTimes(1);
+    });
+  }
   it('waits for initial hydration and pauses during imports or globally disabled reminders', () => {
     loaded.next(false);
     service = restart();

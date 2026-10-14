@@ -128,7 +128,9 @@ export class LocalScheduleReminderService {
           {
             title: current.title,
             body: T.F.TASK.ADDITIONAL_INFO.REMINDER,
-            tag: `planstrand:${key}:${current.remindAt}`,
+            // The durable consumed record already deduplicates this occurrence.
+            // Electron passes Chromium's tag-based ID to Windows, where long
+            // entity/instant tags exceed the native toast tag limit and fail.
           },
           stillCurrent,
         )
