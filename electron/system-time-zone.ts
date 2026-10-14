@@ -29,3 +29,13 @@ export const getNativeSystemTimeZone = (): string | null => {
     return null;
   }
 };
+
+/** Repair only an unrecognized Windows zone, before any renderer/worker is spawned. */
+export const initializeSystemTimeZone = (): void => {
+  if (process.platform !== 'win32' || process.env.TZ) return;
+  if (Intl.DateTimeFormat().resolvedOptions().timeZone) return;
+  const zone = getNativeSystemTimeZone();
+  // Node resets ICU/V8's default zone on assignment; child renderers inherit TZ.
+  // Requires the build-time ICU data refresh for Vancouver's post-2026 rules.
+  if (zone) process.env.TZ = zone;
+};

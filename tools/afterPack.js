@@ -66,6 +66,9 @@ const verifyPackagedMacIcon = async (context) => {
 
 async function afterPack(context) {
   if (context.electronPlatformName === 'win32') {
+    require('./update-electron-timezone-data.cjs').updateTimeZoneFile(
+      join(context.appOutDir, 'icudtl.dat'),
+    );
     require('./planstrand-installer-manifest.cjs').writeInstallerManifest(
       context.appOutDir,
       join(context.packager.projectDir, '.tmp'),
