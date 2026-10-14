@@ -53,6 +53,8 @@ import { getWeekNumber } from '../../../util/get-week-number';
 import { parseDbDateStr } from '../../../util/parse-db-date-str';
 import { calendarDate, calendarTimeRow } from '../calendar-time';
 import { anchorContextNow } from '../anchor-context-now';
+import { calendarAddDays, calendarWeekStart } from '../../../util/calendar-date';
+import { getDbDateStr } from '../../../util/get-db-date-str';
 
 @Component({
   selector: 'schedule',
@@ -224,6 +226,13 @@ export class ScheduleComponent {
         selectedDate,
       );
     }
+    if (selectedView === 'week') {
+      const start = calendarWeekStart(
+        selectedDate ? getDbDateStr(selectedDate) : this._todayDateStr(),
+        this.firstDayOfWeek(),
+      );
+      return this.scheduleService.getDaysToShow(7, parseDbDateStr(start));
+    }
     return this.scheduleService.getDaysToShow(count, selectedDate);
   });
 
@@ -268,7 +277,7 @@ export class ScheduleComponent {
 
     const start = parseDbDateStr(days[0]);
     const end = parseDbDateStr(days[days.length - 1]);
-    const weekNr = getWeekNumber(start); // ISO — default firstDayOfWeek=1
+    const weekNr = getWeekNumber(start, this.firstDayOfWeek());
     const sameMonth =
       start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
     const startStr = safeFormatDate(start, 'MMM d', locale);
@@ -381,12 +390,11 @@ export class ScheduleComponent {
       );
       this._selectedDate.set(previousMonth);
     } else {
-      const daysToSkip = this.daysToShow().length;
-      const previousPeriod = new Date(currentDate);
-      previousPeriod.setDate(currentDate.getDate() - daysToSkip);
-      previousPeriod.setHours(0, 0, 0, 0);
-
-      this._selectedDate.set(previousPeriod);
+      this._selectedDate.set(
+        parseDbDateStr(
+          calendarAddDays(this.daysToShow()[0], selectedView === 'week' ? -7 : -1),
+        ),
+      );
     }
   }
 
@@ -405,13 +413,11 @@ export class ScheduleComponent {
       );
       this._selectedDate.set(nextMonth);
     } else {
-      // Week view: move forward by the number of days currently shown
-      // (automatically adapts to responsive day count: 2, 3, 5, or 7 days)
-      const daysToSkip = this.daysToShow().length;
-      const nextPeriod = new Date(currentDate);
-      nextPeriod.setDate(currentDate.getDate() + daysToSkip);
-      nextPeriod.setHours(0, 0, 0, 0);
-      this._selectedDate.set(nextPeriod);
+      this._selectedDate.set(
+        parseDbDateStr(
+          calendarAddDays(this.daysToShow()[0], selectedView === 'week' ? 7 : 1),
+        ),
+      );
     }
   }
 

@@ -227,6 +227,7 @@
               [folderId]="row.folder.id"
               [days]="days()"
               (dropped)="moveTask($event, row.folder.id)"
+              (reordered)="reorderUnderlying($event, row.tasks)"
             />
           }
         </section>
@@ -333,7 +334,8 @@
           <planstrand-task-list
             [tasks]="captureTasks()"
             [days]="days()"
-            (dropped)="unplan($event.task.id)"
+            (dropped)="unplannedDrop($event)"
+            (reordered)="reorderUnderlying($event, captureTasks())"
           />
         </section>
         @if (mode() === 'today' && completedTasks().length) {
@@ -344,6 +346,7 @@
             </div>
             <planstrand-task-list
               [tasks]="completedTasks()"
+              [ordering]="false"
               [acceptDrops]="false"
               [days]="days()"
             />

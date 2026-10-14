@@ -21,6 +21,9 @@ import { ScheduleDay } from '../schedule.model';
 import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 import { registerLocaleData } from '@angular/common';
 import localeSv from '@angular/common/locales/sv';
+import { LS } from '../../../core/persistence/storage-keys.const';
+import { calendarAddDays, calendarWeekStart } from '../../../util/calendar-date';
+import { getDbDateStr } from '../../../util/get-db-date-str';
 import { calendarDisplayZone } from '../calendar-time';
 
 describe('ScheduleComponent', () => {
@@ -42,6 +45,7 @@ describe('ScheduleComponent', () => {
   beforeAll(() => registerLocaleData(localeSv, 'sv'));
 
   beforeEach(async () => {
+    localStorage.removeItem(LS.SELECTED_TIME_VIEW);
     mockLocalization.set({ firstDayOfWeek: 1, dateTimeLocale: 'en-US' });
     // Create mock services
     mockTaskService = jasmine.createSpyObj('TaskService', ['currentTaskId']);
@@ -324,7 +328,7 @@ describe('ScheduleComponent', () => {
       // Assert
       const newDate = component['_selectedDate']();
       expect(newDate).not.toBeNull();
-      expect(newDate?.getTime()).toBeGreaterThan(Date.now() - 1000); // Should be around now + 7 days
+      expect(getDbDateStr(newDate!)).toBe('2026-01-27'); // Next week from the mocked displayed range
     });
 
     it('should update when goToPreviousPeriod is called in week view', () => {
@@ -448,15 +452,16 @@ describe('ScheduleComponent', () => {
       fixture.detectChanges();
 
       // Get the actual number of days being shown (mock-controlled)
-      const daysShown = component.daysToShow().length;
+      const periodStart = new Date(component.daysToShow()[0] + 'T00:00:00');
+      const daysShown = 7;
 
       // Act
       component.goToPreviousPeriod();
 
       // Assert
       const newDate = component['_selectedDate']();
-      const expectedDate = new Date(startDate);
-      expectedDate.setDate(startDate.getDate() - daysShown);
+      const expectedDate = new Date(periodStart);
+      expectedDate.setDate(periodStart.getDate() - daysShown);
 
       expect(newDate?.getDate()).toBe(expectedDate.getDate());
       expect(newDate?.getHours()).toBe(0); // Normalized to midnight
@@ -529,15 +534,16 @@ describe('ScheduleComponent', () => {
       component['_selectedDate'].set(startDate);
 
       // Get the actual number of days being shown (depends on test window size)
-      const daysShown = component.daysToShow().length;
+      const periodStart = new Date(component.daysToShow()[0] + 'T00:00:00');
+      const daysShown = 7;
 
       // Act
       component.goToNextPeriod();
 
       // Assert
       const newDate = component['_selectedDate']();
-      const expectedDate = new Date(startDate);
-      expectedDate.setDate(startDate.getDate() + daysShown);
+      const expectedDate = new Date(periodStart);
+      expectedDate.setDate(periodStart.getDate() + daysShown);
 
       expect(newDate?.getDate()).toBe(expectedDate.getDate());
       expect(newDate?.getHours()).toBe(0); // Normalized to midnight
@@ -546,12 +552,12 @@ describe('ScheduleComponent', () => {
     it('should navigate forward from today by the number of days shown', () => {
       // Arrange
       component['_selectedDate'].set(null);
-      const startDate = new Date();
-      const daysShown = component.daysToShow().length;
+      const periodStart = new Date(component.daysToShow()[0] + 'T00:00:00');
+      const daysShown = 7;
 
       // Calculate expected date (today + daysShown)
-      const expectedDate = new Date(startDate);
-      expectedDate.setDate(startDate.getDate() + daysShown);
+      const expectedDate = new Date(periodStart);
+      expectedDate.setDate(periodStart.getDate() + daysShown);
 
       // Act
       component.goToNextPeriod();
@@ -983,6 +989,49 @@ describe('ScheduleComponent', () => {
     });
   });
 
+  describe('configured full weeks', () => {
+    for (const [firstDayOfWeek, selected, start] of [
+      [1, '2026-12-30', '2026-12-28'],
+      [0, '2026-12-30', '2026-12-27'],
+      [3, '2027-01-01', '2026-12-30'],
+      [1, '2026-03-25', '2026-03-23'],
+      [0, '2026-11-04', '2026-11-01'],
+    ] as const) {
+      it(`aligns ${selected} with first weekday ${firstDayOfWeek} and navigates whole weeks`, () => {
+        mockLayoutService.selectedTimeView.set('week');
+        mockLocalization.set({ firstDayOfWeek, dateTimeLocale: 'en-US' });
+        mockScheduleService.getDaysToShow.and.callFake(
+          ScheduleService.prototype.getDaysToShow,
+        );
+        component['_selectedDate'].set(new Date(selected + 'T12:00:00'));
+        expect(component.daysToShow()).toEqual(
+          Array.from({ length: 7 }, (_, i) => calendarAddDays(start, i)),
+        );
+        component.goToPreviousPeriod();
+        expect(component.daysToShow()[0]).toBe(calendarAddDays(start, -7));
+        component.goToNextPeriod();
+        expect(component.daysToShow()[0]).toBe(start);
+        component.goToNextPeriod();
+        expect(component.daysToShow()[0]).toBe(calendarAddDays(start, 7));
+        component.goToToday();
+        expect(component.daysToShow()[0]).toBe(
+          calendarWeekStart(component['_todayDateStr'](), firstDayOfWeek),
+        );
+      });
+    }
+    it('leaves the selected Wednesday anchored in Day view after viewing its week', () => {
+      mockScheduleService.getDaysToShow.and.callFake(
+        ScheduleService.prototype.getDaysToShow,
+      );
+      component.navigateToDate(new Date(2026, 11, 30, 12), 'day');
+      component.selectTimeView('week');
+      expect(component.daysToShow()[0]).toBe('2026-12-28');
+      component.selectTimeView('day');
+      expect(component.daysToShow()).toEqual(['2026-12-30']);
+      expect(getDbDateStr(component['_selectedDate']()!)).toBe('2026-12-30');
+    });
+  });
+
   describe('daysToShow computed', () => {
     it('should call getDaysToShow in week view', () => {
       // Arrange
@@ -1011,7 +1060,8 @@ describe('ScheduleComponent', () => {
       expect(mockScheduleService.getMonthDaysToShow).toHaveBeenCalled();
     });
 
-    it('should pass selectedDate to getDaysToShow', () => {
+    it('should pass selectedDate unchanged in Day view', () => {
+      mockLayoutService.selectedTimeView.set('day');
       // Arrange
       const testDate = new Date(2026, 0, 25);
       component['_selectedDate'].set(testDate);

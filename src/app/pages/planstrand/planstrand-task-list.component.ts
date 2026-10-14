@@ -145,22 +145,32 @@ import { calendarAddDays } from '../../util/calendar-date';
               >
                 {{ 'PLANSTRAND.SCHEDULE_SESSION' | translate }}
               </button>
-              @if (planning()) {
+              @if (ordering()) {
                 <button
                   mat-button
-                  (click)="reordered.emit({ task: task, direction: -1 })"
-                  [disabled]="$first"
+                  (click)="
+                    reordered.emit({ task: task, direction: -1 }); closeActions(actions)
+                  "
+                  [disabled]="
+                    $first ||
+                    (!planning() && !ui.canReorderTask(task, tasks()[$index - 1]))
+                  "
                   [attr.aria-label]="'PLANSTRAND.MOVE_UP' | translate"
                 >
-                  ↑
+                  {{ 'PLANSTRAND.MOVE_UP' | translate }}
                 </button>
                 <button
                   mat-button
-                  (click)="reordered.emit({ task: task, direction: 1 })"
-                  [disabled]="$last"
+                  (click)="
+                    reordered.emit({ task: task, direction: 1 }); closeActions(actions)
+                  "
+                  [disabled]="
+                    $last ||
+                    (!planning() && !ui.canReorderTask(task, tasks()[$index + 1]))
+                  "
                   [attr.aria-label]="'PLANSTRAND.MOVE_DOWN' | translate"
                 >
-                  ↓
+                  {{ 'PLANSTRAND.MOVE_DOWN' | translate }}
                 </button>
               }
             </div>
@@ -199,6 +209,7 @@ import { calendarAddDays } from '../../util/calendar-date';
       box-shadow: var(--card-shadow);
       border: 1px solid var(--separator);
       max-height: 65vh;
+      scroll-margin-block: 72px;
       overflow-y: auto;
     }
     .commands h3 {
@@ -339,6 +350,7 @@ export class PlanstrandTaskListComponent {
   readonly folderId = input('');
   readonly days = input<string[]>([]);
   readonly planning = input(false);
+  readonly ordering = input(true);
   readonly acceptDrops = input(true);
   readonly dropped = output<{ task: TaskWithSubTasks; index: number }>();
   readonly reordered = output<{ task: TaskWithSubTasks; direction: -1 | 1 }>();

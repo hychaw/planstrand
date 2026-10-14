@@ -30,6 +30,9 @@ import { FolderPickerComponent } from './folder-picker.component';
 import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership';
 import { planningCommands } from '../../features/planning/planning-commands';
 import { PlanningPlacement } from '../../features/planning/planning.model';
+import { selectProjectFeatureState } from '../../features/project/store/project.selectors';
+import { moveProjectTaskInBacklogList } from '../../features/project/store/project.actions';
+import { moveTaskInTodayList } from '../../features/work-context/store/work-context-meta.actions';
 
 const COLLAPSED_KEY = 'PLANSTRAND_COLLAPSED_FOLDERS';
 
@@ -43,6 +46,7 @@ export class PlanstrandService {
   readonly paths = computed(
     () => new Map(this.rows().map((row) => [row.folder.id, row.path])),
   );
+  private readonly projects = this.store.selectSignal(selectProjectFeatureState);
   private readonly entities = this.store.selectSignal(selectTaskEntities);
   readonly collapsed = signal(new Set(lsGetJSON<string[]>(COLLAPSED_KEY, [])));
   readonly visibleRows = computed(() => visibleFolderRows(this.rows(), this.collapsed()));
@@ -211,6 +215,63 @@ export class PlanstrandService {
         isAddToBottom: true,
         ...(initialPlanning ? { initialPlanning, isIgnoreShortSyntax: true } : {}),
       }),
+    );
+  }
+
+  /** Reorder only within an existing Project list. No ownership/Planning writes. */
+  private orderDomain(task: Task): string | undefined {
+    if (task.parentId) return undefined;
+    const project = this.projects().entities[task.projectId];
+    if (project?.taskIds.includes(task.id)) return `${task.projectId}:regular`;
+    if (project?.backlogTaskIds.includes(task.id)) return `${task.projectId}:backlog`;
+    return undefined;
+  }
+
+  canReorderTask(task: Task, neighbor: Task | undefined): boolean {
+    const domain = this.orderDomain(task);
+    return !!domain && !!neighbor && domain === this.orderDomain(neighbor);
+  }
+
+  reorderTask(task: Task, index: number, visible: Task[]): void {
+    const at = visible.findIndex((t) => t.id === task.id);
+    if (at < 0 || index < 0 || index >= visible.length || at === index) return;
+    // Reject a drag across Project/backlog boundaries instead of moving ownership.
+    if (
+      !visible
+        .slice(Math.min(at, index), Math.max(at, index) + 1)
+        .every((t) => this.canReorderTask(task, t))
+    )
+      return;
+    const without = visible.filter((t) => t.id !== task.id);
+    const before = without[index];
+    const project = this.projects().entities[task.projectId];
+    if (!project) return;
+    const backlog = project.backlogTaskIds.includes(task.id);
+    const ids = (backlog ? project.backlogTaskIds : project.taskIds).filter(
+      (id) => id !== task.id,
+    );
+    // Place immediately before the next visible peer, retaining hidden peers.
+    const anchorIndex =
+      before && this.canReorderTask(task, before)
+        ? ids.indexOf(before.id)
+        : ids.indexOf(without[index - 1]?.id) + 1;
+    if (anchorIndex < 0) return;
+    const afterTaskId = ids[anchorIndex - 1] ?? null;
+    this.store.dispatch(
+      backlog
+        ? moveProjectTaskInBacklogList({
+            taskId: task.id,
+            workContextId: task.projectId,
+            afterTaskId,
+          })
+        : moveTaskInTodayList({
+            taskId: task.id,
+            workContextId: task.projectId,
+            workContextType: WorkContextType.PROJECT,
+            src: 'UNDONE',
+            target: 'UNDONE',
+            afterTaskId,
+          }),
     );
   }
 

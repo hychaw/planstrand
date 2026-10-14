@@ -106,6 +106,8 @@ describe('Fast-Track Milestone A commands and selectors', () => {
     configurePlanningWrites({ getOrGenerateClientId: async () => 'milestone-test' });
   });
 
+  afterEach(() => store.resetSelectors());
+
   for (const [firstDayOfWeek, start] of [
     [1, '2026-12-28'],
     [0, '2026-12-27'],

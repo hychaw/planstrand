@@ -20,11 +20,10 @@ import { MatButton } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlanstrandService } from './planstrand.service';
 import { PlanstrandTaskListComponent } from './planstrand-task-list.component';
-import { selectMasterTaskGroups } from './planstrand.selectors';
+import { selectCanonicalTasks, selectMasterTaskGroups } from './planstrand.selectors';
 import { INBOX_FOLDER_ID } from '../../features/folder/folder.const';
 import { selectAllPlacements } from '../../features/planning/store/planning.selectors';
 import {
-  selectAllTasksWithSubTasks,
   selectTaskFeatureState,
   mapSubTasksToTask,
 } from '../../features/tasks/store/task.selectors';
@@ -71,7 +70,7 @@ export class PlanstrandPageComponent {
   private readonly groups = this.store.selectSignal(selectMasterTaskGroups);
   private readonly placements = this.store.selectSignal(selectAllPlacements);
   private readonly taskState = this.store.selectSignal(selectTaskFeatureState);
-  private readonly allTasks = this.store.selectSignal(selectAllTasksWithSubTasks);
+  private readonly allTasks = this.store.selectSignal(selectCanonicalTasks);
   readonly weekOffset = signal(0);
   readonly days = computed(() => {
     const start = planningWeekStart(
@@ -129,7 +128,15 @@ export class PlanstrandPageComponent {
   }
 
   moveTask(event: { task: TaskWithSubTasks; index: number }, folderId: string): void {
-    this.ui.moveTask(event.task, folderId);
+    if (
+      this.groups()
+        .get(folderId)
+        ?.some((t) => t.id === event.task.id)
+    ) {
+      this.ui.reorderTask(event.task, event.index, this.groups().get(folderId) ?? []);
+    } else {
+      this.ui.moveTask(event.task, folderId);
+    }
   }
   planDrop(
     event: { task: TaskWithSubTasks; index: number },
@@ -149,14 +156,33 @@ export class PlanstrandPageComponent {
       index,
     );
   }
-  unplan(id: string): void {
-    planningCommands(this.store).unplan(id);
+  unplannedDrop(event: { task: TaskWithSubTasks; index: number }): void {
+    if (this.captureTasks().some((t) => t.id === event.task.id))
+      this.ui.reorderTask(event.task, event.index, this.captureTasks());
+    else planningCommands(this.store).unplan(event.task.id);
+  }
+  reorderUnderlying(
+    event: { task: TaskWithSubTasks; direction: -1 | 1 },
+    tasks: TaskWithSubTasks[],
+  ): void {
+    this.ui.reorderTask(
+      event.task,
+      tasks.findIndex((t) => t.id === event.task.id) + event.direction,
+      tasks,
+    );
   }
   reorder(
     event: { task: TaskWithSubTasks; direction: -1 | 1 },
     tasks: TaskWithSubTasks[],
     target: PlanningPlacement['target'],
   ): void {
+    const index = tasks.findIndex((t) => t.id === event.task.id);
+    if (
+      index < 0 ||
+      index + event.direction < 0 ||
+      index + event.direction >= tasks.length
+    )
+      return;
     this.planDrop(
       {
         task: event.task,

@@ -26,3 +26,9 @@ export const calendarDayStart = (date: string, zone: string): number => {
   }
   return high;
 };
+
+/** First civil date in the configured week; independent of instant/DST arithmetic. */
+export const calendarWeekStart = (day: string, firstDayOfWeek: number): string => {
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+  return calendarAddDays(day, -((weekday - firstDayOfWeek + 7) % 7));
+};
