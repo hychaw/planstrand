@@ -130,6 +130,14 @@
   <mat-menu #sessionContextMenu="matMenu">
     <button
       mat-menu-item
+      (click)="editWorkSession()"
+      [disabled]="!canEditWorkSession()"
+    >
+      <mat-icon>edit_calendar</mat-icon>
+      Edit start and end times
+    </button>
+    <button
+      mat-menu-item
       [matMenuTriggerFor]="sessionReminderMenu"
       [disabled]="isWorkSessionCompleted()"
     >

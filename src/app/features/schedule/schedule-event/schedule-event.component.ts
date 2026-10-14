@@ -24,6 +24,7 @@ import {
   ScheduleFromCalendarEvent,
 } from '../schedule.model';
 import { WorkSessionService } from '../../work-session/work-session.service';
+import { DialogWorkSessionComponent } from '../../work-session/dialog-work-session/dialog-work-session.component';
 import {
   LocalScheduleReminderService,
   ScheduleReminderOffset,
@@ -174,6 +175,17 @@ export class ScheduleEventComponent implements AfterViewInit, OnDestroy {
   removeWorkSession(): void {
     const item = editableWorkSession(this.se(), 'canDelete');
     if (item && !this.isDragPreview()) this._workSessionService.remove(item.sourceId);
+  }
+  readonly canEditWorkSession = computed(
+    () =>
+      !!editableWorkSession(this.se(), 'canMove') &&
+      !!editableWorkSession(this.se(), 'canResize') &&
+      !this.isDragPreview(),
+  );
+  editWorkSession(): void {
+    const item = editableWorkSession(this.se(), 'canMove');
+    if (!item || !this.canEditWorkSession()) return;
+    this._matDialog.open(DialogWorkSessionComponent, { data: { id: item.sourceId } });
   }
   private readonly _calMenuItems = viewChildren(MatMenuItem);
   private readonly _titleEl = viewChild<ElementRef<HTMLElement>>('titleEl');

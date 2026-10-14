@@ -35,7 +35,8 @@ import { PlanningPlacement } from '../../features/planning/planning.model';
 import { TaskWithSubTasks } from '../../features/tasks/task.model';
 import { CurrentDateService } from '../../core/date/current-date.service';
 import { selectLocalizationConfig } from '../../features/config/store/global-config.reducer';
-import { calendarAddDays } from '../../util/calendar-date';
+import { calendarAddDays, calendarDate } from '../../util/calendar-date';
+import { calendarDisplayZone } from '../../features/schedule/calendar-time';
 
 @Component({
   selector: 'planstrand-page',
@@ -65,8 +66,14 @@ export class PlanstrandPageComponent {
   readonly mode = computed(() => this.data()?.['planstrand'] as string);
   readonly inboxId = INBOX_FOLDER_ID;
   private readonly dates = inject(CurrentDateService);
-  readonly today = this.dates.today;
   private readonly localization = this.store.selectSignal(selectLocalizationConfig);
+  private readonly displayZone = computed(() =>
+    calendarDisplayZone(this.localization()?.timeZone),
+  );
+  private readonly calendarToday = this.dates.dateInZone(this.displayZone);
+  readonly today = computed(() =>
+    this.mode() === 'today' ? this.calendarToday() : this.dates.today(),
+  );
   private readonly groups = this.store.selectSignal(selectMasterTaskGroups);
   private readonly placements = this.store.selectSignal(selectAllPlacements);
   private readonly taskState = this.store.selectSignal(selectTaskFeatureState);
@@ -122,7 +129,7 @@ export class PlanstrandPageComponent {
       this.inboxId,
       undefined,
       this.mode() === 'today'
-        ? () => ({ type: 'DAY', key: this.dates.resolveToday() })
+        ? () => ({ type: 'DAY', key: this.resolveToday() })
         : target,
     );
   }
@@ -152,7 +159,7 @@ export class PlanstrandPageComponent {
     }
     planningCommands(this.store).placeAt(
       event.task.id,
-      this.mode() === 'today' ? { type: 'DAY', key: this.dates.resolveToday() } : target,
+      this.mode() === 'today' ? { type: 'DAY', key: this.resolveToday() } : target,
       index,
     );
   }
@@ -160,6 +167,10 @@ export class PlanstrandPageComponent {
     if (this.captureTasks().some((t) => t.id === event.task.id))
       this.ui.reorderTask(event.task, event.index, this.captureTasks());
     else planningCommands(this.store).unplan(event.task.id);
+  }
+  private resolveToday(): string {
+    this.dates.refresh();
+    return calendarDate(Date.now(), this.displayZone());
   }
   reorderUnderlying(
     event: { task: TaskWithSubTasks; direction: -1 | 1 },

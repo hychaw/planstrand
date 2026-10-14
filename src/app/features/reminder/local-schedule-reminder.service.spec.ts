@@ -102,6 +102,27 @@ describe('device-local Event and WorkSession reminders', () => {
     expect(restart().offset('event', 'e')).toBeNull();
     expect(service.set('event', 'e', 7 as ScheduleReminderOffset)).toBeFalse();
   });
+
+  it('reschedules a WorkSession reminder to an exact minute across restart without a duplicate delivery', () => {
+    service.set('workSession', 'w', 5);
+    const seventeenMinutes = 17 * 60000;
+    const fiveMinutes = 5 * 60000;
+    const changedStart = now + seventeenMinutes;
+    sessions({ ...session, start: changedStart, end: changedStart + 3600000 });
+    service = restart();
+    (Date.now as jasmine.Spy).and.returnValue(now);
+    service.checkDue();
+    expect(notify).not.toHaveBeenCalled();
+    (Date.now as jasmine.Spy).and.returnValue(changedStart - fiveMinutes - 1);
+    service.checkDue();
+    expect(notify).not.toHaveBeenCalled();
+    (Date.now as jasmine.Spy).and.returnValue(changedStart - fiveMinutes);
+    service.checkDue();
+    expect(notify).toHaveBeenCalledTimes(1);
+    restart().checkDue();
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(service.offset('workSession', 'w')).toBe(5);
+  });
   [0, 5, 10, 15, 30, 60].forEach((offset) => {
     it(`derives ${offset}-minute offset from the hydrated start`, () => {
       const offsetMs = offset * 60000;

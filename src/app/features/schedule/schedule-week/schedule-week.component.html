@@ -152,6 +152,7 @@
     as newTaskPlaceholder
   ) {
     <create-task-placeholder
+      [isInMyDay]="isInPanel()"
       [isEditMode]="isCreateTaskActive()"
       [time]="newTaskPlaceholder.time"
       [date]="newTaskPlaceholder.date"

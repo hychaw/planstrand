@@ -2,7 +2,6 @@ import { selectConfigFeatureState } from '../../config/store/global-config.reduc
 import { zonedDateTimeFields } from '../../../util/iana-time-zone';
 import { calendarTimeRow } from '../calendar-time';
 import { WorkSessionService } from '../../work-session/work-session.service';
-import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -68,7 +67,6 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   scheduleWeekComponent!: ScheduleWeekComponent;
   @ViewChild('dropZone', { read: ElementRef }) dropZoneRef!: ElementRef<HTMLElement>;
 
-  private _store = inject(Store);
   private _dragDropRegistry = inject(DragDropRegistry);
   private _externalDragService = inject(ScheduleExternalDragService);
   private _cdr = inject(ChangeDetectorRef);
@@ -284,13 +282,6 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
         dropTime,
         DEFAULT_MIN_DURATION,
       );
-    } else if (isInside) {
-      planningCommands(this._store).planTaskForDay({
-        task,
-        day: targetDay,
-        isAddToTop: true,
-      });
-      wasDroppedSuccessfully = true;
     }
 
     // Disable snap-back animation when successfully dropped on panel

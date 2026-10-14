@@ -41,12 +41,13 @@ import { convertOpToAction } from '../../op-log/apply/operation-converter.util';
 import { TestClient } from '../../op-log/testing/integration/helpers/test-client.helper';
 import { isPersistentAction } from '../../op-log/core/persistent-action.interface';
 import { OperationCaptureService } from '../../op-log/capture/operation-capture.service';
+import { DialogWorkSessionComponent } from '../work-session/dialog-work-session/dialog-work-session.component';
 
 describe('existing WorkSession schedule edits', () => {
   const hour = 3600000;
   const twoHours = 2 * hour;
   const rowDuration = hour / FH;
-  const start = new Date(2026, 0, 15, 10).getTime();
+  const start = Date.parse('2026-01-15T10:00:00Z');
   const task: TaskWithDueTime = {
     ...DEFAULT_TASK,
     id: 'task',
@@ -83,9 +84,19 @@ describe('existing WorkSession schedule edits', () => {
           {
             tasks: (state = { ids: [task.id], entities: { [task.id]: task } }) => state,
             workSession: workSessionReducer,
+            globalConfig: (
+              state = {
+                ...DEFAULT_GLOBAL_CONFIG,
+                localization: { ...DEFAULT_GLOBAL_CONFIG.localization, timeZone: 'UTC' },
+              },
+            ) => state,
           },
           {
             initialState: {
+              globalConfig: {
+                ...DEFAULT_GLOBAL_CONFIG,
+                localization: { ...DEFAULT_GLOBAL_CONFIG.localization, timeZone: 'UTC' },
+              },
               tasks: { ids: [task.id], entities: { [task.id]: task } },
               workSession: {
                 ids: [session.id, second.id],
@@ -283,6 +294,24 @@ describe('existing WorkSession schedule edits', () => {
     expect(entities()[second.id]).toBeUndefined();
   });
 
+  it('exposes exact-time editing from the shared My Day/Calendar session menu by source ID', () => {
+    fixture = TestBed.createComponent(ScheduleEventComponent);
+    fixture.componentRef.setInput('event', eventFor());
+    fixture.detectChanges();
+    fixture.componentInstance.onContextMenu(new MouseEvent('contextmenu'));
+    fixture.detectChanges();
+    const button = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.cdk-overlay-container button'),
+    ).find((el) => el.textContent?.includes('Edit start and end times'));
+    expect(button).toBeDefined();
+    button!.click();
+    expect(TestBed.inject(MatDialog).open).toHaveBeenCalledOnceWith(
+      DialogWorkSessionComponent,
+      { data: { id: session.id } },
+    );
+    expect(writes).not.toHaveBeenCalled();
+  });
+
   it('completes and reopens only the selected session through its menu with replayable intents', () => {
     const service = TestBed.inject(WorkSessionService);
     service.uncomplete(session.id);
@@ -386,7 +415,7 @@ describe('existing WorkSession schedule edits', () => {
   it('moves only the selected session, preserving duration, completion, zone and legacy fields', () => {
     drag.setShiftMode(true);
     expect(release(eventFor(), true, true)).toHaveBeenCalledTimes(1);
-    expect(entities()[session.id]!.start).toBe(new Date(2026, 0, 15, 12).getTime());
+    expect(entities()[session.id]!.start).toBe(Date.parse('2026-01-15T12:00:00Z'));
     expect(entities()[session.id]!.end - entities()[session.id]!.start).toBe(hour);
     expect(entities()[second.id]).toEqual(second);
     assertRetained();
@@ -411,7 +440,7 @@ describe('existing WorkSession schedule edits', () => {
 
   it('uses the existing touch-release coordinates for one WorkSession move', () => {
     expect(release(eventFor(), true, false, true)).toHaveBeenCalledTimes(1);
-    expect(entities()[session.id]!.start).toBe(new Date(2026, 0, 15, 12).getTime());
+    expect(entities()[session.id]!.start).toBe(Date.parse('2026-01-15T12:00:00Z'));
     expect(entities()[session.id]!.end - entities()[session.id]!.start).toBe(hour);
     expect(entities()[second.id]).toEqual(second);
     assertRetained();

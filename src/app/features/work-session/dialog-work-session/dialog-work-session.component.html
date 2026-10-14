@@ -1,0 +1,74 @@
+<h2 mat-dialog-title>Edit WorkSession times</h2>
+<form
+  (ngSubmit)="save()"
+  novalidate
+>
+  <mat-dialog-content>
+    <fieldset
+      [disabled]="saved"
+      [attr.aria-describedby]="invalid ? 'session-validation-error' : null"
+    >
+      <legend>{{ 'PLANSTRAND.WHEN' | translate }}</legend>
+      <p>{{ T.F.EVENT.TIME_ZONE | translate }}: {{ timeZone }}</p>
+      <label
+        >{{ T.F.EVENT.DATE | translate
+        }}<input
+          type="date"
+          name="date"
+          [(ngModel)]="date"
+          required
+          cdkFocusInitial
+      /></label>
+      <label
+        >{{ T.F.EVENT.START | translate
+        }}<input
+          type="time"
+          name="start"
+          step="60"
+          [(ngModel)]="startTime"
+          required
+      /></label>
+      <label
+        >{{ T.F.EVENT.END_DATE | translate
+        }}<input
+          type="date"
+          name="endDate"
+          [(ngModel)]="endDate"
+          required
+      /></label>
+      <label
+        >{{ T.F.EVENT.END | translate
+        }}<input
+          type="time"
+          name="end"
+          step="60"
+          [(ngModel)]="endTime"
+          required
+      /></label>
+      @if (invalid) {
+        <p
+          id="session-validation-error"
+          role="alert"
+        >
+          {{ T.F.EVENT.INVALID | translate }}
+        </p>
+      }
+    </fieldset>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button
+      mat-button
+      type="button"
+      mat-dialog-close
+    >
+      {{ T.G.CANCEL | translate }}
+    </button>
+    <button
+      mat-flat-button
+      type="submit"
+      [disabled]="saved"
+    >
+      {{ T.G.SAVE | translate }}
+    </button>
+  </mat-dialog-actions>
+</form>

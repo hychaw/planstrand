@@ -108,6 +108,28 @@ describe('Fast-Track Milestone A commands and selectors', () => {
 
   afterEach(() => store.resetSelectors());
 
+  it('projects Today Focus in the configured zone and follows that zone midnight', () => {
+    const now = spyOn(Date, 'now').and.returnValue(Date.parse('2026-10-14T15:59:00Z'));
+    TestBed.inject(ActivatedRoute).data = of({ planstrand: 'today' });
+    const config = store.selectSignal(selectLocalizationConfig)();
+    store.overrideSelector(selectLocalizationConfig, {
+      ...config,
+      timeZone: 'Asia/Singapore',
+    });
+    store.overrideSelector(selectAllPlacements, [
+      { id: 'task', target: { type: 'DAY', key: '2026-10-15' }, orderKey: 'V' },
+    ]);
+    store.refreshState();
+    const page = TestBed.runInInjectionContext(() => new PlanstrandPageComponent());
+    expect(page.today()).toBe('2026-10-14');
+    expect(page.focusTasks()).toEqual([]);
+    now.and.returnValue(Date.parse('2026-10-14T16:01:00Z'));
+    TestBed.inject(CurrentDateService).refresh();
+    expect(page.today()).toBe('2026-10-15');
+    expect(page.focusTasks().map((entry) => entry.id)).toEqual(['task']);
+    expect(page.captureTasks().some((entry) => entry.id === 'task')).toBeFalse();
+  });
+
   for (const [firstDayOfWeek, start] of [
     [1, '2026-12-28'],
     [0, '2026-12-27'],

@@ -23,7 +23,8 @@ import { TaskService } from '../../tasks/task.service';
 import { Task } from '../../tasks/task.model';
 import { LocaleDatePipe } from 'src/app/ui/pipes/locale-date.pipe';
 import { Store } from '@ngrx/store';
-import { getDbDateStr } from '../../../util/get-db-date-str';
+import { zonedDateTimeToTimestamp } from '../../../util/iana-time-zone';
+import { ScheduleService } from '../schedule.service';
 import { ShortTimeHtmlPipe } from '../../../ui/pipes/short-time-html.pipe';
 import { SelectTaskMinimalComponent } from '../../tasks/select-task/select-task-minimal/select-task-minimal.component';
 import { devError } from '../../../util/dev-error';
@@ -75,6 +76,7 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
     this.editEnd.emit();
   }
   private readonly _workSessionService = inject(WorkSessionService);
+  private readonly _scheduleService = inject(ScheduleService);
   private _store = inject(Store);
   private readonly _snackService = inject(SnackService);
   private readonly _dateTimeFormatService = inject(DateTimeFormatService);
@@ -84,6 +86,7 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
   readonly locale = this._dateTimeFormatService.currentLocale;
 
   isEditMode = input.required<boolean>();
+  isInMyDay = input(false);
   time = input<string>();
   date = input<string>();
 
@@ -96,7 +99,14 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
     if (this.date() && this.time()) {
       // Log.log(this.date(), this.time());
       const formattedTime = this._formatTimeWithLeadingZero(this.time() as string);
-      return new Date(`${this.date()}T${formattedTime}`).getTime();
+      const day = this.isInMyDay() ? this._scheduleService.today() : this.date()!;
+      return (
+        zonedDateTimeToTimestamp(
+          day,
+          formattedTime,
+          this._scheduleService.displayTimeZone(),
+        ) ?? 0
+      );
     }
     return 0;
   });
@@ -251,14 +261,22 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
   }
 
   private async addTask(): Promise<void> {
-    if (this.isCreate() && this.newTaskTitle()) {
-      // Create new task
-      await this.createNewTask(this.newTaskTitle());
-    } else if (!this.isCreate() && this.selectedTask()) {
-      // Schedule existing task
-      await this.scheduleExistingTask(this.selectedTask()!);
+    if (this._isSubmitting) return;
+    this._isSubmitting = true;
+    try {
+      if (this.isCreate() && this.newTaskTitle()) {
+        // Create new task
+        await this.createNewTask(this.newTaskTitle());
+      } else if (!this.isCreate() && this.selectedTask()) {
+        // Schedule existing task
+        await this.scheduleExistingTask(this.selectedTask()!);
+      }
+    } finally {
+      this._isSubmitting = false;
     }
   }
+
+  private _isSubmitting = false;
 
   private async createNewTask(title: string): Promise<void> {
     try {
@@ -266,15 +284,18 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
         // Plan task for day (no specific time)
         const id = this._taskService.add(title, false, {
           timeEstimate: 30 * 60 * 1000,
+          dueDay: null,
         });
         const task = await this._taskService.getByIdOnce$(id).toPromise();
         if (!task) {
           throw new Error(`Failed to retrieve task after creation. Task ID: ${id}`);
         }
-        planningCommands(this._store).planTaskForDay({
-          task: task,
-          day: getDbDateStr(this.due()),
-        });
+        this._store.dispatch(
+          await planningCommands(this._store).dayAction({
+            task: task,
+            day: this.isInMyDay() ? this._scheduleService.getTodayStr() : this.date()!,
+          }),
+        );
       } else {
         // Schedule task with specific time
         const id = this._taskService.add(title, undefined, {
@@ -284,6 +305,14 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
         const task = await this._taskService.getByIdOnce$(id).toPromise();
         if (!this._workSessionService.scheduleTask(task, this.due())) {
           throw new Error('WorkSession scheduling failed');
+        }
+        if (this.isInMyDay()) {
+          this._store.dispatch(
+            await planningCommands(this._store).dayAction({
+              task,
+              day: this._scheduleService.getTodayStr(),
+            }),
+          );
         }
       }
     } catch (error) {
@@ -300,7 +329,7 @@ export class CreateTaskPlaceholderComponent implements OnDestroy {
       // Plan existing task for day
       planningCommands(this._store).planTaskForDay({
         task: task,
-        day: getDbDateStr(this.due()),
+        day: this.date()!,
       });
     } else {
       // Schedule existing task with specific time
