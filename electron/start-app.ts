@@ -238,17 +238,6 @@ export const startApp = (): void => {
     });
   }
 
-  // Allow invalid certificates for self-hosted services (Jira, GitLab, Redmine, etc.)
-  // WARNING: This bypasses certificate validation for ALL URLs. Many users rely on
-  // self-signed certificates for their self-hosted integrations, so removing this
-  // would be a breaking change. The trade-off is reduced TLS security in exchange
-  // for compatibility with self-hosted servers.
-  appIN.on('certificate-error', (event, webContents, url, err, certificate, callback) => {
-    warn(`Certificate error for ${url}: ${err}`);
-    event.preventDefault();
-    callback(true);
-  });
-
   // APP EVENT LISTENERS
   // -------------------
 
