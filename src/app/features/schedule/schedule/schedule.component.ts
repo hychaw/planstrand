@@ -366,6 +366,8 @@ export class ScheduleComponent {
   monthEvents = computed(() => this.events().concat(...this.beyondBudget()));
 
   currentTimeRow = computed(() => {
+    // Recalculate the vertical coordinate when the display date rolls over too.
+    this._todayDateStr();
     // Only show current time indicator when viewing today
     if (!this.isViewingToday()) {
       return null;

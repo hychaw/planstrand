@@ -97,6 +97,12 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
   workStartEnd = input<{ workStartRow: number; workEndRow: number } | null>(null);
   currentTimeRow = input<number | null>(null);
   todayDateStr = input<string | undefined>(undefined);
+  readonly currentTimeColumn = computed<number | null>(() => {
+    const today = this.todayDateStr();
+    const index = today === undefined ? -1 : this.daysToShow().indexOf(today);
+    // CSS grid column 1 holds time labels; only render against a visible civil date.
+    return this.currentTimeRow() !== null && index >= 0 ? index + 2 : null;
+  });
   isCtrlPressed = signal<boolean>(false);
   isTaskDragActive = input<boolean>(false);
   scheduleRowHeightPx = signal<number>(readStoredScheduleRowHeight());

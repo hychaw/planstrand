@@ -128,6 +128,7 @@ export class ScheduleDayPanelComponent implements AfterViewInit, OnDestroy {
   });
 
   currentTimeRow = computed(() => {
+    this._scheduleService.today();
     // Trigger re-computation every 2 minutes
     this._scheduleService.scheduleRefreshTick();
     return this._scheduleService.currentTimeRow();

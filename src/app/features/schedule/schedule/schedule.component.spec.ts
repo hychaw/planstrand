@@ -1451,6 +1451,11 @@ describe('ScheduleComponent', () => {
     };
 
     it('scrolls to current-time when the current-time indicator is rendered', fakeAsync(() => {
+      const today = component['_todayDateStr']();
+      mockScheduleService.getDaysToShow.and.returnValue([today]);
+      component['_selectedDate'].set(new Date(today + 'T12:00:00'));
+      fixture.changeDetectorRef.markForCheck();
+      fixture.detectChanges();
       const scrollSpy = spyOn<any>(component, '_scrollAnchorToTop');
       // Viewing today (default: _selectedDate null) → #current-time renders.
       expect(fixture.nativeElement.querySelector('#current-time')).toBeTruthy();
@@ -1524,6 +1529,10 @@ describe('ScheduleComponent', () => {
     const LEAD_FRACTION = 0.12;
 
     const renderScrollable = (transform: string): HTMLElement => {
+      const today = component['_todayDateStr']();
+      mockScheduleService.getDaysToShow.and.returnValue([today]);
+      component['_selectedDate'].set(new Date(today + 'T12:00:00'));
+      fixture.changeDetectorRef.markForCheck();
       const host = fixture.nativeElement as HTMLElement;
       host.style.cssText = `display:block;height:400px;transform:${transform};transform-origin:top left;`;
       fixture.detectChanges();

@@ -65,6 +65,102 @@ describe('ScheduleWeekComponent', () => {
 
   afterEach(() => TestBed.inject(MockStore).resetSelectors());
 
+  describe('current-time date column', () => {
+    const mondayWeek = [
+      '2026-10-12',
+      '2026-10-13',
+      '2026-10-14',
+      '2026-10-15',
+      '2026-10-16',
+      '2026-10-17',
+      '2026-10-18',
+    ];
+    const render = (
+      days: string[],
+      today: string | undefined,
+      row: number | null = 121,
+    ): void => {
+      fixture.componentRef.setInput('daysToShow', days);
+      fixture.componentRef.setInput('todayDateStr', today);
+      fixture.componentRef.setInput('currentTimeRow', row);
+      fixture.detectChanges();
+    };
+    for (const [label, days, today, column] of [
+      ['Monday-first Tuesday', mondayWeek, '2026-10-13', 3],
+      [
+        'Sunday-first Tuesday',
+        ['2026-10-11', ...mondayWeek.slice(0, 6)],
+        '2026-10-13',
+        4,
+      ],
+      ['first day', mondayWeek, '2026-10-12', 2],
+      ['last day', mondayWeek, '2026-10-18', 8],
+      ['Day / My Day panel', ['2026-10-13'], '2026-10-13', 2],
+    ] as const) {
+      it(`places the line and current-day shading together for ${label}`, () => {
+        render([...days], today);
+        const line = fixture.nativeElement.querySelector('#current-time') as HTMLElement;
+        expect(line.style.gridColumn).toBe(String(column));
+        expect(line.style.gridRow).toBe('121 / span 1');
+        const cols = fixture.nativeElement.querySelectorAll(
+          '.col.end-of-day',
+        ) as NodeListOf<HTMLElement>;
+        cols.forEach((col, index) =>
+          expect(col.style.gridRowStart).toBe(
+            String(
+              index + 2 === column
+                ? 121
+                : fixture.componentInstance.endOfDayColRowStart(),
+            ),
+          ),
+        );
+        expect(fixture.nativeElement.querySelectorAll('.day mat-icon').length).toBe(1);
+      });
+    }
+    it('hides the line and removes current-day shading when today is absent or no current time is supplied', () => {
+      for (const [today, row] of [
+        ['2026-10-19', 121],
+        [undefined, 121],
+        ['2026-10-13', null],
+      ] as const) {
+        render(mondayWeek, today, row);
+        expect(fixture.nativeElement.querySelector('#current-time')).toBeNull();
+        const cols = fixture.nativeElement.querySelectorAll(
+          '.col.end-of-day',
+        ) as NodeListOf<HTMLElement>;
+        cols.forEach((col) =>
+          expect(col.style.gridRowStart).toBe(
+            String(fixture.componentInstance.endOfDayColRowStart()),
+          ),
+        );
+      }
+    });
+    it('moves at display-zone midnight, refreshes vertically, and survives horizontal-scroll mode', () => {
+      const zone = 'America/Vancouver';
+      render(
+        mondayWeek,
+        '2026-10-13',
+        calendarTimeRow(Date.parse('2026-10-14T06:59:00Z'), zone, FH),
+      );
+      expect(fixture.componentInstance.currentTimeColumn()).toBe(3);
+      fixture.componentRef.setInput('isHorizontalScrollMode', true);
+      fixture.componentRef.setInput('isHScrolled', true);
+      render(
+        mondayWeek,
+        '2026-10-14',
+        calendarTimeRow(Date.parse('2026-10-14T07:01:00Z'), zone, FH),
+      );
+      const line = fixture.nativeElement.querySelector('#current-time') as HTMLElement;
+      expect(line.style.gridColumn).toBe('4');
+      expect(line.style.gridRowStart).toBe(
+        String(calendarTimeRow(Date.parse('2026-10-14T07:01:00Z'), zone, FH)),
+      );
+      expect(fixture.nativeElement.getAttribute('data-hscrolled')).toBe('true');
+      render(['2026-10-19'], '2026-10-14');
+      expect(fixture.nativeElement.querySelector('#current-time')).toBeNull();
+    });
+  });
+
   it('clears idle creation previews on exit but preserves an open editor', () => {
     const component = fixture.componentInstance;
     const preview = { style: '', time: '09:00', date: '2026-05-11' };
