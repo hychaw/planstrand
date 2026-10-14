@@ -17,7 +17,6 @@ import { ScheduleExternalDragService } from '../../features/schedule/schedule-we
 import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
-import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { TaskComponent } from '../../features/tasks/task/task.component';
@@ -27,6 +26,10 @@ import { planningCommands } from '../../features/planning/planning-commands';
 import { PlanstrandService } from './planstrand.service';
 import { CurrentDateService } from '../../core/date/current-date.service';
 import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership';
+import { PlanningStatusComponent } from '../../features/planning/planning-status.component';
+import { PlanningDestinationDialogComponent } from './planning-destination-dialog.component';
+import { selectAllPlacements } from '../../features/planning/store/planning.selectors';
+import { PlanningPlacement } from '../../features/planning/planning.model';
 import { calendarAddDays } from '../../util/calendar-date';
 
 @Component({
@@ -40,7 +43,7 @@ import { calendarAddDays } from '../../util/calendar-date';
     MatButton,
     MatIcon,
     TranslatePipe,
-    FormsModule,
+    PlanningStatusComponent,
   ],
   template: `
     <div
@@ -63,6 +66,7 @@ import { calendarAddDays } from '../../util/calendar-date';
           <task
             [task]="task"
             [isShowProjectTagNever]="true"
+            [isShowPlanningStatus]="!planning()"
           />
           @if (planning() && entry.path) {
             <span
@@ -83,7 +87,8 @@ import { calendarAddDays } from '../../util/calendar-date';
             #actions
             class="task-actions"
             name="planstrand-task-actions"
-            (keydown.escape)="actions.open = false; $event.stopPropagation()"
+            (toggle)="revealActions(actions)"
+            (keydown.escape)="closeActions(actions); $event.stopPropagation()"
           >
             <summary
               [attr.aria-label]="('PLANSTRAND.ACTIONS' | translate) + ': ' + task.title"
@@ -96,6 +101,37 @@ import { calendarAddDays } from '../../util/calendar-date';
                 [title]="entry.path"
                 >{{ entry.path }}</span
               >
+              <h3>{{ 'PLANSTRAND.PLANNING' | translate }}</h3>
+              <planstrand-planning-status [target]="entry.target" />
+              <div class="quick-planning">
+                @for (action of quickPlanningActions; track action.target) {
+                  <button
+                    mat-button
+                    (click)="plan(task, action.target); closeActions(actions)"
+                  >
+                    {{ action.label | translate }}
+                  </button>
+                }
+              </div>
+              <button
+                mat-button
+                (click)="chooseDestination(task, 'DAY', entry.target)"
+              >
+                {{ 'PLANSTRAND.CHOOSE_DATE' | translate }}
+              </button>
+              <button
+                mat-button
+                (click)="chooseDestination(task, 'WEEK', entry.target)"
+              >
+                {{ 'PLANSTRAND.CHOOSE_WEEK' | translate }}
+              </button>
+              <button
+                mat-button
+                (click)="plan(task, 'UNPLAN'); closeActions(actions)"
+              >
+                {{ 'PLANSTRAND.UNPLAN' | translate }}
+              </button>
+              <h3>{{ 'PLANSTRAND.OTHER_ACTIONS' | translate }}</h3>
               <button
                 mat-button
                 (click)="ui.chooseTaskFolder(task)"
@@ -103,26 +139,6 @@ import { calendarAddDays } from '../../util/calendar-date';
               >
                 {{ 'PLANSTRAND.MOVE_TASK' | translate }}
               </button>
-              @for (action of quickPlanningActions; track action.target) {
-                <button
-                  mat-button
-                  (click)="plan(task, action.target); actions.open = false"
-                >
-                  {{ action.label | translate }}
-                </button>
-              }
-              <label
-                >{{ 'PLANSTRAND.PLAN' | translate }}
-                <select
-                  [ngModel]="''"
-                  (ngModelChange)="plan(task, $event); actions.open = false"
-                >
-                  <option value="">{{ 'PLANSTRAND.CHOOSE' | translate }}</option>
-                  @for (day of days(); track day) {
-                    <option [value]="day">{{ day }}</option>
-                  }
-                </select>
-              </label>
               <button
                 mat-button
                 (click)="schedule(task)"
@@ -174,33 +190,38 @@ import { calendarAddDays } from '../../util/calendar-date';
     }
     .commands {
       display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: var(--s);
-      padding: var(--s-half) var(--s);
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--s-half);
+      padding: var(--s);
       border-radius: var(--radius-md);
       background: var(--surface-floating);
       box-shadow: var(--card-shadow);
       border: 1px solid var(--separator);
+      max-height: 65vh;
+      overflow-y: auto;
     }
-    label {
+    .commands h3 {
+      margin: var(--s-half) 0;
+      color: var(--ink-strong);
       font-size: var(--font-size-sm);
     }
-    select {
-      max-width: 16em;
+    .commands h3:not(:first-of-type) {
+      border-top: 1px solid var(--separator);
+      padding-top: var(--s);
+    }
+    .quick-planning {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .commands button {
+      font-size: var(--font-size-sm);
     }
     .folder-path {
       max-width: 100%;
       overflow-wrap: anywhere;
       font-size: var(--font-size-sm);
-      color: var(--text-color-muted);
-    }
-    .commands label {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: var(--s-half);
-      min-width: 0;
+      color: var(--ink-muted);
     }
     .task-folder {
       display: block;
@@ -254,7 +275,7 @@ import { calendarAddDays } from '../../util/calendar-date';
       display: none;
     }
     details[open] {
-      width: min(100%, 420px);
+      width: min(320px, 100%);
       z-index: 5;
     }
     details[open] summary {
@@ -290,7 +311,6 @@ export class PlanstrandTaskListComponent {
     { target: 'TOMORROW', label: 'PLANSTRAND.PLAN_TOMORROW' },
     { target: 'WEEK', label: 'PLANSTRAND.MOVE_THIS_WEEK' },
     { target: 'NEXT_WEEK', label: 'PLANSTRAND.MOVE_NEXT_WEEK' },
-    { target: 'UNPLAN', label: 'PLANSTRAND.UNPLAN' },
   ];
   private readonly _externalDrag = inject(ScheduleExternalDragService);
   startDrag(task: TaskWithSubTasks, event: CdkDragStart): void {
@@ -306,10 +326,13 @@ export class PlanstrandTaskListComponent {
   private readonly dates = inject(CurrentDateService);
   readonly today = this.dates.today;
   readonly tasks = input<TaskWithSubTasks[]>([]);
+  private readonly placements = this.store.selectSignal(selectAllPlacements);
   readonly entries = computed(() => {
     const paths = this.ui.paths();
+    const placements = new Map(this.placements().map((p) => [p.id, p.target]));
     return this.tasks().map((task) => ({
       task,
+      target: placements.get(task.id),
       path: paths.get(resolveTaskFolderId(task, this.ui.folders())) ?? '',
     }));
   });
@@ -354,6 +377,33 @@ export class PlanstrandTaskListComponent {
             : target === 'TOMORROW'
               ? calendarAddDays(this.dates.resolveToday(), 1)
               : target,
+      });
+  }
+  revealActions(actions: HTMLDetailsElement): void {
+    if (actions.open)
+      requestAnimationFrame(() => {
+        if (actions.open)
+          actions.querySelector('.commands')?.scrollIntoView({ block: 'nearest' });
+      });
+  }
+  closeActions(actions: HTMLDetailsElement): void {
+    actions.open = false;
+    actions.querySelector('summary')?.focus();
+  }
+  chooseDestination(
+    task: TaskWithSubTasks,
+    type: 'DAY' | 'WEEK',
+    current?: PlanningPlacement['target'],
+  ): void {
+    this.dialog
+      .open(PlanningDestinationDialogComponent, {
+        width: '360px',
+        maxWidth: 'calc(100vw - 32px)',
+        data: { type, date: current?.key ?? this.days()[0] ?? this.dates.resolveToday() },
+      })
+      .afterClosed()
+      .subscribe((target: PlanningPlacement['target'] | undefined) => {
+        if (target) planningCommands(this.store).placeAt(task.id, target, Infinity);
       });
   }
   schedule(task: TaskWithSubTasks): void {

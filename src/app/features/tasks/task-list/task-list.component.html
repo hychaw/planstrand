@@ -39,6 +39,7 @@
   @for (task of filteredTasks(); track trackByFn($index, task); let i = $index) {
     <task
       [isInSubTaskList]="isSubTaskList()"
+      [isShowPlanningStatus]="isShowPlanningStatus()"
       [isBacklog]="isBacklog()"
       [task]="task"
       cdkDrag

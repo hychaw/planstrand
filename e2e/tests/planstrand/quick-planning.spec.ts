@@ -92,6 +92,9 @@ for (const theme of ['Light', 'Dark']) {
         await page.keyboard.press('Enter');
       } else await button.click();
       await expect(row.locator('.commands')).toBeHidden();
+      if (label === 'Plan Today' || label === 'Unplan') {
+        await expect(row.locator('.task-actions summary')).toBeFocused();
+      }
       await waitForStatePersistence(page);
       const after = await readState(page);
       expect(after.planning.entities[task.id].placement?.target ?? null).toEqual(target);
@@ -105,5 +108,116 @@ for (const theme of ['Light', 'Dark']) {
     expect(reloaded.planning.entities[task.id].placement).toBeNull();
     expect(reloaded.tasks.entities[task.id]).toEqual(task);
     expect(reloaded.workSession).toEqual(before.workSession);
+  });
+}
+
+for (const theme of ['Light', 'Dark']) {
+  test(`custom destinations, week navigation and indicators in ${theme}`, async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date('2026-12-30T10:01:00Z'));
+    await page.reload();
+    await page.goto('/#/config');
+    await page.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await page
+      .locator('theme-selector')
+      .getByRole('radio', { name: theme, exact: true })
+      .click();
+    await page.setViewportSize(
+      theme === 'Dark' ? { width: 375, height: 812 } : { width: 1280, height: 900 },
+    );
+    await page.goto('/#/inbox');
+    const title = 'Custom destination Task';
+    await page.locator('.quick-capture input').fill(title);
+    await page.locator('.quick-capture input').press('Enter');
+    const row = page.locator('.task-entry').filter({ hasText: title });
+    await expect(row.locator('.row-planning-status')).toHaveText('Unplanned');
+    await waitForStatePersistence(page);
+    const before = await readState(page);
+    const task = Object.values(before.tasks.entities).find(
+      (item) => item?.title === title,
+    )!;
+    await page.context().setOffline(true);
+    for (const [button, input, target] of [
+      ['Choose Date', '2027-01-06', { type: 'DAY', key: '2027-01-06' }],
+      ['Choose Week', '2027-01-07', { type: 'WEEK', key: '2027-01-04' }],
+      ['Choose Date', '2024-02-29', { type: 'DAY', key: '2024-02-29' }],
+    ] as const) {
+      await openPlanstrandActions(row);
+      await row.getByRole('button', { name: button, exact: true }).click();
+      const dialog = page.locator('planstrand-planning-destination-dialog');
+      const date = dialog.locator('date-picker-input input');
+      await expect(date).toBeFocused();
+      // The shared date control follows the configured en-GB input format.
+      await date.fill(input.split('-').reverse().join('/'));
+      await date.press('Tab');
+      await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(dialog).toBeHidden();
+      await expect(row.getByRole('button', { name: button, exact: true })).toBeFocused();
+      await waitForStatePersistence(page);
+      const after = await readState(page);
+      expect(after.planning.entities[task.id].placement?.target).toEqual(target);
+      expect(after.tasks.entities[task.id]).toEqual(task);
+      expect(after.workSession).toEqual(before.workSession);
+      await expect(row.locator('.row-planning-status')).toContainText(
+        target.type === 'WEEK'
+          ? 'Week of Jan 4, 2027'
+          : target.key === '2024-02-29'
+            ? 'Feb 29, 2024'
+            : 'Jan 6, 2027',
+      );
+      await page.keyboard.press('Escape');
+      await expect(row.locator('.task-actions summary')).toBeFocused();
+    }
+    await openPlanstrandActions(row);
+    await row.getByRole('button', { name: 'Move to Next Week', exact: true }).click();
+    await page.goto('/#/this-week');
+    await expect(row).toHaveCount(0);
+    await page.getByRole('button', { name: 'Next week', exact: true }).click();
+    await expect(page.locator('.period-label')).toContainText('Jan 4, 2027');
+    await expect(page.locator('.period-label')).toContainText('Viewing another week');
+    await expect(
+      page.locator('.week-anytime').getByText(title, { exact: true }),
+    ).toBeVisible();
+    await page
+      .locator('.week-anytime')
+      .getByRole('button', { name: /Add Task/ })
+      .click();
+    const prompt = page.locator('dialog-prompt');
+    await prompt.locator('input').fill('Added to displayed week');
+    await prompt.getByRole('button', { name: /Save|OK|Add Task/i }).click();
+    await expect(
+      page.locator('.week-anytime').getByText('Added to displayed week', { exact: true }),
+    ).toBeVisible();
+    await openPlanstrandActions(row);
+    await row.getByRole('button', { name: 'Choose Date', exact: true }).click();
+    const dialog = page.locator('planstrand-planning-destination-dialog');
+    await dialog.locator('input').fill('06/01/2027');
+    await dialog.locator('input').press('Tab');
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(
+      page
+        .locator('section')
+        .filter({ has: page.locator('h2', { hasText: 'Wednesday' }) })
+        .getByText(title, { exact: true }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Previous week', exact: true }).click();
+    await expect(row).toHaveCount(0);
+    await page.getByRole('button', { name: 'Previous week', exact: true }).click();
+    await expect(page.locator('.period-label')).toContainText('Dec 21, 2026');
+    await page.getByRole('button', { name: 'Current Week', exact: true }).click();
+    await expect(page.locator('.period-label')).toContainText('Dec 28, 2026');
+    await page.goto('/#/today');
+    await expect(page.locator('.period-label')).toContainText('December 31, 2026');
+    await page.goto('/#/inbox');
+    await openPlanstrandActions(row);
+    await row.getByRole('button', { name: 'Unplan', exact: true }).click();
+    await expect(row.locator('.row-planning-status')).toHaveText('Unplanned');
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.context().setOffline(false);
   });
 }

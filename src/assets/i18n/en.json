@@ -60,7 +60,17 @@
     "PLAN_PANE": "Plan",
     "SCHEDULE_PANE": "Schedule",
     "DAY_SCHEDULE": "My Day",
-    "WHEN": "When"
+    "WHEN": "When",
+    "PREVIOUS_WEEK": "Previous week",
+    "NEXT_WEEK": "Next week",
+    "CURRENT_WEEK": "Current Week",
+    "BROWSING_WEEK": "Viewing another week",
+    "CHOOSE_DATE": "Choose Date",
+    "CHOOSE_WEEK": "Choose Week",
+    "PLANNING": "Planning",
+    "OTHER_ACTIONS": "Other actions",
+    "WEEK_OF": "Week of {{date}}",
+    "TOMORROW": "Tomorrow"
   },
   "APP": {
     "B_INSTALL": {

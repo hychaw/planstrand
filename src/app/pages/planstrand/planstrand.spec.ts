@@ -1,3 +1,11 @@
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { PlanningStatusComponent } from '../../features/planning/planning-status.component';
+import { selectAllPlacements } from '../../features/planning/store/planning.selectors';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { PlanstrandPageComponent } from './planstrand-page.component';
+import { PlanningDestinationDialogComponent } from './planning-destination-dialog.component';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { CurrentDateService } from '../../core/date/current-date.service';
 import { TestBed } from '@angular/core/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { MatDialog } from '@angular/material/dialog';
@@ -45,6 +53,8 @@ describe('Fast-Track Milestone A commands and selectors', () => {
     folderId,
     subTasks: [],
   });
+  const destinationData = { type: 'DAY', date: '2026-10-01' };
+  const destinationClose = jasmine.createSpy('close');
   let store: MockStore;
   let ui: PlanstrandService;
   let dispatch: jasmine.Spy;
@@ -69,10 +79,20 @@ describe('Fast-Track Milestone A commands and selectors', () => {
       ...p.additional,
     }));
     TestBed.configureTestingModule({
+      imports: [TranslateModule.forRoot()],
       teardown: { destroyAfterEach: true },
       providers: [
         provideMockStore({ initialState: state }),
+        { provide: MAT_DIALOG_DATA, useValue: destinationData },
+        { provide: MatDialogRef, useValue: { close: destinationClose } },
         PlanstrandService,
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            data: of({ planstrand: 'week' }),
+            paramMap: of(convertToParamMap({})),
+          },
+        },
         { provide: TaskService, useValue: taskService },
         {
           provide: MatDialog,
@@ -84,6 +104,126 @@ describe('Fast-Track Milestone A commands and selectors', () => {
     ui = TestBed.inject(PlanstrandService);
     dispatch = spyOn(store, 'dispatch');
     configurePlanningWrites({ getOrGenerateClientId: async () => 'milestone-test' });
+  });
+
+  for (const [firstDayOfWeek, start] of [
+    [1, '2026-12-28'],
+    [0, '2026-12-27'],
+  ] as const) {
+    it(
+      'navigates civil weeks and keeps Add on the displayed week with start ' +
+        firstDayOfWeek,
+      () => {
+        spyOn(Date, 'now').and.returnValue(new Date('2026-12-31T12:00:00').getTime());
+        const config = store.selectSignal(selectLocalizationConfig)();
+        store.overrideSelector(selectLocalizationConfig, { ...config, firstDayOfWeek });
+        store.refreshState();
+        const page = TestBed.runInInjectionContext(() => new PlanstrandPageComponent());
+        expect(page.days()[0]).toBe(start);
+        page.weekOffset.set(1);
+        expect(page.days()[0]).toBe(firstDayOfWeek === 1 ? '2027-01-04' : '2027-01-03');
+        expect(page.days()[6]).toBe(firstDayOfWeek === 1 ? '2027-01-10' : '2027-01-09');
+        const create = spyOn(ui, 'createTask').and.resolveTo();
+        page.addTask(page.sections()[0].target);
+        expect(create).toHaveBeenCalledWith(INBOX_FOLDER_ID, undefined, {
+          type: 'WEEK',
+          key: page.days()[0],
+        });
+        page.addTask(page.sections()[2].target);
+        expect(create.calls.mostRecent().args[2]).toEqual({
+          type: 'DAY',
+          key: page.days()[1],
+        });
+        page.weekOffset.set(-1);
+        expect(page.days()[0]).toBe(firstDayOfWeek === 1 ? '2026-12-21' : '2026-12-20');
+        page.weekOffset.set(0);
+        expect(page.days()[0]).toBe(start);
+        const dates = TestBed.inject(CurrentDateService);
+        expect(page.today()).toBe(dates.today());
+      },
+    );
+  }
+
+  for (const [type, date, firstDayOfWeek, expected] of [
+    ['DAY', '2028-02-29', 1, '2028-02-29'],
+    ['DAY', '2020-01-01', 0, '2020-01-01'],
+    ['WEEK', '2027-01-01', 1, '2026-12-28'],
+    ['WEEK', '2027-01-01', 0, '2026-12-27'],
+  ] as const) {
+    it('chooses arbitrary ' + type + ' ' + date + ' with start ' + firstDayOfWeek, () => {
+      const close = destinationClose;
+      close.calls.reset();
+      Object.assign(destinationData, { type, date });
+      const config = store.selectSignal(selectLocalizationConfig)();
+      store.overrideSelector(selectLocalizationConfig, { ...config, firstDayOfWeek });
+      store.refreshState();
+      const dialog = TestBed.runInInjectionContext(
+        () => new PlanningDestinationDialogComponent(),
+      );
+      dialog.save();
+      expect(close).toHaveBeenCalledWith({ type, key: expected });
+      dialog.selected.set(null);
+      close.calls.reset();
+      dialog.save();
+      expect(close).not.toHaveBeenCalled();
+    });
+  }
+
+  it('renders selector-backed planning status and immediately reflects moves and unplanning', () => {
+    spyOn(Date, 'now').and.returnValue(new Date('2026-12-31T12:00:00').getTime());
+    const translations = TestBed.inject(TranslateService);
+    translations.setTranslation('en', {
+      PLANSTRAND: {
+        PLAN: 'Plan Task',
+        UNPLANNED: 'Unplanned',
+        TODAY: 'Today',
+        TOMORROW: 'Tomorrow',
+        WEEK_OF: 'Week of {{date}}',
+      },
+    });
+    translations.use('en');
+    const placements = store.overrideSelector(selectAllPlacements, []);
+    const fixture = TestBed.createComponent(PlanningStatusComponent);
+    fixture.componentRef.setInput('taskId', 'task');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent.trim()).toBe('Unplanned');
+    for (const [type, key, label] of [
+      ['DAY', '2026-12-31', 'Today'],
+      ['DAY', '2027-01-01', 'Tomorrow'],
+      ['DAY', '2028-02-29', 'Feb 29, 2028'],
+      ['WEEK', '2027-01-04', 'Week of Jan 4, 2027'],
+    ] as const) {
+      placements.setResult([{ id: 'task', target: { type, key }, orderKey: 'V' }]);
+      store.refreshState();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent.trim()).toBe(label);
+    }
+    placements.setResult([]);
+    store.refreshState();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent.trim()).toBe('Unplanned');
+  });
+
+  it('keeps future assignments in their selected week and follows local midnight rollover', () => {
+    const now = spyOn(Date, 'now').and.returnValue(
+      new Date('2026-12-31T23:59:59').getTime(),
+    );
+    store.overrideSelector(selectAllPlacements, [
+      { id: 'task', target: { type: 'WEEK', key: '2027-01-04' }, orderKey: 'V' },
+      { id: 'child', target: { type: 'DAY', key: '2027-01-06' }, orderKey: 'V' },
+    ]);
+    store.refreshState();
+    const page = TestBed.runInInjectionContext(() => new PlanstrandPageComponent());
+    expect(page.sections().flatMap((s) => s.tasks)).toEqual([]);
+    page.weekOffset.set(1);
+    expect(page.sections()[0].tasks.map((t) => t.id)).toEqual(['task']);
+    expect(page.sections()[3].tasks.map((t) => t.id)).toEqual(['child']);
+    now.and.returnValue(new Date('2027-01-04T00:00:01').getTime());
+    TestBed.inject(CurrentDateService).refresh();
+    expect(page.today()).toBe('2027-01-04');
+    expect(page.days()[0]).toBe('2027-01-11');
+    page.weekOffset.set(0);
+    expect(page.days()[0]).toBe('2027-01-04');
   });
 
   it('resolves Plan for Today at selection time after a midnight boundary', async () => {

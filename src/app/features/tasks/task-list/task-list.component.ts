@@ -144,6 +144,7 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
   noTasksMsg = input<string | undefined>(undefined);
   isBacklog = input(false);
   isSubTaskList = input(false);
+  isShowPlanningStatus = input(false);
 
   currentTaskId = toSignal(this._taskService.currentTaskId$);
   dropModelDataForList = computed<DropModelDataForList>(() => {

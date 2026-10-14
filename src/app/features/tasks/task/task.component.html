@@ -55,6 +55,12 @@
             class="task-title"
           ></task-title>
 
+          @if (isShowPlanningStatus()) {
+            <planstrand-planning-status
+              class="row-planning-status"
+              [taskId]="t.id"
+            />
+          }
           @if (t.tagIds?.length || t.projectId || t.repeatCfgId || t.issueId) {
             <tag-list
               [task]="t"
@@ -335,6 +341,7 @@
             [listModelId]="t.id"
             [parentId]="t.id"
             [tasks]="t.subTasks"
+            [isShowPlanningStatus]="isShowPlanningStatus()"
             listId="SUB"
           ></task-list>
         }

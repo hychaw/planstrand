@@ -1,3 +1,4 @@
+import { PlanningStatusComponent } from '../../planning/planning-status.component';
 import { WorkSessionService } from '../../work-session/work-session.service';
 import { TaskService } from '../task.service';
 import { planningCommands } from '../../planning/planning-commands';
@@ -152,6 +153,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
     '(click)': 'onHostClick($event)',
   },
   imports: [
+    PlanningStatusComponent,
     MatIcon,
     MatMenuTrigger,
     MatIconButton,
@@ -210,6 +212,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   task = input.required<TaskWithSubTasks>();
   isBacklog = input<boolean>(false);
   isInSubTaskList = input<boolean>(false);
+  isShowPlanningStatus = input(false);
   isShowProjectTagNever = input<boolean>(false);
   showDoneAnimation = signal(false);
   showUndoneAnimation = signal(false);

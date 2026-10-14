@@ -72,9 +72,10 @@ export class PlanstrandPageComponent {
   private readonly placements = this.store.selectSignal(selectAllPlacements);
   private readonly taskState = this.store.selectSignal(selectTaskFeatureState);
   private readonly allTasks = this.store.selectSignal(selectAllTasksWithSubTasks);
+  readonly weekOffset = signal(0);
   readonly days = computed(() => {
     const start = planningWeekStart(
-      this.today(),
+      calendarAddDays(this.today(), this.weekOffset() * 7),
       this.localization().firstDayOfWeek ?? 1,
     );
     return Array.from({ length: 7 }, (_, i) => calendarAddDays(start, i));
@@ -123,15 +124,7 @@ export class PlanstrandPageComponent {
       undefined,
       this.mode() === 'today'
         ? () => ({ type: 'DAY', key: this.dates.resolveToday() })
-        : target.type === 'WEEK'
-          ? () => ({
-              type: 'WEEK',
-              key: planningWeekStart(
-                this.dates.resolveToday(),
-                this.localization().firstDayOfWeek ?? 1,
-              ),
-            })
-          : target,
+        : target,
     );
   }
 

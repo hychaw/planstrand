@@ -22,11 +22,45 @@
       @if (mode() === 'today') {
         <p class="period-label">{{ today() | date: 'fullDate' }}</p>
       } @else if (mode() === 'week') {
-        <p class="period-label">
-          {{ days()[0] | date: 'MMM d' }} – {{ days()[6] | date: 'MMM d, y' }}
+        <p
+          class="period-label"
+          aria-live="polite"
+        >
+          {{ days()[0] | date: 'MMM d, y' }} – {{ days()[6] | date: 'MMM d, y' }}
+          @if (weekOffset() !== 0) {
+            · {{ 'PLANSTRAND.BROWSING_WEEK' | translate }}
+          }
         </p>
       }
     </div>
+    @if (mode() === 'week') {
+      <nav
+        class="week-navigation"
+        [attr.aria-label]="'PLANSTRAND.THIS_WEEK' | translate"
+      >
+        <button
+          mat-button
+          (click)="weekOffset.set(weekOffset() - 1)"
+          [attr.aria-label]="'PLANSTRAND.PREVIOUS_WEEK' | translate"
+        >
+          ←
+        </button>
+        <button
+          mat-button
+          (click)="weekOffset.set(0)"
+          [disabled]="weekOffset() === 0"
+        >
+          {{ 'PLANSTRAND.CURRENT_WEEK' | translate }}
+        </button>
+        <button
+          mat-button
+          (click)="weekOffset.set(weekOffset() + 1)"
+          [attr.aria-label]="'PLANSTRAND.NEXT_WEEK' | translate"
+        >
+          →
+        </button>
+      </nav>
+    }
     @if (mode() === 'master' || mode() === 'folder') {
       <button
         mat-button

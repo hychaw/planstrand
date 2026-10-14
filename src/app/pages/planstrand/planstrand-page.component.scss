@@ -338,3 +338,12 @@ section:has(.cdk-drop-list-dragging) {
     min-height: 500px;
   }
 }
+
+.week-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-half);
+}
+.planstrand-page-header {
+  flex-wrap: wrap;
+}
