@@ -13,3 +13,14 @@ export const openPlanstrandActions = async (
     }
   }
 };
+
+/** Task commands live in the context menu; touch rows have a separate button. */
+export const openPlanstrandTaskContextMenu = async (scope: Locator): Promise<void> => {
+  const touchTrigger = scope.locator('.task-context-trigger');
+  if (await touchTrigger.isVisible()) await touchTrigger.click();
+  else
+    await scope
+      .locator('task')
+      .first()
+      .click({ button: 'right', position: { x: 30, y: 20 } });
+};

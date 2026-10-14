@@ -15,84 +15,6 @@
   "
   (close)="onClose()"
 >
-  <div
-    mat-menu-item
-    style="height: 0; padding: 0; margin: 0; border: none; min-height: 0"
-    (focus)="focusFirstBtn($event)"
-  ></div>
-
-  <div
-    class="quick-access"
-    (keydown)="quickAccessKeydown($event)"
-  >
-    <button
-      mat-icon-button
-      tabindex="0"
-      (click)="quickAccessBtnClick(1)"
-      [matTooltip]="T.F.TASK.D_SCHEDULE_TASK.QA_TODAY | translate"
-      [attr.aria-label]="T.F.TASK.D_SCHEDULE_TASK.QA_TODAY | translate"
-    >
-      <mat-icon>wb_sunny</mat-icon>
-    </button>
-
-    <button
-      mat-icon-button
-      tabindex="0"
-      (click)="quickAccessBtnClick(2)"
-      [matTooltip]="T.F.TASK.D_SCHEDULE_TASK.QA_TOMORROW | translate"
-      [attr.aria-label]="T.F.TASK.D_SCHEDULE_TASK.QA_TOMORROW | translate"
-    >
-      <mat-icon>wb_twilight</mat-icon>
-    </button>
-    <button
-      mat-icon-button
-      tabindex="0"
-      (click)="quickAccessBtnClick(3)"
-      [matTooltip]="T.F.TASK.D_SCHEDULE_TASK.QA_NEXT_WEEK | translate"
-      [attr.aria-label]="T.F.TASK.D_SCHEDULE_TASK.QA_NEXT_WEEK | translate"
-    >
-      <mat-icon>next_week</mat-icon>
-    </button>
-    <!--      <button-->
-    <!--        mat-icon-button-->
-    <!--        tabindex="0"-->
-    <!--        (click)="quickAccessBtnClick(3)"-->
-    <!--        [matTooltip]="(T.F.TASK.D_SCHEDULE_TASK.QA_NEXT_MONTH|translate)"-->
-    <!--      >-->
-    <!--        <mat-icon>bedtime</mat-icon>-->
-    <!--      </button>-->
-    <button
-      mat-icon-button
-      tabindex="0"
-      [matTooltip]="
-        (task.dueWithTime || task.dueDay
-          ? (T.F.TASK.CMP.EDIT_SCHEDULED | translate)
-          : (T.F.TASK.CMP.SCHEDULE | translate)) +
-        (kb.taskSchedule ? ' [' + kb.taskSchedule + ']' : '')
-      "
-      [attr.aria-label]="
-        task.dueWithTime || task.dueDay
-          ? (T.F.TASK.CMP.EDIT_SCHEDULED | translate)
-          : (T.F.TASK.CMP.SCHEDULE | translate)
-      "
-      (click)="scheduleTask()"
-    >
-      <mat-icon>today</mat-icon>
-    </button>
-
-    @if (task.dueWithTime || task.dueDay) {
-      <button
-        mat-icon-button
-        tabindex="0"
-        (click)="unscheduleTask()"
-        [matTooltip]="T.F.TASK.CMP.UNSCHEDULE_TASK | translate"
-        [attr.aria-label]="T.F.TASK.CMP.UNSCHEDULE_TASK | translate"
-      >
-        <mat-icon>event_busy</mat-icon>
-      </button>
-    }
-  </div>
-
   @if (isTouchActive() && isInTaskRow) {
     <button
       (click)="enterSelectionMode()"
@@ -176,26 +98,43 @@
     </button>
   }
 
-  @if (isAdvancedControls() && !task.isDone && (!task.parentId || isInSubTaskList)) {
+  @if (isAdvancedControls() && !task.isDone) {
     <button
-      (click)="moveToTop()"
+      (click)="moveUp()"
+      [attr.aria-label]="T.PLANSTRAND.MOVE_UP | translate"
+      [disabled]="
+        rowMenuActions && !rowMenuActions.canMoveTask(task, -1, isInSubTaskList)
+      "
       mat-menu-item
     >
       <span class="menuItemLeft">
         <mat-icon>arrow_upward</mat-icon>
-        {{ T.F.TASK.CMP.MOVE_TO_TOP | translate }}
+        {{ T.PLANSTRAND.MOVE_UP | translate }}
       </span>
-      <span class="key-i">{{ kb.moveTaskToTop }}</span>
+      <span class="key-i">{{ kb.moveTaskUp }}</span>
     </button>
     <button
-      (click)="moveToBottom()"
+      (click)="moveDown()"
+      [attr.aria-label]="T.PLANSTRAND.MOVE_DOWN | translate"
+      [disabled]="rowMenuActions && !rowMenuActions.canMoveTask(task, 1, isInSubTaskList)"
       mat-menu-item
     >
       <span class="menuItemLeft">
         <mat-icon>arrow_downward</mat-icon>
-        {{ T.F.TASK.CMP.MOVE_TO_BOTTOM | translate }}
+        {{ T.PLANSTRAND.MOVE_DOWN | translate }}
       </span>
-      <span class="key-i">{{ kb.moveTaskToBottom }}</span>
+      <span class="key-i">{{ kb.moveTaskDown }}</span>
+    </button>
+  }
+  @if (rowMenuActions) {
+    <button
+      mat-menu-item
+      (click)="rowMenuActions.moveTaskToFolder(task)"
+    >
+      <span class="menuItemLeft">
+        <mat-icon>folder</mat-icon>
+        {{ T.PLANSTRAND.MOVE_TASK | translate }}
+      </span>
     </button>
   }
   @if (isAdvancedControls() && !task.parentId && !task.isDone) {

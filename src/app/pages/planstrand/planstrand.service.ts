@@ -229,7 +229,13 @@ export class PlanstrandService {
 
   canReorderTask(task: Task, neighbor: Task | undefined): boolean {
     const domain = this.orderDomain(task);
-    return !!domain && !!neighbor && domain === this.orderDomain(neighbor);
+    return (
+      !!domain &&
+      !!neighbor &&
+      domain === this.orderDomain(neighbor) &&
+      resolveTaskFolderId(task, this.folders()) ===
+        resolveTaskFolderId(neighbor, this.folders())
+    );
   }
 
   reorderTask(task: Task, index: number, visible: Task[]): void {

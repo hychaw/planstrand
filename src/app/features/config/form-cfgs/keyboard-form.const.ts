@@ -102,8 +102,6 @@ export const KEYBOARD_SETTINGS_FORM_CFG: ConfigFormSection<KeyboardConfig> = {
     kbField('selectNextTask', T.GCF.KEYBOARD.SELECT_NEXT_TASK),
     kbField('moveTaskUp', T.GCF.KEYBOARD.MOVE_TASK_UP),
     kbField('moveTaskDown', T.GCF.KEYBOARD.MOVE_TASK_DOWN),
-    kbField('moveTaskToTop', T.GCF.KEYBOARD.MOVE_TASK_TO_TOP),
-    kbField('moveTaskToBottom', T.GCF.KEYBOARD.MOVE_TASK_TO_BOTTOM),
     kbField('moveToBacklog', T.GCF.KEYBOARD.MOVE_TO_BACKLOG),
     kbField('expandSubTasks', T.GCF.KEYBOARD.EXPAND_SUB_TASKS),
     kbField('collapseSubTasks', T.GCF.KEYBOARD.COLLAPSE_SUB_TASKS),

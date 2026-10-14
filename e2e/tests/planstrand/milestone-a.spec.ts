@@ -1,6 +1,9 @@
 import { expect, test } from '../../fixtures/test.fixture';
 import { Locator, Page } from '@playwright/test';
-import { openPlanstrandActions } from '../../utils/planstrand-actions';
+import {
+  openPlanstrandActions,
+  openPlanstrandTaskContextMenu,
+} from '../../utils/planstrand-actions';
 
 const savePrompt = async (page: Page, title: string): Promise<void> => {
   const dialog = page.locator('dialog-prompt');
@@ -98,8 +101,8 @@ test.describe('Planstrand Milestone A', () => {
       'Milestone Folder',
     );
     await page.goto('/#/master-tasks');
-    await openPlanstrandActions(row);
-    await row.getByRole('button', { name: /Move Task to Folder/ }).click();
+    await openPlanstrandTaskContextMenu(row);
+    await page.getByRole('menuitem', { name: /Move Task to Folder/ }).click();
     await page
       .locator('planstrand-folder-picker select')
       .selectOption({ label: 'Inbox' });

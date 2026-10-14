@@ -1,6 +1,8 @@
 import { PlanningStatusComponent } from '../../planning/planning-status.component';
 import { WorkSessionService } from '../../work-session/work-session.service';
 import { TaskService } from '../task.service';
+import { TASK_ROW_MENU_ACTIONS } from '../task-row-menu-actions';
+import { TaskPlanningMenuComponent } from '../task-planning-menu.component';
 import { planningCommands } from '../../planning/planning-commands';
 import {
   AfterViewInit,
@@ -146,6 +148,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
     '[class.isMultiSelected]': 'isMultiSelected()',
     '[class.isTouchSelectionMode]': 'isTouchSelectionMode()',
     '[class.hasNoSubTasks]': 'task().subTaskIds.length === 0',
+    '[class.has-planning-menu]': '!!rowMenuActions && isInSubTaskList()',
     '[class.isDragReady]': 'isDragReady()',
     '[class.isOverdue]': 'isOverdue()',
     '(contextmenu)': 'onHostContextMenu($event)',
@@ -164,6 +167,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
     MatMiniFabButton,
     forwardRef(() => TaskListComponent),
     TaskContextMenuComponent,
+    TaskPlanningMenuComponent,
     MatMenu,
     MatMenuContent,
     MatMenuItem,
@@ -182,6 +186,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
   ],
 })
 export class TaskComponent implements OnDestroy, AfterViewInit {
+  readonly rowMenuActions = inject(TASK_ROW_MENU_ACTIONS, { optional: true });
   private readonly _workSessionService = inject(WorkSessionService);
   private readonly _taskService = inject(TaskService);
   private readonly _taskDuplicateService = inject(TaskDuplicateService);
@@ -815,26 +820,24 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   }
 
   moveTaskUp(): void {
+    if (this.rowMenuActions) {
+      this.rowMenuActions.moveTask(this.task(), -1, this.isInSubTaskList());
+      setTimeout(() => this.focusSelf());
+      return;
+    }
     this._moveAndRefocus((id, parentId, isBacklog) =>
       this._taskService.moveUp(id, parentId, isBacklog),
     );
   }
 
   moveTaskDown(): void {
+    if (this.rowMenuActions) {
+      this.rowMenuActions.moveTask(this.task(), 1, this.isInSubTaskList());
+      setTimeout(() => this.focusSelf());
+      return;
+    }
     this._moveAndRefocus((id, parentId, isBacklog) =>
       this._taskService.moveDown(id, parentId, isBacklog),
-    );
-  }
-
-  moveTaskToTop(): void {
-    this._moveAndRefocus((id, parentId, isBacklog) =>
-      this._taskService.moveToTop(id, parentId, isBacklog),
-    );
-  }
-
-  moveTaskToBottom(): void {
-    this._moveAndRefocus((id, parentId, isBacklog) =>
-      this._taskService.moveToBottom(id, parentId, isBacklog),
     );
   }
 
@@ -1423,12 +1426,12 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     if (!this.isContextMenuLoaded()) {
       this.isContextMenuLoaded.set(true);
       setTimeout(() => {
-        this.taskContextMenu()?.open(event);
+        this.taskContextMenu()?.open(event, event instanceof KeyboardEvent);
       });
       return;
     }
 
-    this.taskContextMenu()?.open(event);
+    this.taskContextMenu()?.open(event, event instanceof KeyboardEvent);
   }
 
   onTagsUpdated(tagIds: string[]): void {

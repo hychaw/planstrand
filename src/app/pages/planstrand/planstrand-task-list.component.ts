@@ -5,6 +5,7 @@ import {
   inject,
   input,
   output,
+  forwardRef,
 } from '@angular/core';
 import {
   CdkDrag,
@@ -15,18 +16,24 @@ import {
 } from '@angular/cdk/drag-drop';
 import { ScheduleExternalDragService } from '../../features/schedule/schedule-week/schedule-external-drag.service';
 import { MatIcon } from '@angular/material/icon';
-import { MatButton } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { TaskComponent } from '../../features/tasks/task/task.component';
-import { TaskWithSubTasks } from '../../features/tasks/task.model';
+import {
+  DropListModelSource,
+  Task,
+  TaskWithSubTasks,
+} from '../../features/tasks/task.model';
+import { TaskService } from '../../features/tasks/task.service';
+import { TASK_ROW_MENU_ACTIONS } from '../../features/tasks/task-row-menu-actions';
+import { selectTaskEntities } from '../../features/tasks/store/task.selectors';
 import { DialogScheduleTaskComponent } from '../../features/planner/dialog-schedule-task/dialog-schedule-task.component';
 import { planningCommands } from '../../features/planning/planning-commands';
 import { PlanstrandService } from './planstrand.service';
 import { CurrentDateService } from '../../core/date/current-date.service';
 import { resolveTaskFolderId } from '../../features/tasks/task-folder-ownership';
-import { PlanningStatusComponent } from '../../features/planning/planning-status.component';
+import { TaskPlanningMenuComponent } from '../../features/tasks/task-planning-menu.component';
 import { PlanningDestinationDialogComponent } from './planning-destination-dialog.component';
 import { selectAllPlacements } from '../../features/planning/store/planning.selectors';
 import { PlanningPlacement } from '../../features/planning/planning.model';
@@ -34,16 +41,21 @@ import { calendarAddDays } from '../../util/calendar-date';
 
 @Component({
   selector: 'planstrand-task-list',
+  providers: [
+    {
+      provide: TASK_ROW_MENU_ACTIONS,
+      useExisting: forwardRef(() => PlanstrandTaskListComponent),
+    },
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TaskComponent,
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
-    MatButton,
     MatIcon,
     TranslatePipe,
-    PlanningStatusComponent,
+    TaskPlanningMenuComponent,
   ],
   template: `
     <div
@@ -64,10 +76,21 @@ import { calendarAddDays } from '../../util/calendar-date';
           class="task-entry"
         >
           <task
+            #taskRow
             [task]="task"
             [isShowProjectTagNever]="true"
             [isShowPlanningStatus]="!planning()"
           />
+          <button
+            type="button"
+            class="task-context-trigger"
+            [attr.aria-label]="
+              ('GCF.KEYBOARD.TASK_OPEN_CONTEXT_MENU' | translate) + ': ' + task.title
+            "
+            (click)="taskRow.openContextMenu($event)"
+          >
+            <mat-icon>menu_open</mat-icon>
+          </button>
           @if (planning() && entry.path) {
             <span
               class="task-folder"
@@ -83,98 +106,10 @@ import { calendarAddDays } from '../../util/calendar-date';
           >
             <mat-icon>drag_indicator</mat-icon>
           </button>
-          <details
-            #actions
-            class="task-actions"
-            name="planstrand-task-actions"
-            (toggle)="revealActions(actions)"
-            (keydown.escape)="closeActions(actions); $event.stopPropagation()"
-          >
-            <summary
-              [attr.aria-label]="('PLANSTRAND.ACTIONS' | translate) + ': ' + task.title"
-            >
-              •••
-            </summary>
-            <div class="commands">
-              <span
-                class="folder-path"
-                [title]="entry.path"
-                >{{ entry.path }}</span
-              >
-              <h3>{{ 'PLANSTRAND.PLANNING' | translate }}</h3>
-              <planstrand-planning-status [target]="entry.target" />
-              <div class="quick-planning">
-                @for (action of quickPlanningActions; track action.target) {
-                  <button
-                    mat-button
-                    (click)="plan(task, action.target); closeActions(actions)"
-                  >
-                    {{ action.label | translate }}
-                  </button>
-                }
-              </div>
-              <button
-                mat-button
-                (click)="chooseDestination(task, 'DAY', entry.target)"
-              >
-                {{ 'PLANSTRAND.CHOOSE_DATE' | translate }}
-              </button>
-              <button
-                mat-button
-                (click)="chooseDestination(task, 'WEEK', entry.target)"
-              >
-                {{ 'PLANSTRAND.CHOOSE_WEEK' | translate }}
-              </button>
-              <button
-                mat-button
-                (click)="plan(task, 'UNPLAN'); closeActions(actions)"
-              >
-                {{ 'PLANSTRAND.UNPLAN' | translate }}
-              </button>
-              <h3>{{ 'PLANSTRAND.OTHER_ACTIONS' | translate }}</h3>
-              <button
-                mat-button
-                (click)="ui.chooseTaskFolder(task)"
-                [title]="entry.path"
-              >
-                {{ 'PLANSTRAND.MOVE_TASK' | translate }}
-              </button>
-              <button
-                mat-button
-                (click)="schedule(task)"
-              >
-                {{ 'PLANSTRAND.SCHEDULE_SESSION' | translate }}
-              </button>
-              @if (ordering()) {
-                <button
-                  mat-button
-                  (click)="
-                    reordered.emit({ task: task, direction: -1 }); closeActions(actions)
-                  "
-                  [disabled]="
-                    $first ||
-                    (!planning() && !ui.canReorderTask(task, tasks()[$index - 1]))
-                  "
-                  [attr.aria-label]="'PLANSTRAND.MOVE_UP' | translate"
-                >
-                  {{ 'PLANSTRAND.MOVE_UP' | translate }}
-                </button>
-                <button
-                  mat-button
-                  (click)="
-                    reordered.emit({ task: task, direction: 1 }); closeActions(actions)
-                  "
-                  [disabled]="
-                    $last ||
-                    (!planning() && !ui.canReorderTask(task, tasks()[$index + 1]))
-                  "
-                  [attr.aria-label]="'PLANSTRAND.MOVE_DOWN' | translate"
-                >
-                  {{ 'PLANSTRAND.MOVE_DOWN' | translate }}
-                </button>
-              }
-            </div>
-          </details>
+          <task-planning-menu
+            [task]="task"
+            [path]="entry.path"
+          />
         </div>
       } @empty {
         <p
@@ -198,42 +133,6 @@ import { calendarAddDays } from '../../util/calendar-date';
     .task-list.is-folder-list {
       min-height: calc(var(--planstrand-row-height) + 36px);
     }
-    .commands {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      gap: var(--s-half);
-      padding: var(--s);
-      border-radius: var(--radius-md);
-      background: var(--surface-floating);
-      box-shadow: var(--card-shadow);
-      border: 1px solid var(--separator);
-      max-height: 65vh;
-      scroll-margin-block: 72px;
-      overflow-y: auto;
-    }
-    .commands h3 {
-      margin: var(--s-half) 0;
-      color: var(--ink-strong);
-      font-size: var(--font-size-sm);
-    }
-    .commands h3:not(:first-of-type) {
-      border-top: 1px solid var(--separator);
-      padding-top: var(--s);
-    }
-    .quick-planning {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .commands button {
-      font-size: var(--font-size-sm);
-    }
-    .folder-path {
-      max-width: 100%;
-      overflow-wrap: anywhere;
-      font-size: var(--font-size-sm);
-      color: var(--ink-muted);
-    }
     .task-folder {
       display: block;
       margin: -6px 0 10px 48px;
@@ -254,12 +153,6 @@ import { calendarAddDays } from '../../util/calendar-date';
     .task-entry:focus-within {
       background: var(--surface-hover);
     }
-    .task-actions {
-      position: absolute;
-      inset-inline-end: 0;
-      top: 12px;
-      z-index: 3;
-    }
     .task-drag-handle {
       position: absolute;
       inset-inline-end: 36px;
@@ -271,26 +164,12 @@ import { calendarAddDays } from '../../util/calendar-date';
       padding: 6px;
       opacity: 0;
     }
+    .task-context-trigger {
+      display: none;
+    }
     .task-entry:hover .task-drag-handle,
     .task-entry:focus-within .task-drag-handle {
       opacity: 1;
-    }
-    summary {
-      cursor: pointer;
-      list-style: none;
-      padding: 8px;
-      color: var(--ink-muted);
-      border-radius: var(--radius-sm);
-    }
-    summary::-webkit-details-marker {
-      display: none;
-    }
-    details[open] {
-      width: min(320px, 100%);
-      z-index: 5;
-    }
-    details[open] summary {
-      text-align: end;
     }
     .cdk-drag-preview {
       background: var(--surface-floating);
@@ -301,7 +180,21 @@ import { calendarAddDays } from '../../util/calendar-date';
     }
     @media (pointer: coarse) {
       .task-entry {
-        padding-inline-end: 88px;
+        padding-inline-end: 132px;
+      }
+      .task-context-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        inset-inline-end: 88px;
+        top: 12px;
+        min-height: 44px;
+        min-width: 44px;
+        border: 0;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--ink-muted);
       }
       .task-drag-handle {
         opacity: 1;
@@ -317,12 +210,6 @@ import { calendarAddDays } from '../../util/calendar-date';
   `,
 })
 export class PlanstrandTaskListComponent {
-  readonly quickPlanningActions = [
-    { target: 'TODAY', label: 'PLANSTRAND.PLAN_TODAY' },
-    { target: 'TOMORROW', label: 'PLANSTRAND.PLAN_TOMORROW' },
-    { target: 'WEEK', label: 'PLANSTRAND.MOVE_THIS_WEEK' },
-    { target: 'NEXT_WEEK', label: 'PLANSTRAND.MOVE_NEXT_WEEK' },
-  ];
   private readonly _externalDrag = inject(ScheduleExternalDragService);
   startDrag(task: TaskWithSubTasks, event: CdkDragStart): void {
     this._externalDrag.setCancelNextDrop(false);
@@ -335,6 +222,8 @@ export class PlanstrandTaskListComponent {
   private readonly store = inject(Store);
   private readonly dialog = inject(MatDialog);
   private readonly dates = inject(CurrentDateService);
+  private readonly taskService = inject(TaskService);
+  private readonly taskEntities = this.store.selectSignal(selectTaskEntities);
   readonly today = this.dates.today;
   readonly tasks = input<TaskWithSubTasks[]>([]);
   private readonly placements = this.store.selectSignal(selectAllPlacements);
@@ -354,6 +243,47 @@ export class PlanstrandTaskListComponent {
   readonly acceptDrops = input(true);
   readonly dropped = output<{ task: TaskWithSubTasks; index: number }>();
   readonly reordered = output<{ task: TaskWithSubTasks; direction: -1 | 1 }>();
+
+  canMoveTask(task: Task, direction: -1 | 1, isNested = false): boolean {
+    if (!this.ordering() || task.isDone) return false;
+    const index = this.tasks().findIndex((t) => t.id === task.id);
+    if (!isNested && index >= 0) {
+      const neighbor = this.tasks()[index + direction];
+      return !!neighbor && (this.planning() || this.ui.canReorderTask(task, neighbor));
+    }
+    // Nested children stay among siblings; never move the parent at an edge.
+    const parent = isNested && task.parentId && this.taskEntities()[task.parentId];
+    const siblings = parent ? parent.subTaskIds : [];
+    const at = siblings.indexOf(task.id);
+    return at >= 0 && !!siblings[at + direction];
+  }
+
+  moveTask(task: Task, direction: -1 | 1, isNested = false): void {
+    if (!this.canMoveTask(task, direction, isNested)) return;
+    const root = !isNested && this.tasks().find((t) => t.id === task.id);
+    if (root) this.reordered.emit({ task: root, direction });
+    else if (task.parentId) {
+      const ids = [...this.taskEntities()[task.parentId]!.subTaskIds];
+      const index = ids.indexOf(task.id);
+      ids.splice(index, 1);
+      ids.splice(index + direction, 0, task.id);
+      // The existing drag reorder accepts parent IDs at runtime for subtask lists.
+      this.taskService.move(
+        task.id,
+        task.parentId as DropListModelSource,
+        task.parentId as DropListModelSource,
+        ids,
+      );
+    }
+  }
+
+  moveTaskToFolder(task: Task): void {
+    void this.ui.chooseTaskFolder(task);
+  }
+
+  planningTarget(task: Task): PlanningPlacement['target'] | undefined {
+    return this.placements().find((placement) => placement.id === task.id)?.target;
+  }
 
   drop(event: CdkDragDrop<TaskWithSubTasks[]>): void {
     if (!event.isPointerOverContainer || this._externalDrag.isCancelNextDrop()) {
@@ -390,17 +320,6 @@ export class PlanstrandTaskListComponent {
               ? calendarAddDays(this.dates.resolveToday(), 1)
               : target,
       });
-  }
-  revealActions(actions: HTMLDetailsElement): void {
-    if (actions.open)
-      requestAnimationFrame(() => {
-        if (actions.open)
-          actions.querySelector('.commands')?.scrollIntoView({ block: 'nearest' });
-      });
-  }
-  closeActions(actions: HTMLDetailsElement): void {
-    actions.open = false;
-    actions.querySelector('summary')?.focus();
   }
   chooseDestination(
     task: TaskWithSubTasks,

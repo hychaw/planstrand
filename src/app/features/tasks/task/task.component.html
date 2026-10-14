@@ -1,4 +1,7 @@
 @let t = task();
+@if (rowMenuActions && isInSubTaskList()) {
+  <task-planning-menu [task]="t" />
+}
 <swipe-block
   [isDone]="t.isDone"
   [canSwipe]="!taskTitleEditEl?.isEditing() && !isTouchSelectionMode()"

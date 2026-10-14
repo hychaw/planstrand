@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures/test.fixture';
 import { Locator } from '@playwright/test';
-import { openPlanstrandActions } from '../../utils/planstrand-actions';
+import { openPlanstrandTaskContextMenu } from '../../utils/planstrand-actions';
 
 test.describe('Blue Thread V1.1', () => {
   test('keeps task and recursive Folder drag/drop semantics through reload', async ({
@@ -55,8 +55,8 @@ test.describe('Blue Thread V1.1', () => {
     await page.reload();
     await expect(nestedLink).toBeVisible();
     await expect(target).toContainText('Blue dragged Task');
-    await openPlanstrandActions(row);
-    await row.getByRole('button', { name: /Move Task to Folder/ }).click();
+    await openPlanstrandTaskContextMenu(row);
+    await page.getByRole('menuitem', { name: /Move Task to Folder/ }).click();
     await page
       .locator('planstrand-folder-picker select')
       .selectOption({ label: 'Inbox' });

@@ -1,4 +1,5 @@
 import { WorkSessionService } from '../../../work-session/work-session.service';
+import { TASK_ROW_MENU_ACTIONS } from '../../task-row-menu-actions';
 import { planningCommands } from '../../../planning/planning-commands';
 import { TaskPriorityIndicatorComponent } from '../../task-priority-indicator/task-priority-indicator.component';
 import { TASK_PRIORITY_LABEL_KEY, TASK_PRIORITY_LEVELS } from '../../task-priority.const';
@@ -114,6 +115,7 @@ import { PluginTaskContextMenuTarget } from '@super-productivity/plugin-api';
   encapsulation: ViewEncapsulation.Emulated,
 })
 export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
+  readonly rowMenuActions = inject(TASK_ROW_MENU_ACTIONS, { optional: true });
   private readonly _datePipe = inject(LocaleDatePipe);
   private readonly _taskService = inject(TaskService);
   private readonly _workSessionService = inject(WorkSessionService);
@@ -262,6 +264,13 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
     isOpenedFromKeyBoard = false,
     restoreFocusTo?: HTMLElement,
   ): void {
+    const closeActive = this._taskFocusService.closeActiveTaskContextMenu();
+    if (closeActive !== this._closeContextMenu) closeActive?.();
+    document
+      .querySelectorAll<HTMLDetailsElement>('details.task-actions[open]')
+      .forEach((menu) => {
+        menu.open = false;
+      });
     this._restoreFocusTo = restoreFocusTo;
 
     if (ev) {
@@ -351,6 +360,9 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
     // Focus the task element after context menu closes
     // Use setTimeout to ensure menu has fully closed and DOM is settled
     setTimeout(() => {
+      // A newly opened menu owns focus; an older closing menu must not steal it.
+      if (this._taskFocusService.isTaskContextMenuOpen()) return;
+      if (document.activeElement?.closest('task-planning-menu details[open]')) return;
       if (restoreFocusTo?.isConnected) {
         restoreFocusTo.focus({ preventScroll: true });
         return;
@@ -577,12 +589,17 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
     this._taskDuplicateService.duplicate(taskWithSubtasks);
   }
 
-  moveToTop(): void {
-    this._taskService.moveToTop(this.task.id, this.task.parentId, this.isBacklog);
+  moveUp(): void {
+    if (this.rowMenuActions)
+      this.rowMenuActions.moveTask(this.task, -1, this.isInSubTaskList);
+    else void this._taskService.moveUp(this.task.id, this.task.parentId, this.isBacklog);
   }
 
-  moveToBottom(): void {
-    this._taskService.moveToBottom(this.task.id, this.task.parentId, this.isBacklog);
+  moveDown(): void {
+    if (this.rowMenuActions)
+      this.rowMenuActions.moveTask(this.task, 1, this.isInSubTaskList);
+    else
+      void this._taskService.moveDown(this.task.id, this.task.parentId, this.isBacklog);
   }
 
   @throttle(200, { leading: true, trailing: false })

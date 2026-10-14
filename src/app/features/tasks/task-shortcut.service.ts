@@ -65,6 +65,14 @@ export class TaskShortcutService {
    * @returns True if the shortcut was handled, false otherwise
    */
   handleTaskShortcuts(ev: KeyboardEvent): boolean {
+    // Native details/buttons and Material menus own their keyboard activation.
+    // A nested planning control is inside <task>, but Enter must activate the
+    // control instead of editing that Task's title.
+    if (
+      ev.target instanceof Element &&
+      ev.target.closest('task-planning-menu, .mat-mdc-menu-panel')
+    )
+      return false;
     const cfg = this._configService.cfg();
     if (!cfg) return false;
 
@@ -350,20 +358,6 @@ export class TaskShortcutService {
       return true;
     }
 
-    if (checkKeyCombo(ev, keys.moveTaskToTop)) {
-      this._handleTaskShortcut(focusedTaskId, 'moveTaskToTop');
-      ev.preventDefault();
-      ev.stopPropagation();
-      return true;
-    }
-
-    if (checkKeyCombo(ev, keys.moveTaskToBottom)) {
-      this._handleTaskShortcut(focusedTaskId, 'moveTaskToBottom');
-      ev.preventDefault();
-      ev.stopPropagation();
-      return true;
-    }
-
     // Escape releases the task row: keyboard focus goes back to the page, so the
     // focus border disappears and arrow keys stop navigating the list. Runs last
     // so every configured task shortcut wins over it. Deliberately no
@@ -482,8 +476,13 @@ export class TaskShortcutService {
 
   /** True when any configured combo (task, global or plugin) matches `ev`. */
   private _isAnyConfiguredCombo(ev: KeyboardEvent, keys: KeyboardConfig): boolean {
-    return Object.values(keys).some(
-      (combo) => typeof combo === 'string' && !!combo && checkKeyCombo(ev, combo),
+    return Object.entries(keys).some(
+      ([key, combo]) =>
+        key !== 'moveTaskToTop' &&
+        key !== 'moveTaskToBottom' &&
+        typeof combo === 'string' &&
+        !!combo &&
+        checkKeyCombo(ev, combo),
     );
   }
 

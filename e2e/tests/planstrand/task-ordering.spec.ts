@@ -45,15 +45,15 @@ const move = async (
   keyboard = false,
 ): Promise<void> => {
   const entry = row(scope, title);
-  await openPlanstrandActions(entry);
-  const button = entry.getByRole('button', { name: label, exact: true });
+  await entry.locator('task').first().click({ button: 'right' });
+  const button = entry.page().getByRole('menuitem', { name: label, exact: true });
   await button.scrollIntoViewIfNeeded();
   await expect(button).toBeInViewport();
   if (keyboard) {
     await button.focus();
     await button.press('Enter');
   } else await button.click();
-  await expect(entry.locator('.commands')).toBeHidden();
+  await expect(button).toBeHidden();
 };
 
 for (const theme of ['Light', 'Dark']) {
@@ -94,15 +94,15 @@ for (const theme of ['Light', 'Dark']) {
     await expect(order(page)).toHaveText(['Order B', 'Order A', 'Order C']);
     await move(page, 'Order B', 'Move down');
     await expect(order(page)).toHaveText(titles);
-    await openPlanstrandActions(row(page, 'Order A'));
+    await row(page, 'Order A').locator('task').click({ button: 'right' });
     await expect(
-      row(page, 'Order A').getByRole('button', { name: 'Move up', exact: true }),
+      page.getByRole('menuitem', { name: 'Move up', exact: true }),
     ).toBeDisabled();
     await page.screenshot({
-      path: `.tmp/phase-5c2a-ordering-${theme}.png`,
+      path: `.tmp/task-menu-ordering-${theme}.png`,
       fullPage: true,
     });
-    await row(page, 'Order A').locator('summary').press('Escape');
+    await page.keyboard.press('Escape');
     // Same-list pointer drop must use the supplied position, not Folder movement.
     const source = row(page, 'Order C').locator('.task-drag-handle');
     const target = row(page, 'Order A');

@@ -3,6 +3,10 @@
 @use './task-base';
 @use './task-controls';
 
+:host.has-planning-menu .box {
+  padding-inline-end: 44px;
+}
+
 :host.isDragReady:not(.cdk-drag-placeholder) {
   background: var(--bg-lighter);
   box-shadow: var(--whiteframe-shadow-8dp);

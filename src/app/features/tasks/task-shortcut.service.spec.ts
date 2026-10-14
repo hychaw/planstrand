@@ -477,6 +477,48 @@ describe('TaskShortcutService', () => {
       expect(event.preventDefault).toHaveBeenCalled();
       expect(mockTaskComponent.openContextMenu).toHaveBeenCalledWith(event);
     });
+    for (const surface of ['task-planning-menu', 'div']) {
+      it(`leaves Enter to the ${surface} menu control`, () => {
+        const row = setFocusedTask('focused-task-1');
+        const menu = document.createElement(surface);
+        if (surface === 'div') menu.className = 'mat-mdc-menu-panel';
+        const button = document.createElement('button');
+        menu.appendChild(button);
+        row.appendChild(menu);
+        const edit = jasmine.createSpy('focusTitleForEdit');
+        mockTaskFocusService.lastFocusedTaskComponent.set({
+          task: () => ({ id: 'focused-task-1' }),
+          taskContextMenu: () => undefined,
+          focusTitleForEdit: edit,
+        });
+        const event = createKeyboardEvent('Enter');
+        Object.defineProperty(event, 'target', { value: button });
+        expect(service.handleTaskShortcuts(event)).toBeFalse();
+        expect(event.defaultPrevented).toBeFalse();
+        expect(edit).not.toHaveBeenCalled();
+      });
+    }
+    for (const key of ['moveTaskToTop', 'moveTaskToBottom']) {
+      it(`ignores an obsolete saved ${key} binding`, () => {
+        const component = {
+          task: () => ({ id: 'focused-task-1' }),
+          taskContextMenu: () => undefined,
+          moveTaskToTop: jasmine.createSpy('top'),
+          moveTaskToBottom: jasmine.createSpy('bottom'),
+        };
+        setFocusedTask('focused-task-1');
+        mockTaskFocusService.lastFocusedTaskComponent.set(component);
+        mockConfigService.cfg.set({
+          keyboard: { ...defaultKeyboardConfig, [key]: 'Alt+Q' },
+          appFeatures: { isTimeTrackingEnabled: true },
+        });
+        expect(
+          service.handleTaskShortcuts(createKeyboardEvent('q', 'KeyQ', { altKey: true })),
+        ).toBeFalse();
+        expect(component.moveTaskToTop).not.toHaveBeenCalled();
+        expect(component.moveTaskToBottom).not.toHaveBeenCalled();
+      });
+    }
 
     it('should recognize Linux Menu key events by physical ContextMenu code', () => {
       const mockTaskComponent = {

@@ -121,6 +121,22 @@ describe('Planstrand canonical Task ordering', () => {
     ui.reorderTask(task('c'), 0, [task('a'), task('c')]);
     expect(state.projects.entities['project1']!.taskIds).toEqual(['c', 'a', 'b']);
   });
+  it('rejects canonical moves across Folder ownership boundaries', () => {
+    state.folder = {
+      ...initialFolderState,
+      ids: [...initialFolderState.ids, 'other'],
+      entities: {
+        ...initialFolderState.entities,
+        other: { id: 'other', title: 'Other', orderKey: 'V' },
+      },
+    };
+    state.tasks.entities['b'] = { ...state.tasks.entities['b']!, folderId: 'other' };
+    store.setState(state);
+    const tasks = selectCanonicalTasks(state);
+    expect(ui.canReorderTask(tasks[0], tasks[1])).toBeFalse();
+    ui.reorderTask(tasks[0], 1, tasks);
+    expect(store.dispatch).not.toHaveBeenCalled();
+  });
   it('reorders Focus adjacent visible peers around completed placements without changing destination', async () => {
     const page = TestBed.runInInjectionContext(() => new PlanstrandPageComponent());
     const target = { type: 'DAY' as const, key: page.today() };

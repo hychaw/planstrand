@@ -1,4 +1,5 @@
 import { TaskContextMenuInnerComponent } from './task-context-menu-inner.component';
+import { TASK_ROW_MENU_ACTIONS } from '../../task-row-menu-actions';
 import { ComponentFixture, TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { TaskService } from '../../task.service';
@@ -57,8 +58,15 @@ describe('TaskContextMenuInnerComponent', () => {
   let store: MockStore;
   let isTaskContextMenuOpen: ReturnType<typeof signal<boolean>>;
   let closeActiveTaskContextMenu: ReturnType<typeof signal<(() => void) | null>>;
+  const rowActions = {
+    canMoveTask: jasmine.createSpy('canMoveTask'),
+    moveTask: jasmine.createSpy('moveTask'),
+    moveTaskToFolder: jasmine.createSpy('moveTaskToFolder'),
+  };
 
   beforeEach(async () => {
+    rowActions.canMoveTask.and.returnValue(true);
+    rowActions.moveTask.calls.reset();
     taskService = jasmine.createSpyObj('TaskService', [
       'currentTaskId',
       'selectedTaskId',
@@ -89,6 +97,7 @@ describe('TaskContextMenuInnerComponent', () => {
       ],
       providers: [
         provideMockStore(),
+        { provide: TASK_ROW_MENU_ACTIONS, useValue: rowActions },
         { provide: TaskService, useValue: taskService },
         { provide: TaskDuplicateService, useValue: taskDuplicateService },
         { provide: AddSubtaskInputService, useValue: addSubtaskInputService },
@@ -163,6 +172,47 @@ describe('TaskContextMenuInnerComponent', () => {
     selectTaskByIdWithSubTaskData.release();
     store.resetSelectors();
   });
+  it('does not let a closing menu steal focus from a newly opened menu', fakeAsync(() => {
+    const row = document.createElement('div');
+    row.id = 't-task-default';
+    row.tabIndex = 0;
+    const control = document.createElement('button');
+    document.body.append(row, control);
+    control.focus();
+    component.focusRelatedTaskOrNext();
+    isTaskContextMenuOpen.set(true);
+    tick();
+    expect(document.activeElement).toBe(control);
+    isTaskContextMenuOpen.set(false);
+    row.remove();
+    control.remove();
+  }));
+  it('uses the owning list for Move Up/Down and removes the planning shortcut strip', fakeAsync(() => {
+    fixture.componentRef.setInput('isAdvancedControls', true);
+    fixture.detectChanges();
+    component.open(new KeyboardEvent('keydown', { key: 'ContextMenu' }), true);
+    fixture.detectChanges();
+    tick();
+    expect(document.querySelector('.quick-access')).toBeNull();
+    const openPlanning = document.createElement('details');
+    openPlanning.className = 'task-actions';
+    openPlanning.open = true;
+    document.body.appendChild(openPlanning);
+    component.open(new KeyboardEvent('keydown'), true);
+    expect(openPlanning.open).toBeFalse();
+    openPlanning.remove();
+    component.moveUp();
+    component.moveDown();
+    expect(rowActions.moveTask.calls.allArgs()).toEqual([
+      [component.task, -1, false],
+      [component.task, 1, false],
+    ]);
+    expect(document.querySelector('[role="menu"]')?.textContent).toContain(
+      'PLANSTRAND.MOVE_TASK',
+    );
+    component.contextMenuTrigger()?.closeMenu();
+    flush();
+  }));
 
   describe('enterSelectionMode()', () => {
     it('enters touch selection mode with the task selected', () => {
