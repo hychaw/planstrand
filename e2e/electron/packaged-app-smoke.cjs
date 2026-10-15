@@ -130,9 +130,7 @@ const run = async () => {
       localStorage.setItem('SUP_IS_SHOW_TOUR', 'true');
       localStorage.setItem('SUP_EXAMPLE_TASKS_CREATED', 'true');
     });
-    // The add-task bar is usable before hydration finishes, but only picks the
-    // TODAY default due day once the work context loads. Typing earlier files
-    // the task into Inbox and the Today assertion below fails (run 36058539413).
+    // Wait for hydration before creating a Task through Today's Focus section.
     const dataLoaded = page.waitForEvent('console', {
       predicate: (message) => message.text().includes('[SP_ALL] All Data was loaded'),
       timeout: 30_000,
@@ -142,20 +140,32 @@ const run = async () => {
     await page.locator('.route-wrapper').first().waitFor({ state: 'visible' });
 
     const taskTitle = `Packaged Electron smoke ${Date.now()}`;
-    const addTaskInput = page.locator('add-task-bar.global .main-input').first();
-    if (!(await addTaskInput.isVisible())) {
-      await page.locator('.tour-addBtn').waitFor({ state: 'visible', timeout: 20_000 });
-      await page.locator('.tour-addBtn').click();
-    }
-    await addTaskInput.waitFor({ state: 'visible', timeout: 10_000 });
+    await expect(
+      page.getByRole('heading', { name: 'Today', exact: true, level: 1 }),
+    ).toBeVisible();
+    const focusSection = page.locator('planstrand-page section').filter({
+      has: page.getByRole('heading', { name: 'Focus', exact: true, level: 2 }),
+    });
+    await focusSection.getByRole('button', { name: /^Add Task: / }).click();
+    const taskDialog = page.getByRole('dialog');
+    const addTaskInput = taskDialog.getByRole('textbox', {
+      name: 'Add Task',
+      exact: true,
+    });
+    // The prompt can render before NgModel initializes its empty value.
+    await expect(addTaskInput).toHaveClass(/ng-invalid/);
     await addTaskInput.fill(taskTitle);
+    await expect(addTaskInput).toHaveValue(taskTitle);
+    await expect(addTaskInput).toHaveClass(/ng-valid/);
     const operationProcessed = page.waitForEvent('console', {
       predicate: (message) =>
         message.text().includes('OperationCaptureService: Processed action'),
       timeout: 20_000,
     });
-    await addTaskInput.press('Enter');
-    await expect(page.locator('task').filter({ hasText: taskTitle })).toBeVisible({
+    await taskDialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(taskDialog).toBeHidden();
+    const createdTask = focusSection.locator('task').filter({ hasText: taskTitle });
+    await expect(createdTask).toBeVisible({
       timeout: 20_000,
     });
 
@@ -164,7 +174,7 @@ const run = async () => {
     // backend has finished the operation write and released its lock.
     await operationProcessed;
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.locator('task').filter({ hasText: taskTitle })).toBeVisible({
+    await expect(createdTask).toBeVisible({
       timeout: 20_000,
     });
 
