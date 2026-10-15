@@ -1,35 +1,45 @@
 # README screenshots
 
-Captured from the published Planstrand V1.3 RC1 Windows Portable application at
-source revision `58b9471b92dee0c5fe8bcabf15d3ec194bb47793` in October 2026.
-The executable's SHA-256 is
+These five replacement screenshots were supplied as direct-lossless PNG captures
+of the published Planstrand V1.3 RC1 Windows Portable application. They replace the
+earlier JPEG-derived images at the same README paths.
+
+Release source revision: `58b9471b92dee0c5fe8bcabf15d3ec194bb47793` (October 2026).
+The published Portable executable's SHA-256 is
 `320288ede4f79bfabdf9a67cae45154cd7ee3583c518ed9778395074e9854713`.
 
-All five images show the genuine application with Blue Thread **Dark** appearance
-explicitly selected, English UI and synthetic demonstration data. A fresh,
-disposable profile was used without synchronization or external accounts. Sample
-data was imported through the application's backup importer and refined through
-the interface. No normal user profile or published executable was modified.
+All five images show the real application in Blue Thread **Dark**, English UI and
+synthetic demonstration data from the isolated disposable screenshot profile.
+They show no normal user profile or external account data. The captures preserve
+the real UI; they are not generated interfaces or mockups.
 
-| Image                  | Dimensions  | Contents                                                                                             |
-| ---------------------- | ----------- | ---------------------------------------------------------------------------------------------------- |
-| `today-focus.png`      | 1686 × 1046 | Focus Tasks, My Day, a WorkSession beginning at 09:07, and timed Events.                             |
-| `calendar-week.png`    | 2048 × 1104 | Seven-day Calendar with WorkSessions, recurring morning planning, an Event and template occurrences. |
-| `weekly-templates.png` | 2048 × 1104 | An active reusable weekly template with two entries.                                                 |
-| `this-week.png`        | 2048 × 1104 | Anytime This Week and multiple weekday Planning groups.                                              |
-| `tasks-folders.png`    | 2048 × 1104 | Tasks, a nested Task and a nested Autumn launch Folder.                                              |
+| Image                  | Dimensions  | Contents                                                                                                  |
+| ---------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `today-focus.png`      | 2047 × 1101 | Focus Tasks and a nested Task, My Day, a WorkSession beginning at 09:07, and timed Events.                |
+| `this-week.png`        | 2047 × 1102 | Anytime This Week and weekday Planning groups.                                                            |
+| `tasks-folders.png`    | 2047 × 1102 | Inbox, nested Tasks and the Studio / Autumn launch Folder hierarchy.                                      |
+| `calendar-week.png`    | 2047 × 1102 | Calendar week with WorkSessions, recurring morning planning, a standalone Event and template occurrences. |
+| `weekly-templates.png` | 2047 × 1106 | An active reusable weekly template with two entries.                                                      |
 
-Today retains the earlier Comfortable-density capture. The other four captures
-use Compact density and a wider desktop window to keep the weekly layout readable.
-The saved captures were reused without restarting the application; matching Today's
-viewport to the remaining images is an optional future presentation improvement.
+## Capture and presentation
 
-The capture service supplied JPEG images, converted to PNG without resizing,
-recoloring, retouching or changing decoded pixels. No generated interfaces,
-mockups or added overlays are used. Natural cursor highlights remain in some
-captures. All five images were visually reviewed for dark appearance, legibility
-and absence of personal data. Earlier V1.2 screenshots remain in Git history.
+The replacement captures were saved directly as lossless PNG, without an
+intermediate JPEG encoding. The obsolete capture-service JPEG-to-PNG workflow
+does not describe these files. The PNG format alone cannot prove capture history;
+direct-lossless provenance is based on the supplied capture method.
+
+During README integration, all five PNGs were visually reviewed and checked for
+valid image structure and successful pixel-data decoding. No screenshots were
+recaptured, resized, recompressed, retouched or otherwise edited during integration.
+The small height differences above are retained as supplied.
+
+The root README displays each screenshot at full available content width, with
+short captions and links to its original image. A single column avoids shrinking
+interface text into paired thumbnails and works without responsive CSS. GitHub
+still scales wide desktop captures down on narrow screens; open the full image
+and zoom to inspect small labels. These captures show the visible application
+viewport, including its natural scrollbars and any content continuing below it.
 
 Keep future replacements tied to a verified product revision and use the actual
-dark theme. The Strand P logo in the main README reuses
-`src/assets/icons/strand-p.svg`.
+dark theme. The README banner preserves the original Strand P geometry from
+`src/assets/icons/strand-p.svg`. Earlier screenshots remain in Git history.

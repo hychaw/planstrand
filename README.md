@@ -1,135 +1,140 @@
+<h1 align="center">
+  <img src="docs/assets/readme/planstrand-banner.svg" alt="Planstrand — Make room for what matters." width="100%">
+</h1>
+
 <p align="center">
-  <img src="src/assets/icons/strand-p.svg" alt="Planstrand Strand P logo" width="88" height="88">
+  A local-first personal planner for a clearer day and a more intentional week.<br>
+  Bring tasks, focused work and everyday routines into one workspace.
 </p>
 
-<h1 align="center">Planstrand</h1>
+<p align="center">
+  <strong>Works offline · No mandatory account · Blue Thread light &amp; dark</strong>
+</p>
 
-<p align="center"><strong>Plan your time. Stay focused.</strong></p>
+<p align="center">
+  <a href="#download-v13-rc1">Download</a> ·
+  <a href="#a-place-for-every-part-of-your-day">Explore</a> ·
+  <a href="docs/wiki/3.10-Planstrand-V1.md">User guide</a> ·
+  <a href="docs/releases/v1.3.0-rc.1.md">Release notes</a>
+</p>
 
-Planstrand is a local-first personal planner for turning tasks and routines into
-a manageable day. Organize work in Folders, choose what to focus on, and reserve
-time with WorkSessions. Calendar Events, recurring schedules and Weekly Templates
-bring the rest of your week into the same organized workspace. Core planning works
-offline, with your data stored on your computer and no mandatory account.
+## Download V1.3 RC1
 
-![Planstrand Today: Focus tasks and My Day in Blue Thread Dark](docs/assets/readme/today-focus.png)
+**1.3.0-rc.1 · Windows x64 · Prerelease**
 
-## Download
+| [↓ Windows Setup](https://github.com/hychaw/planstrand/releases/download/v1.3.0-rc.1/Planstrand-Setup.exe) | [↓ Windows Portable](https://github.com/hychaw/planstrand/releases/download/v1.3.0-rc.1/Planstrand-Portable.exe) |
+| :--------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| Regular per-user Windows installation.                                                                     | Run without a traditional installation.                                                                          |
 
-**Planstrand V1.3 RC1** · Windows x64 · Prerelease · [Release notes](https://github.com/hychaw/planstrand/releases/tag/v1.3.0-rc.1)
+[Official release & checksums](https://github.com/hychaw/planstrand/releases/tag/v1.3.0-rc.1)
+· [All releases](https://github.com/hychaw/planstrand/releases)
 
-| Download                                                                                                       | Choose this for                           |
-| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| [Windows Setup](https://github.com/hychaw/planstrand/releases/download/v1.3.0-rc.1/Planstrand-Setup.exe)       | Regular per-user Windows installation.    |
-| [Windows Portable](https://github.com/hychaw/planstrand/releases/download/v1.3.0-rc.1/Planstrand-Portable.exe) | Running without traditional installation. |
+> **Before you install:** These Windows builds are **unsigned**. SmartScreen,
+> Smart App Control or organizational policies may warn about or block execution.
+> Installation and updates are manual. Before upgrading, export an independent
+> backup and [rehearse restoration](docs/v1.2-backup-restore.md).
 
-Both normally store user data separately from the executable, in the same default
-Planstrand profile. The portable executable does not automatically carry your data
-between computers.
+Run Setup to install, or launch the Portable executable. Both normally use the
+same profile at `%APPDATA%\Planstrand`, separate from the executable. **Portable
+does not automatically carry your data between computers.** See
+[upgrade and data safety](#upgrade-and-data-safety) before using an existing profile.
 
-Windows x64 is the currently validated distribution platform. These are **unsigned
-release-candidate builds**: SmartScreen, Smart App Control or organizational
-policies may warn about or block execution. Installation and updates are manual.
-Before upgrading, export an independent backup and
-[verify restoration](docs/v1.2-backup-restore.md). A V1.2 → V1.3 in-place installer
-upgrade was **not tested**. **V1.2 profiles cannot be opened by V1.1**; rollback
-requires a separate pre-upgrade backup/profile. See the
-[V1.3 release notes](docs/releases/v1.3.0-rc.1.md) for acceptance results,
-checksums, compatibility requirements and known limitations.
+## A place for every part of your day
 
-[All releases](https://github.com/hychaw/planstrand/releases)
+### Find your focus
 
-## A workspace for your plans
+**Today** brings your priorities and schedule together. Choose what matters in
+**Focus**, then make room for it in **My Day** with Task-linked WorkSessions.
+New Tasks created in My Day are planned for Today and appear in Focus.
 
-### Tasks and daily Planning
+[![Today: Focus Tasks beside My Day, timed Events and a WorkSession in Blue Thread Dark](docs/assets/readme/today-focus.png)](docs/assets/readme/today-focus.png)
 
-- **Tasks and Folders.** Capture Tasks in Inbox, organize them in hierarchical
-  Folders, and keep a Task order that persists across restarts. Clearer context
-  menus handle management; three-dot menus bring Planning and scheduling together.
-- **Today and weekly Planning.** Move Tasks to Today, Tomorrow, This Week, Next Week
-  or a selected date. Navigate between planning weeks and keep flexible work in
-  Anytime This Week. Planning, deadlines and WorkSessions remain independent.
-- **Focus and My Day.** Keep daily priorities beside your schedule. New Tasks
-  created in My Day are planned for Today and appear in Focus. Schedule multiple
-  WorkSessions for a Task, and edit their start and end times to the exact minute
-  from My Day or Calendar. Dragging retains five-minute snapping; completing a
-  WorkSession leaves its parent Task independent.
+### Give your week some breathing room
 
-### Calendar and reusable routines
+Keep work organized in **Tasks and hierarchical Folders**, then decide when to
+take it on in **This Week**. Plan for a day, move between weeks, or leave flexible
+work in **Anytime This Week**. Planning, deadlines and WorkSessions stay independent.
 
-- **Calendar and Events.** Explore Day, Week, Month and Year views, alongside Task
-  WorkSessions. V1.3 improves week-start behaviour, the current-time indicator and
-  British Columbia timezone compatibility.
-- **Recurring Events and Weekly Templates.** Use daily, weekly or monthly Events,
-  editing one occurrence, this and future occurrences, or the series. Build reusable
-  weekly schedules with multiple entries and date bounds. Activated templates
-  appear in Calendar without creating Tasks or WorkSessions.
-- **Device-local reminders.** Set reminders for standalone timed Events and
-  WorkSessions. Delivery is best effort while Planstrand runs; notifications are
-  not guaranteed when it is closed. Recurring and all-day Events do not support
-  these reminders, and reminder preferences are not synchronized.
+**This Week · see what lies ahead.** Choose a day without committing to a time slot.
 
-### A workspace you control
+[![This Week with weekday Planning groups and Anytime This Week](docs/assets/readme/this-week.png)](docs/assets/readme/this-week.png)
 
-- **Local-first and offline.** Core planning works offline and stores data locally
-  by default. Optional synchronization uses providers and services you explicitly
-  configure and check for compatibility.
-- **Update and backup safeguards.** Release-candidate discovery points to official
-  releases; upgrades remain manual. Backup write verification and future-data
-  compatibility guards help check exported data. Independent backups and restore
-  rehearsals remain essential; invalid TLS certificates are rejected by default.
-- **Make it yours.** Blue Thread brings a distinctive blue identity, light and dark
-  appearance, Comfortable and Compact density, and a responsive desktop interface.
+**Tasks & Folders · keep work in order.** Use nested Folders and Task ordering that
+survives restarts.
 
-### Calendar · make room for routines and focused work
+[![Tasks organized in Inbox and hierarchical Folders, with a nested Task](docs/assets/readme/tasks-folders.png)](docs/assets/readme/tasks-folders.png)
 
-![Dark Calendar week with recurring Events, a standalone Event, and a Task-linked WorkSession](docs/assets/readme/calendar-week.png)
+### Make time for work and routines
 
-### Weekly Templates · shape a repeatable week
+Explore **Calendar** in Day, Week, Month or Year view. Schedule multiple
+**WorkSessions** for a Task and edit their start and end times to the exact minute.
+Build a rhythm with daily, weekly or monthly **recurring Events** and reusable
+**Weekly Templates**.
 
-![Weekly Template management in dark mode with a reusable weekly schedule](docs/assets/readme/weekly-templates.png)
+**Calendar · make space for focused work.** Keep Events and Task-linked WorkSessions
+in view.
 
-<details>
-<summary>This Week · weekly planning</summary>
+[![Calendar week with WorkSessions, recurring Events and template occurrences](docs/assets/readme/calendar-week.png)](docs/assets/readme/calendar-week.png)
 
-![Dark This Week view with weekday planning and Anytime This Week](docs/assets/readme/this-week.png)
+**Weekly Templates · shape a repeatable week.** Activate a schedule without creating
+Tasks or WorkSessions.
 
-</details>
+[![Weekly Templates with an active reusable schedule containing two entries](docs/assets/readme/weekly-templates.png)](docs/assets/readme/weekly-templates.png)
 
-<details>
-<summary>Tasks and Folders</summary>
+All five views show Blue Thread Dark. Select any screenshot to open the full image.
+Blue Thread also offers light appearance and Comfortable or Compact density.
 
-![Dark Tasks view organized into Inbox and nested user-created Folders](docs/assets/readme/tasks-folders.png)
+**A timely nudge.** Device-local reminders are available for standalone timed Events
+and WorkSessions. Delivery is best effort while Planstrand runs; reliable closed-app
+delivery is unavailable. Recurring and all-day Events do not support these reminders.
+Reminder preferences are excluded from synchronization and model-only exports.
 
-</details>
+**Your workspace, on your computer.** Core planning works offline, stores data locally
+and requires no account. Synchronization is optional and disabled by default;
+configured providers or integrations can send data to the services you choose.
 
-## Get started
+## What's new in V1.3
 
-1. Download Planstrand Setup or Portable.
-2. Launch the application.
-3. Create Tasks in Inbox or Folders.
-4. Plan work in Today or This Week.
-5. Reserve focused time through WorkSessions in My Day or Calendar.
-6. Add recurring Events or open Weekly Templates from Calendar to plan routines.
+| Everyday planning                                                                                                                      | Scheduling and safeguards                                                                                                                                             |
+| :------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **More flexible Planning:** Today, Tomorrow, This Week, Next Week, selected dates and Unplan, with navigation across weeks.            | **Precise WorkSessions:** exact-minute start/end editing in My Day and Calendar; dragging retains five-minute snapping.                                               |
+| **Clearer Task controls:** persistent ordering, management context menus, and Planning/scheduling menus for Tasks and nested Tasks.    | **Calendar corrections:** configured week starts, the current-time indicator and British Columbia timezone compatibility.                                             |
+| **My Day creation:** new Tasks automatically join Today and Focus. **Reminders:** improved controls and Windows notification handling. | **Upgrade safeguards:** clearer release-candidate discovery, stronger backup write verification and future-data guards; invalid TLS certificates rejected by default. |
 
-## Local data and privacy
+Read the [V1.3 RC1 release notes](docs/releases/v1.3.0-rc.1.md) for Windows
+acceptance results, compatibility, checksums and known limitations. Windows x64 is
+the currently validated distribution platform.
 
-On Windows desktop, the default user-data directory is `%APPDATA%\Planstrand`.
-Tasks, Folders, Planning, Events, Weekly Templates, WorkSessions, and application preferences are
-stored locally. Setup and Portable normally use this same profile.
+## Start with one Task
 
-Keep an independent backup through **Settings → Sync & Backup** before deleting
-the profile or upgrading between release candidates. Deleting the entire profile
-is different from a selective Task reset: it may remove Events, Settings, and
-other local information too.
+1. Create a Task in **Inbox** or a Folder.
+2. Plan it for **Today** or **This Week**.
+3. Reserve time with a **WorkSession** in My Day or Calendar.
+4. Add recurring Events or open **Weekly Templates** from Calendar for your routines.
 
-Core functionality requires no account. Explicitly configured synchronization or
-integrations can send data to the remote services you choose. Planstrand does not
-provide a hosted **SuperSync** service; synchronization is disabled by default.
-Before upgrading existing sync clients, disconnect until server/provider and client
-compatibility is verified. Do not use the upstream hosted service as a Planstrand
-endpoint. See the [V1.3 limitations](docs/releases/v1.3.0-rc.1.md#known-limitations)
-and [V1.2 sync and recovery requirements](docs/releases/v1.2.0-rc.1.md).
+The [Planstrand user guide](docs/wiki/3.10-Planstrand-V1.md) covers the current
+interface, Planning, routines and local data.
+
+## Upgrade and data safety
+
+- **Keep an independent backup.** Export through **Settings → Sync & Backup →
+  Import/Export** before upgrading or deleting a profile. Keep a protected copy
+  outside the profile and sync destination, and preserve credentials and encryption
+  keys separately. [Rehearse restoration](docs/v1.2-backup-restore.md) in a disposable
+  profile with sync disconnected. Application-data backups are not complete
+  filesystem-profile backups or automatic rollback; deleting the profile can also
+  remove Events, settings and other local information.
+- **Check upgrade compatibility.** A V1.2 → V1.3 in-place installer upgrade was
+  **not tested** for this candidate. V1.3 retains V1.2's schemas, but unchanged
+  schemas do not guarantee rollback. **V1.2 profiles cannot be opened by V1.1**;
+  rollback requires a separate pre-upgrade backup/profile. Close Planstrand
+  completely before upgrading.
+- **Reconnect sync deliberately.** Disconnect existing sync clients until
+  server/provider and client compatibility is verified. Planstrand provides
+  **no hosted SuperSync service**; do not use the upstream hosted service as a
+  Planstrand endpoint. Check restored data and persistence after restarting before
+  reconnecting. See [V1.3 limitations](docs/releases/v1.3.0-rc.1.md#known-limitations)
+  and [V1.2 sync and recovery requirements](docs/releases/v1.2.0-rc.1.md).
 
 ## Development
 
@@ -149,9 +154,10 @@ npm start
 The frontend copies both project license notices as assets. Production frontend
 scripts also generate and publish `3rdpartylicenses.txt` for the About page;
 a fresh development-only startup does not generate that dependency notice file.
-See [development guidance](docs/development.md) for repository conventions and checks.
+See [development guidance](docs/development.md) for repository conventions and checks,
+and the [documentation index](docs/README.md) for maintained technical guides.
 
-## License and Acknowledgements
+## License and acknowledgements
 
 Planstrand is developed and maintained by **How Yee Chaw** and distributed under
 the [MIT License](LICENSE). Original Planstrand contributions are copyright

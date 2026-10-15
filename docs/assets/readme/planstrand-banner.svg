@@ -1,0 +1,169 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1280"
+  height="320"
+  viewBox="0 0 1280 320"
+  fill="none"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Planstrand</title>
+  <desc id="desc">
+    Make room for what matters. The original Strand P mark on a navy sky with flowing blue
+    threads.
+  </desc>
+  <defs>
+    <linearGradient
+      id="sky"
+      x1="0"
+      y1="0"
+      x2="1280"
+      y2="320"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#0b142b" />
+      <stop
+        offset="1"
+        stop-color="#122e56"
+      />
+    </linearGradient>
+    <linearGradient
+      id="thread"
+      x1="650"
+      y1="260"
+      x2="1260"
+      y2="85"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop
+        stop-color="#2563eb"
+        stop-opacity="0"
+      />
+      <stop
+        offset=".45"
+        stop-color="#60a5fa"
+      />
+      <stop
+        offset="1"
+        stop-color="#c0efff"
+      />
+    </linearGradient>
+    <linearGradient
+      id="upper"
+      x1="17"
+      y1="33"
+      x2="48"
+      y2="10"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#2563eb" />
+      <stop
+        offset=".55"
+        stop-color="#60a5fa"
+      />
+      <stop
+        offset="1"
+        stop-color="#c0efff"
+      />
+    </linearGradient>
+    <linearGradient
+      id="lower"
+      x1="16"
+      y1="56"
+      x2="42"
+      y2="26"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#67e8f9" />
+      <stop
+        offset=".5"
+        stop-color="#38a9f1"
+      />
+      <stop
+        offset="1"
+        stop-color="#2563eb"
+      />
+    </linearGradient>
+  </defs>
+  <rect
+    width="1280"
+    height="320"
+    rx="20"
+    fill="url(#sky)"
+  />
+  <path
+    d="M640 305C785 305 780 198 908 198S1040 280 1130 206S1210 92 1300 92"
+    stroke="url(#thread)"
+    stroke-width="3"
+  />
+  <path
+    d="M615 330C790 330 815 225 920 225S1050 305 1140 231S1225 119 1300 119"
+    stroke="url(#thread)"
+    stroke-opacity=".35"
+    stroke-width="1.5"
+  />
+  <path
+    d="M735 320C835 280 850 170 954 170S1056 232 1138 172S1225 65 1300 65"
+    stroke="url(#thread)"
+    stroke-opacity=".2"
+    stroke-width="1.5"
+  />
+  <circle
+    cx="1130"
+    cy="206"
+    r="5"
+    fill="#c0efff"
+  />
+  <circle
+    cx="1182"
+    cy="69"
+    r="2"
+    fill="#c0efff"
+    opacity=".45"
+  />
+  <circle
+    cx="1023"
+    cy="92"
+    r="1.5"
+    fill="#c0efff"
+    opacity=".3"
+  />
+  <!-- Original Strand P geometry and gradients, unchanged from src/assets/icons/strand-p.svg. -->
+  <g transform="translate(66 66) scale(1.5)">
+    <path
+      d="M12 32C17 10 29 4 42 7C53 9 58 17 54 26C51 34 43 37 31 37H23C19 37 15 39 12 43C14 32 22 26 32 26H39C44 26 47 24 47 20C47 16 43 14 38 15C28 15 23 23 22 27L12 32Z"
+      fill="url(#upper)"
+    />
+    <path
+      d="M12 43C16 34 23 31 33 31H45C41 36 36 39 29 40C24 40 22 43 21 48L19 56C18 60 11 61 10 56C9 53 10 47 12 43Z"
+      fill="url(#lower)"
+    />
+  </g>
+  <text
+    x="184"
+    y="139"
+    fill="#f0f7ff"
+    font-family="Segoe UI, Helvetica, Arial, sans-serif"
+    font-size="62"
+    font-weight="650"
+    letter-spacing="-2"
+  >
+    Planstrand
+  </text>
+  <text
+    x="80"
+    y="218"
+    fill="#c0d8f5"
+    font-family="Segoe UI, Helvetica, Arial, sans-serif"
+    font-size="30"
+    font-weight="400"
+  >
+    Make room for what matters.
+  </text>
+  <path
+    d="M80 256H144"
+    stroke="#60a5fa"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+</svg>
