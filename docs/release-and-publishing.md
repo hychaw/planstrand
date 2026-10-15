@@ -1,6 +1,6 @@
 # Planstrand release and publishing
 
-Planstrand [`v1.2.0-rc.1`](https://github.com/hychaw/planstrand/releases/tag/v1.2.0-rc.1) is publicly released for Windows x64, with installer and portable artifacts, on October 12, 2026 UTC at source revision `1a94b8cbf1c69f94976c3c86fbd222c04ff6ad50`. [GitHub Releases](https://github.com/hychaw/planstrand/releases) is the authoritative download location. Keep all published V1.0, V1.1 and V1.2 tags, releases, assets, and their evidence unchanged. No hosted SuperSync service is provided.
+Planstrand [`v1.3.0-rc.1`](https://github.com/hychaw/planstrand/releases/tag/v1.3.0-rc.1) was published as a Windows x64 prerelease on October 15, 2026 UTC at source revision `58b9471b92dee0c5fe8bcabf15d3ec194bb47793`. [GitHub Releases](https://github.com/hychaw/planstrand/releases) is the authoritative download location. Keep all published V1.0, V1.1, V1.2 and V1.3 tags, releases, assets and their evidence unchanged. No hosted SuperSync service is provided.
 
 ## Current release tooling
 
@@ -12,20 +12,25 @@ Electron publishing is disabled in [electron-builder.yaml](../electron-builder.y
 
 ## Build and validation
 
-V1.3 RC1 is prepared separately from the published V1.2 release. See the
-[V1.3 release notes](releases/v1.3.0-rc.1.md) and
-[release-readiness and upgrade validation record](v1.3-phase-5b-release-readiness.md).
-Preparation does not create a tag, dispatch a workflow or publish assets. Keep
-README download links on the published version until publication is approved.
-
-The current published candidate is **V1.2 RC1**. The
-[release notes and conditional self-hosted deployment checklist](releases/v1.2.0-rc.1.md)
-preserve the preparation-time record; publication does not certify a server deployment.
+The current published candidate is **V1.3 RC1**, with five integrity-verified release
+assets. The exact Windows Portable and Setup executables passed owner runtime
+acceptance, including persistence, backup/restore and installation/uninstallation.
+A genuine V1.2 → V1.3 in-place installer upgrade remains **NOT TESTED**. See the
+[V1.3 release notes](releases/v1.3.0-rc.1.md) for the final evidence and limitations;
+the [earlier readiness record](v1.3-phase-5b-release-readiness.md) remains historical
+preparation evidence. Publication does not certify a server deployment or imply
+that all inherited GitHub Actions checks passed.
 
 For V1.2 RC1, use the [final readiness requirement and result](routines-rc1-final-readiness.md)
 and complete the [independent pre-upgrade backup/restore rehearsal](v1.2-backup-restore.md).
 Complete backup restoration is required; encrypted operator tail reconstruction
 is limited to admitted histories and is not a universal recovery guarantee.
+
+For a future candidate, the general build entry points are shown below. They are
+not instructions to recreate the published V1.3 assets. V1.3 used an approved
+installation-free staged build because the root `prebuild` helper can invoke
+dependency installation even when hoisted workspace dependencies are valid.
+Review the script chain and prerequisites before selecting a future build procedure.
 
 ```sh
 npm ci

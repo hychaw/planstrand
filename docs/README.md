@@ -8,7 +8,8 @@ research note does not override the current code, tests, or an accepted decision
 
 Update these alongside the behavior or workflow they describe:
 
-- [Current V1.2 RC1 download and published release notes](https://github.com/hychaw/planstrand/releases/tag/v1.2.0-rc.1)
+- [Current V1.3 RC1 Windows x64 download and published release notes](https://github.com/hychaw/planstrand/releases/tag/v1.3.0-rc.1)
+- [V1.3 RC1 acceptance, compatibility and known limitations](releases/v1.3.0-rc.1.md)
 - [V1.2 independent backup and restore before upgrading](v1.2-backup-restore.md)
 - [Development guidance](development.md)
 - [GitHub Actions and repository settings](GITHUB_ACTIONS.md)
