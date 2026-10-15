@@ -2,12 +2,12 @@
 
 ## [[1.00-Quickstarts]]
 
-- [[1.01-First-Steps]]
+- [[3.10-Planstrand-V1]]
 - [[1.02-Configure-Data-Synchronization]]
 
 ## [[2.00-How_To]]
 
-### Using Super-Productivity
+### How-To and Inherited Features
 
 - [[2.01-Downloads and Install]]
 - [[2.02-Restore-Data-From-Backup]]
@@ -23,7 +23,7 @@
 - [[2.21-Manage-Plugins]]
 - [[2.13-Run-with-Docker]]
 
-### Contributing to Super-Productivity
+### Development and Contributions
 
 - [[2.18-Contribute-Translations]]
 - [[2.11-Run-the-Development-Server]]
@@ -46,6 +46,9 @@
 - [[3.09-Theming]]
 
 ## [[4.00-Concepts]]
+
+Inherited feature concepts may differ from current Planstrand navigation.
+Start with [[3.10-Planstrand-V1]] for the current workflow.
 
 ### Data-and-Integrations
 
