@@ -4,7 +4,7 @@ import { TaskViewCustomizerService } from './task-view-customizer.service';
 import { Project } from '../project/project.model';
 import { Tag } from '../tag/tag.model';
 import { TaskWithSubTasks } from '../tasks/task.model';
-import { provideMockStore } from '@ngrx/store/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectAllProjects } from '../project/store/project.selectors';
 import { getTomorrow } from '../../util/get-tomorrow';
 import { getDbDateStr } from '../../util/get-db-date-str';
@@ -185,6 +185,11 @@ describe('TaskViewCustomizerService', () => {
     service = TestBed.inject(TaskViewCustomizerService);
     (service as any)._allProjects = mockProjects;
     (service as any)._allTags = mockTags;
+  });
+
+  afterEach(() => {
+    // Nested suites replace the TestBed, so resolve the current owning store here.
+    TestBed.inject(MockStore).resetSelectors();
   });
 
   it('should filter by tag name', () => {
